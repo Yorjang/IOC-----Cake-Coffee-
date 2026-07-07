@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from './entities/user.entity';
+import { User, UserRole } from './entities/user.entity';
 import { RegisterDto } from '../auth/dto/register.dto';
 
 @Injectable()
@@ -37,6 +37,7 @@ export class UsersService {
             phone: registerDto.phone,
             passwordHash: registerDto.password, // Password hashing will be handled in AuthService
             isActive: !registerDto.email, // Inactive if registration has email (requires verification)
+            role: UserRole.CUSTOMER,
         });
 
         return this.usersRepository.save(user);
@@ -61,6 +62,36 @@ export class UsersService {
         }
         Object.assign(user, attrs);
         return this.usersRepository.save(user);
+    }
+
+    async findAll(): Promise<User[]> {
+        return this.usersRepository.find({
+            select: {
+                id: true,
+                fullName: true,
+                email: true,
+                phone: true,
+                role: true,
+                branchId: true,
+                isActive: true,
+                emailVerifiedAt: true,
+                createdAt: true,
+                updatedAt: true,
+            },
+        });
+    }
+
+    async updateRole(id: string, role: UserRole): Promise<User> {
+        const user = await this.findById(id);
+        if (!user) {
+            throw new BadRequestException('User not found');
+        }
+        user.role = role;
+        const savedUser = await this.usersRepository.save(user);
+        
+        // Remove password hash from returned object
+        const { passwordHash: _, ...result } = savedUser;
+        return result as any;
     }
 }
 

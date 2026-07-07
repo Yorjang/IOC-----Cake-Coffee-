@@ -56,6 +56,7 @@ let AuthService = AuthService_1 = class AuthService {
         this.mailService = mailService;
         this.configService = configService;
         this.logger = new common_1.Logger(AuthService_1.name);
+        this.blacklistedTokens = new Set();
     }
     getJwtSecret() {
         return this.configService.get('JWT_SECRET') || 'super_secret_jwt_key_123_cake_coffee';
@@ -159,7 +160,26 @@ let AuthService = AuthService_1 = class AuthService {
             user: this.sanitizeUser(user),
         };
     }
+    async logout(refreshToken) {
+        if (this.blacklistedTokens.has(refreshToken)) {
+            return { message: 'Đăng xuất thành công.' };
+        }
+        try {
+            jwt.verify(refreshToken, this.getJwtSecret());
+            this.blacklistedTokens.add(refreshToken);
+            return { message: 'Đăng xuất thành công.' };
+        }
+        catch (error) {
+            if (error instanceof jwt.TokenExpiredError) {
+                throw new common_1.BadRequestException('Mã token đã hết hạn.');
+            }
+            throw new common_1.BadRequestException('Mã token không hợp lệ.');
+        }
+    }
     async refresh(refreshToken) {
+        if (this.blacklistedTokens.has(refreshToken)) {
+            throw new common_1.BadRequestException('Mã token đã bị vô hiệu hóa hoặc người dùng đã đăng xuất.');
+        }
         try {
             const decoded = jwt.verify(refreshToken, this.getJwtSecret());
             const user = await this.usersService.findById(decoded.sub);
@@ -199,6 +219,62 @@ let AuthService = AuthService_1 = class AuthService {
     sanitizeUser(user) {
         const { passwordHash: _, ...result } = user;
         return result;
+    }
+    async forgotPassword(forgotPasswordDto) {
+        const { email } = forgotPasswordDto;
+        const user = await this.usersService.findByEmail(email);
+        if (!user) {
+            return {
+                message: 'Nếu địa chỉ email tồn tại trên hệ thống, một liên kết đặt lại mật khẩu đã được gửi qua email.',
+            };
+        }
+        const secret = this.getJwtSecret() + user.passwordHash;
+        const token = jwt.sign({ sub: user.id, email: user.email, purpose: 'password-reset' }, secret, { expiresIn: '15m' });
+        try {
+            await this.mailService.sendResetPasswordEmail(user.email, token);
+            return {
+                message: 'Nếu địa chỉ email tồn tại trên hệ thống, một liên kết đặt lại mật khẩu đã được gửi qua email.',
+            };
+        }
+        catch (error) {
+            this.logger.error(`Error sending password reset email to ${email}: ${error.message}`);
+            throw new common_1.BadRequestException(`Failed to send password reset email: ${error.message}`);
+        }
+    }
+    async resetPassword(token, resetPasswordDto) {
+        const { password } = resetPasswordDto;
+        let decoded;
+        try {
+            decoded = jwt.decode(token);
+        }
+        catch (error) {
+            throw new common_1.BadRequestException('Invalid password reset token format.');
+        }
+        if (!decoded || !decoded.sub || decoded.purpose !== 'password-reset') {
+            throw new common_1.BadRequestException('Invalid password reset token.');
+        }
+        const user = await this.usersService.findById(decoded.sub);
+        if (!user) {
+            throw new common_1.BadRequestException('User not found.');
+        }
+        try {
+            const secret = this.getJwtSecret() + user.passwordHash;
+            jwt.verify(token, secret);
+        }
+        catch (error) {
+            if (error instanceof jwt.TokenExpiredError) {
+                throw new common_1.BadRequestException('Password reset token has expired.');
+            }
+            throw new common_1.BadRequestException('Invalid or already used password reset token.');
+        }
+        const saltOrRounds = 10;
+        const newPasswordHash = await bcrypt.hash(password, saltOrRounds);
+        await this.usersService.update(user.id, {
+            passwordHash: newPasswordHash,
+        });
+        return {
+            message: 'Mật khẩu đã được đặt lại thành công. Vui lòng đăng nhập lại.',
+        };
     }
 };
 exports.AuthService = AuthService;

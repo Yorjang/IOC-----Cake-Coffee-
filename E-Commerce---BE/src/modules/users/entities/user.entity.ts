@@ -26,13 +26,13 @@ export class User {
     @Column({ name: 'password_hash', length: 255 })
     passwordHash: string;
 
-    @Column({ type: 'enum', enum: UserRole, default: UserRole.CUSTOMER })
+    @Column({ type: 'enum', enum: UserRole, default: UserRole.GUEST })
     role: UserRole;
 
     @Column({ name: 'branch_id', type: 'uuid', nullable: true })
     branchId: string;
 
-    @Column({ name: 'is_active', default: true })
+    @Column({ name: 'is_active', default: false })
     isActive: boolean;
 
     @Column({ name: 'email_verified_at', type: 'timestamptz', nullable: true })

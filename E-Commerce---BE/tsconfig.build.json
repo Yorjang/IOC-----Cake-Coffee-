@@ -1,4 +1,4 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "test", "dist", "**/*spec.ts", "test-login.ts"]
+  "exclude": ["node_modules", "test", "dist", "**/*spec.ts", "test-login.ts", "test-forgot-password.ts", "test-logout.ts", "test-registration.ts", "test-rbac.ts"]
 }

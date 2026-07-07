@@ -23,6 +23,9 @@ import { UsersModule } from './modules/users/users.module';
             password: process.env.DB_PASSWORD,
             database: process.env.DB_NAME,
 
+            // Hỗ trợ kết nối SSL cho cloud DB (như Supabase)
+            ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+
             // Tư duy "Giữ nhẹ project" của NestJS:
             autoLoadEntities: true,
 

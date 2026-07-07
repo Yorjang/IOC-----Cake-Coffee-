@@ -1,5 +1,5 @@
 import { Repository } from 'typeorm';
-import { User } from './entities/user.entity';
+import { User, UserRole } from './entities/user.entity';
 import { RegisterDto } from '../auth/dto/register.dto';
 export declare class UsersService {
     private usersRepository;
@@ -9,4 +9,6 @@ export declare class UsersService {
     findByPhone(phone: string): Promise<User | null>;
     findById(id: string): Promise<User | null>;
     update(id: string, attrs: Partial<User>): Promise<User>;
+    findAll(): Promise<User[]>;
+    updateRole(id: string, role: UserRole): Promise<User>;
 }

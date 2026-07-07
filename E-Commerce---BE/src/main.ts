@@ -16,9 +16,8 @@ async function bootstrap() {
       transform: true, // Tự động chuyển đổi kiểu dữ liệu
     }));
 
-  // Lắng nghe ở cổng PORT cấu hình trong file .env hoặc mặc định 3000
-    const port = process.env.PORT || 3000;
-    await app.listen(port);
+  // Lắng nghe ở cổng 3000 (bạn có thể đổi thành 8080 tùy ý)
+    await app.listen(3000);
 
   // In ra một dòng log để chúng ta biết server đã chạy thành công
     console.log(`Project Cake & Coffee đã khởi chạy tại: ${await app.getUrl()}`);

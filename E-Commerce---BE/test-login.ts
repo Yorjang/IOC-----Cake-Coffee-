@@ -168,8 +168,8 @@ async function runTests() {
         assert(invalidRefreshRes.status === 400, `Invalid token refresh should fail with status 400 (got ${invalidRefreshRes.status})`);
 
         // 10. Clean up test user from DB
-        // await userRepository.delete({ email: TEST_EMAIL });
-        // console.log('Cleaned up test user from database.');
+        await userRepository.delete({ email: TEST_EMAIL });
+        console.log('Cleaned up test user from database.');
 
         console.log('\n⭐ ALL TESTS PASSED SUCCESSFULLY! ⭐');
     } catch (error) {
@@ -177,9 +177,9 @@ async function runTests() {
         passed = false;
     } finally {
         // Clean up test user in case of assertion failure
-        // try {
-        //     await userRepository.delete({ email: TEST_EMAIL });
-        // } catch (_) {}
+        try {
+            await userRepository.delete({ email: TEST_EMAIL });
+        } catch (_) {}
         await app.close();
         console.log('NestJS server shut down.');
         process.exit(passed ? 0 : 1);

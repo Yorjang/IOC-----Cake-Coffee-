@@ -11,8 +11,7 @@ async function bootstrap() {
         forbidNonWhitelisted: true,
         transform: true,
     }));
-    const port = process.env.PORT || 3000;
-    await app.listen(port);
+    await app.listen(3000);
     console.log(`Project Cake & Coffee đã khởi chạy tại: ${await app.getUrl()}`);
 }
 bootstrap();

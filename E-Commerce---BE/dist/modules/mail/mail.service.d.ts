@@ -5,4 +5,5 @@ export declare class MailService {
     private readonly logger;
     constructor(configService: ConfigService);
     sendVerificationEmail(to: string, token: string): Promise<void>;
+    sendResetPasswordEmail(to: string, token: string): Promise<void>;
 }

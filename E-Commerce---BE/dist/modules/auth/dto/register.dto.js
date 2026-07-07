@@ -16,28 +16,23 @@ class RegisterDto {
 exports.RegisterDto = RegisterDto;
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)({ message: 'Họ và tên không được để trống' }),
-    (0, class_validator_1.MinLength)(2, { message: 'Họ và tên phải có ít nhất 2 ký tự' }),
-    (0, class_validator_1.Matches)(/^[a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂÂÊÔƠƯưăâêôơư\s]+$/, { message: 'Họ và tên chỉ được chứa chữ cái và khoảng trắng' }),
+    (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "fullName", void 0);
 __decorate([
-    (0, class_validator_1.IsEmail)({}, { message: 'Email không đúng định dạng' }),
+    (0, class_validator_1.IsEmail)(),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.Matches)(/^[a-zA-Z0-9._%+-]+@gmail\.com$/, { message: 'Email đăng ký phải là tài khoản Gmail (@gmail.com)' }),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "email", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.Matches)(/^(0|84|\+84)[35789][0-9]{8}$/, { message: 'Số điện thoại Việt Nam không hợp lệ' }),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "phone", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)({ message: 'Mật khẩu không được để trống' }),
-    (0, class_validator_1.MinLength)(8, { message: 'Mật khẩu phải có ít nhất 8 ký tự' }),
-    (0, class_validator_1.Matches)(/^(?=.*[A-Za-z])(?=.*\d).{8,}$/, { message: 'Mật khẩu phải chứa cả chữ cái và chữ số' }),
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.MinLength)(6, { message: 'Password must be at least 6 characters long' }),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "password", void 0);
 //# sourceMappingURL=register.dto.js.map

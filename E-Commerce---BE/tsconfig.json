@@ -19,5 +19,15 @@
         "strictBindCallApply": false,
         "forceConsistentCasingInFileNames": false,
         "noFallthroughCasesInSwitch": false
-    }
+    },
+    "exclude": [
+        "node_modules",
+        "dist",
+        "test",
+        "**/*spec.ts",
+        "test-login.ts",
+        "test-logout.ts",
+        "test-registration.ts",
+        "test-forgot-password.ts"
+    ]
 }

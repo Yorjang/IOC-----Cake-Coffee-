@@ -43,6 +43,7 @@ let UsersService = class UsersService {
             phone: registerDto.phone,
             passwordHash: registerDto.password,
             isActive: !registerDto.email,
+            role: user_entity_1.UserRole.CUSTOMER,
         });
         return this.usersRepository.save(user);
     }
@@ -62,6 +63,32 @@ let UsersService = class UsersService {
         }
         Object.assign(user, attrs);
         return this.usersRepository.save(user);
+    }
+    async findAll() {
+        return this.usersRepository.find({
+            select: {
+                id: true,
+                fullName: true,
+                email: true,
+                phone: true,
+                role: true,
+                branchId: true,
+                isActive: true,
+                emailVerifiedAt: true,
+                createdAt: true,
+                updatedAt: true,
+            },
+        });
+    }
+    async updateRole(id, role) {
+        const user = await this.findById(id);
+        if (!user) {
+            throw new common_1.BadRequestException('User not found');
+        }
+        user.role = role;
+        const savedUser = await this.usersRepository.save(user);
+        const { passwordHash: _, ...result } = savedUser;
+        return result;
     }
 };
 exports.UsersService = UsersService;

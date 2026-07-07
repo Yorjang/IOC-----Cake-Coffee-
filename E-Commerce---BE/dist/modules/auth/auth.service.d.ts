@@ -1,6 +1,8 @@
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { MailService } from '../mail/mail.service';
 import { ConfigService } from '@nestjs/config';
 import { User } from '../users/entities/user.entity';
@@ -9,6 +11,7 @@ export declare class AuthService {
     private readonly mailService;
     private readonly configService;
     private readonly logger;
+    private readonly blacklistedTokens;
     constructor(usersService: UsersService, mailService: MailService, configService: ConfigService);
     private getJwtSecret;
     register(registerDto: RegisterDto): Promise<{
@@ -68,6 +71,9 @@ export declare class AuthService {
             updatedAt: Date;
         };
     }>;
+    logout(refreshToken: string): Promise<{
+        message: string;
+    }>;
     refresh(refreshToken: string): Promise<{
         accessToken: string;
         refreshToken: string;
@@ -88,4 +94,10 @@ export declare class AuthService {
     generateAccessToken(user: User): string;
     generateRefreshToken(user: User): string;
     private sanitizeUser;
+    forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{
+        message: string;
+    }>;
+    resetPassword(token: string, resetPasswordDto: ResetPasswordDto): Promise<{
+        message: string;
+    }>;
 }

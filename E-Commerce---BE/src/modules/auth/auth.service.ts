@@ -2,6 +2,8 @@ import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { MailService } from '../mail/mail.service';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -11,6 +13,7 @@ import { User } from '../users/entities/user.entity';
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly blacklistedTokens = new Set<string>();
 
   constructor(
     private readonly usersService: UsersService,
@@ -152,7 +155,26 @@ export class AuthService {
     };
   }
 
+  async logout(refreshToken: string) {
+    if (this.blacklistedTokens.has(refreshToken)) {
+      return { message: 'Đăng xuất thành công.' };
+    }
+    try {
+      jwt.verify(refreshToken, this.getJwtSecret());
+      this.blacklistedTokens.add(refreshToken);
+      return { message: 'Đăng xuất thành công.' };
+    } catch (error) {
+      if (error instanceof jwt.TokenExpiredError) {
+        throw new BadRequestException('Mã token đã hết hạn.');
+      }
+      throw new BadRequestException('Mã token không hợp lệ.');
+    }
+  }
+
   async refresh(refreshToken: string) {
+    if (this.blacklistedTokens.has(refreshToken)) {
+      throw new BadRequestException('Mã token đã bị vô hiệu hóa hoặc người dùng đã đăng xuất.');
+    }
     try {
       const decoded = jwt.verify(refreshToken, this.getJwtSecret()) as {
         sub: string;
@@ -209,5 +231,81 @@ export class AuthService {
   private sanitizeUser(user: User) {
     const { passwordHash: _, ...result } = user;
     return result;
+  }
+
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    const { email } = forgotPasswordDto;
+    const user = await this.usersService.findByEmail(email);
+
+    if (!user) {
+      // Return successful response to prevent user enumeration attacks
+      return {
+        message: 'Nếu địa chỉ email tồn tại trên hệ thống, một liên kết đặt lại mật khẩu đã được gửi qua email.',
+      };
+    }
+
+    // Generate a reset token valid for 15 minutes
+    // The secret is global JWT_SECRET plus the user's passwordHash.
+    // That way, once they reset their password, the token immediately becomes invalid (single-use token).
+    const secret = this.getJwtSecret() + user.passwordHash;
+    const token = jwt.sign(
+      { sub: user.id, email: user.email, purpose: 'password-reset' },
+      secret,
+      { expiresIn: '15m' },
+    );
+
+    try {
+      await this.mailService.sendResetPasswordEmail(user.email, token);
+      return {
+        message: 'Nếu địa chỉ email tồn tại trên hệ thống, một liên kết đặt lại mật khẩu đã được gửi qua email.',
+      };
+    } catch (error: any) {
+      this.logger.error(`Error sending password reset email to ${email}: ${error.message}`);
+      throw new BadRequestException(`Failed to send password reset email: ${error.message}`);
+    }
+  }
+
+  async resetPassword(token: string, resetPasswordDto: ResetPasswordDto) {
+    const { password } = resetPasswordDto;
+
+    let decoded: any;
+    try {
+      // Decode without verification first to get the sub (userId)
+      decoded = jwt.decode(token);
+    } catch (error) {
+      throw new BadRequestException('Invalid password reset token format.');
+    }
+
+    if (!decoded || !decoded.sub || decoded.purpose !== 'password-reset') {
+      throw new BadRequestException('Invalid password reset token.');
+    }
+
+    const user = await this.usersService.findById(decoded.sub);
+    if (!user) {
+      throw new BadRequestException('User not found.');
+    }
+
+    // Verify the token with the correct secret (which contains user's current passwordHash)
+    try {
+      const secret = this.getJwtSecret() + user.passwordHash;
+      jwt.verify(token, secret);
+    } catch (error) {
+      if (error instanceof jwt.TokenExpiredError) {
+        throw new BadRequestException('Password reset token has expired.');
+      }
+      throw new BadRequestException('Invalid or already used password reset token.');
+    }
+
+    // Update password
+    const saltOrRounds = 10;
+    const newPasswordHash = await bcrypt.hash(password, saltOrRounds);
+
+    await this.usersService.update(user.id, {
+      passwordHash: newPasswordHash,
+    });
+
+    return {
+      message: 'Mật khẩu đã được đặt lại thành công. Vui lòng đăng nhập lại.',
+    };
   }
 }
