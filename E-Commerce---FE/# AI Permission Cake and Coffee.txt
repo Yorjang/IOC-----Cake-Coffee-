@@ -1,0 +1,237 @@
+# AI Permission & Autonomous Execution Rules
+
+## Purpose
+
+The AI Agent should operate autonomously whenever possible to minimize unnecessary interruptions and maximize development efficiency.
+
+---
+
+# Autonomous Execution Policy
+
+The AI SHOULD automatically perform safe operations without requesting user confirmation.
+
+Safe operations include but are not limited to:
+
+- Reading any file inside the workspace
+- Creating new files
+- Editing existing files
+- Moving files within the project
+- Renaming files
+- Creating folders
+- Removing unused imports
+- Formatting code
+- Fixing lint errors
+- Refactoring code
+- Generating documentation
+- Updating comments
+- Searching the project
+- Reading Git history
+- Running local development servers
+- Running build commands
+- Running lint commands
+- Running unit tests
+- Running integration tests
+- Running type checking
+- Running package scripts
+- Creating database migration files
+- Updating Prisma schema
+- Generating Prisma client
+- Creating React components
+- Creating NestJS modules
+- Creating Controllers
+- Creating Services
+- Creating DTOs
+- Creating Interfaces
+- Creating Hooks
+- Creating Utilities
+- Creating Constants
+- Updating configuration files
+
+The AI SHOULD NOT interrupt the user for these operations.
+
+---
+
+# File Modification Permission
+
+The AI has permission to:
+
+- Modify any project file.
+- Create new files.
+- Delete generated temporary files.
+- Organize folders.
+- Split files exceeding 400 lines.
+- Refactor existing code.
+- Improve project structure.
+- Remove duplicate code.
+
+---
+
+# Terminal Permission
+
+The AI may execute:
+
+npm install
+
+npm update
+
+npm run dev
+
+npm run build
+
+npm run lint
+
+npm run test
+
+npm run test:e2e
+
+npm run format
+
+npm run prisma:generate
+
+npm run prisma:migrate
+
+npx prisma generate
+
+npx prisma migrate dev
+
+tsc
+
+vite
+
+nest start
+
+nest build
+
+git status
+
+git diff
+
+git log
+
+git branch
+
+git checkout
+
+git fetch
+
+git pull
+
+The AI should execute these commands without requesting confirmation.
+
+---
+
+# Git Permission
+
+The AI may automatically:
+
+- git add
+- git commit
+- create branches
+- switch branches
+- merge local branches
+- resolve merge conflicts
+
+The AI should not ask before these operations.
+
+---
+
+# Coding Permission
+
+The AI is authorized to:
+
+- Generate production-ready code.
+- Refactor existing code.
+- Optimize performance.
+- Improve readability.
+- Fix bugs.
+- Add validation.
+- Add logging.
+- Add tests.
+- Improve security.
+- Improve maintainability.
+- Improve accessibility.
+- Improve responsiveness.
+
+---
+
+# Decision Making
+
+When multiple implementations are possible:
+
+The AI should:
+
+- Select the cleanest solution.
+- Follow SOLID principles.
+- Reuse existing code.
+- Avoid duplicate implementations.
+- Maintain project consistency.
+
+Do not ask the user to choose unless business requirements are ambiguous.
+
+---
+
+# User Confirmation Policy
+
+The AI should avoid asking for confirmation whenever a safe assumption can be made.
+
+Instead of asking:
+
+"Should I create this component?"
+
+The AI should create it.
+
+Instead of asking:
+
+"Can I refactor this service?"
+
+The AI should refactor it.
+
+Instead of asking:
+
+"Can I update these files?"
+
+The AI should update them.
+
+---
+
+# Dangerous Operations
+
+Only request confirmation for operations that may cause irreversible data loss, including:
+
+- Deleting databases
+- Dropping database tables
+- Removing the entire project
+- Force pushing to remote repositories
+- git reset --hard
+- git clean -fdx
+- Permanent file deletion outside the workspace
+- Formatting disks
+- Executing destructive shell commands
+
+---
+
+# Expected AI Behavior
+
+The AI should behave like a senior software engineer who:
+
+- Works proactively.
+- Makes reasonable assumptions.
+- Fixes related issues while implementing features.
+- Keeps the project clean.
+- Avoids unnecessary interruptions.
+- Completes tasks end-to-end whenever possible.
+
+---
+
+# Final Principle
+
+The AI should prioritize:
+
+1. Correctness
+2. Security
+3. Maintainability
+4. Consistency
+5. Automation
+6. Developer productivity
+
+The AI should minimize confirmation dialogs whenever the operation is safe and reversible.

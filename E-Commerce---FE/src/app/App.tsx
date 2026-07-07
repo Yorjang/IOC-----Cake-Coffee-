@@ -1,294 +1,197 @@
 import { useEffect, useState } from "react";
-import { Coffee, PackageCheck, AlertCircle, Clock, Truck, CreditCard } from "lucide-react";
+import { Toaster, toast } from "sonner";
+
 import { AdminPanel } from "./components/AdminPanel";
 import { AuthPage } from "./components/AuthPage";
 import { ReviewPage } from "./components/ReviewPage";
-
-// ── Data & Components ──────────────────────────────────────────────────────────
-import { categories, products, navPages, heroBanners } from "../data/mockData";
-import { Btn, ProductCard, Section } from "./components/shared";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
-import { MESSAGES } from "../constants/messages";
+
+import { Home } from "./pages/Home";
+import { ProductListing } from "./pages/ProductListing";
+import { ProductDetail } from "./pages/ProductDetail";
+import { Cart } from "./pages/Cart";
+import { Checkout, Success } from "./pages/Checkout";
+import { Favorites } from "./pages/Favorites";
+import { Profile } from "./pages/Profile";
+
+import { categories, products, navPages } from "../data/mockData";
 import { env } from "../config/env";
-import {
-  CART_CONFIG,
-  CATEGORY_GROUPS,
-  CHECKOUT_CONFIG,
-  HOME_CONFIG,
-  PRODUCT_DETAIL_CONFIG,
-  VIEW_KEYS,
-} from "../config/appConfig";
+import { VIEW_KEYS } from "../config/appConfig";
 
-// ── Pages ─────────────────────────────────────────────────────────────────────
-function Home({ setView }: any) {
-  const [activeBanner, setActiveBanner] = useState(0);
+// ── URL / Router helpers ──────────────────────────────────────────────────────
+const VIEW_PATH_MAP: Record<string, string> = {
+  [VIEW_KEYS.HOME]: "/",
+  [VIEW_KEYS.SWEETS]: "/banh-ngot",
+  [VIEW_KEYS.DRINKS]: "/do-uong",
+  [VIEW_KEYS.COMBO]: "/combo",
+  [VIEW_KEYS.CART]: "/gio-hang",
+  [VIEW_KEYS.CHECKOUT]: "/thanh-toan",
+  [VIEW_KEYS.SUCCESS]: "/thanh-cong",
+  [VIEW_KEYS.DETAIL]: "/chi-tiet",
+  [VIEW_KEYS.ADMIN]: "/admin",
+  [VIEW_KEYS.LOGIN]: "/dang-nhap",
+  [VIEW_KEYS.REVIEW]: "/danh-gia",
+  [VIEW_KEYS.FAVORITES]: "/yeu-thich",
+  [VIEW_KEYS.PROFILE]: "/ho-so",
+};
 
+const getPathFromView = (view: string, product?: any) => {
+  if (view === VIEW_KEYS.DETAIL && product) {
+    return `/chi-tiet/${encodeURIComponent(product[0].toLowerCase().replace(/\s+/g, "-"))}`;
+  }
+  return VIEW_PATH_MAP[view] ?? `/danh-muc/${encodeURIComponent(view.toLowerCase().replace(/\s+/g, "-"))}`;
+};
+
+const getViewFromPath = (path: string) => {
+  for (const [key, value] of Object.entries(VIEW_PATH_MAP)) {
+    if (value === path) return key;
+  }
+  if (path.startsWith("/chi-tiet/")) return VIEW_KEYS.DETAIL;
+  if (path.startsWith("/danh-muc/")) {
+    const slug = decodeURIComponent(path.replace("/danh-muc/", ""));
+    return categories.find(c => c.name.toLowerCase().replace(/\s+/g, "-") === slug)?.name ?? VIEW_KEYS.SWEETS;
+  }
+  return VIEW_KEYS.HOME;
+};
+
+const getProductFromPath = (path: string) => {
+  if (!path.startsWith("/chi-tiet/")) return null;
+  const slug = decodeURIComponent(path.replace("/chi-tiet/", ""));
+  return products.find(p => p[0].toLowerCase().replace(/\s+/g, "-") === slug) ?? null;
+};
+
+// ── Price helpers ─────────────────────────────────────────────────────────────
+const parsePrice = (s: string) => parseInt(s.replace(/[^0-9]/g, ""), 10);
+
+// ── Listable categories ───────────────────────────────────────────────────────
+const LISTABLE = [
+  VIEW_KEYS.SWEETS, VIEW_KEYS.DRINKS, VIEW_KEYS.COMBO,
+  "Bánh sinh nhật", "Bánh mousse", "Bánh tart", "Bánh quy",
+  "Cafe", "Trà", "Đồ uống khác", "Tìm kiếm",
+];
+
+// ── App ───────────────────────────────────────────────────────────────────────
+export default function App() {
+  const [view, setViewInternal] = useState<any>(() => getViewFromPath(window.location.pathname));
+  const [selectedProduct, setSelectedProduct] = useState<any>(() => getProductFromPath(window.location.pathname));
+  const [searchQuery, setSearchQuery] = useState("");
+  const [cart, setCart] = useState<any[]>(() => JSON.parse(localStorage.getItem("sb_cart") || "[]"));
+  const [wishlist, setWishlist] = useState<any[]>(() => JSON.parse(localStorage.getItem("sb_wishlist") || "[]"));
+  const [user, setUser] = useState<any>(() => JSON.parse(localStorage.getItem("user") || "null"));
+
+  // ── Persist cart & wishlist ──────────────────────────────────────────────
+  useEffect(() => { localStorage.setItem("sb_cart", JSON.stringify(cart)); }, [cart]);
+  useEffect(() => { localStorage.setItem("sb_wishlist", JSON.stringify(wishlist)); }, [wishlist]);
+
+  // ── History API (back/forward) ───────────────────────────────────────────
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setActiveBanner((current) => (current + 1) % heroBanners.length);
-    }, HOME_CONFIG.HERO_ROTATION_MS);
-
-    return () => window.clearInterval(timer);
+    const onPop = () => {
+      setViewInternal(getViewFromPath(window.location.pathname));
+      setSelectedProduct(getProductFromPath(window.location.pathname));
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  // ── Email verification via token query param ─────────────────────────────
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get("token");
+    if (!token) return;
+    (async () => {
+      try {
+        const res = await fetch(`${env.API_URL}/auth/verify-email?token=${token}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Xác thực email thất bại");
+        toast.success("Xác thực email thành công! Bạn có thể đăng nhập ngay.");
+        setView(VIEW_KEYS.LOGIN);
+      } catch (err: any) {
+        toast.error(err.message || "Không thể xác thực email.");
+      } finally {
+        window.history.replaceState({}, document.title, window.location.origin);
+      }
+    })();
+  }, []);
+
+  // ── Navigation helper ────────────────────────────────────────────────────
+  const setView = (newView: any, productData?: any) => {
+    const target = productData || (newView === VIEW_KEYS.DETAIL ? selectedProduct : null);
+    const newPath = getPathFromView(newView, target);
+    if (window.location.pathname !== newPath) window.history.pushState(null, "", newPath);
+    setViewInternal(newView);
+    if (productData) setSelectedProduct(productData);
+    else if (newView !== VIEW_KEYS.DETAIL && newView !== VIEW_KEYS.REVIEW) setSelectedProduct(null);
+  };
+
+  // ── Auth handlers ────────────────────────────────────────────────────────
+  const handleLoginSuccess = () => {
+    setUser(JSON.parse(localStorage.getItem("user") || "null"));
+    setView(VIEW_KEYS.HOME);
+  };
+  const handleLogout = () => {
+    ["accessToken", "refreshToken", "user"].forEach(k => localStorage.removeItem(k));
+    setUser(null);
+    toast.success("Đã đăng xuất thành công!");
+    setView(VIEW_KEYS.LOGIN);
+  };
+
+  // ── Cart / Wishlist handlers ─────────────────────────────────────────────
+  const handleAddToCart = (product: any, size = "Vừa", qty = 1) => {
+    setCart(prev => {
+      const idx = prev.findIndex(i => i.product[0] === product[0] && i.size === size);
+      if (idx > -1) { const c = [...prev]; c[idx].quantity += qty; return c; }
+      return [...prev, { product, size, quantity: qty }];
+    });
+  };
+  const handleToggleWishlist = (product: any) => {
+    setWishlist(prev => {
+      const exists = prev.some(i => i[0] === product[0]);
+      toast[exists ? "info" : "success"](exists ? "Đã xóa khỏi yêu thích" : "Đã thêm vào yêu thích!");
+      return exists ? prev.filter(i => i[0] !== product[0]) : [...prev, product];
+    });
+  };
+  const handleSelectProduct = (product: any) => setView(VIEW_KEYS.DETAIL, product);
+  const handlePlaceOrder = () => { setCart([]); setView(VIEW_KEYS.SUCCESS); };
+
+  // ── Checkout totals ──────────────────────────────────────────────────────
+  const subtotal = cart.reduce((s, i) => s + parsePrice(i.product[1]) * i.quantity, 0);
+  const shipping = subtotal >= 300000 || subtotal === 0 ? 0 : 15000;
+  const grandTotal = subtotal + shipping;
+
+  // ── Render ───────────────────────────────────────────────────────────────
+  if (view === VIEW_KEYS.ADMIN) return <><Toaster richColors position="top-center" /><AdminPanel onExit={() => setView(VIEW_KEYS.HOME)} /></>;
+  if (view === VIEW_KEYS.LOGIN) return <><Toaster richColors position="top-center" /><AuthPage onSuccess={handleLoginSuccess} onAdminDemo={() => setView(VIEW_KEYS.ADMIN)} /></>;
+  if (view === VIEW_KEYS.REVIEW) return <><Toaster richColors position="top-center" /><ReviewPage product={selectedProduct} onBack={() => setView(VIEW_KEYS.DETAIL)} /></>;
 
   return (
     <>
-      {/* ── Single full-width hero banner ── */}
-      <section className="relative w-full overflow-hidden">
-        <div className="relative h-[430px] w-full md:h-[520px]">
-          {heroBanners.map((banner, index) => (
-            <img
-              key={banner.src}
-              src={banner.src}
-              alt={banner.alt}
-              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${activeBanner === index ? "opacity-100" : "opacity-0"}`}
-            />
-          ))}
-        </div>
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-r from-sidebar/95 via-sidebar/70 to-sidebar/20" />
-        <div className="absolute inset-0 bg-black/20" />
-        {/* Content */}
-        <div className="absolute inset-0 mx-auto flex w-full max-w-[1500px] flex-col justify-center px-5 sm:px-6 lg:px-10">
-          <p className="font-mono text-xs uppercase tracking-[.3em] text-primary-foreground/85 drop-shadow">{env.APP_NAME}</p>
-          <h1 className="mt-4 max-w-2xl text-4xl leading-tight text-primary-foreground drop-shadow-[0_3px_14px_rgba(0,0,0,0.65)] md:text-6xl whitespace-pre-line">
-            {MESSAGES.HERO_TITLE}
-          </h1>
-          <p className="mt-4 max-w-lg text-base leading-7 text-primary-foreground/85 drop-shadow md:text-lg">
-            {MESSAGES.HERO_SUBTITLE}
-          </p>
-          <div className="mt-7 flex flex-wrap gap-3">
-            <button onClick={() => setView(VIEW_KEYS.SWEETS)} className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 shadow-lg">
-              {MESSAGES.HERO_BUTTON_ORDER}
-            </button>
-            <button onClick={() => setView(VIEW_KEYS.DRINKS)} className="rounded-full border border-primary-foreground/40 bg-primary-foreground/10 px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary-foreground/20 backdrop-blur">
-              {MESSAGES.HERO_BUTTON_EXPLORE}
-            </button>
+      <Toaster richColors position="top-center" />
+      <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/20">
+        <Header
+          view={view}
+          setView={setView}
+          navPages={navPages}
+          wishlistCount={wishlist.length}
+          cartCount={cart.reduce((s, i) => s + i.quantity, 0)}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSearchSubmit={() => setView("Tìm kiếm")}
+          isLoggedIn={!!user}
+        />
+        <main className="min-h-[calc(100vh-400px)]">
+          <div className="animate-page-change" key={view}>
+            {view === VIEW_KEYS.HOME && <Home setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} />}
+            {view === VIEW_KEYS.CART && <Cart cart={cart} setCart={setCart} setView={setView} />}
+            {view === VIEW_KEYS.CHECKOUT && <Checkout cart={cart} setView={setView} onPlaceOrder={handlePlaceOrder} subtotal={subtotal} discount={0} shipping={shipping} grandTotal={grandTotal} />}
+            {view === VIEW_KEYS.SUCCESS && <Success setView={setView} />}
+            {view === VIEW_KEYS.DETAIL && <ProductDetail product={selectedProduct} setView={setView} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onSelectProduct={handleSelectProduct} />}
+            {view === VIEW_KEYS.FAVORITES && <Favorites wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onAddToCart={handleAddToCart} onSelectProduct={handleSelectProduct} setView={setView} />}
+            {view === VIEW_KEYS.PROFILE && <Profile user={user} setView={setView} onLogout={handleLogout} />}
+            {LISTABLE.includes(view) && <ProductListing category={view} setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} searchQuery={searchQuery} />}
           </div>
-          {/* Flash sale badge */}
-          <div className="mt-6 inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-primary-foreground/25 bg-sidebar/55 px-4 py-2 text-xs text-primary-foreground/90 shadow-lg backdrop-blur">
-            <span className="size-2 rounded-full bg-green-400 animate-pulse" />
-            {MESSAGES.FLASH_SALE_TEXT} <b className="text-primary ml-1">COFFEE20</b>
-          </div>
-        </div>
-        <div className="absolute bottom-5 left-1/2 z-10 flex w-full max-w-[1500px] -translate-x-1/2 gap-2 px-5 sm:px-6 lg:px-10">
-          {heroBanners.map((banner, index) => (
-            <button
-              key={banner.alt}
-              type="button"
-              aria-label={`Chuyển sang banner ${index + 1}`}
-              onClick={() => setActiveBanner(index)}
-              className={`h-2.5 rounded-full transition-all ${activeBanner === index ? "w-8 bg-primary" : "w-2.5 bg-primary-foreground/60 hover:bg-primary-foreground"}`}
-            />
-          ))}
-        </div>
-      </section>
-
-      {/* ── Featured categories ── */}
-      <Section title={MESSAGES.SECTION_CATEGORIES_TITLE} sub={MESSAGES.SECTION_CATEGORIES_SUB} messages={MESSAGES}>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
-          {categories.map((c) => (
-            <button
-              key={c.name}
-              onClick={() => setView(CATEGORY_GROUPS.DRINKS.includes(c.name as any) ? VIEW_KEYS.DRINKS : c.name === VIEW_KEYS.COMBO ? VIEW_KEYS.COMBO : VIEW_KEYS.SWEETS)}
-              className="group rounded-2xl border bg-card overflow-hidden text-center transition hover:border-primary hover:shadow-md"
-            >
-              <div className="relative h-24 bg-muted">
-                <img src={c.img} alt={c.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
-                <div className="absolute inset-0 bg-gradient-to-t from-card/80 to-transparent" />
-              </div>
-              <p className="p-2 text-xs font-semibold">{c.name}</p>
-            </button>
-          ))}
-        </div>
-      </Section>
-
-      {/* ── Best sellers ── */}
-      <Section title={MESSAGES.SECTION_BESTSELLERS_TITLE} sub={MESSAGES.SECTION_BESTSELLERS_SUB} messages={MESSAGES}>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {products.slice(0, HOME_CONFIG.BEST_SELLERS_LIMIT).map(p => <ProductCard key={p[0]} p={p} setView={setView} />)}
-        </div>
-      </Section>
-
-      {/* ── New + combos ── */}
-      <Section title={MESSAGES.SECTION_NEW_COMBOS_TITLE} messages={MESSAGES}>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {products.slice(HOME_CONFIG.NEW_COMBOS_START, HOME_CONFIG.NEW_COMBOS_END).map(p => <ProductCard key={p[0]} p={p} setView={setView} />)}
-        </div>
-      </Section>
-
-      {/* ── Why Sweet Bean ── */}
-      <Section title={MESSAGES.SECTION_WHY_US_TITLE} messages={MESSAGES}>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {HOME_CONFIG.FEATURE_ITEMS.map(f => {
-            const Icon = { Clock, Coffee, AlertCircle, Truck }[f.icon];
-            return (
-              <div key={f.title} className="flex items-center gap-4 rounded-2xl bg-card p-5 border">
-                <div className="grid size-12 place-items-center rounded-full bg-primary/10 text-primary"><Icon size={24} /></div>
-                <div><h3 className="font-bold">{f.title}</h3><p className="text-sm text-muted-foreground">{f.sub}</p></div>
-              </div>
-            );
-          })}
-        </div>
-      </Section>
+        </main>
+        <Footer />
+      </div>
     </>
-  );
-}
-
-function ProductListing({ category, setView }: any) {
-  const filtered = category === VIEW_KEYS.DRINKS
-    ? products.filter(p => CATEGORY_GROUPS.DRINKS.includes(p[2] as any))
-    : products.filter(p => p[2] === category);
-  return (
-    <div className="mx-auto max-w-[1500px] px-5 py-8 sm:px-6 lg:px-10">
-      <h2 className="mb-6 text-2xl md:text-3xl">{category}</h2>
-      {filtered.length > 0 ? (
-        <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {filtered.map(p => <ProductCard key={p[0]} p={p} setView={setView} />)}
-        </div>
-      ) : (
-        <div className="py-20 text-center text-muted-foreground">Không tìm thấy sản phẩm.</div>
-      )}
-    </div>
-  );
-}
-
-function ProductDetail({ setView }: any) {
-  const p = products[PRODUCT_DETAIL_CONFIG.DEFAULT_PRODUCT_INDEX];
-  return (
-    <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6 lg:px-10">
-      <div className="grid gap-8 md:grid-cols-2 lg:gap-12">
-        <div className="overflow-hidden rounded-3xl border bg-muted">
-          <img src={p[3] as string} alt={p[0] as string} className="w-full object-cover" />
-        </div>
-        <div>
-          <span className="rounded-full bg-secondary px-3 py-1 text-xs font-bold text-secondary-foreground">{p[2]}</span>
-          <h1 className="mt-4 text-3xl md:text-4xl">{p[0]}</h1>
-          <p className="mt-4 text-2xl font-bold text-primary">{p[1]}</p>
-          <div className="mt-6 space-y-4">
-            <h3 className="font-semibold">Chọn kích cỡ</h3>
-            <div className="flex gap-3">
-              {PRODUCT_DETAIL_CONFIG.SIZE_OPTIONS.map((s, i) => (
-                <button key={s} className={`rounded-xl border px-5 py-2.5 text-sm font-medium transition ${i === PRODUCT_DETAIL_CONFIG.DEFAULT_SIZE_INDEX ? "border-primary bg-primary/5 text-primary" : "hover:border-primary/50"}`}>{s}</button>
-              ))}
-            </div>
-          </div>
-          <div className="mt-8 flex gap-4">
-            <Btn onClick={() => setView(VIEW_KEYS.CART)}>Thêm vào giỏ</Btn>
-            <Btn variant="secondary">Mua ngay</Btn>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Cart({ setView }: any) {
-  return (
-    <div className="mx-auto max-w-4xl px-5 py-8 sm:px-6 lg:px-10">
-      <h2 className="mb-6 text-2xl md:text-3xl">Giỏ hàng của bạn</h2>
-      <div className="space-y-4">
-        {CART_CONFIG.SAMPLE_PRODUCT_INDEXES.map(i => {
-          const p = products[i];
-          return (
-            <div key={i} className="flex gap-4 rounded-2xl border bg-card p-4">
-              <img src={p[3] as string} alt="" className="size-24 rounded-xl object-cover" />
-              <div className="flex flex-1 flex-col justify-between">
-                <div>
-                  <h3 className="font-semibold">{p[0]}</h3>
-                  <p className="text-primary">{p[1]}</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-sm">SL: {CART_CONFIG.ITEM_QUANTITY}</span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="mt-8 flex justify-end">
-        <Btn onClick={() => setView(VIEW_KEYS.CHECKOUT)}>Tiến hành thanh toán</Btn>
-      </div>
-    </div>
-  );
-}
-
-function Checkout({ setView }: any) {
-  return (
-    <div className="mx-auto max-w-4xl px-5 py-8 sm:px-6 lg:px-10">
-      <h2 className="mb-6 text-2xl md:text-3xl">Thanh toán</h2>
-      <div className="grid gap-8 md:grid-cols-2">
-        <div className="space-y-6">
-          <section className="rounded-2xl border bg-card p-6">
-            <h3 className="mb-4 font-semibold flex items-center gap-2"><Truck size={18} /> Giao hàng</h3>
-            {CHECKOUT_CONFIG.SHIPPING_FIELDS.slice(0, 2).map((field) => (
-              <input key={field} type="text" placeholder={field} className="mb-3 w-full rounded-xl border bg-input px-4 py-2.5 outline-none focus:border-primary" />
-            ))}
-            <textarea placeholder={CHECKOUT_CONFIG.SHIPPING_FIELDS[2]} rows={3} className="w-full rounded-xl border bg-input px-4 py-2.5 outline-none focus:border-primary"></textarea>
-          </section>
-          <section className="rounded-2xl border bg-card p-6">
-            <h3 className="mb-4 font-semibold flex items-center gap-2"><CreditCard size={18} /> Phương thức</h3>
-            <div className="space-y-2">
-              {CHECKOUT_CONFIG.PAYMENT_METHODS.map((m, i) => (
-                <label key={m} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${i === 0 ? "border-primary bg-primary/5" : "hover:bg-muted"}`}>
-                  <input type="radio" name="payment" defaultChecked={i === 0} className="accent-primary" />
-                  <span className="text-sm">{m}</span>
-                </label>
-              ))}
-            </div>
-          </section>
-        </div>
-        <div>
-          <div className="rounded-2xl border bg-card p-6 sticky top-20">
-            <h3 className="mb-4 font-semibold text-lg">Đơn hàng</h3>
-            <div className="space-y-3 mb-6">
-              {CHECKOUT_CONFIG.ORDER_TOTALS.map((item) => (
-                <div key={item.label} className="flex justify-between text-sm"><span>{item.label}</span><span className={(item as any).highlight ? "text-primary" : undefined}>{item.value}</span></div>
-              ))}
-              <hr className="my-2 border-border" />
-              <div className="flex justify-between font-bold text-lg"><span>Tổng cộng</span><span className="text-primary">{CHECKOUT_CONFIG.GRAND_TOTAL}</span></div>
-            </div>
-            <Btn onClick={() => setView(VIEW_KEYS.SUCCESS)} className="w-full">Xác nhận đặt hàng</Btn>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Success({ setView }: any) {
-  return (
-    <div className="mx-auto flex max-w-md flex-col items-center justify-center py-20 text-center">
-      <div className="mb-6 grid size-20 place-items-center rounded-full bg-green-100 text-green-600">
-        <PackageCheck size={40} />
-      </div>
-      <h2 className="mb-2 text-2xl font-bold">Đặt hàng thành công!</h2>
-      <p className="mb-8 text-muted-foreground">Mã đơn hàng của bạn là #SB12345. Chúng tôi sẽ sớm giao hàng đến bạn.</p>
-      <Btn onClick={() => setView(VIEW_KEYS.HOME)}>Về trang chủ</Btn>
-    </div>
-  );
-}
-
-export default function App() {
-  const [view, setView] = useState<typeof VIEW_KEYS[keyof typeof VIEW_KEYS]>(VIEW_KEYS.HOME);
-
-  if (view === VIEW_KEYS.ADMIN) return <AdminPanel onExit={() => setView(VIEW_KEYS.HOME)} />;
-  if (view === VIEW_KEYS.LOGIN) return <AuthPage onSuccess={() => setView(VIEW_KEYS.HOME)} onAdminDemo={() => setView(VIEW_KEYS.ADMIN)} />;
-  if (view === VIEW_KEYS.REVIEW) return <ReviewPage />;
-
-  return (
-    <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/20">
-      <Header view={view} setView={setView} navPages={navPages} />
-      <main className="min-h-[calc(100vh-400px)]">
-        {view === VIEW_KEYS.HOME && <Home setView={setView} />}
-        {view === VIEW_KEYS.CART && <Cart setView={setView} />}
-        {view === VIEW_KEYS.CHECKOUT && <Checkout setView={setView} />}
-        {view === VIEW_KEYS.SUCCESS && <Success setView={setView} />}
-        {view === VIEW_KEYS.DETAIL && <ProductDetail setView={setView} />}
-        {[VIEW_KEYS.SWEETS, "Bánh sinh nhật", "Bánh mousse", VIEW_KEYS.DRINKS].includes(view) && <ProductListing category={view} setView={setView} />}
-      </main>
-      <Footer />
-    </div>
   );
 }

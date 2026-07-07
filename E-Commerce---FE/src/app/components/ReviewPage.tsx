@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { Star, ThumbsUp, Camera, ChevronDown } from "lucide-react";
+import { Star, ThumbsUp, Camera, ArrowLeft } from "lucide-react";
 
-const products = [
+const mockProducts = [
   ["Bánh Tiramisu", "45.000đ", "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=120&h=120&fit=crop&auto=format"],
   ["Cafe Latte", "55.000đ", "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=120&h=120&fit=crop&auto=format"],
   ["Bánh mousse xoài", "60.000đ", "https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?w=120&h=120&fit=crop&auto=format"],
 ];
 
-const existingReviews = [
+const initialReviews = [
   { user: "Nguyễn Minh Anh", avatar: "N", rating: 5, date: "20/06/2025", comment: "Bánh ngon tuyệt, cream mịn, không ngọt quá. Giao hàng nhanh!", likes: 12, verified: true, images: ["https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=80&h=80&fit=crop&auto=format"] },
   { user: "Trần Thị Bình", avatar: "T", rating: 5, date: "18/06/2025", comment: "Mình đặt bánh sinh nhật cho con, cả nhà khen ngon. Hộp đóng gói đẹp, không bị méo. Sẽ mua lại!", likes: 8, verified: true, images: [] },
   { user: "Lê Văn Cường", avatar: "L", rating: 4, date: "15/06/2025", comment: "Tiramisu đúng vị Ý, cà phê đậm đà. Chỉ tiếc là lần này giao hơi muộn 15 phút.", likes: 5, verified: false, images: [] },
@@ -40,47 +40,73 @@ function StarPicker({ value, onChange }: { value: number; onChange: (v: number) 
 
 const ratingLabels = ["", "Tệ", "Không tốt", "Bình thường", "Tốt", "Xuất sắc!"];
 
-export function ReviewPage() {
+export function ReviewPage({ product, onBack }: any) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [filterRating, setFilterRating] = useState(0);
   const [sortBy, setSortBy] = useState("newest");
-  const [selectedProduct, setSelectedProduct] = useState(0);
   const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
+  const [reviewsList, setReviewsList] = useState(initialReviews);
 
-  const avgRating = (existingReviews.reduce((a, r) => a + r.rating, 0) / existingReviews.length).toFixed(1);
-  const dist = [5, 4, 3, 2, 1].map(r => ({ r, count: existingReviews.filter(x => x.rating === r).length }));
+  const displayProductName = product ? product[0] : mockProducts[0][0];
+  const displayProductPrice = product ? product[1] : mockProducts[0][1];
+  const displayProductImage = product ? product[3] : mockProducts[0][2];
 
-  const filtered = existingReviews
+  const avgRating = (reviewsList.reduce((a, r) => a + r.rating, 0) / reviewsList.length).toFixed(1);
+  const dist = [5, 4, 3, 2, 1].map(r => ({ r, count: reviewsList.filter(x => x.rating === r).length }));
+
+  const filtered = reviewsList
     .filter(r => filterRating === 0 || r.rating === filterRating)
-    .sort((a, b) => sortBy === "highest" ? b.rating - a.rating : sortBy === "lowest" ? a.rating - b.rating : b.likes - a.likes);
+    .sort((a, b) => {
+      if (sortBy === "highest") return b.rating - a.rating;
+      if (sortBy === "lowest") return a.rating - b.rating;
+      if (sortBy === "helpful") return b.likes - a.likes;
+      return 0; // newest/default
+    });
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (rating === 0 || !comment.trim()) return;
+
+    const newReview = {
+      user: "Khách hàng",
+      avatar: "K",
+      rating,
+      date: new Date().toLocaleDateString("vi-VN"),
+      comment,
+      likes: 0,
+      verified: true,
+      images: []
+    };
+
+    setReviewsList([newReview, ...reviewsList]);
     setSubmitted(true);
   }
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
       {/* Breadcrumb */}
-      <p className="text-sm text-muted-foreground">Trang chủ / Bánh Tiramisu / Đánh giá</p>
+      <div className="flex items-center gap-3">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="flex items-center justify-center size-9 rounded-full bg-secondary hover:bg-accent transition text-foreground"
+            title="Quay lại"
+          >
+            <ArrowLeft size={16} />
+          </button>
+        )}
+        <p className="text-sm text-muted-foreground">Trang chủ / {displayProductName} / Đánh giá</p>
+      </div>
 
       {/* Product context */}
       <div className="mt-5 flex flex-wrap items-center gap-5 rounded-[2rem] border bg-card p-6">
-        <img src={products[selectedProduct][2]} alt={products[selectedProduct][0]} className="size-20 rounded-2xl object-cover" />
+        <img src={displayProductImage} alt={displayProductName} className="size-20 rounded-2xl object-cover" />
         <div className="flex-1">
-          <h1 className="text-3xl">{products[selectedProduct][0]}</h1>
-          <p className="mt-1 text-muted-foreground">{products[selectedProduct][1]}</p>
+          <h1 className="text-3xl">{displayProductName}</h1>
+          <p className="mt-1 text-muted-foreground">{displayProductPrice}</p>
         </div>
-        <select
-          className="rounded-xl border bg-input-background px-3 py-2 text-sm outline-none focus:border-primary"
-          value={selectedProduct}
-          onChange={e => setSelectedProduct(+e.target.value)}
-        >
-          {products.map((p, i) => <option key={i} value={i}>{p[0]}</option>)}
-        </select>
       </div>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
@@ -92,9 +118,9 @@ export function ReviewPage() {
               <div className="text-center">
                 <p className="text-5xl font-extrabold text-primary">{avgRating}</p>
                 <div className="mt-2 flex justify-center gap-0.5">
-                  {[1,2,3,4,5].map(i => <Star key={i} size={16} className="fill-[#d99554] text-[#d99554]" />)}
+                  {[1, 2, 3, 4, 5].map(i => <Star key={i} size={16} className="fill-[#d99554] text-[#d99554]" />)}
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">{existingReviews.length} đánh giá</p>
+                <p className="mt-1 text-sm text-muted-foreground">{reviewsList.length} đánh giá</p>
               </div>
               <div className="flex-1 space-y-2 min-w-[160px]">
                 {dist.map(({ r, count }) => (
@@ -102,7 +128,7 @@ export function ReviewPage() {
                     <span className="w-4 text-right text-muted-foreground">{r}</span>
                     <Star size={12} className="fill-[#d99554] text-[#d99554]" />
                     <div className="flex-1 h-2 rounded-full bg-muted">
-                      <div className="h-full rounded-full bg-[#d99554]" style={{ width: `${(count / existingReviews.length) * 100}%` }} />
+                      <div className="h-full rounded-full bg-[#d99554]" style={{ width: `${(count / reviewsList.length) * 100}%` }} />
                     </div>
                     <span className="w-4 text-muted-foreground">{count}</span>
                   </button>
@@ -115,7 +141,7 @@ export function ReviewPage() {
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2">
               {[0, 5, 4, 3].map(r => (
-                <button key={r} onClick={() => setFilterRating(filterRating === r ? -1 : r)} className={`rounded-full px-3 py-1.5 text-sm transition ${filterRating === r ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-accent"}`}>
+                <button key={r} onClick={() => setFilterRating(filterRating === r ? 0 : r)} className={`rounded-full px-3 py-1.5 text-sm transition ${filterRating === r ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-accent"}`}>
                   {r === 0 ? "Tất cả" : `${r} sao`}
                 </button>
               ))}
@@ -141,7 +167,7 @@ export function ReviewPage() {
                     </div>
                   </div>
                   <div className="flex gap-0.5">
-                    {[1,2,3,4,5].map(s => <Star key={s} size={14} className={s <= r.rating ? "fill-[#d99554] text-[#d99554]" : "text-muted"} />)}
+                    {[1, 2, 3, 4, 5].map(s => <Star key={s} size={14} className={s <= r.rating ? "fill-[#d99554] text-[#d99554]" : "text-muted"} />)}
                   </div>
                 </div>
                 <p className="mt-3 text-sm text-foreground/90 leading-relaxed">{r.comment}</p>
@@ -160,6 +186,7 @@ export function ReviewPage() {
                 </div>
               </div>
             ))}
+
             {filtered.length === 0 && (
               <div className="rounded-2xl border bg-card p-12 text-center text-muted-foreground">
                 Chưa có đánh giá nào cho mức sao này.
@@ -174,7 +201,7 @@ export function ReviewPage() {
             <h2 className="text-2xl">Viết đánh giá</h2>
             {submitted ? (
               <div className="mt-5 rounded-2xl bg-[#eef7ed] p-5 text-sm text-[#355c31]">
-                ✓ Cảm ơn bạn đã đánh giá! Nhận xét sẽ được hiển thị sau khi duyệt.
+                ✓ Cảm ơn bạn đã đánh giá! Nhận xét sẽ được hiển thị ngay bên dưới.
                 <button onClick={() => { setSubmitted(false); setRating(0); setComment(""); }} className="mt-3 block text-[#355c31] underline">Đánh giá thêm</button>
               </div>
             ) : (
@@ -210,7 +237,7 @@ export function ReviewPage() {
                 >
                   Gửi đánh giá
                 </button>
-                <p className="text-center text-xs text-muted-foreground">Đánh giá sẽ được kiểm duyệt trước khi hiển thị.</p>
+                <p className="text-center text-xs text-muted-foreground">Đánh giá sẽ được hiển thị trực tiếp sau khi bạn gửi.</p>
               </form>
             )}
           </div>
@@ -219,3 +246,4 @@ export function ReviewPage() {
     </main>
   );
 }
+
