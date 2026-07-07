@@ -36,6 +36,7 @@ export class UsersService {
             email: registerDto.email,
             phone: registerDto.phone,
             passwordHash: registerDto.password, // Password hashing will be handled in AuthService
+            isActive: !registerDto.email, // Inactive if registration has email (requires verification)
         });
 
         return this.usersRepository.save(user);
@@ -48,4 +49,18 @@ export class UsersService {
     async findByPhone(phone: string): Promise<User | null> {
         return this.usersRepository.findOne({ where: { phone } });
     }
+
+    async findById(id: string): Promise<User | null> {
+        return this.usersRepository.findOne({ where: { id } });
+    }
+
+    async update(id: string, attrs: Partial<User>): Promise<User> {
+        const user = await this.usersRepository.findOne({ where: { id } });
+        if (!user) {
+            throw new BadRequestException('User not found');
+        }
+        Object.assign(user, attrs);
+        return this.usersRepository.save(user);
+    }
 }
+

@@ -41,14 +41,24 @@ var __importStar = (this && this.__importStar) || (function () {
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var AuthService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
 const users_service_1 = require("../users/users.service");
+const mail_service_1 = require("../mail/mail.service");
+const config_1 = require("@nestjs/config");
 const bcrypt = __importStar(require("bcrypt"));
-let AuthService = class AuthService {
-    constructor(usersService) {
+const jwt = __importStar(require("jsonwebtoken"));
+let AuthService = AuthService_1 = class AuthService {
+    constructor(usersService, mailService, configService) {
         this.usersService = usersService;
+        this.mailService = mailService;
+        this.configService = configService;
+        this.logger = new common_1.Logger(AuthService_1.name);
+    }
+    getJwtSecret() {
+        return this.configService.get('JWT_SECRET') || 'super_secret_jwt_key_123_cake_coffee';
     }
     async register(registerDto) {
         const saltOrRounds = 10;
@@ -57,13 +67,145 @@ let AuthService = class AuthService {
             ...registerDto,
             password: passwordHash,
         });
+        if (newUser.email) {
+            try {
+                const token = jwt.sign({ userId: newUser.id, email: newUser.email, purpose: 'email-verification' }, this.getJwtSecret(), { expiresIn: '24h' });
+                await this.mailService.sendVerificationEmail(newUser.email, token);
+                return {
+                    message: 'Registration successful. A verification email has been sent to your inbox.',
+                    email: newUser.email,
+                    requiresVerification: true,
+                };
+            }
+            catch (error) {
+                this.logger.error(`Error during registration email process: ${error.message}`);
+                throw new common_1.BadRequestException(`User created, but failed to send verification email: ${error.message}`);
+            }
+        }
+        const loginToken = this.generateJwt(newUser);
         const { passwordHash: _, ...result } = newUser;
+        return {
+            message: 'Registration successful.',
+            user: result,
+            accessToken: loginToken,
+        };
+    }
+    async verifyEmail(token) {
+        try {
+            const decoded = jwt.verify(token, this.getJwtSecret());
+            if (decoded.purpose !== 'email-verification') {
+                throw new common_1.BadRequestException('Invalid token purpose');
+            }
+            const user = await this.usersService.findByEmail(decoded.email);
+            if (!user) {
+                throw new common_1.BadRequestException('User not found');
+            }
+            if (user.isActive && user.emailVerifiedAt) {
+                return {
+                    message: 'Email already verified.',
+                    accessToken: this.generateJwt(user),
+                    user: this.sanitizeUser(user),
+                };
+            }
+            const updatedUser = await this.usersService.update(user.id, {
+                isActive: true,
+                emailVerifiedAt: new Date(),
+            });
+            const accessToken = this.generateJwt(updatedUser);
+            return {
+                message: 'Email verified successfully. Your account is now active.',
+                accessToken,
+                user: this.sanitizeUser(updatedUser),
+            };
+        }
+        catch (error) {
+            if (error instanceof jwt.TokenExpiredError) {
+                throw new common_1.BadRequestException('Verification token has expired. Please register again.');
+            }
+            if (error instanceof jwt.JsonWebTokenError) {
+                throw new common_1.BadRequestException('Invalid verification token.');
+            }
+            throw error;
+        }
+    }
+    async login(loginDto) {
+        const { email, phone, password } = loginDto;
+        if (!email && !phone) {
+            throw new common_1.BadRequestException('Email or phone must be provided');
+        }
+        let user = null;
+        if (email) {
+            user = await this.usersService.findByEmail(email);
+        }
+        else if (phone) {
+            user = await this.usersService.findByPhone(phone);
+        }
+        if (!user) {
+            throw new common_1.BadRequestException('Invalid credentials');
+        }
+        if (!user.isActive) {
+            throw new common_1.BadRequestException('Please verify your email or contact support to activate your account');
+        }
+        const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+        if (!isPasswordValid) {
+            throw new common_1.BadRequestException('Invalid credentials');
+        }
+        const accessToken = this.generateAccessToken(user);
+        const refreshToken = this.generateRefreshToken(user);
+        return {
+            message: 'Login successful',
+            accessToken,
+            refreshToken,
+            user: this.sanitizeUser(user),
+        };
+    }
+    async refresh(refreshToken) {
+        try {
+            const decoded = jwt.verify(refreshToken, this.getJwtSecret());
+            const user = await this.usersService.findById(decoded.sub);
+            if (!user) {
+                throw new common_1.BadRequestException('User not found');
+            }
+            if (!user.isActive) {
+                throw new common_1.BadRequestException('User account is inactive');
+            }
+            const accessToken = this.generateAccessToken(user);
+            const newRefreshToken = this.generateRefreshToken(user);
+            return {
+                accessToken,
+                refreshToken: newRefreshToken,
+                user: this.sanitizeUser(user),
+            };
+        }
+        catch (error) {
+            if (error instanceof jwt.TokenExpiredError) {
+                throw new common_1.BadRequestException('Refresh token has expired. Please login again.');
+            }
+            if (error instanceof jwt.JsonWebTokenError) {
+                throw new common_1.BadRequestException('Invalid refresh token.');
+            }
+            throw error;
+        }
+    }
+    generateJwt(user) {
+        return this.generateAccessToken(user);
+    }
+    generateAccessToken(user) {
+        return jwt.sign({ sub: user.id, email: user.email, phone: user.phone, role: user.role }, this.getJwtSecret(), { expiresIn: '15m' });
+    }
+    generateRefreshToken(user) {
+        return jwt.sign({ sub: user.id }, this.getJwtSecret(), { expiresIn: '7d' });
+    }
+    sanitizeUser(user) {
+        const { passwordHash: _, ...result } = user;
         return result;
     }
 };
 exports.AuthService = AuthService;
-exports.AuthService = AuthService = __decorate([
+exports.AuthService = AuthService = AuthService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [users_service_1.UsersService])
+    __metadata("design:paramtypes", [users_service_1.UsersService,
+        mail_service_1.MailService,
+        config_1.ConfigService])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

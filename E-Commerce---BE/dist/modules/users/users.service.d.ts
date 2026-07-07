@@ -7,4 +7,6 @@ export declare class UsersService {
     create(registerDto: RegisterDto): Promise<User>;
     findByEmail(email: string): Promise<User | null>;
     findByPhone(phone: string): Promise<User | null>;
+    findById(id: string): Promise<User | null>;
+    update(id: string, attrs: Partial<User>): Promise<User>;
 }

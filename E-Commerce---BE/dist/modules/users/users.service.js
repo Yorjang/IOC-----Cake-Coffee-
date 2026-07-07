@@ -42,6 +42,7 @@ let UsersService = class UsersService {
             email: registerDto.email,
             phone: registerDto.phone,
             passwordHash: registerDto.password,
+            isActive: !registerDto.email,
         });
         return this.usersRepository.save(user);
     }
@@ -50,6 +51,17 @@ let UsersService = class UsersService {
     }
     async findByPhone(phone) {
         return this.usersRepository.findOne({ where: { phone } });
+    }
+    async findById(id) {
+        return this.usersRepository.findOne({ where: { id } });
+    }
+    async update(id, attrs) {
+        const user = await this.usersRepository.findOne({ where: { id } });
+        if (!user) {
+            throw new common_1.BadRequestException('User not found');
+        }
+        Object.assign(user, attrs);
+        return this.usersRepository.save(user);
     }
 };
 exports.UsersService = UsersService;
