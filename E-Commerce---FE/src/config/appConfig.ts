@@ -8,6 +8,7 @@ export const VIEW_KEYS = {
   SUCCESS: "Thành công",
   DETAIL: "Chi tiết",
   ADMIN: "Admin",
+  ADMIN_LOGIN: "AdminLogin",
   LOGIN: "Đăng nhập",
   REVIEW: "Đánh giá",
   FAVORITES: "Yêu thích",
