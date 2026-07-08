@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
+import { Toaster } from "./components/ui/sonner";
 
 import { AdminPanel } from "./components/AdminPanel";
+import { AdminLoginPage } from "./components/AdminLoginPage";
 import { AuthPage } from "./components/AuthPage";
 import { ReviewPage } from "./components/ReviewPage";
 import { Header } from "./components/Header";
@@ -30,6 +32,7 @@ const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.SUCCESS]: "/thanh-cong",
   [VIEW_KEYS.DETAIL]: "/chi-tiet",
   [VIEW_KEYS.ADMIN]: "/admin",
+  [VIEW_KEYS.ADMIN_LOGIN]: "/admin/login",
   [VIEW_KEYS.LOGIN]: "/dang-nhap",
   [VIEW_KEYS.REVIEW]: "/danh-gia",
   [VIEW_KEYS.FAVORITES]: "/yeu-thich",
@@ -128,11 +131,21 @@ export default function App() {
     setUser(JSON.parse(localStorage.getItem("user") || "null"));
     setView(VIEW_KEYS.HOME);
   };
+  const handleAdminLoginSuccess = (adminUser: any) => {
+    setUser(adminUser);
+    setView(VIEW_KEYS.ADMIN);
+  };
   const handleLogout = () => {
     ["accessToken", "refreshToken", "user"].forEach(k => localStorage.removeItem(k));
     setUser(null);
     toast.success("Đã đăng xuất thành công!");
     setView(VIEW_KEYS.LOGIN);
+  };
+  const handleAdminLogout = () => {
+    ["accessToken", "refreshToken", "user"].forEach(k => localStorage.removeItem(k));
+    setUser(null);
+    toast.success("Đã đăng xuất khỏi trang quản trị.");
+    setView(VIEW_KEYS.ADMIN_LOGIN);
   };
 
   // ── Cart / Wishlist handlers ─────────────────────────────────────────────
@@ -159,8 +172,30 @@ export default function App() {
   const grandTotal = subtotal + shipping;
 
   // ── Render ───────────────────────────────────────────────────────────────
-  if (view === VIEW_KEYS.ADMIN) return <><Toaster richColors position="top-center" /><AdminPanel onExit={() => setView(VIEW_KEYS.HOME)} /></>;
-  if (view === VIEW_KEYS.LOGIN) return <><Toaster richColors position="top-center" /><AuthPage onSuccess={handleLoginSuccess} onAdminDemo={() => setView(VIEW_KEYS.ADMIN)} /></>;
+  const ADMIN_ROLES = ["admin", "staff", "cashier", "store_manager"];
+
+  // Admin login page (separate, no header)
+  if (view === VIEW_KEYS.ADMIN_LOGIN) {
+    return <><Toaster richColors position="top-center" /><AdminLoginPage onSuccess={handleAdminLoginSuccess} onBack={() => setView(VIEW_KEYS.HOME)} /></>;
+  }
+
+  // Admin panel — role-guarded
+  if (view === VIEW_KEYS.ADMIN) {
+    if (!user) {
+      // Not logged in → redirect to admin login
+      setTimeout(() => setView(VIEW_KEYS.ADMIN_LOGIN), 0);
+      return <><Toaster richColors position="top-center" /></>;
+    }
+    if (!ADMIN_ROLES.includes(user.role)) {
+      // Logged in but not admin → back to home
+      toast.error("Bạn không có quyền truy cập trang quản trị.");
+      setTimeout(() => setView(VIEW_KEYS.HOME), 0);
+      return <><Toaster richColors position="top-center" /></>;
+    }
+    return <><Toaster richColors position="top-center" /><AdminPanel onExit={handleAdminLogout} adminUser={user} /></>;
+  }
+
+  if (view === VIEW_KEYS.LOGIN) return <><Toaster richColors position="top-center" /><AuthPage onSuccess={handleLoginSuccess} /></>;
   if (view === VIEW_KEYS.REVIEW) return <><Toaster richColors position="top-center" /><ReviewPage product={selectedProduct} onBack={() => setView(VIEW_KEYS.DETAIL)} /></>;
 
   return (

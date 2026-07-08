@@ -2,7 +2,24 @@ import { useState } from "react";
 import { CakeSlice, Eye, EyeOff, Mail, Lock, User, Phone } from "lucide-react";
 import { toast } from "sonner";
 import { AUTH_CONTENT } from "../../constants/authContent";
-import { AuthMode, AuthErrors, validateRegisterFields, apiLogin, apiRegister } from "./authUtils";
+import { env } from "../../config/env";
+
+type AuthMode = "login" | "register" | "forgot";
+interface AuthErrors { fullName?: string; email?: string; phone?: string; password?: string; }
+
+function validateRegisterFields(fullName: string, email: string, phone: string, password: string): AuthErrors {
+  const err: AuthErrors = {};
+  if (!fullName.trim()) err.fullName = "Họ và tên không được để trống";
+  else if (fullName.trim().length < 2) err.fullName = "Họ và tên phải có ít nhất 2 ký tự";
+  else if (!/^[a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂÂÊÔƠƯưăâêôơư\s]+$/.test(fullName)) err.fullName = "Họ và tên chỉ được chứa chữ cái và khoảng trắng";
+  if (!email) err.email = "Email không được để trống";
+  else if (!/^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(email)) err.email = "Email đăng ký phải là tài khoản Gmail (@gmail.com)";
+  if (phone && !/^(0|84|\+84)[35789][0-9]{8}$/.test(phone)) err.phone = "Số điện thoại Việt Nam không hợp lệ";
+  if (!password) err.password = "Mật khẩu không được để trống";
+  else if (password.length < 8) err.password = "Mật khẩu phải có ít nhất 8 ký tự";
+  else if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password)) err.password = "Mật khẩu phải chứa cả chữ cái và chữ số";
+  return err;
+}
 
 // ── Register Options Modal ────────────────────────────────────────────────────
 function RegisterModal({ loading, fillDetailsLater, setFillDetailsLater, onCancel, onConfirm }: any) {
@@ -63,7 +80,7 @@ function AuthLeftPanel({ onSuccess }: { onSuccess: () => void }) {
 }
 
 // ── Main AuthPage ─────────────────────────────────────────────────────────────
-export function AuthPage({ onSuccess, onAdminDemo }: { onSuccess: () => void; onAdminDemo?: () => void }) {
+export function AuthPage({ onSuccess }: { onSuccess: () => void; onAdminDemo?: () => void }) {
   const [mode, setMode] = useState<AuthMode>("login");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -84,8 +101,23 @@ export function AuthPage({ onSuccess, onAdminDemo }: { onSuccess: () => void; on
   async function handleConfirmRegister() {
     setLoading(true);
     try {
-      const err = await apiRegister(fullName, email, fillDetailsLater ? undefined : (phone || undefined), onSuccess, setMode);
-      if (err) setErrors(err);
+      const res = await fetch(`${env.API_URL}/auth/register`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fullName, email, phone: fillDetailsLater ? undefined : (phone || undefined) }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const err: AuthErrors = {};
+        if (typeof data.message === "string" && data.message.includes("Email")) { err.email = "Email này đã được sử dụng"; toast.error("Email đăng ký đã tồn tại!"); }
+        else if (typeof data.message === "string" && data.message.includes("Phone")) { err.phone = "Số điện thoại này đã được sử dụng"; toast.error("Số điện thoại đăng ký đã tồn tại!"); }
+        else toast.error(Array.isArray(data.message) ? data.message.join(", ") : data.message || "Đăng ký thất bại");
+        setErrors(err);
+      } else if (data.requiresVerification) {
+        toast.success(data.message || "Đăng ký thành công! Vui lòng kiểm tra email."); setMode("login");
+      } else {
+        localStorage.setItem("accessToken", data.accessToken); localStorage.setItem("user", JSON.stringify(data.user));
+        toast.success(data.message || "Đăng ký thành công!"); onSuccess();
+      }
     } catch (e: any) { toast.error(e.message || "Đã xảy ra lỗi."); }
     finally { setLoading(false); setShowModal(false); }
   }
@@ -93,8 +125,14 @@ export function AuthPage({ onSuccess, onAdminDemo }: { onSuccess: () => void; on
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); setErrors({});
     try {
-      if (mode === "login") { setLoading(true); await apiLogin(email, password, onSuccess); }
-      else if (mode === "register") {
+      if (mode === "login") {
+        setLoading(true);
+        const res = await fetch(`${env.API_URL}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Đăng nhập thất bại");
+        localStorage.setItem("accessToken", data.accessToken); localStorage.setItem("refreshToken", data.refreshToken); localStorage.setItem("user", JSON.stringify(data.user));
+        toast.success("Đăng nhập thành công!"); onSuccess();
+      } else if (mode === "register") {
         const err = validateRegisterFields(fullName, email, phone, password);
         if (Object.keys(err).length) { setErrors(err); toast.error("Vui lòng kiểm tra lại thông tin!"); }
         else setShowModal(true);
@@ -108,14 +146,9 @@ export function AuthPage({ onSuccess, onAdminDemo }: { onSuccess: () => void; on
       <AuthLeftPanel onSuccess={onSuccess} />
       <div className="flex items-start justify-center bg-background p-6 sm:p-12 lg:pt-24 lg:overflow-y-auto">
         <div className="w-full max-w-md relative">
-          {/* Mobile Back */}
           <div className="mb-6 flex justify-between items-center lg:hidden">
-            <button type="button" onClick={onSuccess} className="flex items-center gap-2 text-sm text-primary font-semibold hover:underline">
-              <CakeSlice size={16} /> Quay về Trang chủ
-            </button>
+            <button type="button" onClick={onSuccess} className="flex items-center gap-2 text-sm text-primary font-semibold hover:underline"><CakeSlice size={16} /> Quay về Trang chủ</button>
           </div>
-
-          {/* Tabs */}
           {mode !== "forgot" && (
             <div className="mb-8 flex rounded-2xl bg-secondary p-1">
               {(["login", "register"] as AuthMode[]).map(m => (
@@ -125,14 +158,13 @@ export function AuthPage({ onSuccess, onAdminDemo }: { onSuccess: () => void; on
               ))}
             </div>
           )}
-
           {mode === "forgot" && (
             <div>
               <button onClick={() => { setMode("login"); setDone(false); }} className="mb-6 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">← Quay lại đăng nhập</button>
               <h2 className="text-3xl">Quên mật khẩu</h2>
               <p className="mt-2 text-sm text-muted-foreground">Nhập email — chúng tôi sẽ gửi link đặt lại mật khẩu.</p>
               {done ? (
-                <div className="mt-6 rounded-2xl bg-[#eef7ed] p-5 text-sm text-[#355c31]">✓ Email đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư.</div>
+                <div className="mt-6 rounded-2xl bg-[#eef7ed] p-5 text-sm text-[#355c31]">✓ Email đặt lại mật khẩu đã được gửi.</div>
               ) : (
                 <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                   <div className="relative"><Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><input type="email" required placeholder="Email của bạn" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-xl border bg-input-background py-3 pl-10 pr-4 text-sm outline-none focus:border-primary" /></div>
@@ -141,7 +173,6 @@ export function AuthPage({ onSuccess, onAdminDemo }: { onSuccess: () => void; on
               )}
             </div>
           )}
-
           {mode === "login" && (
             <div>
               <h2 className="text-3xl">Chào mừng trở lại!</h2>
@@ -159,7 +190,6 @@ export function AuthPage({ onSuccess, onAdminDemo }: { onSuccess: () => void; on
               <div className="mt-4 grid grid-cols-2 gap-3">{AUTH_CONTENT.SOCIAL_PROVIDERS.map(s => (<button key={s} className="rounded-xl border py-2.5 text-sm font-medium hover:bg-secondary transition">{s}</button>))}</div>
             </div>
           )}
-
           {mode === "register" && (
             <div>
               <h2 className="text-3xl">Tạo tài khoản</h2>
@@ -191,7 +221,6 @@ export function AuthPage({ onSuccess, onAdminDemo }: { onSuccess: () => void; on
           )}
         </div>
       </div>
-
       {showModal && <RegisterModal loading={loading} fillDetailsLater={fillDetailsLater} setFillDetailsLater={setFillDetailsLater} onCancel={() => setShowModal(false)} onConfirm={handleConfirmRegister} />}
     </div>
   );

@@ -249,23 +249,38 @@ function AdminOptions() {
 
 // AdminSettings → see ./admin/AdminBannersSettings.tsx
 
-// ── Nav items + AdminPanel shell ──────────────────────────────────────────────
+// ── Role permission matrix ────────────────────────────────────────────────────
+// admin        → full access
+// store_manager → no users, no system settings
+// staff        → products, categories, orders, reviews
+// cashier      → dashboard + orders only
+type AdminRole = "admin" | "store_manager" | "staff" | "cashier";
+
+const ROLE_LABEL: Record<AdminRole, string> = {
+  admin: "Quản trị viên",
+  store_manager: "Quản lý cửa hàng",
+  staff: "Nhân viên",
+  cashier: "Thu ngân",
+};
+
 const navItems = [
-  { key: "dashboard",  label: "Dashboard",    icon: LayoutDashboard },
-  { key: "products",   label: "Sản phẩm",     icon: Package },
-  { key: "categories", label: "Danh mục",     icon: Tag },
-  { key: "options",    label: "Tùy chọn SP",  icon: Settings },
-  { key: "orders",     label: "Đơn hàng",     icon: ShoppingBag },
-  { key: "users",      label: "Người dùng",   icon: Users },
-  { key: "reviews",    label: "Đánh giá",     icon: Star },
-  { key: "vouchers",   label: "Voucher",      icon: Tag },
-  { key: "banners",    label: "Banner",       icon: Image },
-  { key: "revenue",    label: "Thống kê",     icon: BarChart2 },
-  { key: "settings",   label: "Cài đặt",      icon: Settings },
+  { key: "dashboard",  label: "Dashboard",    icon: LayoutDashboard, allowedRoles: ["admin", "store_manager", "staff", "cashier"] },
+  { key: "orders",     label: "Đơn hàng",     icon: ShoppingBag,    allowedRoles: ["admin", "store_manager", "staff", "cashier"] },
+  { key: "products",   label: "Sản phẩm",     icon: Package,         allowedRoles: ["admin", "store_manager", "staff"] },
+  { key: "categories", label: "Danh mục",     icon: Tag,             allowedRoles: ["admin", "store_manager", "staff"] },
+  { key: "reviews",    label: "Đánh giá",     icon: Star,            allowedRoles: ["admin", "store_manager", "staff"] },
+  { key: "options",    label: "Tùy chọn SP",  icon: Settings,        allowedRoles: ["admin", "store_manager"] },
+  { key: "vouchers",   label: "Voucher",      icon: Tag,             allowedRoles: ["admin", "store_manager"] },
+  { key: "banners",    label: "Banner",       icon: Image,           allowedRoles: ["admin", "store_manager"] },
+  { key: "revenue",    label: "Thống kê",     icon: BarChart2,       allowedRoles: ["admin", "store_manager"] },
+  { key: "users",      label: "Người dùng",   icon: Users,           allowedRoles: ["admin"] },
+  { key: "settings",   label: "Cài đặt",      icon: Settings,        allowedRoles: ["admin"] },
 ];
 
-export function AdminPanel({ onExit }: { onExit: () => void }) {
-  const [active, setActive] = useState("dashboard");
+export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUser?: any }) {
+  const role = (adminUser?.role ?? "staff") as AdminRole;
+  const visibleNav = navItems.filter(item => item.allowedRoles.includes(role));
+  const [active, setActive] = useState(visibleNav[0]?.key ?? "dashboard");
   const [mobileNav, setMobileNav] = useState(false);
 
   const content: Record<string, React.ReactElement> = {
@@ -290,18 +305,36 @@ export function AdminPanel({ onExit }: { onExit: () => void }) {
             <ChevronDown size={20} className={`transition ${mobileNav ? "rotate-180" : ""}`} />
           </button>
           <span className="font-serif text-lg font-bold text-primary">Sweet Bean Admin</span>
+          {adminUser && (
+            <span className="hidden sm:flex items-center gap-2 rounded-full border border-sidebar-accent bg-sidebar/60 px-3 py-1 text-xs text-muted-foreground">
+              <span className="size-1.5 rounded-full bg-green-400" />
+              {adminUser.fullName || adminUser.email}
+              <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary">{adminUser.role}</span>
+            </span>
+          )}
         </div>
-        <button onClick={onExit} className="rounded-full bg-sidebar px-4 py-1.5 text-sm text-muted-foreground hover:bg-sidebar-accent transition">← Về website</button>
+        <button onClick={onExit} className="rounded-full bg-sidebar px-4 py-1.5 text-sm text-muted-foreground hover:bg-sidebar-accent transition">Đăng xuất</button>
       </header>
       <div className="mx-auto grid max-w-screen-xl gap-0 lg:grid-cols-[220px_1fr]">
-        <aside className={`${mobileNav ? "block" : "hidden"} lg:block bg-sidebar border-r border-sidebar-accent min-h-screen p-4`}>
-          <nav className="space-y-1">
-            {navItems.map(({ key, label, icon: Icon }) => (
+        <aside className={`${mobileNav ? "block" : "hidden"} lg:flex lg:flex-col bg-sidebar border-r border-sidebar-accent min-h-screen p-4`}>
+          <nav className="flex-1 space-y-1">
+            {visibleNav.map(({ key, label, icon: Icon }) => (
               <button key={key} onClick={() => { setActive(key); setMobileNav(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${active === key ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:bg-sidebar-accent"}`}>
                 <Icon size={16} />{label}
               </button>
             ))}
           </nav>
+          {/* Role info at bottom of sidebar */}
+          <div className="mt-6 rounded-xl border border-sidebar-accent bg-background/40 p-3">
+            <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">Vai trò</p>
+            <p className="text-xs font-semibold text-foreground">{ROLE_LABEL[role] ?? role}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+              {role === "admin" && "Toàn quyền quản lý hệ thống"}
+              {role === "store_manager" && "Quản lý cửa hàng, sản phẩm và doanh thu"}
+              {role === "staff" && "Xử lý đơn hàng và sản phẩm"}
+              {role === "cashier" && "Xử lý đơn hàng và thanh toán"}
+            </p>
+          </div>
         </aside>
         <main className="p-5 lg:p-7">{content[active]}</main>
       </div>

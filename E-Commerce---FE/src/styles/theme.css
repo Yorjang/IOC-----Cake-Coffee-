@@ -148,3 +148,30 @@
   animation: pageTransition 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
+/* ── Sonner toast progress bar ── */
+[data-sonner-toast] {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+[data-sonner-toast]::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background-color: var(--primary);
+  width: 100%;
+  animation: sonner-progress 2000ms linear forwards;
+}
+
+@keyframes sonner-progress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+
