@@ -1,6 +1,8 @@
 import { Repository } from 'typeorm';
 import { User, UserRole } from './entities/user.entity';
 import { RegisterDto } from '../auth/dto/register.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 export declare class UsersService {
     private usersRepository;
     constructor(usersRepository: Repository<User>);
@@ -11,4 +13,8 @@ export declare class UsersService {
     update(id: string, attrs: Partial<User>): Promise<User>;
     findAll(): Promise<User[]>;
     updateRole(id: string, role: UserRole): Promise<User>;
+    updateProfile(id: string, updateProfileDto: UpdateProfileDto): Promise<User>;
+    changePassword(id: string, changePasswordDto: ChangePasswordDto): Promise<{
+        message: string;
+    }>;
 }

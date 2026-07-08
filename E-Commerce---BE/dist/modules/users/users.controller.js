@@ -22,6 +22,8 @@ const permissions_1 = require("../../common/constants/permissions");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
 const user_entity_1 = require("./entities/user.entity");
 const update_role_dto_1 = require("./dto/update-role.dto");
+const update_profile_dto_1 = require("./dto/update-profile.dto");
+const change_password_dto_1 = require("./dto/change-password.dto");
 let UsersController = class UsersController {
     constructor(usersService) {
         this.usersService = usersService;
@@ -34,6 +36,12 @@ let UsersController = class UsersController {
     }
     updateRole(id, updateRoleDto) {
         return this.usersService.updateRole(id, updateRoleDto.role);
+    }
+    updateProfile(user, updateProfileDto) {
+        return this.usersService.updateProfile(user.id, updateProfileDto);
+    }
+    changePassword(user, changePasswordDto) {
+        return this.usersService.changePassword(user.id, changePasswordDto);
     }
 };
 exports.UsersController = UsersController;
@@ -63,6 +71,26 @@ __decorate([
     __metadata("design:paramtypes", [String, update_role_dto_1.UpdateRoleDto]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "updateRole", null);
+__decorate([
+    (0, common_1.Patch)('profile'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [user_entity_1.User,
+        update_profile_dto_1.UpdateProfileDto]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "updateProfile", null);
+__decorate([
+    (0, common_1.Patch)('change-password'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [user_entity_1.User,
+        change_password_dto_1.ChangePasswordDto]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "changePassword", null);
 exports.UsersController = UsersController = __decorate([
     (0, common_1.Controller)('users'),
     __metadata("design:paramtypes", [users_service_1.UsersService])

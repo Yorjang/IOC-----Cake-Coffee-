@@ -177,6 +177,7 @@ export default function App() {
           onSearchChange={setSearchQuery}
           onSearchSubmit={() => setView("Tìm kiếm")}
           isLoggedIn={!!user}
+          user={user}
         />
         <main className="min-h-[calc(100vh-400px)]">
           <div className="animate-page-change" key={view}>
@@ -186,7 +187,7 @@ export default function App() {
             {view === VIEW_KEYS.SUCCESS && <Success setView={setView} />}
             {view === VIEW_KEYS.DETAIL && <ProductDetail product={selectedProduct} setView={setView} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onSelectProduct={handleSelectProduct} />}
             {view === VIEW_KEYS.FAVORITES && <Favorites wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onAddToCart={handleAddToCart} onSelectProduct={handleSelectProduct} setView={setView} />}
-            {view === VIEW_KEYS.PROFILE && <Profile user={user} setView={setView} onLogout={handleLogout} />}
+            {view === VIEW_KEYS.PROFILE && <Profile user={user} setUser={setUser} setView={setView} onLogout={handleLogout} />}
             {LISTABLE.includes(view) && <ProductListing category={view} setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} searchQuery={searchQuery} />}
           </div>
         </main>

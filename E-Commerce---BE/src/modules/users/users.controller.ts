@@ -7,6 +7,8 @@ import { Permission } from '../../common/constants/permissions';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from './entities/user.entity';
 import { UpdateRoleDto } from './dto/update-role.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Controller('users')
 export class UsersController {
@@ -33,6 +35,24 @@ export class UsersController {
         @Body() updateRoleDto: UpdateRoleDto,
     ) {
         return this.usersService.updateRole(id, updateRoleDto.role);
+    }
+
+    @Patch('profile')
+    @UseGuards(JwtAuthGuard)
+    updateProfile(
+        @CurrentUser() user: User,
+        @Body() updateProfileDto: UpdateProfileDto,
+    ) {
+        return this.usersService.updateProfile(user.id, updateProfileDto);
+    }
+
+    @Patch('change-password')
+    @UseGuards(JwtAuthGuard)
+    changePassword(
+        @CurrentUser() user: User,
+        @Body() changePasswordDto: ChangePasswordDto,
+    ) {
+        return this.usersService.changePassword(user.id, changePasswordDto);
     }
 }
 

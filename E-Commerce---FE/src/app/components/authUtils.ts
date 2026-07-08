@@ -58,13 +58,14 @@ export async function apiRegister(
   fullName: string,
   email: string,
   phone: string | undefined,
+  password: string,
   onSuccess: () => void,
   setMode: (m: AuthMode) => void,
 ): Promise<AuthErrors | null> {
   const res = await fetch(`${env.API_URL}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fullName, email, phone }),
+    body: JSON.stringify({ fullName, email, phone, password }),
   });
   const data = await res.json();
   if (!res.ok) {

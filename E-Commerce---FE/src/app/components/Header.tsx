@@ -13,6 +13,7 @@ export function Header({
   onSearchChange,
   onSearchSubmit,
   isLoggedIn = false,
+  user,
 }: any) {
   const [mobileOpen, setMobileOpen] = useState(false);
   return (
@@ -66,8 +67,12 @@ export function Header({
           )}
         </button>
         {isLoggedIn ? (
-          <button type="button" onClick={() => setView(VIEW_KEYS.PROFILE)} className={`rounded-full p-2 transition ${view === VIEW_KEYS.PROFILE ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-accent"}`} title={MESSAGES.HEADER_PROFILE}>
-            <User size={18} />
+          <button type="button" onClick={() => setView(VIEW_KEYS.PROFILE)} className={`w-[34px] h-[34px] rounded-full transition overflow-hidden flex items-center justify-center border shrink-0 ${view === VIEW_KEYS.PROFILE ? "bg-primary border-primary text-primary-foreground" : "bg-secondary border-border hover:bg-accent"}`} title={MESSAGES.HEADER_PROFILE}>
+            {user?.avatar ? (
+              <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              <User size={18} />
+            )}
           </button>
         ) : (
           <button type="button" onClick={() => setView(VIEW_KEYS.LOGIN)} className="flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 sm:px-3 sm:py-1.5 text-sm hover:bg-secondary transition" title={MESSAGES.HEADER_LOGIN}>

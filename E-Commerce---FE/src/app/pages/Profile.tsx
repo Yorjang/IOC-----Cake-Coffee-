@@ -1,5 +1,7 @@
-import { LogOut } from "lucide-react";
-import { VIEW_KEYS } from "../../config/appConfig";
+import { useState, useRef, useEffect } from "react";
+import { LogOut, User, Lock, Phone, Upload, Image as ImageIcon, History, Save, ShieldAlert, Check } from "lucide-react";
+import { toast } from "sonner";
+import { env } from "../../config/env";
 
 const MOCK_ORDERS = [
   { id: "SB98124", date: "05/07/2026", items: "1x Cafe Latte, 1x Bánh Tiramisu", total: "100.000đ", status: "Đã hoàn thành" },
@@ -7,64 +9,509 @@ const MOCK_ORDERS = [
   { id: "SB99401", date: "07/07/2026", items: "2x Matcha Latte, 1x Bánh mousse xoài", total: "178.000đ", status: "Đang giao" },
 ];
 
+const PRESET_AVATARS = [
+  { name: "Coffee", url: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=150&auto=format&fit=crop&q=60" },
+  { name: "Cupcake", url: "https://images.unsplash.com/photo-1587314168485-3236d6710814?w=150&auto=format&fit=crop&q=60" },
+  { name: "Donut", url: "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=150&auto=format&fit=crop&q=60" },
+  { name: "Croissant", url: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=150&auto=format&fit=crop&q=60" },
+  { name: "Tiramisu", url: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=150&auto=format&fit=crop&q=60" },
+];
+
 const FALLBACK_USER = {
-  name: "Nguyễn Minh Anh",
+  fullName: "Nguyễn Minh Anh",
   email: "minhanh@email.com",
-  phone: "0987 654 321",
-  address: "123 Đường Lê Lợi, Quận 1, TP. Hồ Chí Minh",
+  phone: "0987654321",
+  avatar: "",
 };
 
-export function Profile({ user, setView, onLogout }: any) {
+export function Profile({ user, setUser, setView, onLogout }: any) {
   const displayUser = user || FALLBACK_USER;
-  const initial = (displayUser.name || displayUser.fullName || "M").charAt(0).toUpperCase();
+
+  // Tabs: 'info' | 'password' | 'orders'
+  const [activeTab, setActiveTab] = useState<"info" | "password" | "orders">("info");
+
+  // Profile Form States
+  const [fullName, setFullName] = useState(displayUser.fullName || displayUser.name || "");
+  const [phone, setPhone] = useState(displayUser.phone || "");
+  const [avatar, setAvatar] = useState(displayUser.avatar || "");
+  const [isCustomAvatarUrl, setIsCustomAvatarUrl] = useState(false);
+  const [customUrlInput, setCustomUrlInput] = useState("");
+  const [loadingInfo, setLoadingInfo] = useState(false);
+
+  // Password Form States
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loadingPassword, setLoadingPassword] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync state if user prop updates
+  useEffect(() => {
+    if (user) {
+      setFullName(user.fullName || user.name || "");
+      setPhone(user.phone || "");
+      setAvatar(user.avatar || "");
+    }
+  }, [user]);
+
+  const initial = (fullName || "M").charAt(0).toUpperCase();
+
+  // Handle local image upload as base64
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 1 * 1024 * 1024) {
+        toast.error("Ảnh đại diện phải nhỏ hơn 1MB!");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatar(reader.result as string);
+        toast.success("Tải ảnh đại diện lên thành công!");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Submit profile details update
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fullName.trim()) {
+      toast.error("Họ và tên không được để trống!");
+      return;
+    }
+
+    setLoadingInfo(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch(`${env.API_URL}/users/profile`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          fullName,
+          phone: phone || undefined,
+          avatar: avatar || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Không thể cập nhật thông tin cá nhân");
+      }
+
+      // Update user in context and localStorage
+      const updatedUser = { ...displayUser, ...data };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      if (setUser) setUser(updatedUser);
+
+      toast.success("Cập nhật thông tin cá nhân thành công!");
+    } catch (err: any) {
+      toast.error(err.message || "Đã xảy ra lỗi khi lưu thông tin.");
+    } finally {
+      setLoadingInfo(false);
+    }
+  };
+
+  // Submit password change
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!oldPassword) {
+      toast.error("Vui lòng nhập mật khẩu cũ!");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("Mật khẩu mới phải có ít nhất 6 ký tự!");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Xác nhận mật khẩu mới không khớp!");
+      return;
+    }
+
+    setLoadingPassword(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch(`${env.API_URL}/users/change-password`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          oldPassword,
+          newPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Đổi mật khẩu thất bại");
+      }
+
+      toast.success("Đổi mật khẩu thành công!");
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      toast.error(err.message || "Đã xảy ra lỗi khi đổi mật khẩu.");
+    } finally {
+      setLoadingPassword(false);
+    }
+  };
+
+  const applyCustomUrl = () => {
+    if (customUrlInput.trim()) {
+      setAvatar(customUrlInput.trim());
+      setIsCustomAvatarUrl(false);
+      setCustomUrlInput("");
+      toast.success("Đã áp dụng link ảnh đại diện mới!");
+    }
+  };
 
   return (
-    <div className="mx-auto max-w-4xl px-5 py-8 sm:px-6 lg:px-10">
-      <h2 className="mb-6 text-2xl md:text-3xl font-bold font-serif">Hồ sơ cá nhân</h2>
-      <div className="grid gap-8 md:grid-cols-3">
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+      {/* Title */}
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold font-serif text-foreground">Hồ sơ của tôi</h2>
+        <p className="text-muted-foreground text-sm mt-1">Quản lý thông tin tài khoản, đơn hàng và mật khẩu của bạn.</p>
+      </div>
 
-        {/* Avatar card */}
-        <div className="md:col-span-1 rounded-2xl border bg-card p-6 h-fit text-center space-y-4">
-          <div className="size-20 rounded-full bg-primary text-primary-foreground font-bold text-2xl flex items-center justify-center mx-auto">
-            {initial}
+      <div className="grid gap-8 lg:grid-cols-12">
+        {/* Left Side: Avatar Card */}
+        <div className="lg:col-span-4 space-y-6">
+          <div className="rounded-2xl border bg-card p-6 text-center space-y-5 shadow-sm relative overflow-hidden">
+            {/* Header background accent */}
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-primary" />
+
+            <div className="relative group mx-auto w-24 h-24 rounded-full overflow-hidden border-2 border-primary/20 shadow-inner flex items-center justify-center bg-secondary">
+              {avatar ? (
+                <img src={avatar} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <span className="font-bold text-4xl text-primary">{initial}</span>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("info");
+                  toast.info("Vui lòng cuộn xuống phần Thiết lập ảnh đại diện bên dưới.");
+                }}
+                className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-xs font-semibold"
+              >
+                Thay đổi
+              </button>
+            </div>
+
+            <div>
+              <h3 className="font-bold text-xl text-foreground font-serif">{fullName}</h3>
+              <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary capitalize">
+                Thành viên
+              </span>
+              <p className="text-xs text-muted-foreground mt-2">{displayUser.email}</p>
+            </div>
+
+            <div className="border-t pt-4 text-left text-sm space-y-3 text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Phone size={14} className="text-primary" />
+                <span>
+                  <strong className="text-foreground">Điện thoại:</strong> {phone || "Chưa thiết lập"}
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={onLogout}
+              className="w-full rounded-xl border border-destructive/20 text-destructive hover:bg-destructive/5 py-2.5 text-sm font-semibold transition flex items-center justify-center gap-1.5"
+            >
+              <LogOut size={14} /> Đăng xuất
+            </button>
           </div>
-          <div>
-            <h3 className="font-bold text-lg">{displayUser.name || displayUser.fullName}</h3>
-            <p className="text-xs text-muted-foreground">{displayUser.email}</p>
-          </div>
-          <div className="border-t pt-4 text-left text-sm space-y-2 text-muted-foreground">
-            <p><strong className="text-foreground">Điện thoại:</strong> {displayUser.phone || "Chưa thiết lập"}</p>
-            <p><strong className="text-foreground">Địa chỉ:</strong> {displayUser.address || "Chưa thiết lập"}</p>
-          </div>
-          <button onClick={onLogout} className="w-full rounded-xl border border-red-200 text-red-500 hover:bg-red-50 py-2.5 text-sm font-semibold transition flex items-center justify-center gap-1">
-            <LogOut size={14} /> Đăng xuất
-          </button>
         </div>
 
-        {/* Order history */}
-        <div className="md:col-span-2 space-y-6">
-          <div className="rounded-2xl border bg-card p-6">
-            <h3 className="font-bold text-lg font-serif mb-4">Lịch sử đơn hàng</h3>
-            {MOCK_ORDERS.length > 0 ? (
-              <div className="space-y-4">
-                {MOCK_ORDERS.map(o => (
-                  <div key={o.id} className="border-b pb-4 last:border-0 last:pb-0 text-sm flex justify-between items-start">
-                    <div>
-                      <p className="font-semibold text-primary">{o.id}</p>
-                      <p className="text-xs text-muted-foreground">{o.date}</p>
-                      <p className="text-muted-foreground mt-1">{o.items}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold">{o.total}</p>
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold mt-1 ${o.status === "Đang giao" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"}`}>
-                        {o.status}
-                      </span>
+        {/* Right Side: Detail Panels */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* Navigation Tabs */}
+          <div className="flex rounded-xl bg-secondary p-1 border border-border shadow-sm">
+            <button
+              onClick={() => setActiveTab("info")}
+              className={`flex-1 rounded-lg py-2.5 text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-2 ${
+                activeTab === "info"
+                  ? "bg-background shadow-sm text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <User size={16} /> Thông tin cá nhân
+            </button>
+            <button
+              onClick={() => setActiveTab("password")}
+              className={`flex-1 rounded-lg py-2.5 text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-2 ${
+                activeTab === "password"
+                  ? "bg-background shadow-sm text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Lock size={16} /> Đổi mật khẩu
+            </button>
+            <button
+              onClick={() => setActiveTab("orders")}
+              className={`flex-1 rounded-lg py-2.5 text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-2 ${
+                activeTab === "orders"
+                  ? "bg-background shadow-sm text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <History size={16} /> Đơn hàng của tôi
+            </button>
+          </div>
+
+          {/* Form / Content Area */}
+          <div className="rounded-2xl border bg-card p-6 sm:p-8 shadow-sm">
+            {/* TAB: Personal Info */}
+            {activeTab === "info" && (
+              <form onSubmit={handleUpdateProfile} className="space-y-6">
+                <h3 className="text-xl font-bold font-serif border-b pb-3 mb-4">Cập nhật thông tin cá nhân</h3>
+
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Họ và tên</label>
+                    <div className="relative">
+                      <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="text"
+                        required
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        className="w-full rounded-xl border bg-input-background py-3 pl-10 pr-4 text-sm outline-none focus:border-primary text-foreground"
+                      />
                     </div>
                   </div>
-                ))}
+
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Số điện thoại</label>
+                    <div className="relative">
+                      <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="tel"
+                        placeholder="Ví dụ: 0987654321"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="w-full rounded-xl border bg-input-background py-3 pl-10 pr-4 text-sm outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Địa chỉ Email (Không thể thay đổi)</label>
+                  <input
+                    type="email"
+                    disabled
+                    value={displayUser.email}
+                    className="w-full rounded-xl border bg-secondary/50 py-3 px-4 text-sm outline-none text-muted-foreground cursor-not-allowed"
+                  />
+                </div>
+
+                {/* Avatar Design Section */}
+                <div className="space-y-4 border-t pt-6">
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground">Thiết lập ảnh đại diện</h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Chọn một ảnh đại diện ngọt ngào từ thực đơn hoặc tải lên từ thiết bị của bạn.
+                    </p>
+                  </div>
+
+                  {/* Preset Cards */}
+                  <div className="grid grid-cols-5 gap-3">
+                    {PRESET_AVATARS.map((preset) => (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        onClick={() => setAvatar(preset.url)}
+                        className={`relative aspect-square rounded-xl overflow-hidden border-2 transition ${
+                          avatar === preset.url ? "border-primary scale-95 shadow-md" : "border-border hover:border-primary/40"
+                        }`}
+                        title={preset.name}
+                      >
+                        <img src={preset.url} alt={preset.name} className="w-full h-full object-cover" />
+                        {avatar === preset.url && (
+                          <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                            <span className="bg-primary text-primary-foreground rounded-full p-0.5">
+                              <Check size={12} strokeWidth={3} />
+                            </span>
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Custom upload or URL */}
+                  <div className="flex flex-wrap items-center gap-3 pt-2">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileUpload}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="rounded-xl border border-primary/20 text-primary hover:bg-primary/5 py-2.5 px-4 text-xs font-semibold transition flex items-center gap-1.5"
+                    >
+                      <Upload size={14} /> Tải ảnh từ máy
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomAvatarUrl(!isCustomAvatarUrl)}
+                      className="rounded-xl border border-border text-foreground hover:bg-secondary py-2.5 px-4 text-xs font-semibold transition flex items-center gap-1.5"
+                    >
+                      <ImageIcon size={14} /> Nhập liên kết ảnh
+                    </button>
+                  </div>
+
+                  {isCustomAvatarUrl && (
+                    <div className="flex gap-2 animate-fadeIn mt-2">
+                      <input
+                        type="url"
+                        placeholder="https://example.com/avatar.jpg"
+                        value={customUrlInput}
+                        onChange={(e) => setCustomUrlInput(e.target.value)}
+                        className="flex-1 rounded-xl border bg-input-background py-2 px-3 text-xs outline-none focus:border-primary text-foreground"
+                      />
+                      <button
+                        type="button"
+                        onClick={applyCustomUrl}
+                        className="bg-primary hover:bg-primary/80 text-primary-foreground rounded-xl px-4 py-2 text-xs font-semibold transition"
+                      >
+                        Áp dụng
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t pt-6 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={loadingInfo}
+                    className="rounded-full bg-primary hover:bg-primary/90 py-3 px-8 text-sm font-semibold text-primary-foreground transition flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <Save size={16} />
+                    {loadingInfo ? "Đang lưu..." : "Lưu thay đổi"}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* TAB: Change Password */}
+            {activeTab === "password" && (
+              <form onSubmit={handleChangePassword} className="space-y-6">
+                <div className="border-b pb-3 mb-4">
+                  <h3 className="text-xl font-bold font-serif text-foreground">Thay đổi mật khẩu</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Đảm bảo mật khẩu của bạn có độ dài tối thiểu là 6 ký tự để giữ tài khoản an toàn.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Mật khẩu hiện tại</label>
+                    <div className="relative">
+                      <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="password"
+                        required
+                        value={oldPassword}
+                        onChange={(e) => setOldPassword(e.target.value)}
+                        className="w-full rounded-xl border bg-input-background py-3 pl-10 pr-4 text-sm outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Mật khẩu mới</label>
+                    <div className="relative">
+                      <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="password"
+                        required
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full rounded-xl border bg-input-background py-3 pl-10 pr-4 text-sm outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Xác nhận mật khẩu mới</label>
+                    <div className="relative">
+                      <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="password"
+                        required
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full rounded-xl border bg-input-background py-3 pl-10 pr-4 text-sm outline-none focus:border-primary text-foreground"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t pt-6 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={loadingPassword}
+                    className="rounded-full bg-primary hover:bg-primary/90 py-3 px-8 text-sm font-semibold text-primary-foreground transition flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <Lock size={16} />
+                    {loadingPassword ? "Đang xử lý..." : "Đổi mật khẩu"}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* TAB: Order History */}
+            {activeTab === "orders" && (
+              <div className="space-y-6">
+                <h3 className="text-xl font-bold font-serif border-b pb-3 mb-4">Lịch sử đơn hàng</h3>
+                {MOCK_ORDERS.length > 0 ? (
+                  <div className="space-y-4">
+                    {MOCK_ORDERS.map((o) => (
+                      <div
+                        key={o.id}
+                        className="border bg-secondary/20 p-4 rounded-xl text-sm flex flex-col sm:flex-row justify-between sm:items-center gap-4 transition hover:bg-secondary/40"
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-primary">{o.id}</span>
+                            <span className="text-muted-foreground text-xs">• {o.date}</span>
+                          </div>
+                          <p className="text-foreground/90 font-medium">{o.items}</p>
+                        </div>
+                        <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-1">
+                          <p className="font-bold text-foreground">{o.total}</p>
+                          <span
+                            className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                              o.status === "Đang giao"
+                                ? "bg-blue-100/80 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                                : "bg-green-100/80 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                            }`}
+                          >
+                            {o.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-10">
+                    <p className="text-sm text-muted-foreground">Bạn chưa thực hiện đơn hàng nào.</p>
+                  </div>
+                )}
               </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Bạn chưa có đơn hàng nào.</p>
             )}
           </div>
         </div>

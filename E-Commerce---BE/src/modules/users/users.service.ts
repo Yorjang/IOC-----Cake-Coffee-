@@ -3,6 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from './entities/user.entity';
 import { RegisterDto } from '../auth/dto/register.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
@@ -92,6 +95,56 @@ export class UsersService {
         // Remove password hash from returned object
         const { passwordHash: _, ...result } = savedUser;
         return result as any;
+    }
+
+    async updateProfile(id: string, updateProfileDto: UpdateProfileDto): Promise<User> {
+        const user = await this.findById(id);
+        if (!user) {
+            throw new BadRequestException('User not found');
+        }
+
+        if (updateProfileDto.phone && updateProfileDto.phone !== user.phone) {
+            const existingPhone = await this.usersRepository.findOne({
+                where: { phone: updateProfileDto.phone },
+            });
+            if (existingPhone && existingPhone.id !== id) {
+                throw new BadRequestException('Phone number already exists');
+            }
+        }
+
+        if (updateProfileDto.fullName !== undefined) {
+            user.fullName = updateProfileDto.fullName;
+        }
+        if (updateProfileDto.phone !== undefined) {
+            user.phone = updateProfileDto.phone;
+        }
+        // if (updateProfileDto.avatar !== undefined) {
+        //     user.avatar = updateProfileDto.avatar;
+        // }
+
+        const savedUser = await this.usersRepository.save(user);
+        
+        // Remove password hash from returned object
+        const { passwordHash: _, ...result } = savedUser;
+        return result as any;
+    }
+
+    async changePassword(id: string, changePasswordDto: ChangePasswordDto): Promise<{ message: string }> {
+        const user = await this.usersRepository.findOne({ where: { id } });
+        if (!user) {
+            throw new BadRequestException('User not found');
+        }
+
+        const isPasswordValid = await bcrypt.compare(changePasswordDto.oldPassword, user.passwordHash);
+        if (!isPasswordValid) {
+            throw new BadRequestException('Mật khẩu cũ không chính xác');
+        }
+
+        const saltOrRounds = 10;
+        user.passwordHash = await bcrypt.hash(changePasswordDto.newPassword, saltOrRounds);
+        await this.usersRepository.save(user);
+
+        return { message: 'Đổi mật khẩu thành công' };
     }
 }
 

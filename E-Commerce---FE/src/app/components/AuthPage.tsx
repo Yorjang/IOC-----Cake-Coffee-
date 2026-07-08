@@ -2,7 +2,8 @@ import { useState } from "react";
 import { CakeSlice, Eye, EyeOff, Mail, Lock, User, Phone } from "lucide-react";
 import { toast } from "sonner";
 import { AUTH_CONTENT } from "../../constants/authContent";
-import { AuthMode, AuthErrors, validateRegisterFields, apiLogin, apiRegister } from "./authUtils";
+import type { AuthMode, AuthErrors } from "./authUtils";
+import { validateRegisterFields, apiLogin, apiRegister } from "./authUtils";
 
 // ── Register Options Modal ────────────────────────────────────────────────────
 function RegisterModal({ loading, fillDetailsLater, setFillDetailsLater, onCancel, onConfirm }: any) {
@@ -84,7 +85,7 @@ export function AuthPage({ onSuccess, onAdminDemo }: { onSuccess: () => void; on
   async function handleConfirmRegister() {
     setLoading(true);
     try {
-      const err = await apiRegister(fullName, email, fillDetailsLater ? undefined : (phone || undefined), onSuccess, setMode);
+      const err = await apiRegister(fullName, email, fillDetailsLater ? undefined : (phone || undefined), password, onSuccess, setMode);
       if (err) setErrors(err);
     } catch (e: any) { toast.error(e.message || "Đã xảy ra lỗi."); }
     finally { setLoading(false); setShowModal(false); }

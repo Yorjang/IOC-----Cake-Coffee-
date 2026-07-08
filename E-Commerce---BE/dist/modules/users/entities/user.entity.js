@@ -44,7 +44,7 @@ __decorate([
     __metadata("design:type", String)
 ], User.prototype, "passwordHash", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'enum', enum: UserRole, default: UserRole.CUSTOMER }),
+    (0, typeorm_1.Column)({ type: 'enum', enum: UserRole, default: UserRole.GUEST }),
     __metadata("design:type", String)
 ], User.prototype, "role", void 0);
 __decorate([
@@ -52,7 +52,7 @@ __decorate([
     __metadata("design:type", String)
 ], User.prototype, "branchId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'is_active', default: true }),
+    (0, typeorm_1.Column)({ name: 'is_active', default: false }),
     __metadata("design:type", Boolean)
 ], User.prototype, "isActive", void 0);
 __decorate([
