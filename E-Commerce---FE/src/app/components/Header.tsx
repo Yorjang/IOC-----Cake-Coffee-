@@ -82,8 +82,8 @@ export function Header({
         </button>
         {isLoggedIn ? (
           <button type="button" onClick={() => setView(VIEW_KEYS.PROFILE)} className={`w-[34px] h-[34px] rounded-full transition overflow-hidden flex items-center justify-center border shrink-0 ${view === VIEW_KEYS.PROFILE ? "bg-primary border-primary text-primary-foreground" : "bg-secondary border-border hover:bg-accent"}`} title={MESSAGES.HEADER_PROFILE}>
-            {user?.avatar ? (
-              <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+            {user?.avatarUrl || user?.avatar ? (
+              <img src={user.avatarUrl || user.avatar} alt="Avatar" className="w-full h-full object-cover" />
             ) : (
               <User size={18} />
             )}
