@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -10,6 +10,7 @@ import { UpdateRoleDto } from './dto/update-role.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 
 @Controller('users')
 export class UsersController {
@@ -26,6 +27,13 @@ export class UsersController {
     @Permissions(Permission.VIEW_USERS)
     findAll() {
         return this.usersService.findAll();
+    }
+
+    @Post()
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions(Permission.MANAGE_USERS)
+    createUser(@Body() createUserDto: CreateUserDto) {
+        return this.usersService.createByAdmin(createUserDto);
     }
 
     @Patch(':id/role')

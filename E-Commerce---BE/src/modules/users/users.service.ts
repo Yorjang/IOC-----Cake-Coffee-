@@ -2,10 +2,12 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from './entities/user.entity';
+import { Branch } from '../branches/entities/branch.entity';
 import { RegisterDto } from '../auth/dto/register.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -13,6 +15,8 @@ export class UsersService {
     constructor(
         @InjectRepository(User)
         private usersRepository: Repository<User>,
+        @InjectRepository(Branch)
+        private branchesRepository: Repository<Branch>,
     ) {}
 
     async create(registerDto: RegisterDto): Promise<User> {
@@ -99,6 +103,66 @@ export class UsersService {
         return result as any;
     }
 
+    private async assertBranchForRole(role: UserRole, branchId?: string | null) {
+        const branchRequiredRoles = [UserRole.STAFF, UserRole.CASHIER, UserRole.STORE_MANAGER];
+        if (!branchRequiredRoles.includes(role)) {
+            return null;
+        }
+
+        if (!branchId) {
+            throw new BadRequestException('Branch is required for staff, cashier and store manager accounts');
+        }
+
+        const branch = await this.branchesRepository.findOne({ where: { id: branchId } });
+        if (!branch || !branch.isActive) {
+            throw new BadRequestException('Branch not found or inactive');
+        }
+
+        return branch;
+    }
+
+    async createByAdmin(createUserDto: CreateUserDto): Promise<User> {
+        const nextEmail = createUserDto.email === '' ? null : createUserDto.email;
+        const nextPhone = createUserDto.phone === '' ? null : createUserDto.phone;
+
+        if (!nextEmail && !nextPhone) {
+            throw new BadRequestException('Email or phone must be provided');
+        }
+
+        if (nextEmail) {
+            const existingEmail = await this.usersRepository.findOne({ where: { email: nextEmail } });
+            if (existingEmail) {
+                throw new BadRequestException('Email already exists');
+            }
+        }
+
+        if (nextPhone) {
+            const existingPhone = await this.usersRepository.findOne({ where: { phone: nextPhone } });
+            if (existingPhone) {
+                throw new BadRequestException('Phone number already exists');
+            }
+        }
+
+        await this.assertBranchForRole(createUserDto.role, createUserDto.branchId);
+
+        const branchFreeRoles = [UserRole.CUSTOMER, UserRole.GUEST, UserRole.ADMIN];
+        const passwordHash = await bcrypt.hash(createUserDto.password, 10);
+        const user = this.usersRepository.create({
+            fullName: createUserDto.fullName,
+            email: nextEmail,
+            phone: nextPhone,
+            passwordHash,
+            role: createUserDto.role,
+            branchId: branchFreeRoles.includes(createUserDto.role) ? null : createUserDto.branchId,
+            isActive: createUserDto.isActive ?? true,
+            emailVerifiedAt: nextEmail ? new Date() : null,
+        });
+
+        const savedUser = await this.usersRepository.save(user);
+        const { passwordHash: _, ...result } = savedUser;
+        return result as any;
+    }
+
     async updateUser(id: string, updateUserDto: UpdateUserDto): Promise<User> {
         const user = await this.findById(id);
         if (!user) {
@@ -107,6 +171,8 @@ export class UsersService {
 
         const nextEmail = updateUserDto.email === '' ? null : updateUserDto.email;
         const nextPhone = updateUserDto.phone === '' ? null : updateUserDto.phone;
+        const nextRole = updateUserDto.role ?? user.role;
+        const nextBranchId = updateUserDto.branchId === '' ? null : updateUserDto.branchId;
 
         if (nextEmail && nextEmail !== user.email) {
             const existingEmail = await this.usersRepository.findOne({ where: { email: nextEmail } });
@@ -134,12 +200,20 @@ export class UsersService {
         if (updateUserDto.role !== undefined) {
             user.role = updateUserDto.role;
         }
+        if (updateUserDto.branchId !== undefined) {
+            user.branchId = nextBranchId;
+        }
         if (updateUserDto.isActive !== undefined) {
             user.isActive = updateUserDto.isActive;
         }
 
         if (!user.email && !user.phone) {
             throw new BadRequestException('Email or phone must be provided');
+        }
+
+        await this.assertBranchForRole(nextRole, user.branchId);
+        if ([UserRole.CUSTOMER, UserRole.GUEST, UserRole.ADMIN].includes(nextRole)) {
+            user.branchId = null;
         }
 
         const savedUser = await this.usersRepository.save(user);

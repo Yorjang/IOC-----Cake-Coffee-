@@ -93,6 +93,7 @@ const statusColor: Record<string, string> = {
   "Đang hoạt động": "bg-green-100 text-green-700",
   "Hết lượt": "bg-red-100 text-red-700",
   "Hiển thị": "bg-green-100 text-green-700",
+  "Tạm đóng": "bg-yellow-100 text-yellow-700",
   "Đủ hàng": "bg-green-100 text-green-700",
   "Sắp hết": "bg-yellow-100 text-yellow-700",
 };
@@ -106,8 +107,8 @@ function AdminBtn({ children, variant = "primary", onClick }: any) {
     ? "bg-primary text-primary-foreground hover:bg-primary/80"
     : variant === "danger"
     ? "bg-red-100 text-red-700 hover:bg-red-200"
-    : "bg-sidebar-accent text-primary-foreground hover:bg-sidebar-accent/80";
-  return <button onClick={onClick} className={`rounded-lg px-3 py-1.5 text-sm transition ${cls}`}>{children}</button>;
+    : "border border-primary/30 bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary-foreground";
+  return <button onClick={onClick} className={`inline-flex min-h-8 min-w-10 items-center justify-center rounded-lg px-3 py-1.5 text-sm transition ${cls}`}>{children}</button>;
 }
 
 function TableHeader({ cols }: { cols: string[] }) {
@@ -467,6 +468,129 @@ function AdminOptions() {
 
 // ── Branches ─────────────────────────────────────────────────────────────────
 function AdminBranches() {
+  const [branchRows, setBranchRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [branchForm, setBranchForm] = useState<any>(null);
+
+  const getToken = () => localStorage.getItem("accessToken");
+  const statusLabel = (status: string) => ({
+    active: "Hiển thị",
+    inactive: "Ẩn",
+    temporarily_closed: "Tạm đóng",
+  }[status] || status);
+
+  const emptyBranchForm = () => ({
+    name: "",
+    address: "",
+    phone: "",
+    email: "",
+    latitude: "",
+    longitude: "",
+    status: "active",
+    isActive: true,
+  });
+
+  const loadBranches = async () => {
+    const token = getToken();
+    if (!token) {
+      toast.error("Bạn cần đăng nhập lại để quản lý chi nhánh.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${env.API_URL}/branches`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Không thể tải danh sách chi nhánh.");
+      setBranchRows(data);
+    } catch (err: any) {
+      toast.error(err.message || "Không thể tải danh sách chi nhánh.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadBranches();
+  }, []);
+
+  const saveBranch = async () => {
+    if (!branchForm) return;
+    const token = getToken();
+    if (!token) {
+      toast.error("Bạn cần đăng nhập lại để lưu chi nhánh.");
+      return;
+    }
+
+    const payload = {
+      name: String(branchForm.name || "").trim(),
+      address: String(branchForm.address || "").trim(),
+      phone: String(branchForm.phone || "").replace(/\s+/g, "") || null,
+      email: String(branchForm.email || "").trim() || null,
+      latitude: String(branchForm.latitude || "").trim() || null,
+      longitude: String(branchForm.longitude || "").trim() || null,
+      status: branchForm.status || "active",
+      isActive: branchForm.status === "active",
+    };
+
+    if (!payload.name) {
+      toast.error("Vui lòng nhập tên chi nhánh.");
+      return;
+    }
+    if (!payload.address) {
+      toast.error("Vui lòng nhập địa chỉ chi nhánh.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const isEditing = !!branchForm.id;
+      const res = await fetch(`${env.API_URL}/branches${isEditing ? `/${branchForm.id}` : ""}`, {
+        method: isEditing ? "PATCH" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Không thể lưu chi nhánh.");
+
+      setBranchRows(prev => isEditing ? prev.map(branch => branch.id === data.id ? data : branch) : [data, ...prev]);
+      setBranchForm(null);
+      toast.success(isEditing ? "Đã cập nhật chi nhánh." : "Đã thêm chi nhánh.");
+    } catch (err: any) {
+      toast.error(err.message || "Không thể lưu chi nhánh.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteBranch = async (branch: any) => {
+    const token = getToken();
+    if (!token) {
+      toast.error("Bạn cần đăng nhập lại để xóa chi nhánh.");
+      return;
+    }
+    if (!window.confirm(`Xóa chi nhánh ${branch.name}?`)) return;
+
+    try {
+      const res = await fetch(`${env.API_URL}/branches/${branch.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Không thể xóa chi nhánh.");
+      setBranchRows(prev => prev.filter(item => item.id !== branch.id));
+      toast.success("Đã xóa chi nhánh.");
+    } catch (err: any) {
+      toast.error(err.message || "Không thể xóa chi nhánh.");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -474,56 +598,109 @@ function AdminBranches() {
           <h2 className="text-2xl font-semibold text-foreground">Quản lý chi nhánh</h2>
           <p className="mt-1 text-sm text-muted-foreground">Theo dõi thông tin cửa hàng, giờ mở cửa, quản lý và trạng thái hiển thị.</p>
         </div>
-        <AdminBtn><span className="flex items-center gap-1"><Plus size={14} />Thêm chi nhánh</span></AdminBtn>
+        <div className="flex gap-2">
+          <button onClick={loadBranches} className="rounded-xl bg-sidebar px-3 py-2 text-sm text-muted-foreground hover:bg-sidebar-accent transition">
+            {loading ? "Đang tải..." : "Tải lại"}
+          </button>
+          <AdminBtn onClick={() => setBranchForm(emptyBranchForm())}><span className="flex items-center gap-1"><Plus size={14} />Thêm chi nhánh</span></AdminBtn>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        {branches.map(branch => (
+        {branchRows.map(branch => (
           <div key={branch.id} className="rounded-2xl bg-sidebar p-5 transition hover:bg-sidebar-accent">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-mono text-xs text-primary">{branch.id}</p>
+                <p className="font-mono text-xs text-primary">{branch.id.slice(0, 8)}</p>
                 <h3 className="mt-1 font-semibold text-foreground">{branch.name}</h3>
               </div>
-              <StatusBadge status={branch.status} />
+              <StatusBadge status={statusLabel(branch.status)} />
             </div>
             <div className="mt-4 space-y-2 text-sm text-muted-foreground">
               <p className="flex gap-2"><MapPin size={15} className="mt-0.5 shrink-0 text-primary" />{branch.address}</p>
-              <p className="flex gap-2"><Clock size={15} className="mt-0.5 shrink-0 text-primary" />{branch.hours}</p>
-              <p className="flex gap-2"><Users size={15} className="mt-0.5 shrink-0 text-primary" />Quản lý: {branch.manager}</p>
+              <p className="flex gap-2"><Clock size={15} className="mt-0.5 shrink-0 text-primary" />{branch.phone || "Chưa có số điện thoại"}</p>
+              <p className="flex gap-2"><Users size={15} className="mt-0.5 shrink-0 text-primary" />{branch.email || "Chưa có email"}</p>
             </div>
             <div className="mt-5 grid grid-cols-2 gap-3 rounded-xl bg-sidebar-accent p-3 text-sm">
               <div>
-                <p className="text-xs text-muted-foreground">Đơn hôm nay</p>
-                <p className="mt-1 font-semibold text-foreground">{branch.orders}</p>
+                <p className="text-xs text-muted-foreground">Latitude</p>
+                <p className="mt-1 font-semibold text-foreground">{branch.latitude || "-"}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Doanh thu</p>
-                <p className="mt-1 font-semibold text-primary">{branch.revenue}</p>
+                <p className="text-xs text-muted-foreground">Longitude</p>
+                <p className="mt-1 font-semibold text-primary">{branch.longitude || "-"}</p>
               </div>
             </div>
             <div className="mt-4 flex gap-2">
-              <AdminBtn variant="ghost"><Eye size={14} /></AdminBtn>
-              <AdminBtn variant="ghost"><Edit size={14} /></AdminBtn>
-              <AdminBtn variant="danger"><Trash2 size={14} /></AdminBtn>
+              <AdminBtn variant="ghost" onClick={() => setBranchForm({ ...branch })}><Edit size={14} /></AdminBtn>
+              <AdminBtn variant="danger" onClick={() => deleteBranch(branch)}><Trash2 size={14} /></AdminBtn>
             </div>
           </div>
         ))}
+        {!loading && branchRows.length === 0 && (
+          <div className="rounded-2xl bg-sidebar p-8 text-center text-sm text-muted-foreground md:col-span-3">
+            Chưa có chi nhánh nào trong database.
+          </div>
+        )}
       </div>
 
-      <div className="rounded-2xl bg-sidebar p-5">
-        <h3 className="mb-4 text-sm font-semibold text-foreground">Cấu hình chi nhánh mới</h3>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <input className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground" placeholder="Tên chi nhánh" />
-          <input className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground" placeholder="Số điện thoại" />
-          <input className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground lg:col-span-2" placeholder="Địa chỉ" />
-          <input className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground" placeholder="Giờ mở cửa" />
-          <input className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground" placeholder="Quản lý chi nhánh" />
-          <input className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground" placeholder="Latitude" />
-          <input className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground" placeholder="Longitude" />
+      {branchForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-2xl border border-sidebar-accent bg-background p-6 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-semibold text-foreground">{branchForm.id ? "Sửa chi nhánh" : "Thêm chi nhánh"}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">Cập nhật thông tin cửa hàng, trạng thái hiển thị và tọa độ bản đồ.</p>
+              </div>
+              <button onClick={() => setBranchForm(null)} className="rounded-full bg-sidebar px-3 py-1 text-sm text-muted-foreground hover:bg-sidebar-accent">Đóng</button>
+            </div>
+            <div className="grid gap-4">
+              <label className="grid gap-1 text-sm">
+                <span className="text-muted-foreground">Tên chi nhánh</span>
+                <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={branchForm.name || ""} onChange={e => setBranchForm((prev: any) => ({ ...prev, name: e.target.value }))} />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="text-muted-foreground">Địa chỉ</span>
+                <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={branchForm.address || ""} onChange={e => setBranchForm((prev: any) => ({ ...prev, address: e.target.value }))} />
+              </label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="grid gap-1 text-sm">
+                  <span className="text-muted-foreground">Số điện thoại</span>
+                  <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={branchForm.phone || ""} onChange={e => setBranchForm((prev: any) => ({ ...prev, phone: e.target.value }))} />
+                </label>
+                <label className="grid gap-1 text-sm">
+                  <span className="text-muted-foreground">Email</span>
+                  <input type="email" className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={branchForm.email || ""} onChange={e => setBranchForm((prev: any) => ({ ...prev, email: e.target.value }))} />
+                </label>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <label className="grid gap-1 text-sm">
+                  <span className="text-muted-foreground">Trạng thái</span>
+                  <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={branchForm.status || "active"} onChange={e => setBranchForm((prev: any) => ({ ...prev, status: e.target.value, isActive: e.target.value === "active" }))}>
+                    <option value="active">Hiển thị</option>
+                    <option value="inactive">Ẩn</option>
+                    <option value="temporarily_closed">Tạm đóng</option>
+                  </select>
+                </label>
+                <label className="grid gap-1 text-sm">
+                  <span className="text-muted-foreground">Latitude</span>
+                  <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={branchForm.latitude || ""} onChange={e => setBranchForm((prev: any) => ({ ...prev, latitude: e.target.value }))} />
+                </label>
+                <label className="grid gap-1 text-sm">
+                  <span className="text-muted-foreground">Longitude</span>
+                  <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={branchForm.longitude || ""} onChange={e => setBranchForm((prev: any) => ({ ...prev, longitude: e.target.value }))} />
+                </label>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setBranchForm(null)} className="rounded-full border border-sidebar-accent px-4 py-2 text-sm text-muted-foreground hover:bg-sidebar">Hủy</button>
+              <button onClick={saveBranch} disabled={saving} className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/80 disabled:opacity-50">
+                {saving ? "Đang lưu..." : "Lưu chi nhánh"}
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="mt-4"><AdminBtn>Lưu chi nhánh</AdminBtn></div>
-      </div>
+      )}
     </div>
   );
 }
@@ -725,12 +902,17 @@ function AdminOrders() {
 // ── Users ─────────────────────────────────────────────────────────────────────
 function AdminUsers() {
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
+  const [creatingUser, setCreatingUser] = useState<any>(null);
 
   const getToken = () => localStorage.getItem("accessToken");
+  const branchRoles = ["staff", "cashier", "store_manager"];
+  const needsBranch = (role?: string) => branchRoles.includes(role || "");
+  const branchName = (branchId?: string | null) => branches.find(branch => branch.id === branchId)?.name || "-";
 
   const loadUsers = async () => {
     const token = getToken();
@@ -754,8 +936,25 @@ function AdminUsers() {
     }
   };
 
+  const loadBranches = async () => {
+    const token = getToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch(`${env.API_URL}/branches/active`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Không thể tải danh sách chi nhánh.");
+      setBranches(data);
+    } catch (err: any) {
+      toast.error(err.message || "Không thể tải danh sách chi nhánh.");
+    }
+  };
+
   useEffect(() => {
     loadUsers();
+    loadBranches();
   }, []);
 
   const filteredUsers = adminUsers.filter(user => {
@@ -786,6 +985,7 @@ function AdminUsers() {
           email: editingUser.email || null,
           phone: editingUser.phone || null,
           role: editingUser.role,
+          branchId: needsBranch(editingUser.role) ? editingUser.branchId : null,
           isActive: editingUser.isActive,
         }),
       });
@@ -797,6 +997,57 @@ function AdminUsers() {
       toast.success("Đã cập nhật người dùng.");
     } catch (err: any) {
       toast.error(err.message || "Không thể cập nhật người dùng.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openCreateUser = () => {
+    setCreatingUser({
+      fullName: "",
+      email: "",
+      phone: "",
+      password: "",
+      role: "customer",
+      branchId: null,
+      isActive: true,
+    });
+  };
+
+  const createUser = async () => {
+    if (!creatingUser) return;
+    const token = getToken();
+    if (!token) {
+      toast.error("Bạn cần đăng nhập lại để cấp tài khoản.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch(`${env.API_URL}/users`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          fullName: creatingUser.fullName,
+          email: creatingUser.email || null,
+          phone: creatingUser.phone || null,
+          password: creatingUser.password,
+          role: creatingUser.role,
+          branchId: needsBranch(creatingUser.role) ? creatingUser.branchId : null,
+          isActive: creatingUser.isActive,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Không thể cấp tài khoản.");
+
+      setAdminUsers(prev => [data, ...prev]);
+      setCreatingUser(null);
+      toast.success("Đã cấp tài khoản mới.");
+    } catch (err: any) {
+      toast.error(err.message || "Không thể cấp tài khoản.");
     } finally {
       setSaving(false);
     }
@@ -830,6 +1081,9 @@ function AdminUsers() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-foreground">Quản lý người dùng</h2>
         <div className="flex flex-wrap items-center gap-2">
+          <button onClick={openCreateUser} className="rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/80 transition">
+            Cấp tài khoản
+          </button>
           <button onClick={loadUsers} className="rounded-xl bg-sidebar px-3 py-2 text-sm text-muted-foreground hover:bg-sidebar-accent transition">
             {loading ? "Đang tải..." : "Tải lại"}
           </button>
@@ -838,7 +1092,7 @@ function AdminUsers() {
       </div>
       <div className="overflow-auto rounded-2xl bg-sidebar">
         <table className="w-full text-sm">
-          <TableHeader cols={["Họ tên", "Email", "SĐT", "Vai trò", "Trạng thái", "Tham gia", "Thao tác"]} />
+          <TableHeader cols={["Họ tên", "Email", "SĐT", "Vai trò", "Chi nhánh", "Trạng thái", "Tham gia", "Thao tác"]} />
           <tbody>
             {filteredUsers.map(u => (
               <tr key={u.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
@@ -846,6 +1100,7 @@ function AdminUsers() {
                 <td className="py-3 text-muted-foreground">{u.email || "-"}</td>
                 <td className="py-3 text-muted-foreground">{u.phone || "-"}</td>
                 <td className="py-3"><span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">{u.role}</span></td>
+                <td className="py-3 text-muted-foreground">{needsBranch(u.role) ? branchName(u.branchId) : "-"}</td>
                 <td className="py-3"><StatusBadge status={u.isActive ? "Hoạt động" : "Ẩn"} /></td>
                 <td className="py-3 text-muted-foreground">{u.createdAt ? new Date(u.createdAt).toLocaleDateString("vi-VN") : "-"}</td>
                 <td className="py-3">
@@ -857,10 +1112,10 @@ function AdminUsers() {
               </tr>
             ))}
             {!loading && filteredUsers.length === 0 && (
-              <tr><td colSpan={7} className="py-12 text-center text-muted-foreground">Không có người dùng nào.</td></tr>
+              <tr><td colSpan={8} className="py-12 text-center text-muted-foreground">Không có người dùng nào.</td></tr>
             )}
             {loading && (
-              <tr><td colSpan={7} className="py-12 text-center text-muted-foreground">Đang tải danh sách người dùng...</td></tr>
+              <tr><td colSpan={8} className="py-12 text-center text-muted-foreground">Đang tải danh sách người dùng...</td></tr>
             )}
           </tbody>
         </table>
@@ -892,7 +1147,7 @@ function AdminUsers() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="grid gap-1 text-sm">
                   <span className="text-muted-foreground">Vai trò</span>
-                  <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={editingUser.role || "customer"} onChange={e => setEditingUser((prev: any) => ({ ...prev, role: e.target.value }))}>
+                  <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={editingUser.role || "customer"} onChange={e => setEditingUser((prev: any) => ({ ...prev, role: e.target.value, branchId: needsBranch(e.target.value) ? prev.branchId : null }))}>
                     <option value="customer">customer</option>
                     <option value="staff">staff</option>
                     <option value="cashier">cashier</option>
@@ -900,6 +1155,15 @@ function AdminUsers() {
                     <option value="admin">admin</option>
                   </select>
                 </label>
+                {needsBranch(editingUser.role) && (
+                  <label className="grid gap-1 text-sm">
+                    <span className="text-muted-foreground">Chi nhánh</span>
+                    <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={editingUser.branchId || ""} onChange={e => setEditingUser((prev: any) => ({ ...prev, branchId: e.target.value || null }))}>
+                      <option value="">Chọn chi nhánh</option>
+                      {branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+                    </select>
+                  </label>
+                )}
                 <label className="grid gap-1 text-sm">
                   <span className="text-muted-foreground">Trạng thái</span>
                   <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={editingUser.isActive ? "active" : "inactive"} onChange={e => setEditingUser((prev: any) => ({ ...prev, isActive: e.target.value === "active" }))}>
@@ -913,6 +1177,74 @@ function AdminUsers() {
               <button onClick={() => setEditingUser(null)} className="rounded-full border border-sidebar-accent px-4 py-2 text-sm text-muted-foreground hover:bg-sidebar">Hủy</button>
               <button onClick={saveUser} disabled={saving} className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/80 disabled:opacity-50">
                 {saving ? "Đang lưu..." : "Lưu thay đổi"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {creatingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl border border-sidebar-accent bg-background p-6 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-semibold text-foreground">Cấp tài khoản</h3>
+                <p className="mt-1 text-sm text-muted-foreground">Tạo tài khoản cho khách hàng, nhân viên, thu ngân hoặc quản lý cửa hàng.</p>
+              </div>
+              <button onClick={() => setCreatingUser(null)} className="rounded-full bg-sidebar px-3 py-1 text-sm text-muted-foreground hover:bg-sidebar-accent">Đóng</button>
+            </div>
+            <div className="grid gap-4">
+              <label className="grid gap-1 text-sm">
+                <span className="text-muted-foreground">Họ tên</span>
+                <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={creatingUser.fullName || ""} onChange={e => setCreatingUser((prev: any) => ({ ...prev, fullName: e.target.value }))} />
+              </label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="grid gap-1 text-sm">
+                  <span className="text-muted-foreground">Email</span>
+                  <input type="email" className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={creatingUser.email || ""} onChange={e => setCreatingUser((prev: any) => ({ ...prev, email: e.target.value }))} />
+                </label>
+                <label className="grid gap-1 text-sm">
+                  <span className="text-muted-foreground">Số điện thoại</span>
+                  <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={creatingUser.phone || ""} onChange={e => setCreatingUser((prev: any) => ({ ...prev, phone: e.target.value }))} />
+                </label>
+              </div>
+              <label className="grid gap-1 text-sm">
+                <span className="text-muted-foreground">Mật khẩu ban đầu</span>
+                <input type="password" className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={creatingUser.password || ""} onChange={e => setCreatingUser((prev: any) => ({ ...prev, password: e.target.value }))} />
+              </label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="grid gap-1 text-sm">
+                  <span className="text-muted-foreground">Vai trò</span>
+                  <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={creatingUser.role || "customer"} onChange={e => setCreatingUser((prev: any) => ({ ...prev, role: e.target.value, branchId: needsBranch(e.target.value) ? prev.branchId : null }))}>
+                    <option value="customer">customer</option>
+                    <option value="staff">staff</option>
+                    <option value="cashier">cashier</option>
+                    <option value="store_manager">store_manager</option>
+                    <option value="admin">admin</option>
+                  </select>
+                </label>
+                {needsBranch(creatingUser.role) && (
+                  <label className="grid gap-1 text-sm">
+                    <span className="text-muted-foreground">Chi nhánh</span>
+                    <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={creatingUser.branchId || ""} onChange={e => setCreatingUser((prev: any) => ({ ...prev, branchId: e.target.value || null }))}>
+                      <option value="">Chọn chi nhánh</option>
+                      {branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+                    </select>
+                  </label>
+                )}
+                <label className="grid gap-1 text-sm">
+                  <span className="text-muted-foreground">Trạng thái</span>
+                  <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={creatingUser.isActive ? "active" : "inactive"} onChange={e => setCreatingUser((prev: any) => ({ ...prev, isActive: e.target.value === "active" }))}>
+                    <option value="active">Hoạt động</option>
+                    <option value="inactive">Khóa</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setCreatingUser(null)} className="rounded-full border border-sidebar-accent px-4 py-2 text-sm text-muted-foreground hover:bg-sidebar">Hủy</button>
+              <button onClick={createUser} disabled={saving} className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/80 disabled:opacity-50">
+                {saving ? "Đang tạo..." : "Tạo tài khoản"}
               </button>
             </div>
           </div>

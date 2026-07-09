@@ -6,6 +6,10 @@ export enum Permission {
   // Users
   MANAGE_USERS = 'manage_users',
   VIEW_USERS = 'view_users',
+
+  // Branches
+  MANAGE_BRANCHES = 'manage_branches',
+  VIEW_BRANCHES = 'view_branches',
   
   // Products
   CREATE_PRODUCT = 'create_product',
@@ -26,6 +30,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   [UserRole.ADMIN]: [Permission.ALL],
   [UserRole.STORE_MANAGER]: [
     Permission.VIEW_USERS,
+    Permission.VIEW_BRANCHES,
+    Permission.MANAGE_BRANCHES,
     Permission.CREATE_PRODUCT,
     Permission.UPDATE_PRODUCT,
     Permission.DELETE_PRODUCT,
@@ -35,10 +41,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.UPDATE_ORDER,
   ],
   [UserRole.STAFF]: [
+    Permission.VIEW_BRANCHES,
     Permission.VIEW_INVENTORY,
     Permission.VIEW_ORDER,
   ],
   [UserRole.CASHIER]: [
+    Permission.VIEW_BRANCHES,
     Permission.CREATE_ORDER,
     Permission.VIEW_ORDER,
     Permission.UPDATE_ORDER,
