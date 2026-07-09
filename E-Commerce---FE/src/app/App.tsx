@@ -37,6 +37,7 @@ const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.REVIEW]: "/danh-gia",
   [VIEW_KEYS.FAVORITES]: "/yeu-thich",
   [VIEW_KEYS.PROFILE]: "/ho-so",
+  [VIEW_KEYS.RESET_PASSWORD]: "/reset-password",
 };
 
 const getPathFromView = (view: string, product?: any) => {
@@ -104,6 +105,7 @@ export default function App() {
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("token");
     if (!token) return;
+    if (window.location.pathname === "/reset-password") return;
     (async () => {
       try {
         const res = await fetch(`${env.API_URL}/auth/verify-email?token=${token}`);
@@ -198,6 +200,10 @@ export default function App() {
   }
 
   if (view === VIEW_KEYS.LOGIN) return <><Toaster richColors position="top-center" /><AuthPage onSuccess={handleLoginSuccess} /></>;
+  if (view === VIEW_KEYS.RESET_PASSWORD) {
+    const token = new URLSearchParams(window.location.search).get("token") || "";
+    return <><Toaster richColors position="top-center" /><AuthPage onSuccess={handleLoginSuccess} initialMode="reset" resetToken={token} /></>;
+  }
   if (view === VIEW_KEYS.REVIEW) return <><Toaster richColors position="top-center" /><ReviewPage product={selectedProduct} onBack={() => setView(VIEW_KEYS.DETAIL)} /></>;
 
   return (

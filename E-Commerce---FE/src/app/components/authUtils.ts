@@ -3,7 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { env } from "../../config/env";
 
-export type AuthMode = "login" | "register" | "forgot";
+export type AuthMode = "login" | "register" | "forgot" | "reset";
 
 export interface AuthErrors {
   fullName?: string;

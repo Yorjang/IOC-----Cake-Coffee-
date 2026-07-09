@@ -13,6 +13,7 @@ export const VIEW_KEYS = {
   REVIEW: "Đánh giá",
   FAVORITES: "Yêu thích",
   PROFILE: "Hồ sơ",
+  RESET_PASSWORD: "ResetPassword",
 } as const;
 
 export const CATEGORY_GROUPS = {

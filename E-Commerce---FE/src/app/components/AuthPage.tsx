@@ -9,6 +9,7 @@ import { validateRegisterFields, apiLogin, apiRegister } from "./authUtils";
 declare global {
   interface Window {
     google?: any;
+    googleInitialized?: boolean;
   }
 }
 
@@ -73,8 +74,8 @@ function AuthLeftPanel({ onSuccess }: { onSuccess: () => void }) {
 }
 
 // ── Main AuthPage ─────────────────────────────────────────────────────────────
-export function AuthPage({ onSuccess }: { onSuccess: () => void; onAdminDemo?: () => void }) {
-  const [mode, setMode] = useState<AuthMode>("login");
+export function AuthPage({ onSuccess, initialMode = "login", resetToken = "" }: { onSuccess: () => void; onAdminDemo?: () => void; initialMode?: AuthMode; resetToken?: string }) {
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -117,10 +118,13 @@ export function AuthPage({ onSuccess }: { onSuccess: () => void; onAdminDemo?: (
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.google) {
-      window.google.accounts.id.initialize({
-        client_id: env.GOOGLE_CLIENT_ID,
-        callback: handleGoogleCallback,
-      });
+      if (!window.googleInitialized) {
+        window.google.accounts.id.initialize({
+          client_id: env.GOOGLE_CLIENT_ID,
+          callback: handleGoogleCallback,
+        });
+        window.googleInitialized = true;
+      }
 
       const btn = document.getElementById("google-signin-btn");
       if (btn) {
@@ -155,7 +159,35 @@ export function AuthPage({ onSuccess }: { onSuccess: () => void; onAdminDemo?: (
         const err = validateRegisterFields(fullName, email, phone, password);
         if (Object.keys(err).length) { setErrors(err); toast.error("Vui lòng kiểm tra lại thông tin!"); }
         else setShowModal(true);
-      } else { toast.info("Yêu cầu đặt lại mật khẩu đã được gửi!"); setDone(true); }
+      } else if (mode === "forgot") {
+        setLoading(true);
+        const res = await fetch(`${env.API_URL}/auth/forgot-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Yêu cầu đặt lại mật khẩu thất bại");
+        toast.success(data.message || "Email đặt lại mật khẩu đã được gửi!");
+        setDone(true);
+      } else if (mode === "reset") {
+        if (password.length < 6) {
+          toast.error("Mật khẩu mới phải có tối thiểu 6 ký tự!");
+          return;
+        }
+        setLoading(true);
+        const res = await fetch(`${env.API_URL}/auth/reset-password?token=${resetToken}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Đặt lại mật khẩu thất bại");
+        toast.success(data.message || "Mật khẩu đã được đặt lại thành công!");
+        setMode("login");
+        setEmail("");
+        setPassword("");
+      }
     } catch (e: any) { toast.error(e.message || "Đã xảy ra lỗi, vui lòng thử lại."); }
     finally { setLoading(false); }
   }
@@ -168,7 +200,7 @@ export function AuthPage({ onSuccess }: { onSuccess: () => void; onAdminDemo?: (
           <div className="mb-6 flex justify-between items-center lg:hidden">
             <button type="button" onClick={onSuccess} className="flex items-center gap-2 text-sm text-primary font-semibold hover:underline"><CakeSlice size={16} /> Quay về Trang chủ</button>
           </div>
-          {mode !== "forgot" && (
+          {mode !== "forgot" && mode !== "reset" && (
             <div className="mb-8 flex rounded-2xl bg-secondary p-1">
               {(["login", "register"] as AuthMode[]).map(m => (
                 <button key={m} onClick={() => switchMode(m)} className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition ${mode === m ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:text-foreground"}`}>
@@ -242,6 +274,31 @@ export function AuthPage({ onSuccess }: { onSuccess: () => void; onAdminDemo?: (
               <div className="mt-4 flex justify-center">
                 <div id="google-signin-btn" className="w-full flex justify-center min-h-[44px]"></div>
               </div>
+            </div>
+          )}
+          {mode === "reset" && (
+            <div>
+              <h2 className="text-3xl">Đặt lại mật khẩu</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Nhập mật khẩu mới của bạn bên dưới.</p>
+              <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+                <div className="relative">
+                  <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type={showPass ? "text" : "password"}
+                    required
+                    placeholder="Mật khẩu mới (tối thiểu 6 ký tự)"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    className="w-full rounded-xl border bg-input-background py-3 pl-10 pr-10 text-sm outline-none focus:border-primary"
+                  />
+                  <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <button type="submit" disabled={loading} className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 disabled:opacity-50">
+                  {loading ? "Đang xử lý..." : "Xác nhận mật khẩu mới"}
+                </button>
+              </form>
             </div>
           )}
         </div>
