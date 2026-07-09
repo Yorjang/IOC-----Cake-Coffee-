@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, Body, UseGuards, ParseUUIDPipe } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -9,6 +9,7 @@ import { User } from './entities/user.entity';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('users')
 export class UsersController {
@@ -53,6 +54,23 @@ export class UsersController {
         @Body() changePasswordDto: ChangePasswordDto,
     ) {
         return this.usersService.changePassword(user.id, changePasswordDto);
+    }
+
+    @Patch(':id')
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions(Permission.MANAGE_USERS)
+    updateUser(
+        @Param('id', ParseUUIDPipe) id: string,
+        @Body() updateUserDto: UpdateUserDto,
+    ) {
+        return this.usersService.updateUser(id, updateUserDto);
+    }
+
+    @Delete(':id')
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions(Permission.MANAGE_USERS)
+    deleteUser(@Param('id', ParseUUIDPipe) id: string) {
+        return this.usersService.deleteUser(id);
     }
 }
 

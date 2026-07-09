@@ -24,6 +24,7 @@ const user_entity_1 = require("./entities/user.entity");
 const update_role_dto_1 = require("./dto/update-role.dto");
 const update_profile_dto_1 = require("./dto/update-profile.dto");
 const change_password_dto_1 = require("./dto/change-password.dto");
+const update_user_dto_1 = require("./dto/update-user.dto");
 let UsersController = class UsersController {
     constructor(usersService) {
         this.usersService = usersService;
@@ -42,6 +43,12 @@ let UsersController = class UsersController {
     }
     changePassword(user, changePasswordDto) {
         return this.usersService.changePassword(user.id, changePasswordDto);
+    }
+    updateUser(id, updateUserDto) {
+        return this.usersService.updateUser(id, updateUserDto);
+    }
+    deleteUser(id) {
+        return this.usersService.deleteUser(id);
     }
 };
 exports.UsersController = UsersController;
@@ -91,6 +98,25 @@ __decorate([
         change_password_dto_1.ChangePasswordDto]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "changePassword", null);
+__decorate([
+    (0, common_1.Patch)(':id'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, permissions_guard_1.PermissionsGuard),
+    (0, permissions_decorator_1.Permissions)(permissions_1.Permission.MANAGE_USERS),
+    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, update_user_dto_1.UpdateUserDto]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "updateUser", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, permissions_guard_1.PermissionsGuard),
+    (0, permissions_decorator_1.Permissions)(permissions_1.Permission.MANAGE_USERS),
+    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "deleteUser", null);
 exports.UsersController = UsersController = __decorate([
     (0, common_1.Controller)('users'),
     __metadata("design:paramtypes", [users_service_1.UsersService])

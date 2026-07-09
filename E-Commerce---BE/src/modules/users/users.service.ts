@@ -5,6 +5,7 @@ import { User, UserRole } from './entities/user.entity';
 import { RegisterDto } from '../auth/dto/register.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -96,6 +97,64 @@ export class UsersService {
         // Remove password hash from returned object
         const { passwordHash: _, ...result } = savedUser;
         return result as any;
+    }
+
+    async updateUser(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+        const user = await this.findById(id);
+        if (!user) {
+            throw new BadRequestException('User not found');
+        }
+
+        const nextEmail = updateUserDto.email === '' ? null : updateUserDto.email;
+        const nextPhone = updateUserDto.phone === '' ? null : updateUserDto.phone;
+
+        if (nextEmail && nextEmail !== user.email) {
+            const existingEmail = await this.usersRepository.findOne({ where: { email: nextEmail } });
+            if (existingEmail && existingEmail.id !== id) {
+                throw new BadRequestException('Email already exists');
+            }
+        }
+
+        if (nextPhone && nextPhone !== user.phone) {
+            const existingPhone = await this.usersRepository.findOne({ where: { phone: nextPhone } });
+            if (existingPhone && existingPhone.id !== id) {
+                throw new BadRequestException('Phone number already exists');
+            }
+        }
+
+        if (updateUserDto.fullName !== undefined) {
+            user.fullName = updateUserDto.fullName;
+        }
+        if (updateUserDto.email !== undefined) {
+            user.email = nextEmail;
+        }
+        if (updateUserDto.phone !== undefined) {
+            user.phone = nextPhone;
+        }
+        if (updateUserDto.role !== undefined) {
+            user.role = updateUserDto.role;
+        }
+        if (updateUserDto.isActive !== undefined) {
+            user.isActive = updateUserDto.isActive;
+        }
+
+        if (!user.email && !user.phone) {
+            throw new BadRequestException('Email or phone must be provided');
+        }
+
+        const savedUser = await this.usersRepository.save(user);
+        const { passwordHash: _, ...result } = savedUser;
+        return result as any;
+    }
+
+    async deleteUser(id: string): Promise<{ message: string }> {
+        const user = await this.findById(id);
+        if (!user) {
+            throw new BadRequestException('User not found');
+        }
+
+        await this.usersRepository.delete(id);
+        return { message: 'User deleted successfully' };
     }
 
     async updateProfile(id: string, updateProfileDto: UpdateProfileDto): Promise<User> {

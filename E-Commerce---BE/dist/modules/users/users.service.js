@@ -125,6 +125,55 @@ let UsersService = class UsersService {
         const { passwordHash: _, ...result } = savedUser;
         return result;
     }
+    async updateUser(id, updateUserDto) {
+        const user = await this.findById(id);
+        if (!user) {
+            throw new common_1.BadRequestException('User not found');
+        }
+        const nextEmail = updateUserDto.email === '' ? null : updateUserDto.email;
+        const nextPhone = updateUserDto.phone === '' ? null : updateUserDto.phone;
+        if (nextEmail && nextEmail !== user.email) {
+            const existingEmail = await this.usersRepository.findOne({ where: { email: nextEmail } });
+            if (existingEmail && existingEmail.id !== id) {
+                throw new common_1.BadRequestException('Email already exists');
+            }
+        }
+        if (nextPhone && nextPhone !== user.phone) {
+            const existingPhone = await this.usersRepository.findOne({ where: { phone: nextPhone } });
+            if (existingPhone && existingPhone.id !== id) {
+                throw new common_1.BadRequestException('Phone number already exists');
+            }
+        }
+        if (updateUserDto.fullName !== undefined) {
+            user.fullName = updateUserDto.fullName;
+        }
+        if (updateUserDto.email !== undefined) {
+            user.email = nextEmail;
+        }
+        if (updateUserDto.phone !== undefined) {
+            user.phone = nextPhone;
+        }
+        if (updateUserDto.role !== undefined) {
+            user.role = updateUserDto.role;
+        }
+        if (updateUserDto.isActive !== undefined) {
+            user.isActive = updateUserDto.isActive;
+        }
+        if (!user.email && !user.phone) {
+            throw new common_1.BadRequestException('Email or phone must be provided');
+        }
+        const savedUser = await this.usersRepository.save(user);
+        const { passwordHash: _, ...result } = savedUser;
+        return result;
+    }
+    async deleteUser(id) {
+        const user = await this.findById(id);
+        if (!user) {
+            throw new common_1.BadRequestException('User not found');
+        }
+        await this.usersRepository.delete(id);
+        return { message: 'User deleted successfully' };
+    }
     async updateProfile(id, updateProfileDto) {
         const user = await this.findById(id);
         if (!user) {
