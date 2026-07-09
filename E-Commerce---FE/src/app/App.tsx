@@ -75,6 +75,9 @@ const LISTABLE = [
 ];
 
 // ── App ───────────────────────────────────────────────────────────────────────
+const ADMIN_ROLES = ["admin"];
+const isAdminUser = (currentUser: any) => ADMIN_ROLES.includes(currentUser?.role);
+
 export default function App() {
   const [view, setViewInternal] = useState<any>(() => getViewFromPath(window.location.pathname));
   const [selectedProduct, setSelectedProduct] = useState<any>(() => getProductFromPath(window.location.pathname));
@@ -128,8 +131,9 @@ export default function App() {
 
   // ── Auth handlers ────────────────────────────────────────────────────────
   const handleLoginSuccess = () => {
-    setUser(JSON.parse(localStorage.getItem("user") || "null"));
-    setView(VIEW_KEYS.HOME);
+    const currentUser = JSON.parse(localStorage.getItem("user") || "null");
+    setUser(currentUser);
+    setView(isAdminUser(currentUser) ? VIEW_KEYS.ADMIN : VIEW_KEYS.HOME);
   };
   const handleAdminLoginSuccess = (adminUser: any) => {
     setUser(adminUser);
@@ -172,8 +176,6 @@ export default function App() {
   const grandTotal = subtotal + shipping;
 
   // ── Render ───────────────────────────────────────────────────────────────
-  const ADMIN_ROLES = ["admin", "staff", "cashier", "store_manager"];
-
   // Admin login page (separate, no header)
   if (view === VIEW_KEYS.ADMIN_LOGIN) {
     return <><Toaster richColors position="top-center" /><AdminLoginPage onSuccess={handleAdminLoginSuccess} onBack={() => setView(VIEW_KEYS.HOME)} /></>;
@@ -186,7 +188,7 @@ export default function App() {
       setTimeout(() => setView(VIEW_KEYS.ADMIN_LOGIN), 0);
       return <><Toaster richColors position="top-center" /></>;
     }
-    if (!ADMIN_ROLES.includes(user.role)) {
+    if (!isAdminUser(user)) {
       // Logged in but not admin → back to home
       toast.error("Bạn không có quyền truy cập trang quản trị.");
       setTimeout(() => setView(VIEW_KEYS.HOME), 0);
