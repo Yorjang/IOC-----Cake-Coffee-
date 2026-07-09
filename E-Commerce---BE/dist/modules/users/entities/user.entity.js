@@ -36,6 +36,10 @@ __decorate([
     __metadata("design:type", String)
 ], User.prototype, "email", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'avatar_url', type: 'text', nullable: true }),
+    __metadata("design:type", String)
+], User.prototype, "avatarUrl", void 0);
+__decorate([
     (0, typeorm_1.Column)({ unique: true, nullable: true, length: 20 }),
     __metadata("design:type", String)
 ], User.prototype, "phone", void 0);

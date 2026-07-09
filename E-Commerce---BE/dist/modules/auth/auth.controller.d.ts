@@ -20,6 +20,7 @@ export declare class AuthController {
             id: string;
             fullName: string;
             email: string;
+            avatarUrl: string;
             phone: string;
             role: import("../users/entities/user.entity").UserRole;
             branchId: string;
@@ -39,6 +40,7 @@ export declare class AuthController {
             id: string;
             fullName: string;
             email: string;
+            avatarUrl: string;
             phone: string;
             role: import("../users/entities/user.entity").UserRole;
             branchId: string;
@@ -56,6 +58,7 @@ export declare class AuthController {
             id: string;
             fullName: string;
             email: string;
+            avatarUrl: string;
             phone: string;
             role: import("../users/entities/user.entity").UserRole;
             branchId: string;
@@ -72,6 +75,7 @@ export declare class AuthController {
             id: string;
             fullName: string;
             email: string;
+            avatarUrl: string;
             phone: string;
             role: import("../users/entities/user.entity").UserRole;
             branchId: string;
