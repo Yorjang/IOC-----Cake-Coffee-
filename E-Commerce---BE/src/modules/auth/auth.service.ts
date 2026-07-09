@@ -304,14 +304,14 @@ export class AuthService {
       };
     }
 
-    // Generate a reset token valid for 30 minutes
+    // Generate a reset token valid for 15 minutes
     // The secret is global JWT_SECRET plus the user's passwordHash.
     // That way, once they reset their password, the token immediately becomes invalid (single-use token).
     const secret = this.getJwtSecret() + user.passwordHash;
     const token = jwt.sign(
       { sub: user.id, email: user.email, purpose: 'password-reset' },
       secret,
-      { expiresIn: '30m' },
+      { expiresIn: '15m' },
     );
 
     try {

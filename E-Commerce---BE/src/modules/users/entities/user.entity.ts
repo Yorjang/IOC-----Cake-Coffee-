@@ -20,8 +20,8 @@ export class User {
     @Column({ unique: true, nullable: true, length: 255 })
     email: string;
 
-    // @Column({ name: 'avatar_url', type: 'text', nullable: true })
-    // avatarUrl: string;
+    @Column({ name: 'avatar_url', type: 'text', nullable: true })
+    avatarUrl: string;
 
     @Column({ unique: true, nullable: true, length: 20 })
     phone: string;
