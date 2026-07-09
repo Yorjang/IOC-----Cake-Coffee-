@@ -79,7 +79,7 @@ export function AuthPage({ onSuccess }: { onSuccess: () => void; onAdminDemo?: (
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("minhanh@email.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [errors, setErrors] = useState<AuthErrors>({});
@@ -87,7 +87,7 @@ export function AuthPage({ onSuccess }: { onSuccess: () => void; onAdminDemo?: (
   const [fillDetailsLater, setFillDetailsLater] = useState(false);
 
   const switchMode = (m: AuthMode) => {
-    setMode(m); setEmail(m === "login" ? "minhanh@email.com" : "");
+    setMode(m); setEmail(m === "login" ? "" : "");
     setPassword(""); setPhone(""); setFullName(""); setErrors({});
   };
 

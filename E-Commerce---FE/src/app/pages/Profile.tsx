@@ -33,7 +33,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
   // Profile Form States
   const [fullName, setFullName] = useState(displayUser.fullName || displayUser.name || "");
   const [phone, setPhone] = useState(displayUser.phone || "");
-  const [avatar, setAvatar] = useState(displayUser.avatar || "");
+  const [avatar, setAvatar] = useState(displayUser.avatarUrl || displayUser.avatar || "");
   const [isCustomAvatarUrl, setIsCustomAvatarUrl] = useState(false);
   const [customUrlInput, setCustomUrlInput] = useState("");
   const [loadingInfo, setLoadingInfo] = useState(false);
@@ -51,7 +51,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
     if (user) {
       setFullName(user.fullName || user.name || "");
       setPhone(user.phone || "");
-      setAvatar(user.avatar || "");
+      setAvatar(user.avatarUrl || user.avatar || "");
     }
   }, [user]);
 

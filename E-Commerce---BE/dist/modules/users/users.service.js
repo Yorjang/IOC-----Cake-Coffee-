@@ -105,6 +105,7 @@ let UsersService = class UsersService {
                 fullName: true,
                 email: true,
                 phone: true,
+                avatarUrl: true,
                 role: true,
                 branchId: true,
                 isActive: true,
@@ -142,6 +143,9 @@ let UsersService = class UsersService {
         }
         if (updateProfileDto.phone !== undefined) {
             user.phone = updateProfileDto.phone;
+        }
+        if (updateProfileDto.avatar !== undefined) {
+            user.avatarUrl = updateProfileDto.avatar;
         }
         const savedUser = await this.usersRepository.save(user);
         const { passwordHash: _, ...result } = savedUser;
