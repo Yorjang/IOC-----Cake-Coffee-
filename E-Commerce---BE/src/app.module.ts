@@ -3,11 +3,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { ProductsModule } from './modules/products/products.module';
 
 @Module({
     imports: [
     AuthModule,
     UsersModule,
+    ProductsModule,
     // Load biến môi trường từ file .env
     ConfigModule.forRoot({
         isGlobal: true,

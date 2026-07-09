@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import {
   LayoutDashboard, Package, Tag, Settings, ShoppingBag, Users, Star,
   BarChart2, Image, Edit, Trash2, Eye, Plus, CheckCircle, XCircle,
@@ -229,82 +229,226 @@ function Dashboard() {
 
 // ── Products ──────────────────────────────────────────────────────────────────
 function AdminProducts() {
+  const [items, setItems] = useState<any[]>([]);
+  const [cats, setCats] = useState<any[]>([]);
   const [search, setSearch] = useState("");
-  const filtered = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
+  const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [form, setForm] = useState({ name: "", categoryId: "", description: "", imageUrl: "", productType: "cake", price: "45000" });
+
+  const getToken = () => localStorage.getItem("accessToken");
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [pRes, cRes] = await Promise.all([
+        fetch(`${env.API_URL}/products`),
+        fetch(`${env.API_URL}/products/categories`),
+      ]);
+      if (pRes.ok) setItems(await pRes.json());
+      if (cRes.ok) setCats(await cRes.json());
+    } catch { /* silent */ } finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const openAdd = () => { setEditing(null); setForm({ name: "", categoryId: cats[0]?.id ?? "", description: "", imageUrl: "", productType: "cake", price: "45000" }); setShowModal(true); };
+  const openEdit = (p: any) => { setEditing(p); setForm({ name: p.name, categoryId: p.categoryId, description: p.description || "", imageUrl: p.imageUrl || "", productType: p.productType, price: p.variants?.[0]?.price?.toString() || "45000" }); setShowModal(true); };
+
+  const save = async () => {
+    const token = getToken();
+    if (!token) return;
+    const url = editing ? `${env.API_URL}/products/${editing.id}` : `${env.API_URL}/products`;
+    const method = editing ? "PATCH" : "POST";
+    const body: any = { name: form.name, categoryId: form.categoryId, description: form.description, imageUrl: form.imageUrl, productType: form.productType };
+    if (!editing) {
+      body.variants = [{ sku: form.name.toUpperCase().replace(/\s+/g, "-") + "-DEFAULT", variantName: `${form.name} - Mặc định`, size: "Mặc định", price: parseInt(form.price) || 45000 }];
+    }
+    try {
+      const res = await fetch(url, { method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      setShowModal(false); load();
+    } catch (err: any) { toast.error(err.message || "Lỗi khi lưu sản phẩm"); }
+  };
+
+  const remove = async (id: string) => {
+    const token = getToken();
+    if (!token) return;
+    if (!confirm("Xóa sản phẩm này?")) return;
+    try {
+      const res = await fetch(`${env.API_URL}/products/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      load();
+    } catch (err: any) { toast.error(err.message || "Lỗi khi xóa sản phẩm"); }
+  };
+
+  const filtered = items.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
+  const fmtPrice = (p: any) => { const v = p.variants?.[0]; return v ? `${Number(v.price).toLocaleString("vi-VN")}đ` : "-"; };
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl font-semibold text-foreground">Quản lý sản phẩm</h2>
-        <AdminBtn><span className="flex items-center gap-1"><Plus size={14} />Thêm sản phẩm</span></AdminBtn>
+        <AdminBtn onClick={openAdd}><span className="flex items-center gap-1"><Plus size={14} />Thêm sản phẩm</span></AdminBtn>
       </div>
       <div className="flex flex-wrap gap-3">
         <div className="flex items-center gap-2 rounded-xl bg-sidebar px-3 py-2 text-sm"><Search size={14} className="text-muted-foreground" /><input className="bg-transparent outline-none text-foreground placeholder:text-muted-foreground" placeholder="Tìm sản phẩm…" value={search} onChange={e => setSearch(e.target.value)} /></div>
-        <select className="rounded-xl bg-sidebar px-3 py-2 text-sm text-foreground outline-none"><option>Tất cả danh mục</option>{categories.map(c => <option key={c.id}>{c.name}</option>)}</select>
-        <select className="rounded-xl bg-sidebar px-3 py-2 text-sm text-foreground outline-none"><option>Tất cả trạng thái</option><option>Đang bán</option><option>Hết hàng</option><option>Đặt trước</option></select>
       </div>
-      <div className="overflow-auto rounded-2xl bg-sidebar">
-        <table className="w-full text-sm">
-          <TableHeader cols={["Sản phẩm", "Danh mục", "Giá", "Tồn kho", "Trạng thái", "Thao tác"]} />
-          <tbody>
-            {filtered.map(p => (
-              <tr key={p.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
-                <td className="py-3 pr-4">
-                  <div className="flex items-center gap-3">
-                    <img src={p.img} alt={p.name} className="size-10 rounded-lg object-cover" />
-                    <span className="text-foreground">{p.name}</span>
-                  </div>
-                </td>
-                <td className="py-3 text-muted-foreground">{p.cat}</td>
-                <td className="py-3 font-semibold text-primary">{p.price}</td>
-                <td className="py-3 text-muted-foreground">{p.stock === 999 ? "∞" : p.stock}</td>
-                <td className="py-3"><StatusBadge status={p.status} /></td>
-                <td className="py-3">
-                  <div className="flex gap-2">
-                    <AdminBtn variant="ghost"><Eye size={14} /></AdminBtn>
-                    <AdminBtn variant="ghost"><Edit size={14} /></AdminBtn>
-                    <AdminBtn variant="danger"><Trash2 size={14} /></AdminBtn>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {loading ? <div className="py-10 text-center text-muted-foreground"><Loader2 className="inline animate-spin mr-2" size={16} />Đang tải…</div> : (
+        <div className="overflow-auto rounded-2xl bg-sidebar">
+          <table className="w-full text-sm">
+            <TableHeader cols={["Sản phẩm", "Danh mục", "Giá", "Biến thể", "Loại", "Thao tác"]} />
+            <tbody>
+              {filtered.map(p => (
+                <tr key={p.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
+                  <td className="py-3 pr-4">
+                    <div className="flex items-center gap-3">
+                      {p.imageUrl && <img src={p.imageUrl} alt={p.name} className="size-10 rounded-lg object-cover" />}
+                      <span className="text-foreground">{p.name}</span>
+                    </div>
+                  </td>
+                  <td className="py-3 text-muted-foreground">{p.category?.name ?? "-"}</td>
+                  <td className="py-3 font-semibold text-primary">{fmtPrice(p)}</td>
+                  <td className="py-3 text-muted-foreground">{p.variants?.length ?? 0}</td>
+                  <td className="py-3"><span className="rounded-full bg-sidebar-accent px-2 py-0.5 text-xs text-primary">{p.productType}</span></td>
+                  <td className="py-3">
+                    <div className="flex gap-2">
+                      <AdminBtn variant="ghost" onClick={() => openEdit(p)}><Edit size={14} /></AdminBtn>
+                      <AdminBtn variant="danger" onClick={() => remove(p.id)}><Trash2 size={14} /></AdminBtn>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <p className="text-xs text-muted-foreground">{filtered.length} sản phẩm</p>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)}>
+          <div className="w-full max-w-lg rounded-2xl bg-sidebar p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-foreground mb-4">{editing ? "Sửa sản phẩm" : "Thêm sản phẩm mới"}</h3>
+            <div className="space-y-3">
+              <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" placeholder="Tên sản phẩm" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+              <select className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" value={form.categoryId} onChange={e => setForm({ ...form, categoryId: e.target.value })}>
+                <option value="">-- Chọn danh mục --</option>
+                {cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <select className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" value={form.productType} onChange={e => setForm({ ...form, productType: e.target.value })}>
+                <option value="cake">Bánh (cake)</option><option value="coffee">Cafe (coffee)</option><option value="drink">Đồ uống (drink)</option><option value="combo">Combo</option>
+              </select>
+              <textarea className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none resize-none" rows={2} placeholder="Mô tả sản phẩm" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+              <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" placeholder="URL ảnh sản phẩm" value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })} />
+              {!editing && <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" placeholder="Giá bán mặc định (VNĐ)" type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} />}
+            </div>
+            <div className="mt-5 flex justify-end gap-3">
+              <AdminBtn variant="ghost" onClick={() => setShowModal(false)}>Hủy</AdminBtn>
+              <AdminBtn onClick={save}>{editing ? "Cập nhật" : "Tạo sản phẩm"}</AdminBtn>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ── Categories ────────────────────────────────────────────────────────────────
 function AdminCategories() {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [form, setForm] = useState({ name: "", description: "", imageUrl: "" });
+
+  const getToken = () => localStorage.getItem("accessToken");
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${env.API_URL}/products/categories`);
+      if (res.ok) setItems(await res.json());
+    } catch { /* silent */ } finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const openAdd = () => { setEditing(null); setForm({ name: "", description: "", imageUrl: "" }); setShowModal(true); };
+  const openEdit = (c: any) => { setEditing(c); setForm({ name: c.name, description: c.description || "", imageUrl: c.imageUrl || "" }); setShowModal(true); };
+
+  const save = async () => {
+    const token = getToken();
+    if (!token) return;
+    const url = editing ? `${env.API_URL}/products/categories/${editing.id}` : `${env.API_URL}/products/categories`;
+    const method = editing ? "PATCH" : "POST";
+    try {
+      const res = await fetch(url, { method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(form) });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      setShowModal(false); load();
+    } catch (err: any) { toast.error(err.message || "Lỗi khi lưu danh mục"); }
+  };
+
+  const remove = async (id: string) => {
+    const token = getToken();
+    if (!token) return;
+    if (!confirm("Xóa danh mục này?")) return;
+    try {
+      const res = await fetch(`${env.API_URL}/products/categories/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      load();
+    } catch (err: any) { toast.error(err.message || "Lỗi khi xóa danh mục"); }
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-foreground">Quản lý danh mục</h2>
-        <AdminBtn><span className="flex items-center gap-1"><Plus size={14} />Thêm danh mục</span></AdminBtn>
+        <AdminBtn onClick={openAdd}><span className="flex items-center gap-1"><Plus size={14} />Thêm danh mục</span></AdminBtn>
       </div>
-      <div className="overflow-auto rounded-2xl bg-sidebar">
-        <table className="w-full text-sm">
-          <TableHeader cols={["#", "Tên danh mục", "Slug", "Số sản phẩm", "Trạng thái", "Thao tác"]} />
-          <tbody>
-            {categories.map(c => (
-              <tr key={c.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
-                <td className="py-3 text-muted-foreground">{c.id}</td>
-                <td className="py-3 font-medium text-foreground">{c.name}</td>
-                <td className="py-3 font-mono text-xs text-muted-foreground">{c.slug}</td>
-                <td className="py-3 text-muted-foreground">{c.count}</td>
-                <td className="py-3"><StatusBadge status={c.status} /></td>
-                <td className="py-3">
-                  <div className="flex gap-2">
-                    <AdminBtn variant="ghost"><Edit size={14} /></AdminBtn>
-                    <AdminBtn variant="danger"><Trash2 size={14} /></AdminBtn>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {loading ? <div className="py-10 text-center text-muted-foreground"><Loader2 className="inline animate-spin mr-2" size={16} />Đang tải…</div> : (
+        <div className="overflow-auto rounded-2xl bg-sidebar">
+          <table className="w-full text-sm">
+            <TableHeader cols={["Tên danh mục", "Slug", "Mô tả", "Trạng thái", "Thao tác"]} />
+            <tbody>
+              {items.map(c => (
+                <tr key={c.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
+                  <td className="py-3 font-medium text-foreground">{c.name}</td>
+                  <td className="py-3 font-mono text-xs text-muted-foreground">{c.slug}</td>
+                  <td className="py-3 text-muted-foreground text-xs max-w-[200px] truncate">{c.description || "-"}</td>
+                  <td className="py-3"><StatusBadge status={c.isActive ? "Hiển thị" : "Ẩn"} /></td>
+                  <td className="py-3">
+                    <div className="flex gap-2">
+                      <AdminBtn variant="ghost" onClick={() => openEdit(c)}><Edit size={14} /></AdminBtn>
+                      <AdminBtn variant="danger" onClick={() => remove(c.id)}><Trash2 size={14} /></AdminBtn>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">{items.length} danh mục</p>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)}>
+          <div className="w-full max-w-md rounded-2xl bg-sidebar p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-foreground mb-4">{editing ? "Sửa danh mục" : "Thêm danh mục mới"}</h3>
+            <div className="space-y-3">
+              <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" placeholder="Tên danh mục" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+              <textarea className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none resize-none" rows={2} placeholder="Mô tả danh mục" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+              <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" placeholder="URL ảnh danh mục" value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })} />
+            </div>
+            <div className="mt-5 flex justify-end gap-3">
+              <AdminBtn variant="ghost" onClick={() => setShowModal(false)}>Hủy</AdminBtn>
+              <AdminBtn onClick={save}>{editing ? "Cập nhật" : "Tạo danh mục"}</AdminBtn>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
