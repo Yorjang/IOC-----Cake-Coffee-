@@ -168,7 +168,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
         <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
           {/* Flash deal card */}
           <div className="relative overflow-hidden rounded-2xl h-80 lg:h-auto">
-            <img src={products[4]?.[3] || products[0][3]} alt="Flash deal" className="absolute inset-0 h-full w-full object-cover" />
+            <img src={products[4]?.[3] || products[0]?.[3] || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=1800&h=650&fit=crop&auto=format"} alt="Flash deal" className="absolute inset-0 h-full w-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
             <div className="absolute inset-0 flex flex-col justify-end p-6">
               <span className="mb-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-primary/90 px-3 py-1 text-xs font-semibold text-primary-foreground"><Tag size={12} />Flash deal đến 16:00</span>
@@ -181,7 +181,10 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
               </div>
               <div className="mt-4 flex gap-2">
                 <button onClick={() => setView(VIEW_KEYS.COMBO)} className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/80 transition">Xem combo</button>
-                <button onClick={() => onAddToCart?.(products[4] || products[0])} className="rounded-full border border-white/50 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition">Thêm vào giỏ</button>
+                <button onClick={() => {
+                  const dealProduct = products[4] || products[0];
+                  if (dealProduct) onAddToCart?.(dealProduct);
+                }} className="rounded-full border border-white/50 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition">Thêm vào giỏ</button>
               </div>
             </div>
           </div>
