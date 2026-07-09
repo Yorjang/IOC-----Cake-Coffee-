@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Search, Heart, ShoppingBag, User, Menu, CakeSlice, LogIn, MapPin, ChevronDown } from "lucide-react";
 import { MESSAGES } from "../../constants/messages";
 import { HEADER_CONFIG, VIEW_KEYS } from "../../config/appConfig";
+import { products } from "../../data/mockData";
 
 const BRANCHES = ["Sweet Bean Quận 1", "Sweet Bean Quận 3", "Sweet Bean Bình Thạnh"];
 
@@ -13,6 +14,14 @@ export function Header({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [branch, setBranch] = useState(BRANCHES[0]);
   const [branchOpen, setBranchOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+
+  const showSuggestions = isFocused && searchQuery.trim().length > 0;
+  const suggestions = showSuggestions
+    ? products
+        .filter(p => p[0].toLowerCase().includes(searchQuery.toLowerCase()))
+        .slice(0, 5)
+    : [];
 
   return (
     <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
@@ -61,14 +70,47 @@ export function Header({
         </div>
 
         {/* Search */}
-        <div className="hidden w-52 items-center gap-2 rounded-full border bg-card px-3 py-1.5 md:flex focus-within:ring-2 focus-within:ring-primary/40">
+        <div className="relative hidden w-64 items-center gap-2 rounded-full border bg-card px-3 py-1.5 md:flex focus-within:ring-2 focus-within:ring-primary/40">
           <Search size={16} className="text-muted-foreground shrink-0" />
           <input
-            type="text" placeholder={MESSAGES.HEADER_SEARCH_PLACEHOLDER} value={searchQuery}
+            type="text"
+            placeholder={MESSAGES.HEADER_SEARCH_PLACEHOLDER}
+            value={searchQuery}
             onChange={(e) => onSearchChange?.(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") onSearchSubmit?.(); }}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setTimeout(() => setIsFocused(false), 200)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                onSearchSubmit?.();
+                setIsFocused(false);
+              }
+            }}
             className="w-full bg-transparent text-sm outline-none border-none p-0 focus:ring-0 placeholder:text-muted-foreground/60 text-foreground"
           />
+
+          {/* Suggestions Dropdown */}
+          {suggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-2 z-50 rounded-2xl border bg-card p-2 shadow-lg max-h-[300px] overflow-y-auto animate-fadeIn">
+              {suggestions.map((p: any) => (
+                <button
+                  key={p[0]}
+                  type="button"
+                  onClick={() => {
+                    setView(VIEW_KEYS.DETAIL, p);
+                    onSearchChange?.(""); // Clear search to close suggestion dropdown
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl p-2 hover:bg-secondary transition text-left"
+                >
+                  <img src={p[3]} alt="" className="size-10 rounded-lg object-cover shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-xs text-foreground line-clamp-1">{p[0]}</div>
+                    <div className="text-[10px] text-muted-foreground">{p[2]}</div>
+                  </div>
+                  <div className="text-xs font-bold text-primary shrink-0">{p[1]}</div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Icons */}

@@ -23,7 +23,7 @@ export function Cart({ cart, setCart, setView }: any) {
     toast.error("Đã xóa sản phẩm khỏi giỏ hàng");
   };
 
-  const subtotal = cart.reduce((sum: number, item: any) => sum + parsePrice(item.product[1]) * item.quantity, 0);
+  const subtotal = cart.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
   const discount = Math.round(subtotal * (discountPercent / 100));
   const shipping = subtotal >= 300000 || subtotal === 0 ? 0 : 15000;
   const grandTotal = subtotal - discount + shipping;
@@ -48,8 +48,19 @@ export function Cart({ cart, setCart, setView }: any) {
                 <img src={item.product[3]} alt="" className="size-20 rounded-xl object-cover shrink-0" />
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-base line-clamp-1">{item.product[0]}</h3>
-                  <p className="text-xs text-muted-foreground mb-1">Kích cỡ: {item.size}</p>
-                  <p className="text-primary font-bold">{item.product[1]}</p>
+                  <p className="text-xs text-muted-foreground">Kích cỡ: {item.size}</p>
+                  {item.options && (
+                    <div className="text-[11px] text-muted-foreground/80 space-y-0.5 mt-1">
+                      {item.options.sugar && <div>Đường: {item.options.sugar}</div>}
+                      {item.options.ice && <div>Đá: {item.options.ice}</div>}
+                      {item.options.toppings && item.options.toppings.length > 0 && (
+                        <div>Topping: {item.options.toppings.join(", ")}</div>
+                      )}
+                      {item.options.customText && <div>Ghi chú: "{item.options.customText}"</div>}
+                      {item.options.needCandles && <div>Lấy nến sinh nhật</div>}
+                    </div>
+                  )}
+                  <p className="text-primary font-bold mt-1.5">{item.price ? formatPrice(item.price) : item.product[1]}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button onClick={() => updateQty(i, -1)} className="size-8 border rounded-lg flex items-center justify-center hover:bg-secondary">

@@ -155,11 +155,15 @@ export default function App() {
   };
 
   // ── Cart / Wishlist handlers ─────────────────────────────────────────────
-  const handleAddToCart = (product: any, size = "Vừa", qty = 1) => {
+  const handleAddToCart = (product: any, size = "Vừa", qty = 1, options?: any, price?: number) => {
     setCart(prev => {
-      const idx = prev.findIndex(i => i.product[0] === product[0] && i.size === size);
+      const idx = prev.findIndex(i => 
+        i.product[0] === product[0] && 
+        i.size === size && 
+        JSON.stringify(i.options) === JSON.stringify(options)
+      );
       if (idx > -1) { const c = [...prev]; c[idx].quantity += qty; return c; }
-      return [...prev, { product, size, quantity: qty }];
+      return [...prev, { product, size, quantity: qty, options, price }];
     });
   };
   const handleToggleWishlist = (product: any) => {
@@ -171,9 +175,9 @@ export default function App() {
   };
   const handleSelectProduct = (product: any) => setView(VIEW_KEYS.DETAIL, product);
   const handlePlaceOrder = () => { setCart([]); setView(VIEW_KEYS.SUCCESS); };
-
+ 
   // ── Checkout totals ──────────────────────────────────────────────────────
-  const subtotal = cart.reduce((s, i) => s + parsePrice(i.product[1]) * i.quantity, 0);
+  const subtotal = cart.reduce((s, i) => s + (i.price || parsePrice(i.product[1])) * i.quantity, 0);
   const shipping = subtotal >= 300000 || subtotal === 0 ? 0 : 15000;
   const grandTotal = subtotal + shipping;
 
