@@ -74,7 +74,7 @@ export class UsersService {
                 fullName: true,
                 email: true,
                 phone: true,
-                avatarUrl: true,
+                // avatarUrl: true,
                 role: true,
                 branchId: true,
                 isActive: true,
@@ -119,9 +119,9 @@ export class UsersService {
         if (updateProfileDto.phone !== undefined) {
             user.phone = updateProfileDto.phone;
         }
-        if (updateProfileDto.avatar !== undefined) {
-            user.avatarUrl = updateProfileDto.avatar;
-        }
+        // if (updateProfileDto.avatar !== undefined) {
+        //     user.avatarUrl = updateProfileDto.avatar;
+        // }
 
         const savedUser = await this.usersRepository.save(user);
         

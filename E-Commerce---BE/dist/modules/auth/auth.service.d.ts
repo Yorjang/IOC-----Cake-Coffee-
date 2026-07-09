@@ -26,7 +26,6 @@ export declare class AuthService {
             id: string;
             fullName: string;
             email: string;
-            avatarUrl: string;
             phone: string;
             role: import("../users/entities/user.entity").UserRole;
             branchId: string;
@@ -46,7 +45,6 @@ export declare class AuthService {
             id: string;
             fullName: string;
             email: string;
-            avatarUrl: string;
             phone: string;
             role: import("../users/entities/user.entity").UserRole;
             branchId: string;
@@ -64,7 +62,6 @@ export declare class AuthService {
             id: string;
             fullName: string;
             email: string;
-            avatarUrl: string;
             phone: string;
             role: import("../users/entities/user.entity").UserRole;
             branchId: string;
@@ -82,7 +79,6 @@ export declare class AuthService {
             id: string;
             fullName: string;
             email: string;
-            avatarUrl: string;
             phone: string;
             role: import("../users/entities/user.entity").UserRole;
             branchId: string;
@@ -102,7 +98,6 @@ export declare class AuthService {
             id: string;
             fullName: string;
             email: string;
-            avatarUrl: string;
             phone: string;
             role: import("../users/entities/user.entity").UserRole;
             branchId: string;

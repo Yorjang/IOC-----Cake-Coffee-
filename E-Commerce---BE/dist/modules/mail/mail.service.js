@@ -107,7 +107,7 @@ let MailService = MailService_1 = class MailService {
           <div style="text-align: center; margin: 30px 0;">
             <a href="${resetUrl}" style="background-color: #D4A373; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
           </div>
-          <p>This password reset link will expire in 30 minutes.</p>
+          <p>This password reset link will expire in 15 minutes.</p>
           <p>If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
           <p>Or copy and paste this link in your browser:</p>
           <p><a href="${resetUrl}">${resetUrl}</a></p>

@@ -277,7 +277,7 @@ let AuthService = AuthService_1 = class AuthService {
             };
         }
         const secret = this.getJwtSecret() + user.passwordHash;
-        const token = jwt.sign({ sub: user.id, email: user.email, purpose: 'password-reset' }, secret, { expiresIn: '30m' });
+        const token = jwt.sign({ sub: user.id, email: user.email, purpose: 'password-reset' }, secret, { expiresIn: '15m' });
         try {
             await this.mailService.sendResetPasswordEmail(user.email, token);
             return {

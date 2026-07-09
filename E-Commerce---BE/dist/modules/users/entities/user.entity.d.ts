@@ -10,7 +10,6 @@ export declare class User {
     id: string;
     fullName: string;
     email: string;
-    avatarUrl: string;
     phone: string;
     passwordHash: string;
     role: UserRole;
