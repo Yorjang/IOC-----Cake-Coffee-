@@ -2,14 +2,13 @@ import { useState } from "react";
 import { Search, Heart, ShoppingBag, User, Menu, CakeSlice, LogIn, MapPin, ChevronDown } from "lucide-react";
 import { MESSAGES } from "../../constants/messages";
 import { HEADER_CONFIG, VIEW_KEYS } from "../../config/appConfig";
-import { products } from "../../data/mockData";
 
 const BRANCHES = ["Sweet Bean Quận 1", "Sweet Bean Quận 3", "Sweet Bean Bình Thạnh"];
 
 export function Header({
   view, setView, navPages, wishlistCount = 0, cartCount = 0,
   searchQuery = "", onSearchChange, onSearchSubmit, isLoggedIn = false,
-  user,
+  user, products = [],
 }: any) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [branch, setBranch] = useState(BRANCHES[0]);
@@ -19,7 +18,7 @@ export function Header({
   const showSuggestions = isFocused && searchQuery.trim().length > 0;
   const suggestions = showSuggestions
     ? products
-        .filter(p => p[0].toLowerCase().includes(searchQuery.toLowerCase()))
+        .filter((p: any) => p[0].toLowerCase().includes(searchQuery.toLowerCase()))
         .slice(0, 5)
     : [];
 

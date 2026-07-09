@@ -17,9 +17,29 @@ import { Checkout, Success } from "./pages/Checkout";
 import { Favorites } from "./pages/Favorites";
 import { Profile } from "./pages/Profile";
 
-import { categories, products, navPages } from "../data/mockData";
+import { navPages, heroBanners } from "../data/mockData";
 import { env } from "../config/env";
 import { VIEW_KEYS } from "../config/appConfig";
+
+// ── Transform API product to legacy array format ──────────────────────────────
+// Array format: [name, price, categoryName, imageUrl, rating, badge]
+const apiProductToArray = (p: any): any[] => {
+  const price = p.variants?.[0]?.price
+    ? `${Number(p.variants[0].price).toLocaleString("vi-VN")}đ`
+    : "0đ";
+  const categoryName = p.category?.name ?? "Khác";
+  const imageUrl = p.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=600&h=520&fit=crop&auto=format";
+  const rating = "4.8";
+  const badge = p.productType === "combo" ? "Combo" : (p.variants?.length > 1 ? "S/M/L" : "Còn hàng");
+  return [p.name, price, categoryName, imageUrl, rating, badge];
+};
+
+// ── Transform API category to legacy format ───────────────────────────────────
+const apiCategoryToLegacy = (c: any) => ({
+  name: c.name,
+  icon: "",
+  img: c.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=280&h=180&fit=crop&auto=format",
+});
 
 // ── URL / Router helpers ──────────────────────────────────────────────────────
 const VIEW_PATH_MAP: Record<string, string> = {
@@ -47,22 +67,22 @@ const getPathFromView = (view: string, product?: any) => {
   return VIEW_PATH_MAP[view] ?? `/danh-muc/${encodeURIComponent(view.toLowerCase().replace(/\s+/g, "-"))}`;
 };
 
-const getViewFromPath = (path: string) => {
+const getViewFromPath = (path: string, cats: any[] = []) => {
   for (const [key, value] of Object.entries(VIEW_PATH_MAP)) {
     if (value === path) return key;
   }
   if (path.startsWith("/chi-tiet/")) return VIEW_KEYS.DETAIL;
   if (path.startsWith("/danh-muc/")) {
     const slug = decodeURIComponent(path.replace("/danh-muc/", ""));
-    return categories.find(c => c.name.toLowerCase().replace(/\s+/g, "-") === slug)?.name ?? VIEW_KEYS.SWEETS;
+    return cats.find(c => c.name.toLowerCase().replace(/\s+/g, "-") === slug)?.name ?? VIEW_KEYS.SWEETS;
   }
   return VIEW_KEYS.HOME;
 };
 
-const getProductFromPath = (path: string) => {
+const getProductFromPath = (path: string, prods: any[] = []) => {
   if (!path.startsWith("/chi-tiet/")) return null;
   const slug = decodeURIComponent(path.replace("/chi-tiet/", ""));
-  return products.find(p => p[0].toLowerCase().replace(/\s+/g, "-") === slug) ?? null;
+  return prods.find(p => p[0].toLowerCase().replace(/\s+/g, "-") === slug) ?? null;
 };
 
 // ── Price helpers ─────────────────────────────────────────────────────────────
@@ -87,6 +107,29 @@ export default function App() {
   const [wishlist, setWishlist] = useState<any[]>(() => JSON.parse(localStorage.getItem("sb_wishlist") || "[]"));
   const [user, setUser] = useState<any>(() => JSON.parse(localStorage.getItem("user") || "null"));
 
+  // ── Fetch real products & categories from API ─────────────────────────
+  const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [pRes, cRes] = await Promise.all([
+          fetch(`${env.API_URL}/products`),
+          fetch(`${env.API_URL}/products/categories`),
+        ]);
+        if (pRes.ok) {
+          const apiProducts = await pRes.json();
+          setProducts(apiProducts.map(apiProductToArray));
+        }
+        if (cRes.ok) {
+          const apiCategories = await cRes.json();
+          setCategories(apiCategories.map(apiCategoryToLegacy));
+        }
+      } catch { /* silent — fallback to empty */ }
+    })();
+  }, []);
+
   // ── Persist cart & wishlist ──────────────────────────────────────────────
   useEffect(() => { localStorage.setItem("sb_cart", JSON.stringify(cart)); }, [cart]);
   useEffect(() => { localStorage.setItem("sb_wishlist", JSON.stringify(wishlist)); }, [wishlist]);
@@ -94,8 +137,8 @@ export default function App() {
   // ── History API (back/forward) ───────────────────────────────────────────
   useEffect(() => {
     const onPop = () => {
-      setViewInternal(getViewFromPath(window.location.pathname));
-      setSelectedProduct(getProductFromPath(window.location.pathname));
+      setViewInternal(getViewFromPath(window.location.pathname, categories));
+      setSelectedProduct(getProductFromPath(window.location.pathname, products));
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
@@ -225,17 +268,18 @@ export default function App() {
           onSearchSubmit={() => setView("Tìm kiếm")}
           isLoggedIn={!!user}
           user={user}
+          products={products}
         />
         <main className="min-h-[calc(100vh-400px)]">
           <div className="animate-page-change" key={view}>
-            {view === VIEW_KEYS.HOME && <Home setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} />}
+            {view === VIEW_KEYS.HOME && <Home setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} products={products} categories={categories} />}
             {view === VIEW_KEYS.CART && <Cart cart={cart} setCart={setCart} setView={setView} />}
             {view === VIEW_KEYS.CHECKOUT && <Checkout cart={cart} setView={setView} onPlaceOrder={handlePlaceOrder} subtotal={subtotal} discount={0} shipping={shipping} grandTotal={grandTotal} />}
             {view === VIEW_KEYS.SUCCESS && <Success setView={setView} />}
-            {view === VIEW_KEYS.DETAIL && <ProductDetail product={selectedProduct} setView={setView} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onSelectProduct={handleSelectProduct} />}
+            {view === VIEW_KEYS.DETAIL && <ProductDetail product={selectedProduct} setView={setView} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onSelectProduct={handleSelectProduct} products={products} />}
             {view === VIEW_KEYS.FAVORITES && <Favorites wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onAddToCart={handleAddToCart} onSelectProduct={handleSelectProduct} setView={setView} />}
             {view === VIEW_KEYS.PROFILE && <Profile user={user} setUser={setUser} setView={setView} onLogout={handleLogout} />}
-            {LISTABLE.includes(view) && <ProductListing category={view} setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} searchQuery={searchQuery} />}
+            {LISTABLE.includes(view) && <ProductListing category={view} setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} searchQuery={searchQuery} products={products} />}
           </div>
         </main>
         <Footer />

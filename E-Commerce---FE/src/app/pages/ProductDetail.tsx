@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Heart, Minus, Plus, Star, Check } from "lucide-react";
-import { products } from "../../data/mockData";
 import { Btn, ProductCard } from "../components/shared";
 import { CATEGORY_GROUPS, PRODUCT_DETAIL_CONFIG, VIEW_KEYS } from "../../config/appConfig";
 import { toast } from "sonner";
@@ -24,8 +23,8 @@ const TOPPING_OPTIONS = [
 const SUGAR_OPTIONS = ["100%", "70%", "50%", "30%"];
 const ICE_OPTIONS = ["100%", "70%", "50%", "Không đá"];
 
-export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggleWishlist, onSelectProduct }: any) {
-  const p = product || products[0];
+export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggleWishlist, onSelectProduct, products = [] }: any) {
+  const p = product || products[0] || ["Sản phẩm", "0đ", "Khác", "", "5.0", ""];
   const isDrink = CATEGORY_GROUPS.DRINKS.includes(p[2] as any);
   const isBirthdayCake = p[2] === "Bánh sinh nhật";
 

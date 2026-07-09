@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { products } from "../../data/mockData";
 import { ProductCard } from "../components/shared";
 import { CATEGORY_GROUPS, VIEW_KEYS } from "../../config/appConfig";
 import { SlidersHorizontal } from "lucide-react";
@@ -10,7 +9,7 @@ const parsePrice = (priceStr: string): number => {
   return parseInt(priceStr.replace(/[^0-9]/g, ""), 10);
 };
 
-export function ProductListing({ category, setView, onSelectProduct, onAddToCart, wishlist, onToggleWishlist, searchQuery }: any) {
+export function ProductListing({ category, setView, onSelectProduct, onAddToCart, wishlist, onToggleWishlist, searchQuery, products = [] }: any) {
   // Filter States
   const [selectedSubCat, setSelectedSubCat] = useState<string>("Tất cả");
   const [selectedPriceRange, setSelectedPriceRange] = useState<string>("Tất cả");

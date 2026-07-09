@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Truck, Gift, RefreshCw, Coffee, Clock, AlertCircle, MapPin, Copy, Check, Tag } from "lucide-react";
-import { heroBanners, categories, products } from "../../data/mockData";
+import { heroBanners } from "../../data/mockData";
 import { ProductCard, Section } from "../components/shared";
 import { MESSAGES } from "../../constants/messages";
 import { env } from "../../config/env";
@@ -47,7 +47,7 @@ function VoucherRow({ code, title, sub }: any) {
   );
 }
 
-export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggleWishlist }: any) {
+export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggleWishlist, products = [], categories = [] }: any) {
   const [activeBanner, setActiveBanner] = useState(0);
   const [storeSearch, setStoreSearch] = useState("");
   const filteredStores = STORES.filter(s =>
