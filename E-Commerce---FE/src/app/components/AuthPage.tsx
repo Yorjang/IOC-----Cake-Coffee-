@@ -9,6 +9,7 @@ import { validateRegisterFields, apiLogin, apiRegister } from "./authUtils";
 declare global {
   interface Window {
     google?: any;
+    googleInitialized?: boolean;
   }
 }
 
@@ -117,10 +118,13 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "" }: 
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.google) {
-      window.google.accounts.id.initialize({
-        client_id: env.GOOGLE_CLIENT_ID,
-        callback: handleGoogleCallback,
-      });
+      if (!window.googleInitialized) {
+        window.google.accounts.id.initialize({
+          client_id: env.GOOGLE_CLIENT_ID,
+          callback: handleGoogleCallback,
+        });
+        window.googleInitialized = true;
+      }
 
       const btn = document.getElementById("google-signin-btn");
       if (btn) {
