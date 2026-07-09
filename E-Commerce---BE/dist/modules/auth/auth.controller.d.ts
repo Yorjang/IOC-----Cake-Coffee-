@@ -5,6 +5,7 @@ import { RefreshDto } from './dto/refresh.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { LogoutDto } from './dto/logout.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
@@ -49,6 +50,23 @@ export declare class AuthController {
         };
     }>;
     login(loginDto: LoginDto): Promise<{
+        message: string;
+        accessToken: string;
+        refreshToken: string;
+        user: {
+            id: string;
+            fullName: string;
+            email: string;
+            phone: string;
+            role: import("../users/entities/user.entity").UserRole;
+            branchId: string;
+            isActive: boolean;
+            emailVerifiedAt: Date;
+            createdAt: Date;
+            updatedAt: Date;
+        };
+    }>;
+    googleLogin(googleLoginDto: GoogleLoginDto): Promise<{
         message: string;
         accessToken: string;
         refreshToken: string;

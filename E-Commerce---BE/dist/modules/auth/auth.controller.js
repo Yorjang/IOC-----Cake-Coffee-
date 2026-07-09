@@ -21,6 +21,7 @@ const refresh_dto_1 = require("./dto/refresh.dto");
 const forgot_password_dto_1 = require("./dto/forgot-password.dto");
 const reset_password_dto_1 = require("./dto/reset-password.dto");
 const logout_dto_1 = require("./dto/logout.dto");
+const google_login_dto_1 = require("./dto/google-login.dto");
 let AuthController = class AuthController {
     constructor(authService) {
         this.authService = authService;
@@ -33,6 +34,9 @@ let AuthController = class AuthController {
     }
     async login(loginDto) {
         return this.authService.login(loginDto);
+    }
+    async googleLogin(googleLoginDto) {
+        return this.authService.googleLogin(googleLoginDto.idToken);
     }
     async refresh(refreshDto) {
         return this.authService.refresh(refreshDto.refreshToken);
@@ -69,6 +73,13 @@ __decorate([
     __metadata("design:paramtypes", [login_dto_1.LoginDto]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "login", null);
+__decorate([
+    (0, common_1.Post)('google-login'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [google_login_dto_1.GoogleLoginDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "googleLogin", null);
 __decorate([
     (0, common_1.Post)('refresh'),
     __param(0, (0, common_1.Body)()),

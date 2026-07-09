@@ -160,6 +160,54 @@ let AuthService = AuthService_1 = class AuthService {
             user: this.sanitizeUser(user),
         };
     }
+    async googleLogin(idToken) {
+        try {
+            const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+            if (!response.ok) {
+                throw new common_1.BadRequestException('Mã xác thực Google không hợp lệ hoặc đã hết hạn.');
+            }
+            const payload = (await response.json());
+            const googleClientId = this.configService.get('GOOGLE_CLIENT_ID');
+            if (googleClientId && googleClientId !== 'your-google-client-id.apps.googleusercontent.com' && payload.aud !== googleClientId) {
+                throw new common_1.BadRequestException('Mã client ID của Google không trùng khớp.');
+            }
+            const email = payload.email;
+            const fullName = payload.name || 'Người dùng Google';
+            if (!email) {
+                throw new common_1.BadRequestException('Không thể lấy thông tin email từ Google.');
+            }
+            let user = await this.usersService.findByEmail(email);
+            if (!user) {
+                const randomPassword = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10);
+                const saltOrRounds = 10;
+                const passwordHash = await bcrypt.hash(randomPassword, saltOrRounds);
+                user = await this.usersService.create({
+                    fullName,
+                    email,
+                    phone: '',
+                    password: passwordHash,
+                });
+                user = await this.usersService.update(user.id, {
+                    isActive: true,
+                    emailVerifiedAt: new Date(),
+                });
+            }
+            const accessToken = this.generateAccessToken(user);
+            const refreshToken = this.generateRefreshToken(user);
+            return {
+                message: 'Đăng nhập Google thành công.',
+                accessToken,
+                refreshToken,
+                user: this.sanitizeUser(user),
+            };
+        }
+        catch (error) {
+            if (error instanceof common_1.BadRequestException) {
+                throw error;
+            }
+            throw new common_1.BadRequestException(`Xác thực Google thất bại: ${error.message}`);
+        }
+    }
     async logout(refreshToken) {
         if (this.blacklistedTokens.has(refreshToken)) {
             return { message: 'Đăng xuất thành công.' };
@@ -223,13 +271,13 @@ let AuthService = AuthService_1 = class AuthService {
     async forgotPassword(forgotPasswordDto) {
         const { email } = forgotPasswordDto;
         const user = await this.usersService.findByEmail(email);
-        if (!user) {
+        if (!user || !user.isActive) {
             return {
                 message: 'Nếu địa chỉ email tồn tại trên hệ thống, một liên kết đặt lại mật khẩu đã được gửi qua email.',
             };
         }
         const secret = this.getJwtSecret() + user.passwordHash;
-        const token = jwt.sign({ sub: user.id, email: user.email, purpose: 'password-reset' }, secret, { expiresIn: '15m' });
+        const token = jwt.sign({ sub: user.id, email: user.email, purpose: 'password-reset' }, secret, { expiresIn: '30m' });
         try {
             await this.mailService.sendResetPasswordEmail(user.email, token);
             return {
@@ -256,6 +304,9 @@ let AuthService = AuthService_1 = class AuthService {
         const user = await this.usersService.findById(decoded.sub);
         if (!user) {
             throw new common_1.BadRequestException('User not found.');
+        }
+        if (!user.isActive) {
+            throw new common_1.BadRequestException('Tài khoản của bạn chưa được kích hoạt hoặc đã bị khóa.');
         }
         try {
             const secret = this.getJwtSecret() + user.passwordHash;

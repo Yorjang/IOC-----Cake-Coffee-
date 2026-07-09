@@ -1,10 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CakeSlice, Eye, EyeOff, Mail, Lock, User, Phone } from "lucide-react";
 import { toast } from "sonner";
 import { AUTH_CONTENT } from "../../constants/authContent";
 import { env } from "../../config/env";
 import type { AuthMode, AuthErrors } from "./authUtils";
 import { validateRegisterFields, apiLogin, apiRegister } from "./authUtils";
+
+declare global {
+  interface Window {
+    google?: any;
+  }
+}
+
 
 
 // ── Register Options Modal ────────────────────────────────────────────────────
@@ -84,6 +91,47 @@ export function AuthPage({ onSuccess }: { onSuccess: () => void; onAdminDemo?: (
     setPassword(""); setPhone(""); setFullName(""); setErrors({});
   };
 
+  const handleGoogleCallback = async (response: any) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${env.API_URL}/auth/google-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken: response.credential }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Đăng nhập Google thất bại");
+
+      localStorage.setItem("accessToken", data.accessToken);
+      localStorage.setItem("refreshToken", data.refreshToken);
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      toast.success("Đăng nhập bằng Google thành công!");
+      onSuccess();
+    } catch (e: any) {
+      toast.error(e.message || "Đã xảy ra lỗi khi đăng nhập bằng Google.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.google) {
+      window.google.accounts.id.initialize({
+        client_id: env.GOOGLE_CLIENT_ID,
+        callback: handleGoogleCallback,
+      });
+
+      const btn = document.getElementById("google-signin-btn");
+      if (btn) {
+        window.google.accounts.id.renderButton(
+          btn,
+          { theme: "outline", size: "large", width: 380, shape: "pill" }
+        );
+      }
+    }
+  }, [mode]);
+
   async function handleConfirmRegister() {
     setLoading(true);
     try {
@@ -157,8 +205,10 @@ export function AuthPage({ onSuccess }: { onSuccess: () => void; onAdminDemo?: (
                 </div>
                 <button type="submit" disabled={loading} className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 disabled:opacity-50">{loading ? "Đang đăng nhập…" : "Đăng nhập"}</button>
               </form>
-              <div className="mt-5 flex items-center gap-3 text-xs text-muted-foreground"><span className="flex-1 border-t" /> hoặc đăng nhập với <span className="flex-1 border-t" /></div>
-              <div className="mt-4 grid grid-cols-2 gap-3">{AUTH_CONTENT.SOCIAL_PROVIDERS.map(s => (<button key={s} className="rounded-xl border py-2.5 text-sm font-medium hover:bg-secondary transition">{s}</button>))}</div>
+              <div className="mt-5 flex items-center gap-3 text-xs text-muted-foreground"><span className="flex-1 border-t" /> hoặc đăng nhập bằng <span className="flex-1 border-t" /></div>
+              <div className="mt-4 flex justify-center">
+                <div id="google-signin-btn" className="w-full flex justify-center min-h-[44px]"></div>
+              </div>
             </div>
           )}
           {mode === "register" && (
@@ -188,6 +238,10 @@ export function AuthPage({ onSuccess }: { onSuccess: () => void; onAdminDemo?: (
                 </label>
                 <button type="submit" disabled={loading} className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 disabled:opacity-50">{loading ? "Đang tạo tài khoản…" : "Tạo tài khoản"}</button>
               </form>
+              <div className="mt-5 flex items-center gap-3 text-xs text-muted-foreground"><span className="flex-1 border-t" /> hoặc đăng ký bằng <span className="flex-1 border-t" /></div>
+              <div className="mt-4 flex justify-center">
+                <div id="google-signin-btn" className="w-full flex justify-center min-h-[44px]"></div>
+              </div>
             </div>
           )}
         </div>

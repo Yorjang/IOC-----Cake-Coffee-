@@ -71,6 +71,23 @@ export declare class AuthService {
             updatedAt: Date;
         };
     }>;
+    googleLogin(idToken: string): Promise<{
+        message: string;
+        accessToken: string;
+        refreshToken: string;
+        user: {
+            id: string;
+            fullName: string;
+            email: string;
+            phone: string;
+            role: import("../users/entities/user.entity").UserRole;
+            branchId: string;
+            isActive: boolean;
+            emailVerifiedAt: Date;
+            createdAt: Date;
+            updatedAt: Date;
+        };
+    }>;
     logout(refreshToken: string): Promise<{
         message: string;
     }>;
