@@ -53,10 +53,17 @@ function TableHeader({ cols }: { cols: string[] }) {
 function Dashboard() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const loadStats = async () => {
+    setLoading(true);
+    setError(null);
     const token = localStorage.getItem("accessToken");
-    if (!token) return;
+    if (!token) {
+      setError("Thiếu mã xác thực (Token). Vui lòng đăng nhập lại.");
+      setLoading(false);
+      return;
+    }
     try {
       const res = await fetch(`${env.API_URL}/orders/dashboard/stats`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -64,9 +71,12 @@ function Dashboard() {
       const resData = await res.json();
       if (res.ok) {
         setData(resData);
+      } else {
+        setError(resData.message || "Lỗi khi tải dữ liệu thống kê từ server.");
       }
     } catch (err) {
       console.error(err);
+      setError("Không thể kết nối tới máy chủ (Server).");
     } finally {
       setLoading(false);
     }
@@ -76,10 +86,26 @@ function Dashboard() {
     loadStats();
   }, []);
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="flex h-64 items-center justify-center bg-sidebar rounded-2xl">
         <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="flex flex-col h-64 items-center justify-center bg-sidebar rounded-2xl p-5 space-y-4">
+        <AlertCircle className="text-red-500" size={40} />
+        <p className="text-sm text-foreground font-semibold">{error || "Có lỗi xảy ra."}</p>
+        <button
+          type="button"
+          onClick={loadStats}
+          className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/80 transition"
+        >
+          Thử lại
+        </button>
       </div>
     );
   }

@@ -75,19 +75,19 @@ export class Order {
   @Column({ name: 'total_amount', type: 'numeric', precision: 12, scale: 0, default: 0 })
   totalAmount: number;
 
-  @Column({ type: 'enum', enum: PaymentMethod })
+  @Column({ name: 'payment_method', type: 'enum', enum: PaymentMethod })
   paymentMethod: PaymentMethod;
 
-  @Column({ type: 'enum', enum: PaymentStatus, default: PaymentStatus.PENDING })
+  @Column({ name: 'payment_status', type: 'enum', enum: PaymentStatus, default: PaymentStatus.PENDING })
   paymentStatus: PaymentStatus;
 
-  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })
+  @Column({ name: 'order_status', type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })
   orderStatus: OrderStatus;
 
-  @Column({ type: 'enum', enum: OrderType, default: OrderType.ONLINE })
+  @Column({ name: 'order_type', type: 'enum', enum: OrderType, default: OrderType.ONLINE })
   orderType: OrderType;
 
-  @Column({ type: 'enum', enum: FulfillmentType, default: FulfillmentType.DELIVERY })
+  @Column({ name: 'fulfillment_type', type: 'enum', enum: FulfillmentType, default: FulfillmentType.DELIVERY })
   fulfillmentType: FulfillmentType;
 
   @Column({ name: 'shipping_address_street', length: 255, nullable: true })
