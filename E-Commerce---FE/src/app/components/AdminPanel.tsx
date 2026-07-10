@@ -30,7 +30,7 @@ function ImageUploader({ label, value, onChange }: { label: string; value: strin
       const filePath = `products/${fileName}`;
 
       const { data, error } = await supabase.storage
-        .from('products')
+        .from('cakeandcoffee')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
@@ -39,7 +39,7 @@ function ImageUploader({ label, value, onChange }: { label: string; value: strin
       if (error) throw error;
 
       const { data: { publicUrl } } = supabase.storage
-        .from('products')
+        .from('cakeandcoffee')
         .getPublicUrl(filePath);
 
       onChange(publicUrl);
@@ -129,8 +129,8 @@ function AdminBtn({ children, variant = "primary", onClick }: any) {
   const cls = variant === "primary"
     ? "bg-primary text-primary-foreground hover:bg-primary/80"
     : variant === "danger"
-    ? "bg-red-100 text-red-700 hover:bg-red-200"
-    : "border border-primary/30 bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary-foreground";
+      ? "bg-red-100 text-red-700 hover:bg-red-200"
+      : "border border-primary/30 bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary-foreground";
   return <button onClick={onClick} className={`inline-flex min-h-8 min-w-10 items-center justify-center rounded-lg px-3 py-1.5 text-sm transition ${cls}`}>{children}</button>;
 }
 
