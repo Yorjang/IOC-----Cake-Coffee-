@@ -9,72 +9,6 @@ import {
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { env } from "../../config/env";
-const orders = [
-  { id: "#SB1024", customer: "Nguyễn Minh Anh", items: "Bánh Tiramisu, Cafe Latte", total: "100.000đ", status: "Đang giao", time: "12:45" },
-  { id: "#SB1023", customer: "Trần Thị Bình", items: "Bánh sinh nhật socola", total: "350.000đ", status: "Đang chuẩn bị", time: "12:10" },
-  { id: "#SB1022", customer: "Lê Văn Cường", items: "Combo Tiramisu + Latte", total: "89.000đ", status: "Hoàn thành", time: "11:30" },
-  { id: "#SB1021", customer: "Phạm Thu Hà", items: "Matcha Latte x2", total: "118.000đ", status: "Xác nhận", time: "11:00" },
-  { id: "#SB1020", customer: "Vũ Đức Minh", items: "Bánh tart trứng x3", total: "75.000đ", status: "Huỷ", time: "10:15" },
-  { id: "#SB1019", customer: "Đinh Lan Hương", items: "Bánh Red Velvet, Cold Brew", total: "115.000đ", status: "Hoàn thành", time: "09:40" },
-];
-
-const reviews = [
-  { id: 1, product: "Bánh Tiramisu", user: "Nguyễn Minh Anh", rating: 5, comment: "Bánh ngon tuyệt, cream mịn, không ngọt quá. Giao hàng nhanh!", date: "20/06/2025", status: "Đã duyệt" },
-  { id: 2, product: "Cafe Latte", user: "Trần Thị Bình", rating: 4, comment: "Cafe thơm, vị chuẩn ý. Sẽ order tiếp.", date: "19/06/2025", status: "Đã duyệt" },
-  { id: 3, product: "Bánh mousse xoài", user: "Lê Văn Cường", rating: 3, comment: "Vị xoài nhạt hơn tôi mong đợi nhưng vẫn ổn.", date: "18/06/2025", status: "Chờ duyệt" },
-  { id: 4, product: "Combo sinh nhật mini", user: "Phạm Thu Hà", rating: 5, comment: "Đặt tiệc sinh nhật cho con, mọi người khen nức nở!", date: "17/06/2025", status: "Chờ duyệt" },
-  { id: 5, product: "Bánh tart trứng", user: "Vũ Đức Minh", rating: 2, comment: "Vỏ tart bị mềm do ship xa, mong shop cải thiện.", date: "16/06/2025", status: "Ẩn" },
-];
-
-const vouchers = [
-  { code: "CAKE10", type: "Phần trăm", value: "10%", min: "0đ", used: 42, limit: 100, expiry: "31/07/2025", status: "Đang hoạt động" },
-  { code: "COFFEE20", type: "Phần trăm", value: "20%", min: "50.000đ", used: 18, limit: 50, expiry: "30/06/2025", status: "Đang hoạt động" },
-  { code: "COMBO15", type: "Phần trăm", value: "15%", min: "80.000đ", used: 9, limit: 30, expiry: "15/07/2025", status: "Đang hoạt động" },
-  { code: "NEWUSER50", type: "Cố định", value: "50.000đ", min: "100.000đ", used: 5, limit: 20, expiry: "31/12/2025", status: "Đang hoạt động" },
-  { code: "SUMMER30", type: "Phần trăm", value: "30%", min: "200.000đ", used: 30, limit: 30, expiry: "30/06/2025", status: "Hết lượt" },
-];
-
-const banners = [
-  { id: 1, title: "Flash Sale 14:00 – Cafe giảm 20%", position: "Hero chính", status: "Hiển thị", start: "01/06/2025", end: "30/06/2025", img: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=180&h=80&fit=crop&auto=format" },
-  { id: 2, title: "Combo sinh nhật mini từ 399.000đ", position: "Banner phục 1", status: "Hiển thị", start: "01/06/2025", end: "31/07/2025", img: "https://images.unsplash.com/photo-1535141192574-5d4897c12636?w=180&h=80&fit=crop&auto=format" },
-  { id: 3, title: "Matcha mới – Thử ngay!", position: "Banner phục 2", status: "Ẩn", start: "15/06/2025", end: "15/07/2025", img: "https://images.unsplash.com/photo-1536256263959-770b48d82b0a?w=180&h=80&fit=crop&auto=format" },
-  { id: 4, title: "Voucher CAKE10 toàn bộ bánh", position: "Popup", status: "Hiển thị", start: "01/06/2025", end: "31/07/2025", img: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=180&h=80&fit=crop&auto=format" },
-];
-
-const options = [
-  { id: 1, name: "Size", values: "S / M / L", applies: "Cafe, Trà, Đồ uống khác", type: "Size" },
-  { id: 2, name: "Đường", values: "Ít / Bình thường / Nhiều", applies: "Cafe, Trà, Đồ uống khác", type: "Tùy chỉnh" },
-  { id: 3, name: "Đá", values: "Ít đá / Bình thường / Nhiều đá", applies: "Cafe, Trà, Đồ uống khác", type: "Tùy chỉnh" },
-  { id: 4, name: "Size bánh", values: "4 inch / 6 inch / 8 inch", applies: "Bánh sinh nhật, Bánh mousse", type: "Size" },
-  { id: 5, name: "Lời chúc", values: "Nhập văn bản", applies: "Bánh sinh nhật", type: "Text" },
-  { id: 6, name: "Topping", values: "Dâu / Việt quất / Kiwi / Không", applies: "Bánh tart, Bánh mousse", type: "Topping" },
-];
-
-
-const branches = [
-  { id: "BR01", name: "Sweet Bean Quận 1", address: "123 Nguyễn Huệ, Quận 1, TP.HCM", phone: "0909 888 777", hours: "07:00 - 22:00", manager: "Phạm Thu Hà", status: "Hiển thị", lat: "10.7756", lng: "106.7019", orders: 26, revenue: "3.120.000đ" },
-  { id: "BR02", name: "Sweet Bean Thảo Điền", address: "45 Xuân Thủy, Thủ Đức, TP.HCM", phone: "0912 444 555", hours: "07:30 - 21:30", manager: "Lê Văn Cường", status: "Hiển thị", lat: "10.8021", lng: "106.7334", orders: 18, revenue: "2.480.000đ" },
-  { id: "BR03", name: "Sweet Bean Phú Nhuận", address: "88 Phan Xích Long, Phú Nhuận, TP.HCM", phone: "0933 222 111", hours: "08:00 - 22:00", manager: "Trần Thị Bình", status: "Ẩn", lat: "10.7990", lng: "106.6857", orders: 11, revenue: "1.560.000đ" },
-];
-
-const inventoryRows = [
-  { branch: "Quận 1", variant: "Tiramisu lát", sku: "CK-TIR-M", qty: 24, min: 10, expiry: "28/06/2025", status: "Đủ hàng" },
-  { branch: "Quận 1", variant: "Mousse xoài 6 inch", sku: "CK-MGX-6", qty: 4, min: 8, expiry: "26/06/2025", status: "Sắp hết" },
-  { branch: "Thảo Điền", variant: "Cafe Latte M", sku: "CF-LAT-M", qty: 120, min: 40, expiry: "-", status: "Đủ hàng" },
-  { branch: "Phú Nhuận", variant: "Bánh tart trứng", sku: "CK-TART-E", qty: 0, min: 12, expiry: "25/06/2025", status: "Hết hàng" },
-];
-
-const posInvoices = [
-  { id: "#POS2048", branch: "Quan 1", cashier: "Minh Anh", items: "Latte M x2, Tiramisu x1", total: "155.000d", pay: "Momo", time: "14:20" },
-  { id: "#POS2047", branch: "Thao Dien", cashier: "Duc Minh", items: "Cold Brew x1, Cookie x2", total: "140.000d", pay: "Tien mat", time: "13:55" },
-  { id: "#POS2046", branch: "Quan 1", cashier: "Lan Huong", items: "Combo Tiramisu + Latte", total: "89.000d", pay: "VNPay", time: "13:10" },
-];
-
-const cakeRequests = [
-  { id: "#CK908", customer: "Nguyen Minh Anh", branch: "Quan 1", design: "Sinh nhat socola 8 inch", due: "25/06 18:00", note: "Ghi chu Happy Birthday Bin", status: "Dang chuan bi" },
-  { id: "#CK907", customer: "Tran Thi Binh", branch: "Thao Dien", design: "Banh kem dau 6 inch", due: "25/06 16:30", note: "Tone hong, them nen so 5", status: "Xac nhan" },
-  { id: "#CK906", customer: "Le Van Cuong", branch: "Phu Nhuan", design: "Mousse xoai mini", due: "26/06 10:00", note: "Nhan tai cua hang", status: "Hoan thanh" },
-];
 const statusColor: Record<string, string> = {
   "Đang giao": "bg-blue-100 text-blue-700",
   "Đang chuẩn bị": "bg-yellow-100 text-yellow-700",
@@ -472,6 +406,15 @@ function AdminCategories() {
 
 // ── Options ───────────────────────────────────────────────────────────────────
 function AdminOptions() {
+  const localOptions = [
+    { id: 1, name: "Size", values: "S / M / L", applies: "Cafe, Trà, Đồ uống khác", type: "Size" },
+    { id: 2, name: "Đường", values: "Ít / Bình thường / Nhiều", applies: "Cafe, Trà, Đồ uống khác", type: "Tùy chỉnh" },
+    { id: 3, name: "Đá", values: "Ít đá / Bình thường / Nhiều đá", applies: "Cafe, Trà, Đồ uống khác", type: "Tùy chỉnh" },
+    { id: 4, name: "Size bánh", values: "4 inch / 6 inch / 8 inch", applies: "Bánh sinh nhật, Bánh mousse", type: "Size" },
+    { id: 5, name: "Lời chúc", values: "Nhập văn bản", applies: "Bánh sinh nhật", type: "Text" },
+    { id: 6, name: "Topping", values: "Dâu / Việt quất / Kiwi / Không", applies: "Bánh tart, Bánh mousse", type: "Topping" },
+  ];
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -482,7 +425,7 @@ function AdminOptions() {
         <table className="w-full text-sm">
           <TableHeader cols={["#", "Tên tùy chọn", "Kiểu", "Giá trị", "Áp dụng cho", "Thao tác"]} />
           <tbody>
-            {options.map(o => (
+            {localOptions.map(o => (
               <tr key={o.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
                 <td className="py-3 text-muted-foreground">{o.id}</td>
                 <td className="py-3 font-medium text-foreground">{o.name}</td>
