@@ -117,80 +117,127 @@ function TableHeader({ cols }: { cols: string[] }) {
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 function Dashboard() {
-  const stats = [
-    { label: "Doanh thu hôm nay", value: "4.820.000đ", delta: "+12%", icon: DollarSign },
-    { label: "Tổng đơn hàng", value: "42", delta: "+8 hôm nay", icon: ShoppingBag },
-    { label: "Sản phẩm", value: "128", delta: "3 sắp hết", icon: Package },
-    { label: "Khách hàng mới", value: "7", delta: "+2 so hôm qua", icon: Users },
-  ];
-  const weekly = [
-    { day: "T2", revenue: 3200000, orders: 28 },
-    { day: "T3", revenue: 4100000, orders: 35 },
-    { day: "T4", revenue: 3800000, orders: 31 },
-    { day: "T5", revenue: 5200000, orders: 44 },
-    { day: "T6", revenue: 6400000, orders: 52 },
-    { day: "T7", revenue: 7800000, orders: 63 },
-    { day: "CN", revenue: 4820000, orders: 42 },
-  ];
-  const maxRev = Math.max(...weekly.map(d => d.revenue));
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadStats = async () => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+    try {
+      const res = await fetch(`${env.API_URL}/orders/dashboard/stats`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const resData = await res.json();
+      if (res.ok) {
+        setData(resData);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  if (loading || !data) {
+    return (
+      <div className="flex h-64 items-center justify-center bg-sidebar rounded-2xl">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
+
+  const { stats, weekly, recentOrders } = data;
+  const maxRev = Math.max(...weekly.map((d: any) => d.revenue), 1);
+
+  const iconMap: Record<string, any> = {
+    DollarSign,
+    ShoppingBag,
+    Package,
+    Users,
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-       <h2 className="text-2xl font-semibold text-foreground">Dashboard</h2>
-       <span className="text-sm text-muted-foreground">Cập nhật: 24/06/2025 — 14:32</span>
+        <h2 className="text-2xl font-semibold text-foreground">Dashboard</h2>
+        <span className="text-sm text-muted-foreground">
+          Cập nhật: {new Date().toLocaleDateString("vi-VN")} — {new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+        </span>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map(({ label, value, delta, icon: Icon }) => (
-         <div key={label} className="rounded-2xl bg-sidebar p-5 transition hover:bg-sidebar-accent">
-            <div className="flex items-center justify-between">
-             <p className="text-sm text-muted-foreground">{label}</p>
-             <span className="rounded-xl bg-sidebar-accent p-2"><Icon size={16} className="text-primary" /></span>
+        {stats.map(({ label, value, delta, icon }: any) => {
+          const IconComponent = iconMap[icon] || DollarSign;
+          return (
+            <div key={label} className="rounded-2xl bg-sidebar p-5 transition hover:bg-sidebar-accent">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">{label}</p>
+                <span className="rounded-xl bg-sidebar-accent p-2">
+                  <IconComponent size={16} className="text-primary" />
+                </span>
+              </div>
+              <h3 className="mt-3 text-2xl font-bold text-foreground">{value}</h3>
+              <p className="mt-1 flex items-center gap-1 text-xs text-green-400">
+                <TrendingUp size={12} />
+                {delta}
+              </p>
             </div>
-           <h3 className="mt-3 text-2xl font-bold text-foreground">{value}</h3>
-            <p className="mt-1 flex items-center gap-1 text-xs text-green-400"><TrendingUp size={12} />{delta}</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-       <div className="rounded-2xl bg-sidebar p-5">
-         <h3 className="mb-4 font-semibold text-foreground">Doanh thu 7 ngày qua</h3>
+        <div className="rounded-2xl bg-sidebar p-5">
+          <h3 className="mb-4 font-semibold text-foreground">Doanh thu 7 ngày qua</h3>
           <div className="flex items-end gap-3 h-40">
-            {weekly.map(d => (
+            {weekly.map((d: any) => (
               <div key={d.day} className="flex flex-1 flex-col items-center gap-2">
-               <span className="text-xs text-muted-foreground">{(d.revenue / 1000000).toFixed(1)}M</span>
-                <div className="w-full rounded-t-lg bg-primary opacity-80 transition hover:opacity-100" style={{ height: `${(d.revenue / maxRev) * 100}%` }} />
-               <span className="text-xs text-muted-foreground">{d.day}</span>
+                <span className="text-xs text-muted-foreground">{(d.revenue / 1000000).toFixed(1)}M</span>
+                <div
+                  className="w-full rounded-t-lg bg-primary opacity-80 transition hover:opacity-100"
+                  style={{ height: `${(d.revenue / maxRev) * 100}%` }}
+                />
+                <span className="text-xs text-muted-foreground">{d.day}</span>
               </div>
             ))}
           </div>
         </div>
-       <div className="rounded-2xl bg-sidebar p-5">
-         <h3 className="mb-4 font-semibold text-foreground">Đơn hàng gần đây</h3>
+        <div className="rounded-2xl bg-sidebar p-5">
+          <h3 className="mb-4 font-semibold text-foreground">Đơn hàng gần đây</h3>
           <div className="space-y-3">
-            {orders.slice(0, 5).map(o => (
+            {recentOrders.map((o: any) => (
               <div key={o.id} className="flex items-center justify-between text-sm">
                 <div>
-                 <p className="text-foreground">{o.id} · {o.customer}</p>
-                 <p className="text-xs text-muted-foreground">{o.time} — {o.items.slice(0, 22)}…</p>
+                  <p className="text-foreground">
+                    #{o.id} · {o.customer}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {o.time} — {o.items.slice(0, 22)}…
+                  </p>
                 </div>
                 <StatusBadge status={o.status} />
               </div>
             ))}
+            {recentOrders.length === 0 && (
+              <p className="text-center text-sm text-muted-foreground py-8">Chưa có đơn hàng nào.</p>
+            )}
           </div>
         </div>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
-       <div className="rounded-2xl bg-sidebar p-5">
-          <Loader2 className="animate-spin text-primary mb-2" size={18} />
-         <p className="text-sm text-muted-foreground">Đang tải dữ liệu báo cáo tháng…</p>
-        </div>
-       <div className="rounded-2xl bg-sidebar p-5 flex items-center gap-3">
-          <AlertCircle className="text-yellow-400 shrink-0" size={18} />
-         <p className="text-sm text-muted-foreground">3 sản phẩm sắp hết hàng. Kiểm tra ngay.</p>
-        </div>
-       <div className="rounded-2xl bg-sidebar p-5 flex items-center gap-3">
+        <div className="rounded-2xl bg-sidebar p-5 flex items-center gap-3">
           <CheckCircle className="text-green-400 shrink-0" size={18} />
-         <p className="text-sm text-muted-foreground">Tất cả cổng thanh toán hoạt động bình thường.</p>
+          <p className="text-sm text-muted-foreground">Báo cáo tháng hoạt động bình thường.</p>
+        </div>
+        <div className="rounded-2xl bg-sidebar p-5 flex items-center gap-3">
+          <AlertCircle className="text-yellow-400 shrink-0" size={18} />
+          <p className="text-sm text-muted-foreground">Kiểm tra tồn kho định kỳ tại tab Tồn kho.</p>
+        </div>
+        <div className="rounded-2xl bg-sidebar p-5 flex items-center gap-3">
+          <CheckCircle className="text-green-400 shrink-0" size={18} />
+          <p className="text-sm text-muted-foreground">Tất cả cổng thanh toán hoạt động bình thường.</p>
         </div>
       </div>
     </div>
@@ -706,8 +753,46 @@ function AdminBranches() {
 }
 
 function AdminStoreMap() {
-  const activeBranch = branches[0];
-  const mapSrc = `https://www.google.com/maps?q=${encodeURIComponent(activeBranch.address)}&output=embed`;
+  const [branchesList, setBranchesList] = useState<any[]>([]);
+  const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadBranches = async () => {
+    const token = localStorage.getItem("accessToken");
+    try {
+      const res = await fetch(`${env.API_URL}/branches`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBranchesList(data);
+        if (data.length > 0) {
+          setActiveBranchId(data[0].id);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadBranches();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center bg-sidebar rounded-2xl">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
+
+  const activeBranch = branchesList.find(b => b.id === activeBranchId) || branchesList[0];
+  const mapSrc = activeBranch
+    ? `https://www.google.com/maps?q=${encodeURIComponent(activeBranch.address)}&output=embed`
+    : "";
 
   return (
     <div className="space-y-6">
@@ -716,58 +801,158 @@ function AdminStoreMap() {
           <h2 className="text-2xl font-semibold text-foreground">Bản đồ cửa hàng</h2>
           <p className="mt-1 text-sm text-muted-foreground">Kiểm tra vị trí, bán kính phục vụ và thông tin chỉ đường của từng chi nhánh.</p>
         </div>
-        <AdminBtn variant="ghost"><span className="flex items-center gap-1"><ArrowUpRight size={14} />Mở Google Maps</span></AdminBtn>
+        <AdminBtn variant="ghost" onClick={() => {
+          if (activeBranch) {
+            window.open(`https://www.google.com/maps?q=${encodeURIComponent(activeBranch.address)}`, "_blank");
+          }
+        }}><span className="flex items-center gap-1"><ArrowUpRight size={14} />Mở Google Maps</span></AdminBtn>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
         <aside className="space-y-3">
-          {branches.map(branch => (
-            <button key={branch.id} className={`w-full rounded-2xl border p-4 text-left transition ${branch.id === activeBranch.id ? "border-primary bg-sidebar" : "border-sidebar-accent bg-sidebar hover:bg-sidebar-accent"}`}>
+          {branchesList.map(branch => (
+            <button
+              key={branch.id}
+              onClick={() => setActiveBranchId(branch.id)}
+              className={`w-full rounded-2xl border p-4 text-left transition ${branch.id === activeBranchId ? "border-primary bg-sidebar" : "border-sidebar-accent bg-sidebar hover:bg-sidebar-accent"}`}
+            >
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold text-foreground">{branch.name}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{branch.address}</p>
                 </div>
-                <StatusBadge status={branch.status} />
+                <StatusBadge status={branch.isActive ? "Hiển thị" : "Tạm đóng"} />
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                <span>{branch.hours}</span>
-                <span>{branch.phone}</span>
+                <span>07:00 - 22:00</span>
+                <span>{branch.phone || "N/A"}</span>
               </div>
             </button>
           ))}
+          {branchesList.length === 0 && (
+            <p className="text-sm text-muted-foreground py-8 text-center bg-sidebar rounded-2xl">Không tìm thấy chi nhánh nào.</p>
+          )}
         </aside>
 
-        <section className="overflow-hidden rounded-2xl bg-sidebar">
-          <div className="h-[420px] bg-sidebar-accent">
-            <iframe
-              title="Bản đồ chi nhánh Sweet Bean"
-              src={mapSrc}
-              className="h-full w-full border-0"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
+        {activeBranch ? (
+          <section className="overflow-hidden rounded-2xl bg-sidebar">
+            <div className="h-[420px] bg-sidebar-accent">
+              <iframe
+                title="Bản đồ chi nhánh Sweet Bean"
+                src={mapSrc}
+                className="h-full w-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+            <div className="grid gap-4 p-5 md:grid-cols-3">
+              {[
+                ["Bán kính giao", "8 km", "Áp dụng nội thành"],
+                ["Thời gian dự kiến", "35-60 phút", "Tuỳ khung giờ cao điểm"],
+                ["Trạng thái hoạt động", activeBranch.isActive ? "Đang chạy" : "Tạm dừng", "Cập nhật thời gian thực"],
+              ].map(([label, value, sub]) => (
+                <div key={label} className="rounded-xl bg-sidebar-accent p-4">
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="mt-1 text-xl font-bold text-primary">{value}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{sub}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : (
+          <div className="flex h-[420px] items-center justify-center bg-sidebar rounded-2xl text-muted-foreground">
+            Chọn chi nhánh để xem bản đồ
           </div>
-          <div className="grid gap-4 p-5 md:grid-cols-3">
-            {[
-              ["Bán kính giao", "8 km", "Áp dụng nội thành"],
-              ["Thời gian dự kiến", "35-60 phút", "Tuỳ khung giờ cao điểm"],
-              ["Chi nhánh hoạt động", "2/3", "1 chi nhánh đang ẩn"],
-            ].map(([label, value, sub]) => (
-              <div key={label} className="rounded-xl bg-sidebar-accent p-4">
-                <p className="text-xs text-muted-foreground">{label}</p>
-                <p className="mt-1 text-xl font-bold text-primary">{value}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{sub}</p>
-              </div>
-            ))}
-          </div>
-        </section>
+        )}
       </div>
     </div>
   );
 }
 
 function AdminInventory() {
+  const [stocks, setStocks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingStock, setEditingStock] = useState<any>(null);
+  const [formQuantity, setFormQuantity] = useState("");
+  const [formMinQuantity, setFormMinQuantity] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const loadInventory = async () => {
+    const token = localStorage.getItem("accessToken");
+    try {
+      const res = await fetch(`${env.API_URL}/inventory`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setStocks(data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadInventory();
+  }, []);
+
+  const handleEdit = (stock: any) => {
+    setEditingStock(stock);
+    setFormQuantity(String(stock.quantity));
+    setFormMinQuantity(String(stock.minQuantity));
+  };
+
+  const handleSave = async () => {
+    const token = localStorage.getItem("accessToken");
+    setSaving(true);
+    try {
+      const res = await fetch(`${env.API_URL}/inventory/${editingStock.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          quantity: Number(formQuantity),
+          minQuantity: Number(formMinQuantity),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("Cập nhật tồn kho thành công.");
+        setEditingStock(null);
+        loadInventory();
+      } else {
+        toast.error(data.message || "Lỗi khi cập nhật.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi kết nối.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center bg-sidebar rounded-2xl">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
+
+  const totalSKU = stocks.length;
+  const lowStock = stocks.filter(s => s.quantity <= s.minQuantity && s.quantity > 0).length;
+  const outOfStock = stocks.filter(s => s.quantity === 0).length;
+
+  const getStatus = (qty: number, min: number) => {
+    if (qty === 0) return "Hết hàng";
+    if (qty <= min) return "Sắp hết";
+    return "Đủ hàng";
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -775,17 +960,13 @@ function AdminInventory() {
           <h2 className="text-2xl font-semibold text-foreground">Tồn kho theo chi nhánh</h2>
           <p className="mt-1 text-sm text-muted-foreground">Cảnh báo sắp hết, hết hàng và sản phẩm gần hạn để nhân viên xử lý kịp thời.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <AdminBtn variant="ghost"><span className="flex items-center gap-1"><Filter size={14} />Lọc</span></AdminBtn>
-          <AdminBtn><span className="flex items-center gap-1"><Plus size={14} />Tạo phiếu chuyển</span></AdminBtn>
-        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         {[
-          ["Tổng SKU", "248", "3 chi nhánh"],
-          ["Sắp hết hàng", "7", "Cần nhập trong hôm nay"],
-          ["Hết hàng", "2", "Ẩn khỏi menu online"],
+          ["Tổng SKU", String(totalSKU), `${new Set(stocks.map(s => s.branchId)).size} chi nhánh`],
+          ["Sắp hết hàng", String(lowStock), "Cần nhập hàng sớm"],
+          ["Hết hàng", String(outOfStock), "Ẩn khỏi menu bán hàng"],
         ].map(([label, value, sub], index) => (
           <div key={label} className="rounded-2xl bg-sidebar p-5">
             <div className="flex items-center justify-between">
@@ -798,99 +979,238 @@ function AdminInventory() {
         ))}
       </div>
 
-      <div className="overflow-auto rounded-2xl bg-sidebar">
+      <div className="overflow-auto rounded-2xl bg-sidebar p-5">
         <table className="w-full text-sm">
-          <TableHeader cols={["Chi nhánh", "Biến thể", "SKU", "Tồn", "Tối thiểu", "Hạn dùng", "Trạng thái", "Thao tác"]} />
+          <TableHeader cols={["Chi nhánh", "Biến thể", "SKU", "Tồn", "Tối thiểu", "Trạng thái", "Thao tác"]} />
           <tbody>
-            {inventoryRows.map(row => (
-              <tr key={`${row.branch}-${row.sku}`} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
-                <td className="py-3 font-medium text-foreground">{row.branch}</td>
-                <td className="py-3 text-muted-foreground">{row.variant}</td>
-                <td className="py-3 font-mono text-xs text-primary">{row.sku}</td>
-                <td className="py-3 font-semibold text-foreground">{row.qty}</td>
-                <td className="py-3 text-muted-foreground">{row.min}</td>
-                <td className="py-3 text-muted-foreground">{row.expiry}</td>
-                <td className="py-3"><StatusBadge status={row.status} /></td>
-                <td className="py-3">
-                  <div className="flex gap-2">
-                    <AdminBtn variant="ghost"><Edit size={14} /></AdminBtn>
-                    <AdminBtn variant="ghost"><ArrowUpRight size={14} /></AdminBtn>
-                  </div>
+            {stocks.map(row => {
+              const status = getStatus(row.quantity, row.minQuantity);
+              return (
+                <tr key={row.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
+                  <td className="py-3 font-medium text-foreground">{row.branch?.name || "N/A"}</td>
+                  <td className="py-3 text-muted-foreground">{row.variant?.product?.name} ({row.variant?.variantName || "Mặc định"})</td>
+                  <td className="py-3 font-mono text-xs text-primary">{row.variant?.sku || "N/A"}</td>
+                  <td className="py-3 font-semibold text-foreground">{row.quantity}</td>
+                  <td className="py-3 text-muted-foreground">{row.minQuantity}</td>
+                  <td className="py-3"><StatusBadge status={status} /></td>
+                  <td className="py-3">
+                    <AdminBtn variant="ghost" onClick={() => handleEdit(row)}><Edit size={14} /></AdminBtn>
+                  </td>
+                </tr>
+              );
+            })}
+            {stocks.length === 0 && (
+              <tr>
+                <td colSpan={7} className="py-8 text-center text-muted-foreground">
+                  Không có dữ liệu tồn kho.
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl bg-sidebar p-5">
-          <h3 className="font-semibold text-foreground">Cảnh báo ưu tiên</h3>
-          <div className="mt-4 space-y-3">
-            {inventoryRows.filter(row => row.status !== "Đủ hàng").map(row => (
-              <div key={row.sku} className="flex items-center justify-between rounded-xl bg-sidebar-accent p-3 text-sm">
-                <div>
-                  <p className="font-medium text-foreground">{row.variant}</p>
-                  <p className="text-xs text-muted-foreground">{row.branch} · còn {row.qty}/{row.min}</p>
-                </div>
-                <StatusBadge status={row.status} />
+      {editingStock && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-sidebar-accent bg-sidebar p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-foreground">Điều chỉnh tồn kho</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Chi nhánh: {editingStock.branch?.name} - Biến thể: {editingStock.variant?.variantName}
+            </p>
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="block text-sm text-muted-foreground mb-1">Số lượng tồn kho</label>
+                <input
+                  type="number"
+                  className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-foreground outline-none border border-sidebar-accent"
+                  value={formQuantity}
+                  onChange={e => setFormQuantity(e.target.value)}
+                />
               </div>
-            ))}
+              <div>
+                <label className="block text-sm text-muted-foreground mb-1">Cảnh báo tối thiểu</label>
+                <input
+                  type="number"
+                  className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-foreground outline-none border border-sidebar-accent"
+                  value={formMinQuantity}
+                  onChange={e => setFormMinQuantity(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setEditingStock(null)}
+                className="rounded-full border border-sidebar-accent px-4 py-2 text-sm text-muted-foreground hover:bg-sidebar"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/80 disabled:opacity-50"
+              >
+                {saving ? "Đang lưu..." : "Cập nhật"}
+              </button>
+            </div>
           </div>
         </div>
-        <div className="rounded-2xl bg-sidebar p-5">
-          <h3 className="font-semibold text-foreground">Phiếu chuyển kho nhanh</h3>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <select className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none"><option>Từ: Quận 1</option><option>Thảo Điền</option><option>Phú Nhuận</option></select>
-            <select className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none"><option>Đến: Phú Nhuận</option><option>Quận 1</option><option>Thảo Điền</option></select>
-            <input className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground" placeholder="SKU / tên sản phẩm" />
-            <input className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground" placeholder="Số lượng" />
-          </div>
-          <div className="mt-4"><AdminBtn>Tạo phiếu chuyển</AdminBtn></div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
 
 // ── Orders ────────────────────────────────────────────────────────────────────
 function AdminOrders() {
+  const [ordersList, setOrdersList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("Tất cả");
+  const [search, setSearch] = useState("");
+
+  const loadOrders = async () => {
+    const token = localStorage.getItem("accessToken");
+    try {
+      const res = await fetch(`${env.API_URL}/orders`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setOrdersList(data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  const updateStatus = async (id: string, newStatus: string) => {
+    const token = localStorage.getItem("accessToken");
+    try {
+      const res = await fetch(`${env.API_URL}/orders/${id}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        toast.success("Cập nhật trạng thái đơn hàng thành công.");
+        loadOrders();
+      } else {
+        const errData = await res.json();
+        toast.error(errData.message || "Lỗi khi cập nhật.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi kết nối.");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center bg-sidebar rounded-2xl">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
+
+  const mapDbToUiStatus = (status: string) => {
+    if (status === 'pending' || status === 'confirmed') return 'Xác nhận';
+    if (status === 'preparing') return 'Đang chuẩn bị';
+    if (status === 'shipping') return 'Đang giao';
+    if (status === 'completed') return 'Hoàn thành';
+    if (status === 'cancelled') return 'Huỷ';
+    return status;
+  };
+
   const tabs = ["Tất cả", "Xác nhận", "Đang chuẩn bị", "Đang giao", "Hoàn thành", "Huỷ"];
-  const filtered = filter === "Tất cả" ? orders : orders.filter(o => o.status === filter);
+
+  const filtered = ordersList.filter(o => {
+    const statusMatch = filter === "Tất cả" || mapDbToUiStatus(o.orderStatus) === filter;
+    const searchMatch = !search ||
+      o.orderCode.toLowerCase().includes(search.toLowerCase()) ||
+      (o.user?.fullName || "").toLowerCase().includes(search.toLowerCase());
+    return statusMatch && searchMatch;
+  });
+
+  const formatMoney = (val: number) => {
+    return new Intl.NumberFormat('vi-VN').format(val) + 'đ';
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-foreground">Quản lý đơn hàng</h2>
-        <div className="flex items-center gap-2 rounded-xl bg-sidebar px-3 py-2 text-sm"><Search size={14} className="text-muted-foreground" /><input className="bg-transparent outline-none text-foreground placeholder:text-muted-foreground w-40" placeholder="Tìm đơn #SB…" /></div>
+        <div className="flex items-center gap-2 rounded-xl bg-sidebar px-3 py-2 text-sm">
+          <Search size={14} className="text-muted-foreground" />
+          <input
+            className="bg-transparent outline-none text-foreground placeholder:text-muted-foreground w-40"
+            placeholder="Tìm mã đơn / khách…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
       </div>
       <div className="flex flex-wrap gap-2">
         {tabs.map(t => (
-          <button key={t} onClick={() => setFilter(t)} className={`rounded-full px-3 py-1.5 text-sm transition ${filter === t ? "bg-primary text-primary-foreground" : "bg-sidebar text-muted-foreground hover:bg-sidebar-accent"}`}>{t}</button>
+          <button
+            key={t}
+            onClick={() => setFilter(t)}
+            className={`rounded-full px-3 py-1.5 text-sm transition ${filter === t ? "bg-primary text-primary-foreground font-semibold" : "bg-sidebar text-muted-foreground hover:bg-sidebar-accent"}`}
+          >
+            {t}
+          </button>
         ))}
       </div>
-      <div className="overflow-auto rounded-2xl bg-sidebar">
+      <div className="overflow-auto rounded-2xl bg-sidebar p-5">
         <table className="w-full text-sm">
           <TableHeader cols={["Mã đơn", "Khách hàng", "Sản phẩm", "Tổng tiền", "Giờ", "Trạng thái", "Thao tác"]} />
           <tbody>
             {filtered.map(o => (
               <tr key={o.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
-                <td className="py-3 font-mono text-xs text-primary">{o.id}</td>
-                <td className="py-3 text-foreground">{o.customer}</td>
-                <td className="py-3 text-muted-foreground max-w-[200px] truncate">{o.items}</td>
-                <td className="py-3 font-semibold text-foreground">{o.total}</td>
-                <td className="py-3 text-muted-foreground">{o.time}</td>
-                <td className="py-3"><StatusBadge status={o.status} /></td>
+                <td className="py-3 font-mono text-xs text-primary">#{o.orderCode}</td>
+                <td className="py-3 text-foreground">{o.user?.fullName || "Khách vãng lai"}</td>
+                <td className="py-3 text-muted-foreground max-w-[200px] truncate">
+                  {o.items?.map((item: any) => `${item.quantity}x ${item.productName} (${item.variantName})`).join(', ') || "N/A"}
+                </td>
+                <td className="py-3 font-semibold text-foreground">{formatMoney(Number(o.totalAmount))}</td>
+                <td className="py-3 text-muted-foreground">
+                  {new Date(o.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                </td>
+                <td className="py-3">
+                  <select
+                    value={o.orderStatus}
+                    onChange={(e) => updateStatus(o.id, e.target.value)}
+                    className="rounded bg-sidebar-accent px-2 py-1 text-xs text-foreground outline-none border border-sidebar-accent"
+                  >
+                    <option value="pending">Chờ xác nhận</option>
+                    <option value="confirmed">Xác nhận</option>
+                    <option value="preparing">Đang chuẩn bị</option>
+                    <option value="shipping">Đang giao</option>
+                    <option value="completed">Hoàn thành</option>
+                    <option value="cancelled">Huỷ</option>
+                  </select>
+                </td>
                 <td className="py-3">
                   <div className="flex gap-2">
-                    <AdminBtn variant="ghost"><Eye size={14} /></AdminBtn>
-                    <AdminBtn variant="ghost"><Edit size={14} /></AdminBtn>
+                    <AdminBtn variant="ghost" onClick={() => {
+                      toast.info(`Hình thức: ${o.fulfillmentType === 'delivery' ? 'Giao hàng' : 'Nhận tại quầy'} · SĐT: ${o.user?.phone || 'N/A'}`);
+                    }}><Eye size={14} /></AdminBtn>
                   </div>
                 </td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={7} className="py-12 text-center text-muted-foreground">Không có đơn hàng nào trong trạng thái này.</td></tr>
+              <tr>
+                <td colSpan={7} className="py-12 text-center text-muted-foreground">
+                  Không có đơn hàng nào khớp với bộ lọc.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
@@ -1256,44 +1576,161 @@ function AdminUsers() {
 
 // ── Reviews ───────────────────────────────────────────────────────────────────
 function AdminReviews() {
+  const [reviewsList, setReviewsList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadReviews = async () => {
+    const token = localStorage.getItem("accessToken");
+    try {
+      const res = await fetch(`${env.API_URL}/reviews`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setReviewsList(data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadReviews();
+  }, []);
+
+  const updateVisibility = async (id: string, isVisible: boolean) => {
+    const token = localStorage.getItem("accessToken");
+    try {
+      const res = await fetch(`${env.API_URL}/reviews/${id}/visibility`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isVisible }),
+      });
+      if (res.ok) {
+        toast.success(isVisible ? "Đã hiển thị đánh giá." : "Đã ẩn đánh giá.");
+        loadReviews();
+      } else {
+        const errData = await res.json();
+        toast.error(errData.message || "Lỗi khi cập nhật.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi kết nối.");
+    }
+  };
+
+  const deleteReview = async (id: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa đánh giá này không?")) return;
+    const token = localStorage.getItem("accessToken");
+    try {
+      const res = await fetch(`${env.API_URL}/reviews/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        toast.success("Xóa đánh giá thành công.");
+        loadReviews();
+      } else {
+        const errData = await res.json();
+        toast.error(errData.message || "Lỗi khi xóa.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi kết nối.");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center bg-sidebar rounded-2xl">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
+
+  const pendingCount = reviewsList.filter(r => !r.isVisible).length;
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-foreground">Quản lý đánh giá</h2>
         <div className="flex gap-2">
-          <span className="rounded-full bg-yellow-900/50 px-3 py-1.5 text-xs text-yellow-300">2 chờ duyệt</span>
+          {pendingCount > 0 && (
+            <span className="rounded-full bg-yellow-900/50 px-3 py-1.5 text-xs text-yellow-300">
+              {pendingCount} đánh giá ẩn
+            </span>
+          )}
         </div>
       </div>
       <div className="grid gap-4">
-        {reviews.map(r => (
+        {reviewsList.map(r => (
           <div key={r.id} className="rounded-2xl bg-sidebar p-5 transition hover:bg-sidebar-accent">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <div className="size-8 rounded-full bg-primary/20 grid place-items-center text-primary text-xs font-bold">{r.user[0]}</div>
+                  <div className="size-8 rounded-full bg-primary/20 grid place-items-center text-primary text-xs font-bold">
+                    {(r.user?.fullName || "K")[0]}
+                  </div>
                   <div>
-                    <p className="font-medium text-foreground">{r.user}</p>
-                    <p className="text-xs text-muted-foreground">{r.date} · {r.product}</p>
+                    <p className="font-medium text-foreground">{r.user?.fullName || "Khách hàng"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(r.createdAt).toLocaleDateString("vi-VN")} · {r.product?.name || "Sản phẩm"}
+                    </p>
                   </div>
                 </div>
                 <div className="mt-2 flex gap-0.5">
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} size={14} className={i < r.rating ? "fill-sidebar-primary text-sidebar-primary" : "text-sidebar-accent"}/>
+                    <Star
+                      key={i}
+                      size={14}
+                      className={i < r.rating ? "fill-yellow-400 text-yellow-400" : "text-sidebar-accent"}
+                    />
                   ))}
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">{r.comment}</p>
               </div>
               <div className="flex flex-col items-end gap-2">
-                <StatusBadge status={r.status} />
+                <StatusBadge status={r.isVisible ? "Đã duyệt" : "Ẩn"} />
                 <div className="flex gap-2 mt-1">
-                  {r.status === "Chờ duyệt" && <AdminBtn><CheckCircle size={14} /></AdminBtn>}
-                  <AdminBtn variant="ghost"><Edit size={14} /></AdminBtn>
-                  <AdminBtn variant="danger"><Trash2 size={14} /></AdminBtn>
+                  {r.isVisible ? (
+                    <button
+                      title="Ẩn đánh giá"
+                      onClick={() => updateVisibility(r.id, false)}
+                      className="inline-flex size-8 items-center justify-center rounded-lg bg-yellow-950/40 text-yellow-400 hover:bg-yellow-900/40 transition"
+                    >
+                      <XCircle size={14} />
+                    </button>
+                  ) : (
+                    <button
+                      title="Duyệt / Hiện đánh giá"
+                      onClick={() => updateVisibility(r.id, true)}
+                      className="inline-flex size-8 items-center justify-center rounded-lg bg-green-950/40 text-green-400 hover:bg-green-900/40 transition"
+                    >
+                      <CheckCircle size={14} />
+                    </button>
+                  )}
+                  <button
+                    title="Xóa đánh giá"
+                    onClick={() => deleteReview(r.id)}
+                    className="inline-flex size-8 items-center justify-center rounded-lg bg-red-950/40 text-red-400 hover:bg-red-900/40 transition"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         ))}
+        {reviewsList.length === 0 && (
+          <p className="text-center text-sm text-muted-foreground py-12 bg-sidebar rounded-2xl">
+            Không tìm thấy đánh giá nào.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -1301,95 +1738,468 @@ function AdminReviews() {
 
 // ── Vouchers ──────────────────────────────────────────────────────────────────
 function AdminVouchers() {
+  const [coupons, setCoupons] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Form states
+  const [code, setCode] = useState("");
+  const [discountType, setDiscountType] = useState("percent");
+  const [discountValue, setDiscountValue] = useState("");
+  const [minOrderValue, setMinOrderValue] = useState("");
+  const [usageLimit, setUsageLimit] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const loadCoupons = async () => {
+    const token = localStorage.getItem("accessToken");
+    try {
+      const res = await fetch(`${env.API_URL}/coupons`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCoupons(data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCoupons();
+  }, []);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!code || !discountValue || !expiresAt) {
+      toast.error("Vui lòng điền đầy đủ các trường bắt buộc.");
+      return;
+    }
+    const token = localStorage.getItem("accessToken");
+    setSaving(true);
+    try {
+      const res = await fetch(`${env.API_URL}/coupons`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          code: code.toUpperCase().trim(),
+          discountType,
+          discountValue: Number(discountValue),
+          minOrderValue: minOrderValue ? Number(minOrderValue) : 0,
+          usageLimit: usageLimit ? Number(usageLimit) : null,
+          startsAt: new Date(), // Defaults to now
+          expiresAt: new Date(expiresAt),
+          isActive: true,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("Tạo voucher thành công.");
+        // Clear form
+        setCode("");
+        setDiscountValue("");
+        setMinOrderValue("");
+        setUsageLimit("");
+        setExpiresAt("");
+        loadCoupons();
+      } else {
+        toast.error(data.message || "Lỗi khi tạo voucher.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi kết nối.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa voucher này không?")) return;
+    const token = localStorage.getItem("accessToken");
+    try {
+      const res = await fetch(`${env.API_URL}/coupons/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        toast.success("Xóa voucher thành công.");
+        loadCoupons();
+      } else {
+        const errData = await res.json();
+        toast.error(errData.message || "Lỗi khi xóa.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi kết nối.");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center bg-sidebar rounded-2xl">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
+
+  const formatMoney = (val: number) => {
+    return new Intl.NumberFormat('vi-VN').format(val) + 'đ';
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-foreground">Quản lý voucher</h2>
-        <AdminBtn><span className="flex items-center gap-1"><Plus size={14} />Tạo voucher</span></AdminBtn>
       </div>
-      <div className="overflow-auto rounded-2xl bg-sidebar">
+      <div className="overflow-auto rounded-2xl bg-sidebar p-5">
         <table className="w-full text-sm">
-          <TableHeader cols={["Mã", "Kiểu", "Giá trị", "Đơn tối thiểu", "Đã dùng", "Giới hạn", "Hết hạn", "Trạng thái", "Thao tác"]} />
+          <TableHeader cols={["Mã", "Kiểu", "Giá trị", "Đơn tối thiểu", "Đã dùng / Giới hạn", "Hết hạn", "Trạng thái", "Thao tác"]} />
           <tbody>
-            {vouchers.map(v => (
-              <tr key={v.code} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
-                <td className="py-3 font-mono font-bold text-primary">{v.code}</td>
-                <td className="py-3 text-muted-foreground">{v.type}</td>
-                <td className="py-3 font-semibold text-foreground">{v.value}</td>
-                <td className="py-3 text-muted-foreground">{v.min}</td>
-                <td className="py-3">
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-16 rounded-full bg-sidebar-accent">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${(v.used / v.limit) * 100}%` }} />
+            {coupons.map(v => {
+              const hasLimit = v.usageLimit !== null;
+              const usedRatio = hasLimit ? (v.usedCount / v.usageLimit) * 100 : 0;
+              const isExpired = new Date(v.expiresAt) < new Date();
+              const status = isExpired ? "Hết hạn" : (v.isActive ? "Hoạt động" : "Tạm khóa");
+
+              return (
+                <tr key={v.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
+                  <td className="py-3 font-mono font-bold text-primary">{v.code}</td>
+                  <td className="py-3 text-muted-foreground">
+                    {v.discountType === "percent" ? "Phần trăm" : "Cố định"}
+                  </td>
+                  <td className="py-3 font-semibold text-foreground">
+                    {v.discountType === "percent" ? `${v.discountValue}%` : formatMoney(Number(v.discountValue))}
+                  </td>
+                  <td className="py-3 text-muted-foreground">{formatMoney(Number(v.minOrderValue))}</td>
+                  <td className="py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-1.5 w-16 rounded-full bg-sidebar-accent overflow-hidden">
+                        <div className="h-full bg-primary" style={{ width: `${Math.min(usedRatio, 100)}%` }} />
+                      </div>
+                      <span className="text-muted-foreground text-xs">
+                        {v.usedCount}/{hasLimit ? v.usageLimit : "∞"}
+                      </span>
                     </div>
-                    <span className="text-muted-foreground">{v.used}/{v.limit}</span>
-                  </div>
-                </td>
-                <td className="py-3 text-muted-foreground">{v.limit}</td>
-                <td className="py-3 text-muted-foreground">{v.expiry}</td>
-                <td className="py-3"><StatusBadge status={v.status} /></td>
-                <td className="py-3">
-                  <div className="flex gap-2">
-                    <AdminBtn variant="ghost"><Edit size={14} /></AdminBtn>
-                    <AdminBtn variant="danger"><Trash2 size={14} /></AdminBtn>
-                  </div>
+                  </td>
+                  <td className="py-3 text-muted-foreground">
+                    {new Date(v.expiresAt).toLocaleDateString("vi-VN")}
+                  </td>
+                  <td className="py-3"><StatusBadge status={status} /></td>
+                  <td className="py-3">
+                    <button
+                      title="Xóa voucher"
+                      onClick={() => handleDelete(v.id)}
+                      className="inline-flex size-8 items-center justify-center rounded-lg bg-red-950/40 text-red-400 hover:bg-red-900/40 transition"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+            {coupons.length === 0 && (
+              <tr>
+                <td colSpan={8} className="py-12 text-center text-muted-foreground">
+                  Không tìm thấy voucher nào.
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
-      <div className="rounded-2xl bg-sidebar p-5">
-        <h3 className="mb-4 text-sm font-semibold text-foreground">Tạo voucher mới</h3>
+      <form onSubmit={handleCreate} className="rounded-2xl bg-sidebar p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-foreground">Tạo voucher mới</h3>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <input className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground" placeholder="Mã voucher (VD: SUMMER30)" />
-          <select className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none"><option>Loại: Phần trăm (%)</option><option>Cố định (đ)</option></select>
-          <input className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground" placeholder="Giá trị (VD: 20)" />
-          <input className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground" placeholder="Đơn tối thiểu (đ)" />
-          <input className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground" placeholder="Giới hạn lượt dùng" />
-          <input className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" type="date" />
-          <div className="sm:col-span-2 lg:col-span-1">
-            <AdminBtn>Tạo voucher</AdminBtn>
+          <input
+            required
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent"
+            placeholder="Mã voucher (VD: SUMMER30)"
+            value={code}
+            onChange={e => setCode(e.target.value)}
+          />
+          <select
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
+            value={discountType}
+            onChange={e => setDiscountType(e.target.value)}
+          >
+            <option value="percent">Loại: Phần trăm (%)</option>
+            <option value="fixed">Cố định (đ)</option>
+          </select>
+          <input
+            required
+            type="number"
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent"
+            placeholder="Giá trị (VD: 20 hoặc 50000)"
+            value={discountValue}
+            onChange={e => setDiscountValue(e.target.value)}
+          />
+          <input
+            type="number"
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent"
+            placeholder="Đơn tối thiểu (đ)"
+            value={minOrderValue}
+            onChange={e => setMinOrderValue(e.target.value)}
+          />
+          <input
+            type="number"
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent"
+            placeholder="Giới hạn lượt dùng (để trống nếu vô hạn)"
+            value={usageLimit}
+            onChange={e => setUsageLimit(e.target.value)}
+          />
+          <input
+            required
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
+            type="date"
+            value={expiresAt}
+            onChange={e => setExpiresAt(e.target.value)}
+          />
+          <div className="sm:col-span-2 lg:col-span-3 flex justify-end">
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-full bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/80 disabled:opacity-50 transition"
+            >
+              {saving ? "Đang tạo..." : "Tạo voucher"}
+            </button>
           </div>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
 
 // ── Banners ───────────────────────────────────────────────────────────────────
 function AdminBanners() {
+  const [bannersList, setBannersList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Form states
+  const [title, setTitle] = useState("");
+  const [imageUrl, setImageUrl] = useState("https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [sortOrder, setSortOrder] = useState("1");
+  const [saving, setSaving] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  const loadBanners = async () => {
+    const token = localStorage.getItem("accessToken");
+    try {
+      const res = await fetch(`${env.API_URL}/banners`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBannersList(data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadBanners();
+  }, []);
+
+  const handleToggleActive = async (banner: any) => {
+    const token = localStorage.getItem("accessToken");
+    try {
+      const res = await fetch(`${env.API_URL}/banners/${banner.id}/active`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isActive: !banner.isActive }),
+      });
+      if (res.ok) {
+        toast.success("Cập nhật trạng thái banner thành công.");
+        loadBanners();
+      } else {
+        const errData = await res.json();
+        toast.error(errData.message || "Lỗi khi cập nhật.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi kết nối.");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa banner này không?")) return;
+    const token = localStorage.getItem("accessToken");
+    try {
+      const res = await fetch(`${env.API_URL}/banners/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        toast.success("Xóa banner thành công.");
+        loadBanners();
+      } else {
+        const errData = await res.json();
+        toast.error(errData.message || "Lỗi khi xóa.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi kết nối.");
+    }
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title || !imageUrl) {
+      toast.error("Vui lòng nhập tên và link ảnh banner.");
+      return;
+    }
+    const token = localStorage.getItem("accessToken");
+    setSaving(true);
+    try {
+      const res = await fetch(`${env.API_URL}/banners`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title,
+          imageUrl,
+          linkUrl,
+          sortOrder: Number(sortOrder),
+          isActive: true,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("Tạo banner thành công.");
+        setTitle("");
+        setImageUrl("https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800");
+        setLinkUrl("");
+        setSortOrder("1");
+        setShowAddForm(false);
+        loadBanners();
+      } else {
+        toast.error(data.message || "Lỗi khi tạo banner.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi kết nối.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center bg-sidebar rounded-2xl">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-foreground">Quản lý banner</h2>
-        <AdminBtn><span className="flex items-center gap-1"><Plus size={14} />Thêm banner</span></AdminBtn>
+        <AdminBtn onClick={() => setShowAddForm(!showAddForm)}>
+          <span className="flex items-center gap-1">
+            <Plus size={14} />
+            {showAddForm ? "Hủy" : "Thêm banner"}
+          </span>
+        </AdminBtn>
       </div>
+
+      {showAddForm && (
+        <form onSubmit={handleCreate} className="rounded-2xl bg-sidebar p-5 space-y-4">
+          <h3 className="text-sm font-semibold text-foreground">Thêm banner mới</h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <input
+              required
+              className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
+              placeholder="Tên banner (VD: Banner mùa hè)"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+            />
+            <input
+              required
+              className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
+              placeholder="Link hình ảnh URL"
+              value={imageUrl}
+              onChange={e => setImageUrl(e.target.value)}
+            />
+            <input
+              className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
+              placeholder="Đường dẫn liên kết (khi click)"
+              value={linkUrl}
+              onChange={e => setLinkUrl(e.target.value)}
+            />
+            <input
+              type="number"
+              className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
+              placeholder="Thứ tự hiển thị (VD: 1)"
+              value={sortOrder}
+              onChange={e => setSortOrder(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-full bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/80 disabled:opacity-50 transition"
+            >
+              {saving ? "Đang tạo..." : "Lưu banner"}
+            </button>
+          </div>
+        </form>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
-        {banners.map(b => (
-          <div key={b.id} className="rounded-2xl bg-sidebar overflow-hidden transition hover:bg-sidebar-accent">
-            <img src={b.img} alt={b.title} className="h-28 w-full object-cover" />
+        {bannersList.map(b => (
+          <div key={b.id} className="rounded-2xl bg-sidebar overflow-hidden transition hover:bg-sidebar-accent flex flex-col justify-between">
+            <img src={b.imageUrl} alt={b.title} className="h-40 w-full object-cover" />
             <div className="p-4">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <p className="font-medium text-foreground">{b.title}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{b.position} · {b.start} → {b.end}</p>
+                  <p className="font-semibold text-foreground text-base">{b.title}</p>
+                  {b.linkUrl && <p className="text-xs text-primary truncate max-w-[200px] mt-0.5">{b.linkUrl}</p>}
+                  <p className="mt-1 text-xs text-muted-foreground">Thứ tự hiển thị: {b.sortOrder}</p>
                 </div>
-                <StatusBadge status={b.status} />
+                <StatusBadge status={b.isActive ? "Hiển thị" : "Ẩn"} />
               </div>
-              <div className="mt-3 flex gap-2">
-                <AdminBtn variant="ghost"><Edit size={14} /></AdminBtn>
-                <AdminBtn variant="ghost"><ToggleLeft size={14} /></AdminBtn>
-                <AdminBtn variant="danger"><Trash2 size={14} /></AdminBtn>
+              <div className="mt-4 flex gap-2 justify-end">
+                <button
+                  title="Bật/Tắt hiển thị"
+                  type="button"
+                  onClick={() => handleToggleActive(b)}
+                  className={`inline-flex size-8 items-center justify-center rounded-lg transition ${b.isActive ? "bg-green-950/40 text-green-400 hover:bg-green-900/40" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
+                >
+                  {b.isActive ? <CheckCircle size={14} /> : <XCircle size={14} />}
+                </button>
+                <button
+                  title="Xóa banner"
+                  type="button"
+                  onClick={() => handleDelete(b.id)}
+                  className="inline-flex size-8 items-center justify-center rounded-lg bg-red-950/40 text-red-400 hover:bg-red-900/40 transition"
+                >
+                  <Trash2 size={14} />
+                </button>
               </div>
             </div>
           </div>
         ))}
       </div>
-      <div className="rounded-2xl border-2 border-dashed border-sidebar-accent p-8 text-center">
-        <Image size={24} className="mx-auto text-muted-foreground mb-2" />
-        <p className="text-sm text-muted-foreground">Kéo thả hoặc <span className="text-primary cursor-pointer">chọn ảnh</span> để tạo banner mới</p>
-      </div>
+      {bannersList.length === 0 && (
+        <p className="text-center text-sm text-muted-foreground py-12 bg-sidebar rounded-2xl">
+          Không tìm thấy banner nào.
+        </p>
+      )}
     </div>
   );
 }

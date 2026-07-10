@@ -5,6 +5,11 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { BranchesModule } from './modules/branches/branches.module';
 import { ProductsModule } from './modules/products/products.module';
+import { OrdersModule } from './modules/orders/orders.module';
+import { CouponsModule } from './modules/coupons/coupons.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
+import { BannersModule } from './modules/banners/banners.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
 
 @Module({
   imports: [
@@ -28,8 +33,14 @@ import { ProductsModule } from './modules/products/products.module';
     UsersModule,
     BranchesModule,
     ProductsModule,
+    OrdersModule,
+    CouponsModule,
+    ReviewsModule,
+    BannersModule,
+    InventoryModule,
   ],
   controllers: [],
   providers: [],
 })
 export class AppModule {}
+
