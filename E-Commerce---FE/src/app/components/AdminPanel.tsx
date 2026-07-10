@@ -98,6 +98,22 @@ function ImageUploader({ label, value, onChange }: { label: string; value: strin
   );
 }
 
+async function deleteStorageImage(imageUrl: string) {
+  if (!imageUrl) return;
+  if (imageUrl.includes("supabase.co/storage/v1/object/public/cakeandcoffee/")) {
+    const parts = imageUrl.split("/cakeandcoffee/");
+    if (parts.length > 1) {
+      const filePath = parts[1];
+      try {
+        const { error } = await supabase.storage.from("cakeandcoffee").remove([filePath]);
+        if (error) console.error("Failed to delete storage file:", error);
+      } catch (err) {
+        console.error("Error deleting storage file:", err);
+      }
+    }
+  }
+}
+
 const statusColor: Record<string, string> = {
   "Đang giao": "bg-blue-100 text-blue-700",
   "Đang chuẩn bị": "bg-yellow-100 text-yellow-700",
@@ -342,9 +358,13 @@ function AdminProducts() {
     const token = getToken();
     if (!token) return;
     if (!confirm("Xóa sản phẩm này?")) return;
+    const item = items.find(p => p.id === id);
     try {
       const res = await fetch(`${env.API_URL}/products/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      if (item?.imageUrl) {
+        await deleteStorageImage(item.imageUrl);
+      }
       load();
     } catch (err: any) { toast.error(err.message || "Lỗi khi xóa sản phẩm"); }
   };
@@ -460,9 +480,13 @@ function AdminCategories() {
     const token = getToken();
     if (!token) return;
     if (!confirm("Xóa danh mục này?")) return;
+    const item = items.find(c => c.id === id);
     try {
       const res = await fetch(`${env.API_URL}/products/categories/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      if (item?.imageUrl) {
+        await deleteStorageImage(item.imageUrl);
+      }
       load();
     } catch (err: any) { toast.error(err.message || "Lỗi khi xóa danh mục"); }
   };
@@ -2093,6 +2117,7 @@ function AdminBanners() {
   const handleDelete = async (id: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa banner này không?")) return;
     const token = localStorage.getItem("accessToken");
+    const banner = banners.find((b: any) => b.id === id);
     try {
       const res = await fetch(`${env.API_URL}/banners/${id}`, {
         method: "DELETE",
@@ -2100,6 +2125,9 @@ function AdminBanners() {
       });
       if (res.ok) {
         toast.success("Xóa banner thành công.");
+        if (banner?.imageUrl) {
+          await deleteStorageImage(banner.imageUrl);
+        }
         loadBanners();
       } else {
         const errData = await res.json();
