@@ -4,11 +4,100 @@ import {
   BarChart2, Image, Edit, Trash2, Eye, Plus, CheckCircle, XCircle,
   TrendingUp, AlertCircle, Loader2, ToggleLeft, Search, Filter,
   ArrowUpRight, DollarSign, Clock, ChevronDown, Store, MapPin, Boxes,
-  ReceiptText, ClipboardList
+  ReceiptText, ClipboardList, UploadCloud
 } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { env } from "../../config/env";
+import { supabase } from "../../config/supabase";
+
+function ImageUploader({ label, value, onChange }: { label: string; value: string; onChange: (url: string) => void }) {
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Kích thước file tối đa là 5MB.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `products/${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from('products')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('products')
+        .getPublicUrl(filePath);
+
+      onChange(publicUrl);
+      toast.success("Tải ảnh lên thành công!");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Tải ảnh lên thất bại. Vui lòng kiểm tra VITE_SUPABASE_ANON_KEY.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-1">
+      <label className="text-xs font-semibold text-muted-foreground block">{label}</label>
+      <div className="flex items-center gap-3">
+        {value ? (
+          <div className="relative size-12 rounded-xl border border-sidebar-accent overflow-hidden shrink-0">
+            <img src={value} alt="Preview" className="h-full w-full object-cover" />
+            <button
+              type="button"
+              onClick={() => onChange("")}
+              className="absolute inset-0 bg-black/60 grid place-items-center opacity-0 hover:opacity-100 transition text-[10px] text-white font-semibold"
+            >
+              Xóa
+            </button>
+          </div>
+        ) : (
+          <label className="flex size-12 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-sidebar-accent bg-sidebar-accent/50 text-muted-foreground hover:bg-sidebar-accent/80 hover:text-foreground transition shrink-0">
+            {uploading ? (
+              <Loader2 className="animate-spin text-primary" size={16} />
+            ) : (
+              <UploadCloud size={16} />
+            )}
+            <span className="text-[9px] mt-0.5 font-semibold">{uploading ? "Đang tải" : "Chọn file"}</span>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleUpload}
+              disabled={uploading}
+            />
+          </label>
+        )}
+        <div className="flex-1">
+          <input
+            className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-xs text-foreground outline-none border border-sidebar-accent placeholder:text-muted-foreground"
+            placeholder="Hoặc nhập liên kết URL ảnh..."
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            disabled={uploading}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const statusColor: Record<string, string> = {
   "Đang giao": "bg-blue-100 text-blue-700",
   "Đang chuẩn bị": "bg-yellow-100 text-yellow-700",
@@ -318,7 +407,7 @@ function AdminProducts() {
                 <option value="cake">Bánh (cake)</option><option value="coffee">Cafe (coffee)</option><option value="drink">Đồ uống (drink)</option><option value="combo">Combo</option>
               </select>
               <textarea className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none resize-none" rows={2} placeholder="Mô tả sản phẩm" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
-              <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" placeholder="URL ảnh sản phẩm" value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })} />
+              <ImageUploader label="Hình ảnh sản phẩm" value={form.imageUrl} onChange={url => setForm({ ...form, imageUrl: url })} />
               {!editing && <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" placeholder="Giá bán mặc định (VNĐ)" type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} />}
             </div>
             <div className="mt-5 flex justify-end gap-3">
@@ -417,7 +506,7 @@ function AdminCategories() {
             <div className="space-y-3">
               <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" placeholder="Tên danh mục" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
               <textarea className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none resize-none" rows={2} placeholder="Mô tả danh mục" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
-              <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" placeholder="URL ảnh danh mục" value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })} />
+              <ImageUploader label="Hình ảnh danh mục" value={form.imageUrl} onChange={url => setForm({ ...form, imageUrl: url })} />
             </div>
             <div className="mt-5 flex justify-end gap-3">
               <AdminBtn variant="ghost" onClick={() => setShowModal(false)}>Hủy</AdminBtn>
@@ -2096,13 +2185,13 @@ function AdminBanners() {
               value={title}
               onChange={e => setTitle(e.target.value)}
             />
-            <input
-              required
-              className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
-              placeholder="Link hình ảnh URL"
-              value={imageUrl}
-              onChange={e => setImageUrl(e.target.value)}
-            />
+            <div className="sm:col-span-2">
+              <ImageUploader
+                label="Hình ảnh banner"
+                value={imageUrl}
+                onChange={setImageUrl}
+              />
+            </div>
             <input
               className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
               placeholder="Đường dẫn liên kết (khi click)"
