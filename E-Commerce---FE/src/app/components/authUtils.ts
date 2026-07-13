@@ -1,5 +1,3 @@
-// Auth-related types and hook logic shared across auth forms
-import { useState } from "react";
 import { toast } from "sonner";
 import { env } from "../../config/env";
 
@@ -12,23 +10,55 @@ export interface AuthErrors {
   password?: string;
 }
 
+const VERIFY_EMAIL_MESSAGE = "Tạo tài khoản thành công! Chúng tôi đã gửi email xác nhận đến email của bạn. Vui lòng bấm xác nhận trong email để hoàn tất đăng ký.";
+
+export function getAuthErrorMessage(message: unknown, fallback = "Đã xảy ra lỗi, vui lòng thử lại."): string {
+  const rawMessage = Array.isArray(message) ? message.join(", ") : String(message || "");
+  const normalized = rawMessage.toLowerCase();
+
+  if (normalized.includes("invalid credentials")) {
+    return "Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.";
+  }
+
+  if (
+    normalized.includes("verify your email") ||
+    normalized.includes("activate your account") ||
+    normalized.includes("inactive") ||
+    normalized.includes("chưa được kích hoạt") ||
+    normalized.includes("chua duoc kich hoat")
+  ) {
+    return "Tài khoản chưa xác thực email. Vui lòng kiểm tra hộp thư và bấm xác nhận trong email để hoàn tất đăng ký.";
+  }
+
+  if (normalized.includes("email or phone must be provided")) {
+    return "Vui lòng nhập email hoặc số điện thoại.";
+  }
+
+  return rawMessage || fallback;
+}
+
 export function validateRegisterFields(fullName: string, email: string, phone: string, password: string): AuthErrors {
   const err: AuthErrors = {};
-  if (!fullName.trim()) {
+  const normalizedName = fullName.trim().replace(/\s+/g, " ");
+
+  if (!normalizedName) {
     err.fullName = "Họ và tên không được để trống";
-  } else if (fullName.trim().length < 2) {
+  } else if (normalizedName.length < 2) {
     err.fullName = "Họ và tên phải có ít nhất 2 ký tự";
-  } else if (!/^[a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂÂÊÔƠƯưăâêôơư\s]+$/.test(fullName)) {
-    err.fullName = "Họ và tên chỉ được chứa chữ cái và khoảng trắng";
+  } else if (!/^[\p{L}\s.'-]+$/u.test(normalizedName)) {
+    err.fullName = "Họ và tên chỉ được chứa chữ cái, khoảng trắng và dấu nối";
   }
+
   if (!email) {
     err.email = "Email không được để trống";
   } else if (!/^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(email)) {
     err.email = "Email đăng ký phải là tài khoản Gmail (@gmail.com)";
   }
+
   if (phone && !/^(0|84|\+84)[35789][0-9]{8}$/.test(phone)) {
     err.phone = "Số điện thoại Việt Nam không hợp lệ";
   }
+
   if (!password) {
     err.password = "Mật khẩu không được để trống";
   } else if (password.length < 8) {
@@ -36,6 +66,7 @@ export function validateRegisterFields(fullName: string, email: string, phone: s
   } else if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password)) {
     err.password = "Mật khẩu phải chứa cả chữ cái và chữ số";
   }
+
   return err;
 }
 
@@ -46,7 +77,9 @@ export async function apiLogin(email: string, password: string, onSuccess: () =>
     body: JSON.stringify({ email, password }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Đăng nhập thất bại");
+
+  if (!res.ok) throw new Error(getAuthErrorMessage(data.message, "Đăng nhập thất bại"));
+
   localStorage.setItem("accessToken", data.accessToken);
   localStorage.setItem("refreshToken", data.refreshToken);
   localStorage.setItem("user", JSON.stringify(data.user));
@@ -65,9 +98,10 @@ export async function apiRegister(
   const res = await fetch(`${env.API_URL}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fullName, email, phone, password }),
+    body: JSON.stringify({ fullName: fullName.trim().replace(/\s+/g, " "), email, phone, password }),
   });
   const data = await res.json();
+
   if (!res.ok) {
     const err: AuthErrors = {};
     if (typeof data.message === "string" && data.message.includes("Email")) {
@@ -77,18 +111,20 @@ export async function apiRegister(
       err.phone = "Số điện thoại này đã được sử dụng";
       toast.error("Số điện thoại đăng ký đã tồn tại!");
     } else {
-      toast.error(Array.isArray(data.message) ? data.message.join(", ") : data.message || "Đăng ký thất bại");
+      toast.error(getAuthErrorMessage(data.message, "Đăng ký thất bại"));
     }
     return err;
   }
+
   if (data.requiresVerification) {
-    toast.success(data.message || "Đăng ký thành công! Vui lòng kiểm tra email.");
+    toast.success(VERIFY_EMAIL_MESSAGE, { duration: 8000 });
     setMode("login");
   } else {
     localStorage.setItem("accessToken", data.accessToken);
     localStorage.setItem("user", JSON.stringify(data.user));
-    toast.success(data.message || "Đăng ký thành công!");
+    toast.success(data.message || VERIFY_EMAIL_MESSAGE, { duration: 8000 });
     onSuccess();
   }
+
   return null;
 }

@@ -4,6 +4,7 @@ import { Toaster } from "./components/ui/sonner";
 
 import { AdminPanel } from "./components/AdminPanel";
 import { AdminLoginPage } from "./components/AdminLoginPage";
+import { StaffPanel } from "./components/StaffPanel";
 import { AuthPage } from "./components/AuthPage";
 import { ReviewPage } from "./components/ReviewPage";
 import { Header } from "./components/Header";
@@ -23,27 +24,27 @@ import { storeLocations as fallbackStoreLocations, type StoreLocation } from "..
 import { env } from "../config/env";
 import { VIEW_KEYS } from "../config/appConfig";
 
-// â”€â”€ Transform API product to legacy array format â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Transform API product to legacy array format ──────────────────────────────
 // Array format: [name, price, categoryName, imageUrl, rating, badge]
 const apiProductToArray = (p: any): any[] => {
   const price = p.variants?.[0]?.price
-    ? `${Number(p.variants[0].price).toLocaleString("vi-VN")}Ä‘`
-    : "0Ä‘";
-  const categoryName = p.category?.name ?? "KhÃ¡c";
+    ? `${Number(p.variants[0].price).toLocaleString("vi-VN")}đ`
+    : "0đ";
+  const categoryName = p.category?.name ?? "Khác";
   const imageUrl = p.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=600&h=520&fit=crop&auto=format";
   const rating = "4.8";
-  const badge = p.productType === "combo" ? "Combo" : (p.variants?.length > 1 ? "S/M/L" : "CÃ²n hÃ ng");
+  const badge = p.productType === "combo" ? "Combo" : (p.variants?.length > 1 ? "S/M/L" : "Còn hàng");
   return [p.name, price, categoryName, imageUrl, rating, badge];
 };
 
-// â”€â”€ Transform API category to legacy format â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Transform API category to legacy format ───────────────────────────────────
 const apiCategoryToLegacy = (c: any) => ({
   name: c.name,
   icon: "",
   img: c.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=280&h=180&fit=crop&auto=format",
 });
 
-// â”€â”€ URL / Router helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── URL / Router helpers ──────────────────────────────────────────────────────
 const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.HOME]: "/",
   [VIEW_KEYS.SWEETS]: "/banh-ngot",
@@ -55,6 +56,7 @@ const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.DETAIL]: "/chi-tiet",
   [VIEW_KEYS.ADMIN]: "/admin",
   [VIEW_KEYS.ADMIN_LOGIN]: "/admin/login",
+  [VIEW_KEYS.STAFF]: "/nhan-vien",
   [VIEW_KEYS.LOGIN]: "/dang-nhap",
   [VIEW_KEYS.REVIEW]: "/danh-gia",
   [VIEW_KEYS.FAVORITES]: "/yeu-thich",
@@ -87,19 +89,21 @@ const getProductFromPath = (path: string, prods: any[] = []) => {
   return prods.find(p => p[0].toLowerCase().replace(/\s+/g, "-") === slug) ?? null;
 };
 
-// â”€â”€ Price helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Price helpers ─────────────────────────────────────────────────────────────
 const parsePrice = (s: string) => parseInt(s.replace(/[^0-9]/g, ""), 10);
 
-// â”€â”€ Listable categories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Listable categories ───────────────────────────────────────────────────────
 const LISTABLE = [
   VIEW_KEYS.SWEETS, VIEW_KEYS.DRINKS, VIEW_KEYS.COMBO,
-  "BÃ¡nh sinh nháº­t", "BÃ¡nh mousse", "BÃ¡nh tart", "BÃ¡nh quy",
-  "Cafe", "TrÃ ", "Äá»“ uá»‘ng khÃ¡c", "TÃ¬m kiáº¿m",
+  "Bánh sinh nhật", "Bánh mousse", "Bánh tart", "Bánh quy",
+  "Cafe", "Trà", "Đồ uống khác", "Tìm kiếm",
 ];
 
-// â”€â”€ App â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const ADMIN_ROLES = ["admin"];
+// ── App ───────────────────────────────────────────────────────────────────────
+const ADMIN_ROLES = ["admin", "store_manager"];
 const isAdminUser = (currentUser: any) => ADMIN_ROLES.includes(currentUser?.role);
+const STAFF_ROLES = ["staff", "cashier"];
+const isStaffUser = (currentUser: any) => STAFF_ROLES.includes(currentUser?.role);
 const STORE_STORAGE_KEY = "sb_selected_store";
 
 const estimateDelivery = (distanceKm?: number) => {
@@ -147,7 +151,7 @@ export default function App() {
   });
   const [manualLocationRequired, setManualLocationRequired] = useState(false);
 
-  // â”€â”€ Fetch real products & categories from API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Fetch real products & categories from API ─────────────────────────
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
 
@@ -166,7 +170,7 @@ export default function App() {
           const apiCategories = await cRes.json();
           setCategories(apiCategories.map(apiCategoryToLegacy));
         }
-      } catch { /* silent â€” fallback to empty */ }
+      } catch { /* silent — fallback to empty */ }
     })();
   }, []);
 
@@ -239,11 +243,11 @@ export default function App() {
     };
   }, []);
 
-  // â”€â”€ Persist cart & wishlist â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Persist cart & wishlist ──────────────────────────────────────────────
   useEffect(() => { localStorage.setItem("sb_cart", JSON.stringify(cart)); }, [cart]);
   useEffect(() => { localStorage.setItem("sb_wishlist", JSON.stringify(wishlist)); }, [wishlist]);
 
-  // â”€â”€ History API (back/forward) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── History API (back/forward) ───────────────────────────────────────────
   useEffect(() => {
     const onPop = () => {
       setViewInternal(getViewFromPath(window.location.pathname, categories));
@@ -253,7 +257,7 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  // â”€â”€ Email verification via token query param â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Email verification via token query param ─────────────────────────────
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("token");
     if (!token) return;
@@ -262,18 +266,18 @@ export default function App() {
       try {
         const res = await fetch(`${env.API_URL}/auth/verify-email?token=${token}`);
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "XÃ¡c thá»±c email tháº¥t báº¡i");
-        toast.success("XÃ¡c thá»±c email thÃ nh cÃ´ng! Báº¡n cÃ³ thá»ƒ Ä‘Äƒng nháº­p ngay.");
+        if (!res.ok) throw new Error(data.message || "Xác thực email thất bại");
+        toast.success("Xác thực email thành công! Bạn có thể đăng nhập ngay.");
         setView(VIEW_KEYS.LOGIN);
       } catch (err: any) {
-        toast.error(err.message || "KhÃ´ng thá»ƒ xÃ¡c thá»±c email.");
+        toast.error(err.message || "Không thể xác thực email.");
       } finally {
         window.history.replaceState({}, document.title, window.location.origin);
       }
     })();
   }, []);
 
-  // â”€â”€ Navigation helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Navigation helper ────────────────────────────────────────────────────
   const setView = (newView: any, productData?: any) => {
     const target = productData || (newView === VIEW_KEYS.DETAIL ? selectedProduct : null);
     const newPath = getPathFromView(newView, target);
@@ -283,31 +287,33 @@ export default function App() {
     else if (newView !== VIEW_KEYS.DETAIL && newView !== VIEW_KEYS.REVIEW) setSelectedProduct(null);
   };
 
-  // â”€â”€ Auth handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Auth handlers ────────────────────────────────────────────────────────
   const handleLoginSuccess = () => {
     const currentUser = JSON.parse(localStorage.getItem("user") || "null");
     setUser(currentUser);
-    setView(isAdminUser(currentUser) ? VIEW_KEYS.ADMIN : VIEW_KEYS.HOME);
+    if (isAdminUser(currentUser)) setView(VIEW_KEYS.ADMIN);
+    else if (isStaffUser(currentUser)) setView(VIEW_KEYS.STAFF);
+    else setView(VIEW_KEYS.HOME);
   };
   const handleAdminLoginSuccess = (adminUser: any) => {
     setUser(adminUser);
-    setView(VIEW_KEYS.ADMIN);
+    setView(isStaffUser(adminUser) ? VIEW_KEYS.STAFF : VIEW_KEYS.ADMIN);
   };
   const handleLogout = () => {
     ["accessToken", "refreshToken", "user"].forEach(k => localStorage.removeItem(k));
     setUser(null);
-    toast.success("ÄÃ£ Ä‘Äƒng xuáº¥t thÃ nh cÃ´ng!");
+    toast.success("Đã đăng xuất thành công!");
     setView(VIEW_KEYS.LOGIN);
   };
   const handleAdminLogout = () => {
     ["accessToken", "refreshToken", "user"].forEach(k => localStorage.removeItem(k));
     setUser(null);
-    toast.success("ÄÃ£ Ä‘Äƒng xuáº¥t khá»i trang quáº£n trá»‹.");
+    toast.success("Đã đăng xuất khỏi trang quản trị.");
     setView(VIEW_KEYS.ADMIN_LOGIN);
   };
 
-  // â”€â”€ Cart / Wishlist handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const handleAddToCart = (product: any, size = "Vá»«a", qty = 1, options?: any, price?: number) => {
+  // ── Cart / Wishlist handlers ─────────────────────────────────────────────
+  const handleAddToCart = (product: any, size = "Vừa", qty = 1, options?: any, price?: number) => {
     setCart(prev => {
       const idx = prev.findIndex(i => 
         i.product[0] === product[0] && 
@@ -321,7 +327,7 @@ export default function App() {
   const handleToggleWishlist = (product: any) => {
     setWishlist(prev => {
       const exists = prev.some(i => i[0] === product[0]);
-      toast[exists ? "info" : "success"](exists ? "ÄÃ£ xÃ³a khá»i yÃªu thÃ­ch" : "ÄÃ£ thÃªm vÃ o yÃªu thÃ­ch!");
+      toast[exists ? "info" : "success"](exists ? "Đã xóa khỏi yêu thích" : "Đã thêm vào yêu thích!");
       return exists ? prev.filter(i => i[0] !== product[0]) : [...prev, product];
     });
   };
@@ -333,31 +339,44 @@ export default function App() {
     toast.success(`Đã chọn ${store.name}`);
   };
  
-  // â”€â”€ Checkout totals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Checkout totals ──────────────────────────────────────────────────────
   const subtotal = cart.reduce((s, i) => s + (i.price || parsePrice(i.product[1])) * i.quantity, 0);
   const shipping = subtotal >= 300000 || subtotal === 0 ? 0 : 15000;
   const grandTotal = subtotal + shipping;
 
-  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Render ───────────────────────────────────────────────────────────────
   // Admin login page (separate, no header)
   if (view === VIEW_KEYS.ADMIN_LOGIN) {
     return <><Toaster richColors position="top-center" /><AdminLoginPage onSuccess={handleAdminLoginSuccess} onBack={() => setView(VIEW_KEYS.HOME)} /></>;
   }
 
-  // Admin panel â€” role-guarded
+  // Admin panel — role-guarded
   if (view === VIEW_KEYS.ADMIN) {
     if (!user) {
-      // Not logged in â†’ redirect to admin login
+      // Not logged in → redirect to admin login
       setTimeout(() => setView(VIEW_KEYS.ADMIN_LOGIN), 0);
       return <><Toaster richColors position="top-center" /></>;
     }
     if (!isAdminUser(user)) {
-      // Logged in but not admin â†’ back to home
-      toast.error("Báº¡n khÃ´ng cÃ³ quyá»n truy cáº­p trang quáº£n trá»‹.");
+      // Logged in but not admin → back to home
+      toast.error("Bạn không có quyền truy cập trang quản trị.");
       setTimeout(() => setView(VIEW_KEYS.HOME), 0);
       return <><Toaster richColors position="top-center" /></>;
     }
     return <><Toaster richColors position="top-center" /><AdminPanel onExit={handleAdminLogout} adminUser={user} /></>;
+  }
+
+  if (view === VIEW_KEYS.STAFF) {
+    if (!user) {
+      setTimeout(() => setView(VIEW_KEYS.ADMIN_LOGIN), 0);
+      return <><Toaster richColors position="top-center" /></>;
+    }
+    if (!isStaffUser(user) && !isAdminUser(user)) {
+      toast.error("Bạn không có quyền truy cập trang nhân viên.");
+      setTimeout(() => setView(VIEW_KEYS.HOME), 0);
+      return <><Toaster richColors position="top-center" /></>;
+    }
+    return <><Toaster richColors position="top-center" /><StaffPanel onExit={handleAdminLogout} staffUser={user} products={products} /></>;
   }
 
   if (view === VIEW_KEYS.LOGIN) return <><Toaster richColors position="top-center" /><AuthPage onSuccess={handleLoginSuccess} /></>;
@@ -379,7 +398,7 @@ export default function App() {
           cartCount={cart.reduce((s, i) => s + i.quantity, 0)}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onSearchSubmit={() => setView("TÃ¬m kiáº¿m")}
+          onSearchSubmit={() => setView("Tìm kiếm")}
           isLoggedIn={!!user}
           user={user}
           products={products}

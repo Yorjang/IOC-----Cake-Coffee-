@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { AUTH_CONTENT } from "../../constants/authContent";
 import { env } from "../../config/env";
 import type { AuthMode, AuthErrors } from "./authUtils";
-import { validateRegisterFields, apiLogin, apiRegister } from "./authUtils";
+import { validateRegisterFields, apiRegister, getAuthErrorMessage } from "./authUtils";
 
 declare global {
   interface Window {
@@ -13,44 +13,6 @@ declare global {
   }
 }
 
-
-
-// ── Register Options Modal ────────────────────────────────────────────────────
-function RegisterModal({ loading, fillDetailsLater, setFillDetailsLater, onCancel, onConfirm }: any) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-3xl border bg-card p-6 shadow-2xl text-left">
-        <h3 className="text-2xl font-serif font-bold text-foreground">Tùy chọn thiết lập tài khoản</h3>
-        <p className="mt-2 text-sm text-muted-foreground">Vui lòng chọn các tùy chọn thiết lập cho tài khoản mới của bạn.</p>
-        <div className="mt-6 space-y-6">
-          <div className="space-y-3">
-            <h4 className="font-semibold text-sm text-foreground">1. Điền thông tin cá nhân</h4>
-            <div className="space-y-2">
-              {[{ label: "Đăng ký cơ bản", sub: "Bỏ qua số điện thoại để thiết lập sau.", val: true }, { label: "Đăng ký đầy đủ", sub: "Lưu kèm số điện thoại đã nhập.", val: false }].map(opt => (
-                <label key={String(opt.val)} className="flex items-start gap-3 rounded-xl border p-3 cursor-pointer hover:bg-secondary/40 transition">
-                  <input type="radio" name="detailsOption" checked={fillDetailsLater === opt.val} onChange={() => setFillDetailsLater(opt.val)} className="mt-0.5 accent-primary" />
-                  <div><span className="text-sm font-medium text-foreground">{opt.label}</span><p className="text-xs text-muted-foreground mt-0.5">{opt.sub}</p></div>
-                </label>
-              ))}
-            </div>
-          </div>
-          <div className="rounded-xl bg-secondary/50 p-4 border border-border">
-            <span className="text-sm font-semibold text-foreground">Xác thực tài khoản</span>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Đường dẫn xác thực sẽ được gửi trực tiếp đến địa chỉ Gmail của bạn.</p>
-          </div>
-        </div>
-        <div className="mt-8 flex gap-3">
-          <button type="button" onClick={onCancel} className="flex-1 rounded-full border border-primary/30 py-2.5 text-sm font-semibold text-primary transition hover:bg-secondary">Hủy</button>
-          <button type="button" onClick={onConfirm} disabled={loading} className="flex-1 rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 disabled:opacity-50">
-            {loading ? "Đang xử lý..." : "Xác nhận & Đăng ký"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Left decorative panel ─────────────────────────────────────────────────────
 function AuthLeftPanel({ onSuccess }: { onSuccess: () => void }) {
   return (
     <div className="relative hidden overflow-hidden border-r bg-sidebar lg:block">
@@ -73,7 +35,6 @@ function AuthLeftPanel({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
-// ── Main AuthPage ─────────────────────────────────────────────────────────────
 export function AuthPage({ onSuccess, initialMode = "login", resetToken = "" }: { onSuccess: () => void; onAdminDemo?: () => void; initialMode?: AuthMode; resetToken?: string }) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [showPass, setShowPass] = useState(false);
@@ -84,8 +45,6 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "" }: 
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [errors, setErrors] = useState<AuthErrors>({});
-  const [showModal, setShowModal] = useState(false);
-  const [fillDetailsLater, setFillDetailsLater] = useState(false);
 
   const switchMode = (m: AuthMode) => {
     setMode(m); setEmail(m === "login" ? "" : "");
@@ -101,7 +60,7 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "" }: 
         body: JSON.stringify({ idToken: response.credential }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Đăng nhập Google thất bại");
+      if (!res.ok) throw new Error(getAuthErrorMessage(data.message, "Đăng nhập Google thất bại"));
 
       localStorage.setItem("accessToken", data.accessToken);
       localStorage.setItem("refreshToken", data.refreshToken);
@@ -117,7 +76,7 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "" }: 
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.google) {
+    if (typeof window !== "undefined" && window.google) {
       if (!window.googleInitialized) {
         window.google.accounts.id.initialize({
           client_id: env.GOOGLE_CLIENT_ID,
@@ -130,20 +89,11 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "" }: 
       if (btn) {
         window.google.accounts.id.renderButton(
           btn,
-          { theme: "outline", size: "large", width: 380, shape: "pill" }
+          { theme: "outline", size: "large", width: 380, shape: "pill" },
         );
       }
     }
   }, [mode]);
-
-  async function handleConfirmRegister() {
-    setLoading(true);
-    try {
-      const err = await apiRegister(fullName, email, fillDetailsLater ? undefined : (phone || undefined), password, onSuccess, setMode);
-      if (err) setErrors(err);
-    } catch (e: any) { toast.error(e.message || "Đã xảy ra lỗi."); }
-    finally { setLoading(false); setShowModal(false); }
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); setErrors({});
@@ -152,13 +102,17 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "" }: 
         setLoading(true);
         const res = await fetch(`${env.API_URL}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Đăng nhập thất bại");
+        if (!res.ok) throw new Error(getAuthErrorMessage(data.message, "Đăng nhập thất bại"));
         localStorage.setItem("accessToken", data.accessToken); localStorage.setItem("refreshToken", data.refreshToken); localStorage.setItem("user", JSON.stringify(data.user));
         toast.success("Đăng nhập thành công!"); onSuccess();
       } else if (mode === "register") {
         const err = validateRegisterFields(fullName, email, phone, password);
         if (Object.keys(err).length) { setErrors(err); toast.error("Vui lòng kiểm tra lại thông tin!"); }
-        else setShowModal(true);
+        else {
+          setLoading(true);
+          const registerErr = await apiRegister(fullName, email, phone || undefined, password, onSuccess, setMode);
+          if (registerErr) setErrors(registerErr);
+        }
       } else if (mode === "forgot") {
         setLoading(true);
         const res = await fetch(`${env.API_URL}/auth/forgot-password`, {
@@ -213,13 +167,13 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "" }: 
             <div>
               <button onClick={() => { setMode("login"); setDone(false); }} className="mb-6 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">← Quay lại đăng nhập</button>
               <h2 className="text-3xl">Quên mật khẩu</h2>
-              <p className="mt-2 text-sm text-muted-foreground">Nhập email — chúng tôi sẽ gửi link đặt lại mật khẩu.</p>
+              <p className="mt-2 text-sm text-muted-foreground">Nhập email - chúng tôi sẽ gửi link đặt lại mật khẩu.</p>
               {done ? (
                 <div className="mt-6 rounded-2xl bg-[#eef7ed] p-5 text-sm text-[#355c31]">✓ Email đặt lại mật khẩu đã được gửi.</div>
               ) : (
                 <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                   <div className="relative"><Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><input type="email" required placeholder="Email của bạn" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-xl border bg-input-background py-3 pl-10 pr-4 text-sm outline-none focus:border-primary" /></div>
-                  <button type="submit" disabled={loading} className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 disabled:opacity-50">{loading ? "Đang gửi…" : "Gửi email đặt lại"}</button>
+                  <button type="submit" disabled={loading} className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 disabled:opacity-50">{loading ? "Đang gửi..." : "Gửi email đặt lại"}</button>
                 </form>
               )}
             </div>
@@ -235,7 +189,7 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "" }: 
                   <label className="flex items-center gap-2 text-muted-foreground"><input type="checkbox" className="rounded" /> Ghi nhớ đăng nhập</label>
                   <button type="button" onClick={() => setMode("forgot")} className="text-primary hover:underline">Quên mật khẩu?</button>
                 </div>
-                <button type="submit" disabled={loading} className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 disabled:opacity-50">{loading ? "Đang đăng nhập…" : "Đăng nhập"}</button>
+                <button type="submit" disabled={loading} className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 disabled:opacity-50">{loading ? "Đang đăng nhập..." : "Đăng nhập"}</button>
               </form>
               <div className="mt-5 flex items-center gap-3 text-xs text-muted-foreground"><span className="flex-1 border-t" /> hoặc đăng nhập bằng <span className="flex-1 border-t" /></div>
               <div className="mt-4 flex justify-center">
@@ -268,7 +222,7 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "" }: 
                   <input type="checkbox" required className="mt-1 rounded shrink-0 accent-primary" />
                   <span>Tôi đồng ý với{" "}<span className="text-primary hover:underline font-semibold">Điều khoản dịch vụ</span>{" và "}<span className="text-primary hover:underline font-semibold">Chính sách bảo mật</span>.</span>
                 </label>
-                <button type="submit" disabled={loading} className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 disabled:opacity-50">{loading ? "Đang tạo tài khoản…" : "Tạo tài khoản"}</button>
+                <button type="submit" disabled={loading} className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 disabled:opacity-50">{loading ? "Đang tạo tài khoản..." : "Tạo tài khoản"}</button>
               </form>
               <div className="mt-5 flex items-center gap-3 text-xs text-muted-foreground"><span className="flex-1 border-t" /> hoặc đăng ký bằng <span className="flex-1 border-t" /></div>
               <div className="mt-4 flex justify-center">
@@ -303,7 +257,6 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "" }: 
           )}
         </div>
       </div>
-      {showModal && <RegisterModal loading={loading} fillDetailsLater={fillDetailsLater} setFillDetailsLater={setFillDetailsLater} onCancel={() => setShowModal(false)} onConfirm={handleConfirmRegister} />}
     </div>
   );
 }
