@@ -28,6 +28,11 @@ export class BranchesController {
     return this.branchesService.findNearest(Number(lat), Number(lng));
   }
 
+  @Get('nearby')
+  findNearby(@Query('lat') lat: string, @Query('lng') lng: string) {
+    return this.branchesService.findNearby(Number(lat), Number(lng));
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions(Permission.MANAGE_BRANCHES)

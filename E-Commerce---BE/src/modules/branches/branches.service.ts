@@ -29,16 +29,12 @@ export class BranchesService {
   }
 
   async findNearest(latitude: number, longitude: number): Promise<BranchWithDistance> {
-    if (
-      !Number.isFinite(latitude) ||
-      !Number.isFinite(longitude) ||
-      latitude < -90 ||
-      latitude > 90 ||
-      longitude < -180 ||
-      longitude > 180
-    ) {
-      throw new BadRequestException('Latitude or longitude is invalid');
-    }
+    const branches = await this.findNearby(latitude, longitude);
+    return branches[0];
+  }
+
+  async findNearby(latitude: number, longitude: number): Promise<BranchWithDistance[]> {
+    this.validateCoordinates(latitude, longitude);
 
     const branches = await this.findActive();
     const branchesWithDistance = branches
@@ -64,7 +60,7 @@ export class BranchesService {
       throw new BadRequestException('No active branch has coordinates');
     }
 
-    return branchesWithDistance[0];
+    return branchesWithDistance;
   }
 
   async findById(id: string): Promise<Branch | null> {
@@ -106,6 +102,19 @@ export class BranchesService {
     return { message: 'Branch deleted successfully' };
   }
 
+  private validateCoordinates(latitude: number, longitude: number): void {
+    if (
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude) ||
+      latitude < -90 ||
+      latitude > 90 ||
+      longitude < -180 ||
+      longitude > 180
+    ) {
+      throw new BadRequestException('Latitude or longitude is invalid');
+    }
+  }
+
   private calculateDistanceKm(
     fromLatitude: number,
     fromLongitude: number,
@@ -134,9 +143,9 @@ export class BranchesService {
   }
 
   private estimateDelivery(distanceKm: number): string {
-    if (distanceKm <= 2) return '30-45 phút';
-    if (distanceKm <= 5) return '40-55 phút';
-    if (distanceKm <= 8) return '50-65 phút';
-    return '60-90 phút';
+    const minMinutes = Math.max(25, Math.ceil(22 + distanceKm * 4));
+    const maxMinutes = minMinutes + (distanceKm <= 5 ? 12 : distanceKm <= 12 ? 18 : 25);
+
+    return `${minMinutes}-${maxMinutes} phút`;
   }
 }

@@ -54,11 +54,7 @@ export function StoreSelectionModal({
     });
   }, [manualLocation, stores]);
 
-  const recommended =
-    filteredStores.find((store) => store.id === selectedStore?.id) ??
-    filteredStores[0] ??
-    selectedStore ??
-    stores[0];
+  const recommended = stores[0] ?? filteredStores[0];
 
   if (!recommended) return null;
 
@@ -160,7 +156,8 @@ export function StoreSelectionModal({
             <div className="mt-4 rounded-xl bg-secondary p-3 text-sm leading-6 text-muted-foreground">
               <b className="text-foreground">{recommended.name}</b>
               <br />
-              {recommended.highlight} - giao dự kiến {recommended.delivery}.
+              <span className="font-medium text-foreground">{recommended.highlight}</span>
+              <span className="text-muted-foreground"> - giao dự kiến {recommended.delivery}.</span>
             </div>
             <div className="mt-4 grid gap-3">
               <ModalButton
