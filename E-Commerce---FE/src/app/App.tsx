@@ -8,6 +8,7 @@ import { AuthPage } from "./components/AuthPage";
 import { ReviewPage } from "./components/ReviewPage";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
+import { StoreSelectionModal } from "./components/StoreSelectionModal";
 
 import { Home } from "./pages/Home";
 import { ProductListing } from "./pages/ProductListing";
@@ -18,6 +19,7 @@ import { Favorites } from "./pages/Favorites";
 import { Profile } from "./pages/Profile";
 
 import { navPages, heroBanners } from "../data/mockData";
+import { storeLocations as fallbackStoreLocations, type StoreLocation } from "../data/storeLocations";
 import { env } from "../config/env";
 import { VIEW_KEYS } from "../config/appConfig";
 
@@ -98,6 +100,33 @@ const LISTABLE = [
 // ── App ───────────────────────────────────────────────────────────────────────
 const ADMIN_ROLES = ["admin"];
 const isAdminUser = (currentUser: any) => ADMIN_ROLES.includes(currentUser?.role);
+const STORE_STORAGE_KEY = "sb_selected_store";
+
+const estimateDelivery = (distanceKm?: number) => {
+  if (typeof distanceKm !== "number") return "35-55 phút";
+  if (distanceKm <= 2) return "30-45 phút";
+  if (distanceKm <= 5) return "40-55 phút";
+  if (distanceKm <= 8) return "50-65 phút";
+  return "60-90 phút";
+};
+
+const apiBranchToStore = (branch: any): StoreLocation => {
+  const distanceKm = typeof branch.distanceKm === "number" ? branch.distanceKm : undefined;
+
+  return {
+    id: branch.id,
+    name: branch.name,
+    shortName: branch.name?.replace(/^Sweet Bean\s*/i, "") || branch.name,
+    address: branch.address,
+    phone: branch.phone || "",
+    hours: branch.hours || "07:00 - 22:00",
+    distance: typeof distanceKm === "number" ? `${distanceKm.toFixed(1)} km` : "Dang tinh",
+    delivery: branch.deliveryEstimate || estimateDelivery(distanceKm),
+    status: branch.status === "active" ? "Đang mở cửa" : branch.status || "Đang mở cửa",
+    highlight: typeof distanceKm === "number" ? "Gần bạn nhất" : "Chi nhánh đang phục vụ",
+    mapQuery: branch.address || branch.name,
+  };
+};
 
 export default function App() {
   const [view, setViewInternal] = useState<any>(() => getViewFromPath(window.location.pathname));
@@ -106,6 +135,16 @@ export default function App() {
   const [cart, setCart] = useState<any[]>(() => JSON.parse(localStorage.getItem("sb_cart") || "[]"));
   const [wishlist, setWishlist] = useState<any[]>(() => JSON.parse(localStorage.getItem("sb_wishlist") || "[]"));
   const [user, setUser] = useState<any>(() => JSON.parse(localStorage.getItem("user") || "null"));
+  const [selectedStore, setSelectedStore] = useState<StoreLocation>(() => {
+    const saved = localStorage.getItem(STORE_STORAGE_KEY);
+    const savedStore = saved ? fallbackStoreLocations.find((store) => store.id === saved) : null;
+    return savedStore ?? fallbackStoreLocations[0];
+  });
+  const [availableStores, setAvailableStores] = useState<StoreLocation[]>(fallbackStoreLocations);
+  const [showStorePopup, setShowStorePopup] = useState(() => {
+    return window.location.pathname === "/" && !localStorage.getItem(STORE_STORAGE_KEY);
+  });
+  const [manualLocationRequired, setManualLocationRequired] = useState(false);
 
   // ── Fetch real products & categories from API ─────────────────────────
   const [products, setProducts] = useState<any[]>([]);
@@ -128,6 +167,70 @@ export default function App() {
         }
       } catch { /* silent — fallback to empty */ }
     })();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadBranches = async () => {
+      try {
+        const res = await fetch(`${env.API_URL}/branches/active`);
+        if (!res.ok) throw new Error("Cannot load branches");
+
+        const apiBranches = await res.json();
+        const stores = Array.isArray(apiBranches) ? apiBranches.map(apiBranchToStore) : [];
+        if (cancelled || stores.length === 0) return;
+
+        setAvailableStores(stores);
+        const savedId = localStorage.getItem(STORE_STORAGE_KEY);
+        const savedStore = savedId ? stores.find((store) => store.id === savedId) : null;
+        setSelectedStore(savedStore ?? stores[0]);
+      } catch {
+        if (!cancelled) setAvailableStores(fallbackStoreLocations);
+      }
+    };
+
+    loadBranches();
+
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          setManualLocationRequired(false);
+          try {
+            const { latitude, longitude } = position.coords;
+            const res = await fetch(`${env.API_URL}/branches/nearest?lat=${latitude}&lng=${longitude}`);
+            if (!res.ok) return;
+
+            const nearest = apiBranchToStore(await res.json());
+            if (cancelled) return;
+
+            setAvailableStores((stores) => {
+              const exists = stores.some((store) => store.id === nearest.id);
+              return exists ? stores.map((store) => (store.id === nearest.id ? nearest : store)) : [nearest, ...stores];
+            });
+
+            if (!localStorage.getItem(STORE_STORAGE_KEY)) {
+              setSelectedStore(nearest);
+            }
+          } catch {
+            // Keep the regular active branch list if location lookup fails.
+          }
+        },
+        () => {
+          setManualLocationRequired(true);
+          if (!localStorage.getItem(STORE_STORAGE_KEY) && window.location.pathname === "/") {
+            setShowStorePopup(true);
+          }
+        },
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 },
+      );
+    } else {
+      setManualLocationRequired(true);
+    }
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // ── Persist cart & wishlist ──────────────────────────────────────────────
@@ -218,6 +321,11 @@ export default function App() {
   };
   const handleSelectProduct = (product: any) => setView(VIEW_KEYS.DETAIL, product);
   const handlePlaceOrder = () => { setCart([]); setView(VIEW_KEYS.SUCCESS); };
+  const handleSelectStore = (store: StoreLocation) => {
+    setSelectedStore(store);
+    localStorage.setItem(STORE_STORAGE_KEY, store.id);
+    toast.success(`Đã chọn ${store.name}`);
+  };
  
   // ── Checkout totals ──────────────────────────────────────────────────────
   const subtotal = cart.reduce((s, i) => s + (i.price || parsePrice(i.product[1])) * i.quantity, 0);
@@ -269,6 +377,8 @@ export default function App() {
           isLoggedIn={!!user}
           user={user}
           products={products}
+          selectedStore={selectedStore}
+          onChooseStore={() => setShowStorePopup(true)}
         />
         <main className="min-h-[calc(100vh-400px)]">
           <div className="animate-page-change" key={view}>
@@ -283,6 +393,15 @@ export default function App() {
           </div>
         </main>
         <Footer />
+        {showStorePopup && view === VIEW_KEYS.HOME && (
+          <StoreSelectionModal
+            stores={availableStores}
+            selectedStore={selectedStore}
+            manualLocationRequired={manualLocationRequired}
+            onSelect={handleSelectStore}
+            onClose={() => setShowStorePopup(false)}
+          />
+        )}
       </div>
     </>
   );
