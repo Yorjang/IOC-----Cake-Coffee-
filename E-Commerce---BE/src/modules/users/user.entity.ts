@@ -41,6 +41,9 @@ export class User {
     @Column({ name: 'email_verified_at', type: 'timestamptz', nullable: true })
     emailVerifiedAt: Date;
 
+    @Column({ type: 'text', nullable: true })
+    address: string;
+
     @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
     createdAt: Date;
 

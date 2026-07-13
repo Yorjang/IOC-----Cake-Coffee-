@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { BranchVariantStock } from './entities/branch-variant-stock.entity';
+import { BranchVariantStock } from './branch-variant-stock.entity';
 import { InventoryService } from './inventory.service';
 import { InventoryController } from './inventory.controller';
 import { UsersModule } from '../users/users.module';

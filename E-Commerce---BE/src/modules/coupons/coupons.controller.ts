@@ -4,6 +4,7 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/constants/permissions';
 import { CouponsService } from './coupons.service';
+import { CreateCouponDto } from './dto/create-coupon.dto';
 
 @Controller('coupons')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -18,8 +19,8 @@ export class CouponsController {
 
   @Post()
   @Permissions(Permission.MANAGE_BRANCHES) // Managers and admins only
-  create(@Body() body: any) {
-    return this.couponsService.create(body);
+  create(@Body() dto: CreateCouponDto) {
+    return this.couponsService.create(dto);
   }
 
   @Delete(':id')

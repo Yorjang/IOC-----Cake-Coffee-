@@ -10,6 +10,7 @@ import { CouponsModule } from './modules/coupons/coupons.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { BannersModule } from './modules/banners/banners.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
     ReviewsModule,
     BannersModule,
     InventoryModule,
+    PaymentsModule,
   ],
   controllers: [],
   providers: [],

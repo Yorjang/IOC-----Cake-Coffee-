@@ -1,50 +1,49 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Banner } from './entities/banner.entity';
+import { Banner } from './banner.entity';
+import { CreateBannerDto } from './dto/create-banner.dto';
 
 @Injectable()
 export class BannersService {
   constructor(
     @InjectRepository(Banner)
-    private readonly bannersRepository: Repository<Banner>,
+    private readonly banners: Repository<Banner>,
   ) {}
 
   async findAll(): Promise<Banner[]> {
-    return this.bannersRepository.find({ order: { sortOrder: 'ASC', createdAt: 'DESC' } });
+    return this.banners.find({ order: { sortOrder: 'ASC', createdAt: 'DESC' } });
   }
 
-  async create(payload: any): Promise<Banner> {
-    if (!payload.imageUrl) {
-      throw new BadRequestException('Vui lòng chọn hình ảnh banner.');
-    }
-    const banner = this.bannersRepository.create({
-      title: payload.title || 'Banner mới',
-      imageUrl: payload.imageUrl,
-      linkUrl: payload.linkUrl || '',
-      sortOrder: Number(payload.sortOrder || 0),
-      isActive: payload.isActive ?? true,
-      startsAt: payload.startsAt ? new Date(payload.startsAt) : null,
-      expiresAt: payload.expiresAt ? new Date(payload.expiresAt) : null,
+  async create(dto: CreateBannerDto): Promise<Banner> {
+    const { title, imageUrl, linkUrl, sortOrder, isActive, startsAt, expiresAt } = dto;
+    const banner = this.banners.create({
+      title: title || 'Banner mới',
+      imageUrl,
+      linkUrl: linkUrl || '',
+      sortOrder: Number(sortOrder || 0),
+      isActive: isActive ?? true,
+      startsAt: startsAt ? new Date(startsAt) : null,
+      expiresAt: expiresAt ? new Date(expiresAt) : null,
     });
-    return this.bannersRepository.save(banner);
+    return this.banners.save(banner);
   }
 
   async updateActiveStatus(id: string, isActive: boolean): Promise<Banner> {
-    const banner = await this.bannersRepository.findOne({ where: { id } });
+    const banner = await this.banners.findOne({ where: { id } });
     if (!banner) {
       throw new BadRequestException('Banner không tồn tại.');
     }
     banner.isActive = isActive;
-    return this.bannersRepository.save(banner);
+    return this.banners.save(banner);
   }
 
   async delete(id: string): Promise<{ message: string }> {
-    const banner = await this.bannersRepository.findOne({ where: { id } });
+    const banner = await this.banners.findOne({ where: { id } });
     if (!banner) {
       throw new BadRequestException('Banner không tồn tại.');
     }
-    await this.bannersRepository.delete(id);
+    await this.banners.delete(id);
     return { message: 'Xóa banner thành công.' };
   }
 }

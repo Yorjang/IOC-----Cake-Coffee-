@@ -1,8 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User, UserRole } from './entities/user.entity';
-import { Branch } from '../branches/entities/branch.entity';
+import { User, UserRole } from './user.entity';
+import { Branch } from '../branches/branch.entity';
 import { RegisterDto } from '../auth/dto/register.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -14,9 +14,9 @@ import * as bcrypt from 'bcrypt';
 export class UsersService {
     constructor(
         @InjectRepository(User)
-        private usersRepository: Repository<User>,
+        private users: Repository<User>,
         @InjectRepository(Branch)
-        private branchesRepository: Repository<Branch>,
+        private branches: Repository<Branch>,
     ) {}
 
     async create(registerDto: RegisterDto): Promise<User> {
@@ -26,20 +26,20 @@ export class UsersService {
 
         // Check if user exists
         if (registerDto.email) {
-            const existingEmail = await this.usersRepository.findOne({ where: { email: registerDto.email } });
+            const existingEmail = await this.users.findOne({ where: { email: registerDto.email } });
             if (existingEmail) {
                 throw new BadRequestException('Email already exists');
             }
         }
 
         if (registerDto.phone) {
-            const existingPhone = await this.usersRepository.findOne({ where: { phone: registerDto.phone } });
+            const existingPhone = await this.users.findOne({ where: { phone: registerDto.phone } });
             if (existingPhone) {
                 throw new BadRequestException('Phone number already exists');
             }
         }
 
-        const user = this.usersRepository.create({
+        const user = this.users.create({
             fullName: registerDto.fullName,
             email: registerDto.email,
             phone: registerDto.phone,
@@ -48,38 +48,39 @@ export class UsersService {
             role: UserRole.CUSTOMER,
         });
 
-        return this.usersRepository.save(user);
+        return this.users.save(user);
     }
 
     async findByEmail(email: string): Promise<User | null> {
-        return this.usersRepository.findOne({ where: { email } });
+        return this.users.findOne({ where: { email } });
     }
 
     async findByPhone(phone: string): Promise<User | null> {
-        return this.usersRepository.findOne({ where: { phone } });
+        return this.users.findOne({ where: { phone } });
     }
 
     async findById(id: string): Promise<User | null> {
-        return this.usersRepository.findOne({ where: { id } });
+        return this.users.findOne({ where: { id } });
     }
 
     async update(id: string, attrs: Partial<User>): Promise<User> {
-        const user = await this.usersRepository.findOne({ where: { id } });
+        const user = await this.users.findOne({ where: { id } });
         if (!user) {
             throw new BadRequestException('User not found');
         }
         Object.assign(user, attrs);
-        return this.usersRepository.save(user);
+        return this.users.save(user);
     }
 
     async findAll(): Promise<User[]> {
-        return this.usersRepository.find({
+        return this.users.find({
             select: {
                 id: true,
                 fullName: true,
                 email: true,
                 phone: true,
                 avatarUrl: true,
+                address: true,
                 role: true,
                 branchId: true,
                 isActive: true,
@@ -96,7 +97,7 @@ export class UsersService {
             throw new BadRequestException('User not found');
         }
         user.role = role;
-        const savedUser = await this.usersRepository.save(user);
+        const savedUser = await this.users.save(user);
         
         // Remove password hash from returned object
         const { passwordHash: _, ...result } = savedUser;
@@ -113,7 +114,7 @@ export class UsersService {
             throw new BadRequestException('Branch is required for staff, cashier and store manager accounts');
         }
 
-        const branch = await this.branchesRepository.findOne({ where: { id: branchId } });
+        const branch = await this.branches.findOne({ where: { id: branchId } });
         if (!branch || !branch.isActive) {
             throw new BadRequestException('Branch not found or inactive');
         }
@@ -130,14 +131,14 @@ export class UsersService {
         }
 
         if (nextEmail) {
-            const existingEmail = await this.usersRepository.findOne({ where: { email: nextEmail } });
+            const existingEmail = await this.users.findOne({ where: { email: nextEmail } });
             if (existingEmail) {
                 throw new BadRequestException('Email already exists');
             }
         }
 
         if (nextPhone) {
-            const existingPhone = await this.usersRepository.findOne({ where: { phone: nextPhone } });
+            const existingPhone = await this.users.findOne({ where: { phone: nextPhone } });
             if (existingPhone) {
                 throw new BadRequestException('Phone number already exists');
             }
@@ -147,7 +148,7 @@ export class UsersService {
 
         const branchFreeRoles = [UserRole.CUSTOMER, UserRole.GUEST, UserRole.ADMIN];
         const passwordHash = await bcrypt.hash(createUserDto.password, 10);
-        const user = this.usersRepository.create({
+        const user = this.users.create({
             fullName: createUserDto.fullName,
             email: nextEmail,
             phone: nextPhone,
@@ -158,7 +159,7 @@ export class UsersService {
             emailVerifiedAt: nextEmail ? new Date() : null,
         });
 
-        const savedUser = await this.usersRepository.save(user);
+        const savedUser = await this.users.save(user);
         const { passwordHash: _, ...result } = savedUser;
         return result as any;
     }
@@ -175,14 +176,14 @@ export class UsersService {
         const nextBranchId = updateUserDto.branchId === '' ? null : updateUserDto.branchId;
 
         if (nextEmail && nextEmail !== user.email) {
-            const existingEmail = await this.usersRepository.findOne({ where: { email: nextEmail } });
+            const existingEmail = await this.users.findOne({ where: { email: nextEmail } });
             if (existingEmail && existingEmail.id !== id) {
                 throw new BadRequestException('Email already exists');
             }
         }
 
         if (nextPhone && nextPhone !== user.phone) {
-            const existingPhone = await this.usersRepository.findOne({ where: { phone: nextPhone } });
+            const existingPhone = await this.users.findOne({ where: { phone: nextPhone } });
             if (existingPhone && existingPhone.id !== id) {
                 throw new BadRequestException('Phone number already exists');
             }
@@ -216,7 +217,7 @@ export class UsersService {
             user.branchId = null;
         }
 
-        const savedUser = await this.usersRepository.save(user);
+        const savedUser = await this.users.save(user);
         const { passwordHash: _, ...result } = savedUser;
         return result as any;
     }
@@ -227,7 +228,7 @@ export class UsersService {
             throw new BadRequestException('User not found');
         }
 
-        await this.usersRepository.delete(id);
+        await this.users.delete(id);
         return { message: 'User deleted successfully' };
     }
 
@@ -238,7 +239,7 @@ export class UsersService {
         }
 
         if (updateProfileDto.phone && updateProfileDto.phone !== user.phone) {
-            const existingPhone = await this.usersRepository.findOne({
+            const existingPhone = await this.users.findOne({
                 where: { phone: updateProfileDto.phone },
             });
             if (existingPhone && existingPhone.id !== id) {
@@ -255,8 +256,11 @@ export class UsersService {
         if (updateProfileDto.avatar !== undefined) {
             user.avatarUrl = updateProfileDto.avatar;
         }
+        if (updateProfileDto.address !== undefined) {
+            user.address = updateProfileDto.address;
+        }
 
-        const savedUser = await this.usersRepository.save(user);
+        const savedUser = await this.users.save(user);
         
         // Remove password hash from returned object
         const { passwordHash: _, ...result } = savedUser;
@@ -264,7 +268,7 @@ export class UsersService {
     }
 
     async changePassword(id: string, changePasswordDto: ChangePasswordDto): Promise<{ message: string }> {
-        const user = await this.usersRepository.findOne({ where: { id } });
+        const user = await this.users.findOne({ where: { id } });
         if (!user) {
             throw new BadRequestException('User not found');
         }
@@ -276,7 +280,7 @@ export class UsersService {
 
         const saltOrRounds = 10;
         user.passwordHash = await bcrypt.hash(changePasswordDto.newPassword, saltOrRounds);
-        await this.usersRepository.save(user);
+        await this.users.save(user);
 
         return { message: 'Đổi mật khẩu thành công' };
     }

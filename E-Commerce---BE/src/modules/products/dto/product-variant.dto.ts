@@ -1,5 +1,5 @@
 import { IsString, IsNotEmpty, IsOptional, IsNumber, Min, IsEnum, IsUUID } from 'class-validator';
-import { VariantStatus } from '../entities/product-variant.entity';
+import { VariantStatus } from '../product-variant.entity';
 
 export class CreateProductVariantDto {
     @IsString()
