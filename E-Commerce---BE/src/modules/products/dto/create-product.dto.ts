@@ -1,6 +1,6 @@
 import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsUUID, IsEnum, ValidateNested, IsArray } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ProductType } from '../entities/product.entity';
+import { ProductType } from '../product.entity';
 import { CreateProductVariantDto } from './product-variant.dto';
 
 export class CreateProductDto {

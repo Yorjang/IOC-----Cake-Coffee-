@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
-import { Branch } from '../../branches/entities/branch.entity';
+import { User } from '../users/user.entity';
+import { Branch } from '../branches/branch.entity';
 import { OrderItem } from './order-item.entity';
 
 export enum OrderStatus {

@@ -34,6 +34,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
   const [fullName, setFullName] = useState(displayUser.fullName || displayUser.name || "");
   const [phone, setPhone] = useState(displayUser.phone || "");
   const [avatar, setAvatar] = useState(displayUser.avatarUrl || displayUser.avatar || "");
+  const [address, setAddress] = useState(displayUser.address || "");
   const [isCustomAvatarUrl, setIsCustomAvatarUrl] = useState(false);
   const [customUrlInput, setCustomUrlInput] = useState("");
   const [loadingInfo, setLoadingInfo] = useState(false);
@@ -46,12 +47,41 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+
+  const fetchMyOrders = async () => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+    setLoadingOrders(true);
+    try {
+      const res = await fetch(`${env.API_URL}/orders/my`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setOrders(data);
+      }
+    } catch (err) {
+      console.error("Error fetching my orders:", err);
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "orders") {
+      fetchMyOrders();
+    }
+  }, [activeTab]);
+
   // Sync state if user prop updates
   useEffect(() => {
     if (user) {
       setFullName(user.fullName || user.name || "");
       setPhone(user.phone || "");
       setAvatar(user.avatarUrl || user.avatar || "");
+      setAddress(user.address || "");
     }
   }, [user]);
 
@@ -95,6 +125,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
           fullName,
           phone: phone || undefined,
           avatar: avatar || undefined,
+          address: address || undefined,
         }),
       });
 
@@ -310,7 +341,18 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
                     type="email"
                     disabled
                     value={displayUser.email}
-                    className="w-full rounded-xl border bg-secondary/50 py-3 px-4 text-sm outline-none text-muted-foreground cursor-not-allowed"
+                    className="w-full rounded-xl border bg-secondary/50 py-3 px-4 text-sm outline-none text-muted-foreground cursor-not-allowed mb-4"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Địa chỉ nhận hàng mặc định</label>
+                  <input
+                    type="text"
+                    placeholder="Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành phố"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="w-full rounded-xl border bg-input-background py-3 px-4 text-sm outline-none focus:border-primary text-foreground"
                   />
                 </div>
 
@@ -477,34 +519,66 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
             {activeTab === "orders" && (
               <div className="space-y-6">
                 <h3 className="text-xl font-bold font-serif border-b pb-3 mb-4">Lịch sử đơn hàng</h3>
-                {MOCK_ORDERS.length > 0 ? (
+                {loadingOrders ? (
+                  <div className="text-center py-10 text-muted-foreground">
+                    Đang tải lịch sử đơn hàng...
+                  </div>
+                ) : orders.length > 0 ? (
                   <div className="space-y-4">
-                    {MOCK_ORDERS.map((o) => (
-                      <div
-                        key={o.id}
-                        className="border bg-secondary/20 p-4 rounded-xl text-sm flex flex-col sm:flex-row justify-between sm:items-center gap-4 transition hover:bg-secondary/40"
-                      >
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-primary">{o.id}</span>
-                            <span className="text-muted-foreground text-xs">• {o.date}</span>
+                    {orders.map((o) => {
+                      const itemsStr = o.items
+                        ?.map((i: any) => `${i.quantity}x ${i.productName} (${i.variantName})`)
+                        .join(", ") || "Không có sản phẩm";
+
+                      const dateStr = new Date(o.createdAt).toLocaleDateString("vi-VN");
+                      const priceStr = Number(o.totalAmount).toLocaleString("vi-VN") + "đ";
+
+                      const statusColors: Record<string, string> = {
+                        pending: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+                        confirmed: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                        preparing: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+                        shipping: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                        completed: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                        cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                      };
+
+                      const getStatusLabel = (status: string) => {
+                        const map: Record<string, string> = {
+                          pending: "Chờ xác nhận",
+                          confirmed: "Đã xác nhận",
+                          preparing: "Đang chuẩn bị",
+                          shipping: "Đang giao hàng",
+                          completed: "Đã hoàn thành",
+                          cancelled: "Đã hủy"
+                        };
+                        return map[status] || status;
+                      };
+
+                      return (
+                        <div
+                          key={o.id}
+                          className="border bg-secondary/20 p-4 rounded-xl text-sm flex flex-col sm:flex-row justify-between sm:items-center gap-4 transition hover:bg-secondary/40"
+                        >
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-primary">{o.orderCode}</span>
+                              <span className="text-muted-foreground text-xs">• {dateStr}</span>
+                            </div>
+                            <p className="text-foreground/90 font-medium">{itemsStr}</p>
                           </div>
-                          <p className="text-foreground/90 font-medium">{o.items}</p>
+                          <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-1">
+                            <p className="font-bold text-foreground">{priceStr}</p>
+                            <span
+                              className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                                statusColors[o.orderStatus] || "bg-gray-100 text-gray-700"
+                              }`}
+                            >
+                              {getStatusLabel(o.orderStatus)}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-1">
-                          <p className="font-bold text-foreground">{o.total}</p>
-                          <span
-                            className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                              o.status === "Đang giao"
-                                ? "bg-blue-100/80 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                                : "bg-green-100/80 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                            }`}
-                          >
-                            {o.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-10">

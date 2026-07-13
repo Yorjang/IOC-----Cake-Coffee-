@@ -4,6 +4,7 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/constants/permissions';
 import { BannersService } from './banners.service';
+import { CreateBannerDto } from './dto/create-banner.dto';
 
 @Controller('banners')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -18,8 +19,8 @@ export class BannersController {
 
   @Post()
   @Permissions(Permission.MANAGE_BRANCHES) // Managers and admins only
-  create(@Body() body: any) {
-    return this.bannersService.create(body);
+  create(@Body() dto: CreateBannerDto) {
+    return this.bannersService.create(dto);
   }
 
   @Patch(':id/active')

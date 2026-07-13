@@ -1,5 +1,5 @@
 import { IsBoolean, IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID, Matches } from 'class-validator';
-import { UserRole } from '../entities/user.entity';
+import { UserRole } from '../user.entity';
 
 export class UpdateUserDto {
   @IsString()

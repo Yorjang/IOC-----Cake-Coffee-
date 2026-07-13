@@ -8,7 +8,7 @@ import { MailService } from '../mail/mail.service';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
-import { User } from '../users/entities/user.entity';
+import { User } from '../users/user.entity';
 
 @Injectable()
 export class AuthService {

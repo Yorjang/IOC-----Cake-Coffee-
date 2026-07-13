@@ -27,13 +27,15 @@ import { VIEW_KEYS } from "../config/appConfig";
 // Array format: [name, price, categoryName, imageUrl, rating, badge]
 const apiProductToArray = (p: any): any[] => {
   const price = p.variants?.[0]?.price
-    ? `${Number(p.variants[0].price).toLocaleString("vi-VN")}Ä‘`
-    : "0Ä‘";
+    ? `${Number(p.variants[0].price).toLocaleString("vi-VN")}đ`
+    : "0đ";
   const categoryName = p.category?.name ?? "KhÃ¡c";
   const imageUrl = p.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=600&h=520&fit=crop&auto=format";
   const rating = "4.8";
-  const badge = p.productType === "combo" ? "Combo" : (p.variants?.length > 1 ? "S/M/L" : "CÃ²n hÃ ng");
-  return [p.name, price, categoryName, imageUrl, rating, badge];
+const badge = p.productType === "combo" ? "Combo" : (p.variants?.length > 1 ? "S/M/L" : "Còn hàng");
+  const arr = [p.name, price, categoryName, imageUrl, rating, badge];
+  (arr as any).raw = p;
+  return arr;
 };
 
 // â”€â”€ Transform API category to legacy format â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -93,8 +95,8 @@ const parsePrice = (s: string) => parseInt(s.replace(/[^0-9]/g, ""), 10);
 // â”€â”€ Listable categories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const LISTABLE = [
   VIEW_KEYS.SWEETS, VIEW_KEYS.DRINKS, VIEW_KEYS.COMBO,
-  "BÃ¡nh sinh nháº­t", "BÃ¡nh mousse", "BÃ¡nh tart", "BÃ¡nh quy",
-  "Cafe", "TrÃ ", "Äá»“ uá»‘ng khÃ¡c", "TÃ¬m kiáº¿m",
+  "Bánh sinh nhật", "Bánh mousse", "Bánh tart", "Bánh quy",
+  "Cafe", "Trà ", "Äá»“ uá»‘ng khÃ¡c", "Tìm kiếm",
 ];
 
 // â”€â”€ App â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -133,9 +135,13 @@ export default function App() {
   const [view, setViewInternal] = useState<any>(() => getViewFromPath(window.location.pathname));
   const [selectedProduct, setSelectedProduct] = useState<any>(() => getProductFromPath(window.location.pathname));
   const [searchQuery, setSearchQuery] = useState("");
-  const [cart, setCart] = useState<any[]>(() => JSON.parse(localStorage.getItem("sb_cart") || "[]"));
+  const [cart, setCart] = useState<any[]>(() => {
+    const u = JSON.parse(localStorage.getItem("user") || "null");
+    return JSON.parse(localStorage.getItem(`sb_cart_${u?.id || 'guest'}`) || "[]");
+  });
   const [wishlist, setWishlist] = useState<any[]>(() => JSON.parse(localStorage.getItem("sb_wishlist") || "[]"));
   const [user, setUser] = useState<any>(() => JSON.parse(localStorage.getItem("user") || "null"));
+<<<<<<< HEAD
   const [selectedStore, setSelectedStore] = useState<StoreLocation>(() => {
     const saved = localStorage.getItem(STORE_STORAGE_KEY);
     const savedStore = saved ? fallbackStoreLocations.find((store) => store.id === saved) : null;
@@ -146,6 +152,10 @@ export default function App() {
     return window.location.pathname === "/" && !localStorage.getItem(STORE_STORAGE_KEY);
   });
   const [manualLocationRequired, setManualLocationRequired] = useState(false);
+=======
+  const [orderCode, setOrderCode] = useState("");
+  const [lastCreatedOrder, setLastCreatedOrder] = useState<any>(null);
+>>>>>>> b6495b9 (feat: complete checkout validations, sepay webhook integration, and cart partitioning)
 
   // â”€â”€ Fetch real products & categories from API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [products, setProducts] = useState<any[]>([]);
@@ -170,6 +180,7 @@ export default function App() {
     })();
   }, []);
 
+<<<<<<< HEAD
   useEffect(() => {
     let cancelled = false;
     let loadedNearbyBranches = false;
@@ -241,6 +252,12 @@ export default function App() {
 
   // â”€â”€ Persist cart & wishlist â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => { localStorage.setItem("sb_cart", JSON.stringify(cart)); }, [cart]);
+=======
+  // ── Persist cart & wishlist ──────────────────────────────────────────────
+  useEffect(() => { 
+    localStorage.setItem(`sb_cart_${user?.id || 'guest'}`, JSON.stringify(cart)); 
+  }, [cart, user?.id]);
+>>>>>>> b6495b9 (feat: complete checkout validations, sepay webhook integration, and cart partitioning)
   useEffect(() => { localStorage.setItem("sb_wishlist", JSON.stringify(wishlist)); }, [wishlist]);
 
   // â”€â”€ History API (back/forward) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -262,11 +279,11 @@ export default function App() {
       try {
         const res = await fetch(`${env.API_URL}/auth/verify-email?token=${token}`);
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "XÃ¡c thá»±c email tháº¥t báº¡i");
-        toast.success("XÃ¡c thá»±c email thÃ nh cÃ´ng! Báº¡n cÃ³ thá»ƒ Ä‘Äƒng nháº­p ngay.");
+        if (!res.ok) throw new Error(data.message || "Xác thực email tháº¥t báº¡i");
+        toast.success("Xác thực email thÃ nh cÃ´ng! Báº¡n cÃ³ thá»ƒ đÄƒng nháº­p ngay.");
         setView(VIEW_KEYS.LOGIN);
       } catch (err: any) {
-        toast.error(err.message || "KhÃ´ng thá»ƒ xÃ¡c thá»±c email.");
+        toast.error(err.message || "Không thể xÃ¡c thá»±c email.");
       } finally {
         window.history.replaceState({}, document.title, window.location.origin);
       }
@@ -287,27 +304,51 @@ export default function App() {
   const handleLoginSuccess = () => {
     const currentUser = JSON.parse(localStorage.getItem("user") || "null");
     setUser(currentUser);
+    
+    const userCart = JSON.parse(localStorage.getItem(`sb_cart_${currentUser?.id || 'guest'}`) || "[]");
+    setCart(userCart);
+
     setView(isAdminUser(currentUser) ? VIEW_KEYS.ADMIN : VIEW_KEYS.HOME);
   };
   const handleAdminLoginSuccess = (adminUser: any) => {
     setUser(adminUser);
+
+    const userCart = JSON.parse(localStorage.getItem(`sb_cart_${adminUser?.id || 'guest'}`) || "[]");
+    setCart(userCart);
+
     setView(VIEW_KEYS.ADMIN);
   };
   const handleLogout = () => {
     ["accessToken", "refreshToken", "user"].forEach(k => localStorage.removeItem(k));
     setUser(null);
-    toast.success("ÄÃ£ Ä‘Äƒng xuáº¥t thÃ nh cÃ´ng!");
+<<<<<<< HEAD
+    toast.success("ÄÃ£ đÄƒng xuáº¥t thÃ nh cÃ´ng!");
+=======
+
+    const guestCart = JSON.parse(localStorage.getItem(`sb_cart_guest`) || "[]");
+    setCart(guestCart);
+
+    toast.success("Đã đăng xuất thành công!");
+>>>>>>> b6495b9 (feat: complete checkout validations, sepay webhook integration, and cart partitioning)
     setView(VIEW_KEYS.LOGIN);
   };
   const handleAdminLogout = () => {
     ["accessToken", "refreshToken", "user"].forEach(k => localStorage.removeItem(k));
     setUser(null);
-    toast.success("ÄÃ£ Ä‘Äƒng xuáº¥t khá»i trang quáº£n trá»‹.");
+<<<<<<< HEAD
+    toast.success("ÄÃ£ đÄƒng xuáº¥t khá»i trang quản trị.");
+=======
+
+    const guestCart = JSON.parse(localStorage.getItem(`sb_cart_guest`) || "[]");
+    setCart(guestCart);
+
+    toast.success("Đã đăng xuất khỏi trang quản trị.");
+>>>>>>> b6495b9 (feat: complete checkout validations, sepay webhook integration, and cart partitioning)
     setView(VIEW_KEYS.ADMIN_LOGIN);
   };
 
   // â”€â”€ Cart / Wishlist handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const handleAddToCart = (product: any, size = "Vá»«a", qty = 1, options?: any, price?: number) => {
+  const handleAddToCart = (product: any, size = "Vừa", qty = 1, options?: any, price?: number) => {
     setCart(prev => {
       const idx = prev.findIndex(i => 
         i.product[0] === product[0] && 
@@ -321,16 +362,100 @@ export default function App() {
   const handleToggleWishlist = (product: any) => {
     setWishlist(prev => {
       const exists = prev.some(i => i[0] === product[0]);
-      toast[exists ? "info" : "success"](exists ? "ÄÃ£ xÃ³a khá»i yÃªu thÃ­ch" : "ÄÃ£ thÃªm vÃ o yÃªu thÃ­ch!");
+      toast[exists ? "info" : "success"](exists ? "ÄÃ£ xÃ³a khá»i yêu thích" : "ÄÃ£ thÃªm vÃ o yêu thích!");
       return exists ? prev.filter(i => i[0] !== product[0]) : [...prev, product];
     });
   };
   const handleSelectProduct = (product: any) => setView(VIEW_KEYS.DETAIL, product);
+<<<<<<< HEAD
   const handlePlaceOrder = () => { setCart([]); setView(VIEW_KEYS.SUCCESS); };
   const handleSelectStore = (store: StoreLocation) => {
     setSelectedStore(store);
     localStorage.setItem(STORE_STORAGE_KEY, store.id);
     toast.success(`Đã chọn ${store.name}`);
+=======
+  const handlePlaceOrder = async (checkoutData: any) => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      toast.error("Vui lòng đăng nhập để tiến hành đặt hàng!");
+      setView(VIEW_KEYS.LOGIN);
+      return;
+    }
+
+    // Map cart items to backend format
+    const items = cart.map(item => {
+      let rawProd = item.product.raw;
+      if (!rawProd) {
+        // Fallback for older cart items in localStorage
+        const fullProd = products.find(p => p[0] === item.product[0]);
+        rawProd = fullProd?.raw || (fullProd as any);
+      }
+      if (!rawProd || !rawProd.variants) {
+        throw new Error(`Không tìm thấy thông tin sản phẩm: ${item.product[0]}`);
+      }
+
+      // Match size to variant
+      let variant = rawProd.variants?.find((v: any) => v.size === item.size);
+      if (!variant) {
+        // Fallback translation sizes
+        const sizeMap: Record<string, string> = {
+          "Nhỏ": "Nhỏ", "Vừa": "Vừa", "Lớn": "Lớn",
+          "S": "Nhỏ", "M": "Vừa", "L": "Lớn"
+        };
+        const mappedSize = sizeMap[item.size] || item.size;
+        variant = rawProd.variants?.find((v: any) => v.size === mappedSize) || rawProd.variants?.[0];
+      }
+
+      if (!variant) {
+        throw new Error(`Sản phẩm ${rawProd.name} không có phiên bản kích thước tương thích.`);
+      }
+
+      return {
+        productId: rawProd.id,
+        variantId: variant.id,
+        productName: rawProd.name,
+        variantName: variant.variantName,
+        quantity: item.quantity,
+        unitPrice: Number(variant.price),
+        totalPrice: Number(variant.price) * item.quantity
+      };
+    });
+
+    const payload = {
+      ...checkoutData,
+      subtotal,
+      discountAmount: 0,
+      shippingFee: shipping,
+      totalAmount: grandTotal,
+      items
+    };
+
+    try {
+      const res = await fetch(`${env.API_URL}/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const resData = await res.json();
+      if (!res.ok) {
+        throw new Error(resData.message || "Đặt hàng thất bại");
+      }
+
+      setOrderCode(resData.orderCode);
+      setLastCreatedOrder(resData);
+      setCart([]);
+      toast.success("Đặt hàng thành công!");
+      setView(VIEW_KEYS.SUCCESS);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Lỗi khi gửi đơn hàng lên máy chủ.");
+      throw err;
+    }
+>>>>>>> b6495b9 (feat: complete checkout validations, sepay webhook integration, and cart partitioning)
   };
  
   // â”€â”€ Checkout totals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -353,7 +478,7 @@ export default function App() {
     }
     if (!isAdminUser(user)) {
       // Logged in but not admin â†’ back to home
-      toast.error("Báº¡n khÃ´ng cÃ³ quyá»n truy cáº­p trang quáº£n trá»‹.");
+      toast.error("Báº¡n khÃ´ng cÃ³ quyá»n truy cáº­p trang quản trị.");
       setTimeout(() => setView(VIEW_KEYS.HOME), 0);
       return <><Toaster richColors position="top-center" /></>;
     }
@@ -379,7 +504,7 @@ export default function App() {
           cartCount={cart.reduce((s, i) => s + i.quantity, 0)}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onSearchSubmit={() => setView("TÃ¬m kiáº¿m")}
+          onSearchSubmit={() => setView("Tìm kiếm")}
           isLoggedIn={!!user}
           user={user}
           products={products}
@@ -390,8 +515,8 @@ export default function App() {
           <div className="animate-page-change" key={view}>
             {view === VIEW_KEYS.HOME && <Home setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} products={products} categories={categories} />}
             {view === VIEW_KEYS.CART && <Cart cart={cart} setCart={setCart} setView={setView} />}
-            {view === VIEW_KEYS.CHECKOUT && <Checkout cart={cart} setView={setView} onPlaceOrder={handlePlaceOrder} subtotal={subtotal} discount={0} shipping={shipping} grandTotal={grandTotal} />}
-            {view === VIEW_KEYS.SUCCESS && <Success setView={setView} />}
+            {view === VIEW_KEYS.CHECKOUT && <Checkout cart={cart} setView={setView} onPlaceOrder={handlePlaceOrder} subtotal={subtotal} discount={0} shipping={shipping} grandTotal={grandTotal} user={user} />}
+            {view === VIEW_KEYS.SUCCESS && <Success setView={setView} order={lastCreatedOrder} />}
             {view === VIEW_KEYS.DETAIL && <ProductDetail product={selectedProduct} setView={setView} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onSelectProduct={handleSelectProduct} products={products} />}
             {view === VIEW_KEYS.FAVORITES && <Favorites wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onAddToCart={handleAddToCart} onSelectProduct={handleSelectProduct} setView={setView} />}
             {view === VIEW_KEYS.PROFILE && <Profile user={user} setUser={setUser} setView={setView} onLogout={handleLogout} />}

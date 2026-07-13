@@ -1,5 +1,5 @@
 import { IsBoolean, IsEmail, IsEnum, IsNotEmpty, IsNumberString, IsOptional, IsString, Matches } from 'class-validator';
-import { BranchStatus } from '../entities/branch.entity';
+import { BranchStatus } from '../branch.entity';
 
 export class UpdateBranchDto {
   @IsString()

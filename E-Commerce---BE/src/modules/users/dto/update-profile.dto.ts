@@ -14,4 +14,8 @@ export class UpdateProfileDto {
     @IsOptional()
     @Matches(/^(0|84|\+84)[35789][0-9]{8}$/, { message: 'Số điện thoại không hợp lệ' })
     phone?: string;
+
+    @IsString()
+    @IsOptional()
+    address?: string;
 }

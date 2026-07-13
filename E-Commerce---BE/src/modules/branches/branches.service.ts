@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
-import { Branch, BranchStatus } from './entities/branch.entity';
+import { Branch, BranchStatus } from './branch.entity';
 
 export type BranchWithDistance = Branch & {
   distanceKm: number;
@@ -14,15 +14,15 @@ export type BranchWithDistance = Branch & {
 export class BranchesService {
   constructor(
     @InjectRepository(Branch)
-    private readonly branchesRepository: Repository<Branch>,
+    private readonly branches: Repository<Branch>,
   ) {}
 
   findAll(): Promise<Branch[]> {
-    return this.branchesRepository.find({ order: { createdAt: 'DESC' } });
+    return this.branches.find({ order: { createdAt: 'DESC' } });
   }
 
   findActive(): Promise<Branch[]> {
-    return this.branchesRepository.find({
+    return this.branches.find({
       where: { isActive: true, status: BranchStatus.ACTIVE },
       order: { name: 'ASC' },
     });
@@ -64,15 +64,15 @@ export class BranchesService {
   }
 
   async findById(id: string): Promise<Branch | null> {
-    return this.branchesRepository.findOne({ where: { id } });
+    return this.branches.findOne({ where: { id } });
   }
 
   async create(createBranchDto: CreateBranchDto): Promise<Branch> {
-    const branch = this.branchesRepository.create({
+    const branch = this.branches.create({
       ...createBranchDto,
       isActive: createBranchDto.isActive ?? true,
     });
-    return this.branchesRepository.save(branch);
+    return this.branches.save(branch);
   }
 
   async update(id: string, updateBranchDto: UpdateBranchDto): Promise<Branch> {
@@ -89,7 +89,7 @@ export class BranchesService {
       longitude: updateBranchDto.longitude === '' ? null : updateBranchDto.longitude,
     });
 
-    return this.branchesRepository.save(branch);
+    return this.branches.save(branch);
   }
 
   async delete(id: string): Promise<{ message: string }> {
@@ -98,7 +98,7 @@ export class BranchesService {
       throw new BadRequestException('Branch not found');
     }
 
-    await this.branchesRepository.delete(id);
+    await this.branches.delete(id);
     return { message: 'Branch deleted successfully' };
   }
 
