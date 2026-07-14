@@ -1,32 +1,47 @@
 import { IsNumber, IsString, IsOptional } from 'class-validator';
 
 export class SepayWebhookDto {
-  @IsNumber()
-  id: number;
-
-  @IsString()
-  gateway: string;
-
-  @IsString()
-  transactionDate: string;
-
-  @IsString()
-  accountNumber: string;
-
-  @IsString()
   @IsOptional()
+  @IsNumber()
+  id?: number;
+
+  @IsOptional()
+  @IsString()
+  gateway?: string;
+
+  @IsOptional()
+  @IsString()
+  transactionDate?: string;
+
+  @IsOptional()
+  @IsString()
+  accountNumber?: string;
+
+  @IsOptional()
+  @IsString()
   code?: string;
 
-  @IsString()
-  content: string;
-
-  @IsString()
-  transferType: string;
-
-  @IsNumber()
-  transferAmount: number;
-
-  @IsString()
   @IsOptional()
+  @IsString()
+  content?: string;
+
+  @IsOptional()
+  @IsString()
+  transferType?: string;
+
+  @IsOptional()
+  @IsNumber()
+  transferAmount?: number;
+
+  @IsOptional()
+  @IsString()
   referenceCode?: string;
+
+  @IsOptional()
+  @IsString()
+  subAccount?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
 }

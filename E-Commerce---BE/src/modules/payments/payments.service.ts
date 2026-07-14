@@ -76,9 +76,14 @@ export class PaymentsService {
   async processSepayWebhook(authHeader: string, body: SepayWebhookDto) {
     const expectedKey = process.env.SEPAY_API_KEY || 'sepay_secret_key_123';
 
-    // 1. Verify API Key
-    if (!authHeader || !authHeader.startsWith('Apikey ') || authHeader.slice(7) !== expectedKey) {
-      throw new UnauthorizedException('Chữ ký/API Key của SePay không hợp lệ.');
+    // 1. Verify API Key (Case-insensitive for 'apikey')
+    const authHeaderLower = authHeader?.toLowerCase() || '';
+    if (!authHeaderLower.startsWith('apikey ')) {
+      throw new UnauthorizedException('Chữ ký/API Key của SePay không hợp lệ (Thiếu tiền tố Apikey).');
+    }
+    const token = authHeader.substring(7).trim();
+    if (token !== expectedKey) {
+      throw new UnauthorizedException('Chữ ký/API Key của SePay không hợp lệ (Sai mật khẩu).');
     }
 
     const { id, gateway, code, content, transferAmount, transferType } = body;
@@ -96,15 +101,14 @@ export class PaymentsService {
       return { success: true, message: 'Giao dịch đã được xử lý từ trước.' };
     }
 
-    // 3. Extract order code (cakeandcoffeeSBxxxxxx)
-    // Remove spaces from the content to handle cases where banks might add extra spaces
+    // 3. Extract order code (SBxxxxxx)
     const textToMatch = `${code || ''} ${content || ''}`.replace(/\s+/g, '');
-    const match = textToMatch.match(/cakeandcoffeesb\d{6}/i);
+    const match = textToMatch.match(/sb\d{6}/i);
     if (!match) {
-      return { success: false, message: 'Không tìm thấy cú pháp cakeandcoffeeSBxxxxxx trong nội dung chuyển khoản.' };
+      return { success: false, message: 'Không tìm thấy mã đơn hàng SBxxxxxx trong nội dung chuyển khoản.' };
     }
     // Extract the SBxxxxxx part
-    const orderCode = match[0].match(/sb\d{6}/i)![0].toUpperCase();
+    const orderCode = match[0].toUpperCase();
 
     // 4. Find order
     const order = await this.orders.findOne({ where: { orderCode } });
