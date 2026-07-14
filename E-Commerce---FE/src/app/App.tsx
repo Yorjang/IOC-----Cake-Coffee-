@@ -215,7 +215,27 @@ export default function App() {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [publicCoupons, setPublicCoupons] = useState<any[]>([]);
-  const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
+  const [appliedCoupon, setAppliedCouponState] = useState<any | null>(() => {
+    try {
+      const saved = sessionStorage.getItem("appliedCoupon");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const setAppliedCoupon = (coupon: any | null) => {
+    setAppliedCouponState(coupon);
+    try {
+      if (coupon) {
+        sessionStorage.setItem("appliedCoupon", JSON.stringify(coupon));
+      } else {
+        sessionStorage.removeItem("appliedCoupon");
+      }
+    } catch {
+      // ignore storage errors
+    }
+  };
 
 
   const fetchUserCart = async (token: string) => {
