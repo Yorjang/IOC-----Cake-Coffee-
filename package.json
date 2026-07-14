@@ -1,0 +1,14 @@
+{
+  "name": "ioc-cake-coffee-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install --prefix E-Commerce---BE && npm install --prefix E-Commerce---FE",
+    "dev:be": "npm run start:dev --prefix E-Commerce---BE",
+    "dev:fe": "npm run dev --prefix E-Commerce---FE",
+    "dev": "concurrently -n \"Backend,Frontend\" -c \"blue,green\" \"npm run dev:be\" \"npm run dev:fe\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

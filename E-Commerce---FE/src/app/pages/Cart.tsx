@@ -7,9 +7,8 @@ import { toast } from "sonner";
 const parsePrice = (priceStr: string) => parseInt(priceStr.replace(/[^0-9]/g, ""), 10);
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
-export function Cart({ cart, onUpdateQty, onRemoveItem, setView }: any) {
+export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons = [], appliedCoupon, setAppliedCoupon, user }: any) {
   const [coupon, setCoupon] = useState("");
-  const [discountPercent, setDiscountPercent] = useState(0);
 
   const updateQty = (index: number, delta: number) => {
     const item = cart[index];
@@ -24,18 +23,96 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView }: any) {
   };
 
   const subtotal = cart.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
-  const discount = Math.round(subtotal * (discountPercent / 100));
+
+  let discount = 0;
+  if (appliedCoupon) {
+    if (appliedCoupon.productId) {
+      const matchingItems = cart.filter((item: any) => (item.productId || item.product?.raw?.id) === appliedCoupon.productId);
+      const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
+      if (appliedCoupon.discountType === "percent") {
+        discount = Math.round(matchingSubtotal * (Number(appliedCoupon.discountValue) / 100));
+      } else {
+        discount = Math.min(matchingSubtotal, Number(appliedCoupon.discountValue));
+      }
+    } else {
+      if (appliedCoupon.discountType === "percent") {
+        discount = Math.round(subtotal * (Number(appliedCoupon.discountValue) / 100));
+      } else {
+        discount = Math.min(subtotal, Number(appliedCoupon.discountValue));
+      }
+    }
+  }
+
   const shipping = subtotal >= 300000 || subtotal === 0 ? 0 : 15000;
-  const grandTotal = subtotal - discount + shipping;
+  const grandTotal = Math.max(0, subtotal - discount + shipping);
 
   const applyCoupon = () => {
-    if (coupon.trim().toUpperCase() === "COFFEE20") {
-      setDiscountPercent(20);
-      toast.success("Áp dụng mã giảm giá 20% thành công!");
-    } else {
-      toast.error("Mã giảm giá không hợp lệ");
+    if (!coupon.trim()) return;
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để sử dụng mã giảm giá.");
+      return;
     }
+    const found = publicCoupons.find((c: any) => c.code.toUpperCase().trim() === coupon.toUpperCase().trim());
+    if (!found) {
+      toast.error("Mã giảm giá không hợp lệ hoặc đã hết hạn.");
+      return;
+    }
+
+    if (subtotal < Number(found.minOrderValue || 0)) {
+      toast.error(`Đơn hàng tối thiểu để áp dụng mã này là ${formatPrice(Number(found.minOrderValue))}.`);
+      return;
+    }
+
+    if (found.productId) {
+      const hasProduct = cart.some((item: any) => (item.productId || item.product?.raw?.id) === found.productId);
+      if (!hasProduct) {
+        toast.error("Mã này chỉ áp dụng cho sản phẩm nhất định.");
+        return;
+      }
+    }
+
+    const isReplacement = !!appliedCoupon;
+    setAppliedCoupon(found);
+    toast.success(
+      isReplacement
+        ? `Đã thay thế mã giảm giá cũ. Áp dụng mã ${found.code} thành công!`
+        : `Áp dụng mã giảm giá ${found.code} thành công!`
+    );
+
   };
+
+  // Find best coupon suggestion
+  let bestCouponSuggestion: any = null;
+  let bestCouponDiscount = 0;
+
+  if (Array.isArray(publicCoupons) && cart.length > 0) {
+    publicCoupons.forEach((c: any) => {
+      if (subtotal < Number(c.minOrderValue || 0)) return;
+
+      let currentDiscount = 0;
+      if (c.productId) {
+        const matchingItems = cart.filter((item: any) => (item.productId || item.product?.raw?.id) === c.productId);
+        if (matchingItems.length === 0) return;
+        const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
+        if (c.discountType === "percent") {
+          currentDiscount = Math.round(matchingSubtotal * (Number(c.discountValue) / 100));
+        } else {
+          currentDiscount = Math.min(matchingSubtotal, Number(c.discountValue));
+        }
+      } else {
+        if (c.discountType === "percent") {
+          currentDiscount = Math.round(subtotal * (Number(c.discountValue) / 100));
+        } else {
+          currentDiscount = Math.min(subtotal, Number(c.discountValue));
+        }
+      }
+
+      if (currentDiscount > bestCouponDiscount) {
+        bestCouponDiscount = currentDiscount;
+        bestCouponSuggestion = c;
+      }
+    });
+  }
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-8 sm:px-6 lg:px-10">
@@ -83,7 +160,7 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView }: any) {
             <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="Mã giảm (COFFEE20)"
+                placeholder="Nhập mã giảm giá..."
                 value={coupon}
                 onChange={e => setCoupon(e.target.value)}
                 className="flex-1 rounded-xl border bg-input px-3 py-2 text-xs outline-none focus:border-primary"
@@ -92,10 +169,46 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView }: any) {
                 Áp dụng
               </button>
             </div>
+
+            {bestCouponSuggestion && (!appliedCoupon || appliedCoupon.id !== bestCouponSuggestion.id) && (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs space-y-2">
+                <p className="text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                  <span className="animate-bounce">💡</span>
+                  {user ? (
+                    <span>Gợi ý: Dùng mã <strong className="text-primary font-mono">{bestCouponSuggestion.code}</strong> để được giảm thêm <strong className="text-primary">{formatPrice(bestCouponDiscount)}</strong>!</span>
+                  ) : (
+                    <span>Gợi ý: Đăng nhập để dùng mã <strong className="text-primary font-mono">{bestCouponSuggestion.code}</strong> giảm thêm <strong className="text-primary">{formatPrice(bestCouponDiscount)}</strong>!</span>
+                  )}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!user) {
+                      setView(VIEW_KEYS.LOGIN);
+                    } else {
+                      setCoupon(bestCouponSuggestion.code);
+                      setAppliedCoupon(bestCouponSuggestion);
+                      toast.success(`Đã áp dụng mã gợi ý ${bestCouponSuggestion.code}!`);
+                    }
+                  }}
+                  className="w-full text-left text-primary font-bold hover:underline"
+                >
+                  {user ? "Áp dụng ngay" : "Đăng nhập ngay"}
+                </button>
+              </div>
+            )}
+
+            {appliedCoupon && (
+              <div className="flex justify-between items-center bg-green-500/10 border border-green-500/20 text-green-600 rounded-xl px-3 py-2 text-xs">
+                <span>Đã áp dụng: <strong>{appliedCoupon.code}</strong> (-{formatPrice(discount)})</span>
+                <button type="button" onClick={() => setAppliedCoupon(null)} className="text-muted-foreground hover:text-red-500 font-bold ml-2">Gỡ</button>
+              </div>
+            )}
+
             <div className="space-y-2 text-sm border-t pt-3">
               <div className="flex justify-between"><span>Tạm tính</span><span>{formatPrice(subtotal)}</span></div>
-              {discountPercent > 0 && (
-                <div className="flex justify-between text-green-600 font-medium"><span>Giảm giá (20%)</span><span>-{formatPrice(discount)}</span></div>
+              {discount > 0 && (
+                <div className="flex justify-between text-green-600 font-medium"><span>Giảm giá</span><span>-{formatPrice(discount)}</span></div>
               )}
               <div className="flex justify-between"><span>Phí giao hàng</span><span>{shipping === 0 ? "Miễn phí" : formatPrice(shipping)}</span></div>
               <hr className="my-2 border-border" />

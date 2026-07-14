@@ -1,19 +1,49 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Coupon, CouponStatus, DiscountType } from './coupon.entity';
 import { CreateCouponDto } from './dto/create-coupon.dto';
+import { UpdateCouponDto } from './dto/update-coupon.dto';
 
 @Injectable()
-export class CouponsService {
+export class CouponsService implements OnModuleInit {
   constructor(
     @InjectRepository(Coupon)
     private readonly coupons: Repository<Coupon>,
   ) {}
 
-  async findAll(): Promise<Coupon[]> {
-    return this.coupons.find({ order: { createdAt: 'DESC' } });
+  async onModuleInit() {
+    try {
+      await this.coupons.query('ALTER TABLE coupons ADD COLUMN IF NOT EXISTS product_id UUID');
+    } catch (err) {
+      console.error('Error adding product_id to coupons:', err);
+    }
+    try {
+      await this.coupons.query(
+        'ALTER TABLE coupons ADD CONSTRAINT fk_coupons_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL'
+      );
+    } catch (err) {
+      // Ignore if constraint already exists
+    }
   }
+
+  async findAll(): Promise<Coupon[]> {
+    return this.coupons.find({
+      relations: { product: true },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findPublicActive(): Promise<Coupon[]> {
+    const coupons = await this.coupons.find({
+      where: { status: CouponStatus.ACTIVE },
+      relations: { product: true },
+      order: { createdAt: 'DESC' },
+    });
+    const now = new Date();
+    return coupons.filter(c => new Date(c.expiresAt) > now);
+  }
+
 
   async create(dto: CreateCouponDto): Promise<Coupon> {
     const existing = await this.coupons.findOne({ where: { code: dto.code.toUpperCase().trim() } });
@@ -32,7 +62,38 @@ export class CouponsService {
       startsAt: dto.startsAt ? new Date(dto.startsAt) : new Date(),
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // default 30 days
       status: CouponStatus.ACTIVE,
+      productId: dto.productId || null,
     });
+
+    return this.coupons.save(coupon);
+  }
+
+  async update(id: string, dto: UpdateCouponDto): Promise<Coupon> {
+    const coupon = await this.coupons.findOne({ where: { id } });
+    if (!coupon) {
+      throw new BadRequestException('Voucher không tồn tại.');
+    }
+
+    if (dto.code) {
+      const codeUpper = dto.code.toUpperCase().trim();
+      if (codeUpper !== coupon.code) {
+        const existing = await this.coupons.findOne({ where: { code: codeUpper } });
+        if (existing) {
+          throw new BadRequestException('Mã voucher này đã tồn tại.');
+        }
+        coupon.code = codeUpper;
+      }
+    }
+
+    if (dto.name !== undefined) coupon.name = dto.name;
+    if (dto.description !== undefined) coupon.description = dto.description;
+    if (dto.discountType !== undefined) coupon.discountType = dto.discountType;
+    if (dto.discountValue !== undefined) coupon.discountValue = Number(dto.discountValue);
+    if (dto.minOrderValue !== undefined) coupon.minOrderValue = Number(dto.minOrderValue);
+    if (dto.usageLimit !== undefined) coupon.usageLimit = dto.usageLimit ? Number(dto.usageLimit) : null;
+    if (dto.startsAt !== undefined) coupon.startsAt = new Date(dto.startsAt);
+    if (dto.expiresAt !== undefined) coupon.expiresAt = new Date(dto.expiresAt);
+    if (dto.productId !== undefined) coupon.productId = dto.productId || null;
 
     return this.coupons.save(coupon);
   }
@@ -46,3 +107,5 @@ export class CouponsService {
     return { message: 'Xóa voucher thành công' };
   }
 }
+
+

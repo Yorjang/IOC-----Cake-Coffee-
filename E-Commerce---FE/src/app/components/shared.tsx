@@ -21,6 +21,33 @@ export function Btn({ children, variant = "primary", disabled = false, onClick, 
   );
 }
 
+export function getDiscountedPrice(originalPrice: number, productId: string, coupons: any[]) {
+  if (!originalPrice || originalPrice <= 0 || !Array.isArray(coupons)) {
+    return { discountedPrice: originalPrice, discountAmount: 0, bestCoupon: null };
+  }
+  let maxDiscount = 0;
+  let bestCoupon = null;
+  coupons.forEach(c => {
+    if (!c.productId || c.productId === productId) {
+      let discount = 0;
+      if (c.discountType === 'percent') {
+        discount = originalPrice * (Number(c.discountValue) / 100);
+      } else if (c.discountType === 'fixed') {
+        discount = Number(c.discountValue);
+      }
+      if (discount > maxDiscount) {
+        maxDiscount = discount;
+        bestCoupon = c;
+      }
+    }
+  });
+  return {
+    discountedPrice: Math.max(0, originalPrice - maxDiscount),
+    discountAmount: maxDiscount,
+    bestCoupon
+  };
+}
+
 export function ProductCard({ p, compact = false, onSelect, isWishlisted, onToggleWishlist, onAddToCart }: any) {
   return (
     <article
@@ -46,7 +73,16 @@ export function ProductCard({ p, compact = false, onSelect, isWishlisted, onTogg
         </div>
         <h3 className="font-sans text-base line-clamp-1">{p[0]}</h3>
         <div className="flex items-center justify-between">
-          <b className="text-lg text-primary">{p[1]}</b>
+          <div className="flex flex-col">
+            {p[6] ? (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                <b className="text-lg text-primary">{p[6]}</b>
+                <span className="text-xs text-muted-foreground line-through">{p[1]}</span>
+              </div>
+            ) : (
+              <b className="text-lg text-primary">{p[1]}</b>
+            )}
+          </div>
           {!compact && (
             <div className="flex gap-2">
               <Btn small onClick={(e: any) => { e.stopPropagation(); onAddToCart?.(p); }}>Thêm</Btn>
@@ -57,6 +93,7 @@ export function ProductCard({ p, compact = false, onSelect, isWishlisted, onTogg
     </article>
   );
 }
+
 
 export function Section({ title, children, sub, onViewAll }: any) {
   return (

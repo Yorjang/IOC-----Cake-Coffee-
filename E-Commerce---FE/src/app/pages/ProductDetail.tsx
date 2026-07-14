@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Heart, Minus, Plus, Star, Check } from "lucide-react";
-import { Btn, ProductCard } from "../components/shared";
+import { Btn, ProductCard, getDiscountedPrice } from "../components/shared";
 import { CATEGORY_GROUPS, PRODUCT_DETAIL_CONFIG, VIEW_KEYS } from "../../config/appConfig";
 import { toast } from "sonner";
 
@@ -23,7 +23,7 @@ const TOPPING_OPTIONS = [
 const SUGAR_OPTIONS = ["100%", "70%", "50%", "30%"];
 const ICE_OPTIONS = ["100%", "70%", "50%", "Không đá"];
 
-export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggleWishlist, onSelectProduct, products = [] }: any) {
+export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggleWishlist, onSelectProduct, products = [], publicCoupons = [] }: any) {
   const p = product || products[0] || ["Sản phẩm", "0đ", "Khác", "", "5.0", ""];
   const isDrink = CATEGORY_GROUPS.DRINKS.includes(p[2] as any);
   const isBirthdayCake = p[2] === "Bánh sinh nhật";
@@ -56,7 +56,8 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
   }, 0);
 
   const unitPrice = Math.max(0, basePriceVal + sizeSurcharge + toppingsPrice);
-  const totalPriceStr = formatPrice(unitPrice * quantity);
+  const { discountedPrice, discountAmount, bestCoupon } = getDiscountedPrice(unitPrice, p.raw?.id, publicCoupons);
+  const totalPriceStr = formatPrice(discountedPrice * quantity);
 
   const toggleTopping = (name: string) => {
     setSelectedToppings(prev =>
@@ -119,7 +120,17 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
               </button>
             </div>
 
-            <p className="mt-4 text-3xl font-bold text-primary">{formatPrice(unitPrice)}</p>
+            {discountAmount > 0 && bestCoupon ? (
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <span className="text-3xl font-bold text-primary">{formatPrice(discountedPrice)}</span>
+                <span className="text-base text-muted-foreground line-through">{formatPrice(unitPrice)}</span>
+                <span className="rounded-full bg-green-500/10 border border-green-500/20 px-2 py-0.5 text-xs text-green-600 dark:text-green-400 font-bold">
+                  Mã {bestCoupon.code} giảm {bestCoupon.discountType === 'percent' ? `${bestCoupon.discountValue}%` : formatPrice(Number(bestCoupon.discountValue))}
+                </span>
+              </div>
+            ) : (
+              <p className="mt-4 text-3xl font-bold text-primary">{formatPrice(unitPrice)}</p>
+            )}
             <p className="mt-3 text-muted-foreground text-sm leading-relaxed">
               Sản phẩm được chế biến từ những nguyên liệu chất lượng cao, được lựa chọn kỹ lưỡng mỗi ngày. Đảm bảo mang lại hương vị trọn vẹn và trải nghiệm ẩm thực tuyệt vời nhất cho quý khách.
             </p>

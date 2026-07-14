@@ -252,8 +252,13 @@ export class OrdersService implements OnModuleInit {
       throw new BadRequestException('Đơn hàng phải có ít nhất một sản phẩm');
     }
 
+    if (!userId && Number(discountAmount) > 0) {
+      throw new BadRequestException('Khách vãng lai không được phép sử dụng mã giảm giá. Vui lòng đăng nhập.');
+    }
+
     // Backend calculation for safety and robustness
     const calculatedSubtotal = items.reduce((sum: number, item: any) => sum + (Number(item.unitPrice) * item.quantity), 0);
+
     const finalSubtotal = subtotal !== undefined ? Number(subtotal) : calculatedSubtotal;
     const finalTotalAmount = totalAmount !== undefined ? Number(totalAmount) : (finalSubtotal - Number(discountAmount) + Number(shippingFee));
 

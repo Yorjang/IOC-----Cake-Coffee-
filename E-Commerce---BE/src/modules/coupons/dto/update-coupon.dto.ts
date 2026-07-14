@@ -1,10 +1,10 @@
-import { IsString, IsNotEmpty, IsOptional, IsEnum, IsNumber, IsDateString, Min, IsUUID } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsNumber, IsDateString, Min, IsUUID } from 'class-validator';
 import { DiscountType } from '../coupon.entity';
 
-export class CreateCouponDto {
+export class UpdateCouponDto {
   @IsString()
-  @IsNotEmpty({ message: 'Mã voucher không được để trống.' })
-  code: string;
+  @IsOptional()
+  code?: string;
 
   @IsString()
   @IsOptional()
@@ -20,7 +20,8 @@ export class CreateCouponDto {
 
   @IsNumber()
   @Min(0, { message: 'Giá trị giảm giá phải lớn hơn hoặc bằng 0.' })
-  discountValue: number;
+  @IsOptional()
+  discountValue?: number;
 
   @IsNumber()
   @IsOptional()
@@ -42,5 +43,4 @@ export class CreateCouponDto {
   @IsOptional()
   productId?: string;
 }
-
 

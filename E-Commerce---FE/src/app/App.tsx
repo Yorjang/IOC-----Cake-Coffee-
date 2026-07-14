@@ -24,20 +24,25 @@ import { navPages } from "../data/mockData";
 import { storeLocations as fallbackStoreLocations, type StoreLocation } from "../data/storeLocations";
 import { env } from "../config/env";
 import { VIEW_KEYS } from "../config/appConfig";
+import { getDiscountedPrice } from "./components/shared";
 
-// Array format: [name, price, categoryName, imageUrl, rating, badge]
-const apiProductToArray = (p: any): any[] => {
-  const price = p.variants?.[0]?.price
-    ? `${Number(p.variants[0].price).toLocaleString("vi-VN")}đ`
-    : "0đ";
+// Array format: [name, price, categoryName, imageUrl, rating, badge, discountPrice, bestCouponCode]
+const apiProductToArray = (p: any, coupons: any[] = []): any[] => {
+  const originalPrice = p.variants?.[0]?.price ? Number(p.variants[0].price) : 0;
+  const price = originalPrice ? `${originalPrice.toLocaleString("vi-VN")}đ` : "0đ";
   const categoryName = p.category?.name ?? "Khác";
   const imageUrl = p.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=600&h=520&fit=crop&auto=format";
   const rating = "4.8";
   const badge = p.productType === "combo" ? "Combo" : (p.variants?.length > 1 ? "S/M/L" : "Còn hàng");
-  const arr = [p.name, price, categoryName, imageUrl, rating, badge];
+
+  const { discountedPrice, discountAmount, bestCoupon } = getDiscountedPrice(originalPrice, p.id, coupons);
+  const discountPriceStr = discountAmount > 0 ? `${discountedPrice.toLocaleString("vi-VN")}đ` : null;
+
+  const arr = [p.name, price, categoryName, imageUrl, rating, badge, discountPriceStr, bestCoupon?.code];
   (arr as any).raw = p;
   return arr;
 };
+
 
 const apiCategoryToLegacy = (c: any) => ({
   name: c.name,
@@ -200,6 +205,9 @@ export default function App() {
   // ── Fetch real products & categories from API ───────────────────────
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [publicCoupons, setPublicCoupons] = useState<any[]>([]);
+  const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
+
 
   const fetchUserCart = async (token: string) => {
     try {
@@ -219,13 +227,24 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
+        let couponsList: any[] = [];
+        try {
+          const couponRes = await fetch(`${env.API_URL}/coupons/public`);
+          if (couponRes.ok) {
+            couponsList = await couponRes.json();
+            setPublicCoupons(couponsList);
+          }
+        } catch (err) {
+          console.error("Lỗi khi tải vouchers:", err);
+        }
+
         const [pRes, cRes] = await Promise.all([
           fetch(`${env.API_URL}/products`),
           fetch(`${env.API_URL}/products/categories`),
         ]);
         if (pRes.ok) {
           const apiProducts = await pRes.json();
-          setProducts(apiProducts.map(apiProductToArray));
+          setProducts(apiProducts.map(p => apiProductToArray(p, couponsList)));
         }
         if (cRes.ok) {
           const apiCategories = await cRes.json();
@@ -236,6 +255,7 @@ export default function App() {
       }
     })();
   }, []);
+
 
   useEffect(() => {
     let cancelled = false;
@@ -452,15 +472,16 @@ export default function App() {
   const handleLogout = () => {
     ["accessToken", "refreshToken", "user", "sb_cart"].forEach(k => localStorage.removeItem(k));
     setUser(null);
+    setAppliedCoupon(null);
     loadCartForUser(null);
-    setView(VIEW_KEYS.LOGIN);
+    setView(VIEW_KEYS.HOME);
   };
 
   const handleAdminLogout = () => {
     ["accessToken", "refreshToken", "user"].forEach(k => localStorage.removeItem(k));
     setUser(null);
     loadCartForUser(null);
-    setView(VIEW_KEYS.ADMIN_LOGIN);
+    setView(VIEW_KEYS.HOME);
   };
 
   // ── Cart / Wishlist handlers ─────────────────────────────────────────────
@@ -646,7 +667,7 @@ export default function App() {
     const payload = {
       ...checkoutData,
       subtotal,
-      discountAmount: 0,
+      discountAmount: discount,
       shippingFee: shipping,
       totalAmount: grandTotal,
       items,
@@ -685,6 +706,7 @@ export default function App() {
 
       setLastCreatedOrder(resData);
       setCart([]);
+      setAppliedCoupon(null);
       toast.success("Đặt hàng thành công!");
       setView(VIEW_KEYS.SUCCESS);
     } catch (err: any) {
@@ -695,8 +717,29 @@ export default function App() {
   };
 
   const subtotal = cart.reduce((s, i) => s + (i.price || parsePrice(i.product[1])) * i.quantity, 0);
+
+  let discount = 0;
+  if (user && appliedCoupon) {
+    if (appliedCoupon.productId) {
+      const matchingItems = cart.filter((item: any) => (item.productId || item.product?.raw?.id) === appliedCoupon.productId);
+      const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
+      if (appliedCoupon.discountType === "percent") {
+        discount = Math.round(matchingSubtotal * (Number(appliedCoupon.discountValue) / 100));
+      } else {
+        discount = Math.min(matchingSubtotal, Number(appliedCoupon.discountValue));
+      }
+    } else {
+      if (appliedCoupon.discountType === "percent") {
+        discount = Math.round(subtotal * (Number(appliedCoupon.discountValue) / 100));
+      } else {
+        discount = Math.min(subtotal, Number(appliedCoupon.discountValue));
+      }
+    }
+  }
+
   const shipping = subtotal >= 300000 || subtotal === 0 ? 0 : 15000;
-  const grandTotal = subtotal + shipping;
+  const grandTotal = Math.max(0, subtotal - discount + shipping);
+
 
   if (view === VIEW_KEYS.ADMIN_LOGIN) {
     return <><Toaster richColors position="top-center" /><AdminLoginPage onSuccess={handleAdminLoginSuccess} onBack={() => setView(VIEW_KEYS.HOME)} /></>;
@@ -757,15 +800,16 @@ export default function App() {
         <main className="min-h-[calc(100vh-400px)]">
           <div className="animate-page-change" key={view}>
             {view === VIEW_KEYS.HOME && <Home setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} products={products} categories={categories} />}
-            {view === VIEW_KEYS.CART && <Cart cart={cart} onUpdateQty={handleUpdateCartQty} onRemoveItem={handleRemoveCartItem} setView={setView} />}
-            {view === VIEW_KEYS.CHECKOUT && <Checkout cart={cart} setView={setView} onPlaceOrder={handlePlaceOrder} subtotal={subtotal} discount={0} shipping={shipping} grandTotal={grandTotal} user={user} />}
+            {view === VIEW_KEYS.CART && <Cart cart={cart} onUpdateQty={handleUpdateCartQty} onRemoveItem={handleRemoveCartItem} setView={setView} publicCoupons={publicCoupons} appliedCoupon={appliedCoupon} setAppliedCoupon={setAppliedCoupon} user={user} />}
+            {view === VIEW_KEYS.CHECKOUT && <Checkout cart={cart} setView={setView} onPlaceOrder={handlePlaceOrder} subtotal={subtotal} discount={discount} shipping={shipping} grandTotal={grandTotal} user={user} />}
             {view === VIEW_KEYS.SUCCESS && <Success setView={setView} order={lastCreatedOrder} />}
-            {view === VIEW_KEYS.DETAIL && <ProductDetail product={selectedProduct} setView={setView} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onSelectProduct={handleSelectProduct} products={products} />}
+            {view === VIEW_KEYS.DETAIL && <ProductDetail product={selectedProduct} setView={setView} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={onToggleWishlist} onSelectProduct={handleSelectProduct} products={products} publicCoupons={publicCoupons} />}
             {view === VIEW_KEYS.FAVORITES && <Favorites wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onAddToCart={handleAddToCart} onSelectProduct={handleSelectProduct} setView={setView} />}
             {view === VIEW_KEYS.PROFILE && <Profile user={user} setUser={setUser} setView={setView} onLogout={handleLogout} />}
             {view === VIEW_KEYS.STORES && <StoreMap branches={availableStores} activeStoreId={selectedStore?.id} onSelectStore={(store: any) => { handleSelectStore(store); setView(VIEW_KEYS.HOME); }} />}
             {LISTABLE.includes(view) && <ProductListing category={view} setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} searchQuery={searchQuery} products={products} />}
           </div>
+
         </main>
         <Footer />
         {showStorePopup && view === VIEW_KEYS.HOME && (

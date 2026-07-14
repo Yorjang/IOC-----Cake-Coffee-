@@ -1821,6 +1821,7 @@ function AdminReviews() {
 // ── Vouchers ──────────────────────────────────────────────────────────────────
 function AdminVouchers() {
   const [coupons, setCoupons] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Form states
@@ -1830,6 +1831,8 @@ function AdminVouchers() {
   const [minOrderValue, setMinOrderValue] = useState("");
   const [usageLimit, setUsageLimit] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
+  const [productId, setProductId] = useState("");
+  const [editingVoucher, setEditingVoucher] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
 
   const loadCoupons = async () => {
@@ -1849,11 +1852,21 @@ function AdminVouchers() {
     }
   };
 
+  const loadProductsOnly = async () => {
+    try {
+      const pRes = await fetch(`${env.API_URL}/products`);
+      if (pRes.ok) setProducts(await pRes.json());
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     loadCoupons();
+    loadProductsOnly();
   }, []);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!code || !discountValue || !expiresAt) {
       toast.error("Vui lòng điền đầy đủ các trường bắt buộc.");
@@ -1862,8 +1875,12 @@ function AdminVouchers() {
     const token = localStorage.getItem("accessToken");
     setSaving(true);
     try {
-      const res = await fetch(`${env.API_URL}/coupons`, {
-        method: "POST",
+      const isEditing = !!editingVoucher;
+      const url = isEditing ? `${env.API_URL}/coupons/${editingVoucher.id}` : `${env.API_URL}/coupons`;
+      const method = isEditing ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -1874,23 +1891,26 @@ function AdminVouchers() {
           discountValue: Number(discountValue),
           minOrderValue: minOrderValue ? Number(minOrderValue) : 0,
           usageLimit: usageLimit ? Number(usageLimit) : null,
-          startsAt: new Date(), // Defaults to now
+          startsAt: new Date(),
           expiresAt: new Date(expiresAt),
+          productId: productId || null,
           isActive: true,
         }),
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success("Tạo voucher thành công.");
+        toast.success(isEditing ? "Cập nhật voucher thành công." : "Tạo voucher thành công.");
         // Clear form
         setCode("");
         setDiscountValue("");
         setMinOrderValue("");
         setUsageLimit("");
         setExpiresAt("");
+        setProductId("");
+        setEditingVoucher(null);
         loadCoupons();
       } else {
-        toast.error(data.message || "Lỗi khi tạo voucher.");
+        toast.error(data.message || "Lỗi khi lưu voucher.");
       }
     } catch (err) {
       console.error(err);
@@ -1898,6 +1918,29 @@ function AdminVouchers() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleStartEdit = (v: any) => {
+    setEditingVoucher(v);
+    setCode(v.code);
+    setDiscountType(v.discountType);
+    setDiscountValue(String(v.discountValue));
+    setMinOrderValue(String(v.minOrderValue));
+    setUsageLimit(v.usageLimit ? String(v.usageLimit) : "");
+    const dateStr = v.expiresAt ? new Date(v.expiresAt).toISOString().split('T')[0] : "";
+    setExpiresAt(dateStr);
+    setProductId(v.productId || "");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingVoucher(null);
+    setCode("");
+    setDiscountType("percent");
+    setDiscountValue("");
+    setMinOrderValue("");
+    setUsageLimit("");
+    setExpiresAt("");
+    setProductId("");
   };
 
   const handleDelete = async (id: string) => {
@@ -1940,7 +1983,7 @@ function AdminVouchers() {
       </div>
       <div className="overflow-auto rounded-2xl bg-sidebar p-5">
         <table className="w-full text-sm">
-          <TableHeader cols={["Mã", "Kiểu", "Giá trị", "Đơn tối thiểu", "Đã dùng / Giới hạn", "Hết hạn", "Trạng thái", "Thao tác"]} />
+          <TableHeader cols={["Mã", "Sản phẩm", "Kiểu", "Giá trị", "Đơn tối thiểu", "Đã dùng / Giới hạn", "Hết hạn", "Trạng thái", "Thao tác"]} />
           <tbody>
             {coupons.map(v => {
               const hasLimit = v.usageLimit !== null;
@@ -1951,6 +1994,15 @@ function AdminVouchers() {
               return (
                 <tr key={v.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
                   <td className="py-3 font-mono font-bold text-primary">{v.code}</td>
+                  <td className="py-3">
+                    {v.product ? (
+                      <span className="rounded-full bg-sidebar-accent px-2.5 py-1 text-xs text-foreground font-semibold">
+                        {v.product.name}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">Tất cả sản phẩm</span>
+                    )}
+                  </td>
                   <td className="py-3 text-muted-foreground">
                     {v.discountType === "percent" ? "Phần trăm" : "Cố định"}
                   </td>
@@ -1973,20 +2025,29 @@ function AdminVouchers() {
                   </td>
                   <td className="py-3"><StatusBadge status={status} /></td>
                   <td className="py-3">
-                    <button
-                      title="Xóa voucher"
-                      onClick={() => handleDelete(v.id)}
-                      className="inline-flex size-8 items-center justify-center rounded-lg bg-red-950/40 text-red-400 hover:bg-red-900/40 transition"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        title="Sửa voucher"
+                        onClick={() => handleStartEdit(v)}
+                        className="inline-flex size-8 items-center justify-center rounded-lg bg-sidebar-accent text-primary hover:bg-sidebar transition"
+                      >
+                        <Edit size={14} />
+                      </button>
+                      <button
+                        title="Xóa voucher"
+                        onClick={() => handleDelete(v.id)}
+                        className="inline-flex size-8 items-center justify-center rounded-lg bg-red-950/40 text-red-400 hover:bg-red-900/40 transition"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
             })}
             {coupons.length === 0 && (
               <tr>
-                <td colSpan={8} className="py-12 text-center text-muted-foreground">
+                <td colSpan={9} className="py-12 text-center text-muted-foreground">
                   Không tìm thấy voucher nào.
                 </td>
               </tr>
@@ -1994,8 +2055,10 @@ function AdminVouchers() {
           </tbody>
         </table>
       </div>
-      <form onSubmit={handleCreate} className="rounded-2xl bg-sidebar p-5 space-y-4">
-        <h3 className="text-sm font-semibold text-foreground">Tạo voucher mới</h3>
+      <form onSubmit={handleSave} className="rounded-2xl bg-sidebar p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-foreground">
+          {editingVoucher ? `Chỉnh sửa voucher: ${editingVoucher.code}` : "Tạo voucher mới"}
+        </h3>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <input
             required
@@ -2041,17 +2104,39 @@ function AdminVouchers() {
             value={expiresAt}
             onChange={e => setExpiresAt(e.target.value)}
           />
-          <div className="sm:col-span-2 lg:col-span-3 flex justify-end">
+          <select
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
+            value={productId}
+            onChange={e => setProductId(e.target.value)}
+          >
+            <option value="">Áp dụng: Tất cả sản phẩm</option>
+            {products.map(p => (
+              <option key={p.id} value={p.id}>
+                Sản phẩm: {p.name}
+              </option>
+            ))}
+          </select>
+          <div className="sm:col-span-2 lg:col-span-3 flex justify-end gap-2">
+            {editingVoucher && (
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="rounded-full border border-sidebar-accent px-6 py-2 text-sm text-muted-foreground hover:bg-sidebar transition"
+              >
+                Hủy sửa
+              </button>
+            )}
             <button
               type="submit"
               disabled={saving}
               className="rounded-full bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/80 disabled:opacity-50 transition"
             >
-              {saving ? "Đang tạo..." : "Tạo voucher"}
+              {saving ? "Đang lưu..." : (editingVoucher ? "Cập nhật" : "Tạo voucher")}
             </button>
           </div>
         </div>
       </form>
+
     </div>
   );
 }
