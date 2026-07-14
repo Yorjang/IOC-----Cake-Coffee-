@@ -1,4 +1,4 @@
-import { CakeSlice } from "lucide-react";
+import { CakeSlice, Facebook, Instagram } from "lucide-react";
 import { MESSAGES } from "../../constants/messages";
 import { env } from "../../config/env";
 import { VIEW_KEYS } from "../../config/appConfig";
@@ -15,7 +15,11 @@ export function Footer({ setView }: { setView?: (view: string) => void }) {
             </div>
             <p className="mt-3 text-sm leading-7 text-sidebar-foreground/70">{MESSAGES.FOOTER_DESC}</p>
             <div className="mt-4 flex gap-3">
-              {["FB", "IG", "TT"].map(s => <button key={s} className="size-8 rounded-full bg-sidebar-accent text-xs text-sidebar-foreground hover:bg-primary transition">{s}</button>)}
+              <a href="https://facebook.com" target="_blank" rel="noreferrer" className="grid size-8 place-items-center rounded-full bg-sidebar-accent text-sidebar-foreground hover:bg-primary hover:text-primary-foreground transition"><Facebook size={14} /></a>
+              <a href="https://instagram.com" target="_blank" rel="noreferrer" className="grid size-8 place-items-center rounded-full bg-sidebar-accent text-sidebar-foreground hover:bg-primary hover:text-primary-foreground transition"><Instagram size={14} /></a>
+              <a href="https://tiktok.com" target="_blank" rel="noreferrer" className="grid size-8 place-items-center rounded-full bg-sidebar-accent text-sidebar-foreground hover:bg-primary hover:text-primary-foreground transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/></svg>
+              </a>
             </div>
           </div>
           {[
