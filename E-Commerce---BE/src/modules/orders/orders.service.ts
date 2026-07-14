@@ -22,6 +22,13 @@ export class OrdersService implements OnModuleInit {
   }
 
   async seedAll() {
+    // Make user_id nullable if database schema doesn't allow it yet
+    try {
+      await this.orders.query('ALTER TABLE orders ALTER COLUMN user_id DROP NOT NULL');
+    } catch (err) {
+      console.warn('Could not alter user_id column to nullable in orders table:', (err as any).message);
+    }
+
     // 1. Check/Create customer user
     let userId = '';
     const existingUsers = await this.orders.query('SELECT id FROM users LIMIT 1');
@@ -222,7 +229,7 @@ export class OrdersService implements OnModuleInit {
     return { stats, weekly, recentOrders };
   }
 
-  async createOrder(userId: string, dto: CreateOrderDto): Promise<Order> {
+  async createOrder(userId: string | null, dto: CreateOrderDto): Promise<Order> {
     const {
       branchId,
       subtotal,
@@ -295,7 +302,7 @@ export class OrdersService implements OnModuleInit {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       RETURNING id
     `, [
-      orderCode, userId, branchId, finalSubtotal, discountAmount, shippingFee, finalTotalAmount,
+      orderCode, userId || null, branchId, finalSubtotal, discountAmount, shippingFee, finalTotalAmount,
       paymentMethod, 'pending', 'pending', 'online', fulfillmentType,
       shippingAddressStreet, shippingAddressWard, shippingAddressDistrict, shippingAddressProvince,
       shippingAddressPhone, shippingRecipientName, note
@@ -329,5 +336,16 @@ export class OrdersService implements OnModuleInit {
       relations: { items: true, branch: true },
       order: { createdAt: 'DESC' }
     });
+  }
+
+  async findPublicOrder(id: string): Promise<Order> {
+    const order = await this.orders.findOne({
+      where: { id },
+      relations: { items: true, branch: true }
+    });
+    if (!order) {
+      throw new BadRequestException('Order not found');
+    }
+    return order;
   }
 }

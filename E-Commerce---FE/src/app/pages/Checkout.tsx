@@ -254,9 +254,14 @@ export function Success({ setView, order }: any) {
     if (!isBankTransfer || !orderId) return;
 
     const token = localStorage.getItem("accessToken");
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     setLoadingQr(true);
     fetch(`${env.API_URL}/payments/qr/${orderId}`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers
     })
       .then(res => res.json())
       .then(data => {
@@ -273,15 +278,11 @@ export function Success({ setView, order }: any) {
   useEffect(() => {
     if (!isBankTransfer || !orderId || isPaid) return;
 
-    const token = localStorage.getItem("accessToken");
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`${env.API_URL}/orders/my`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await fetch(`${env.API_URL}/orders/public/${orderId}`);
         if (res.ok) {
-          const myOrders = await res.json();
-          const currentOrder = myOrders.find((o: any) => o.id === orderId);
+          const currentOrder = await res.json();
           if (currentOrder && currentOrder.paymentStatus === 'paid') {
             setIsPaid(true);
             toast.success("Thanh toán thành công qua SePay!");
@@ -391,9 +392,11 @@ export function Success({ setView, order }: any) {
           )}
 
           <div className="mt-8 flex justify-center gap-4">
-            <Btn variant="outline" onClick={() => setView(VIEW_KEYS.PROFILE)}>
-              Xem đơn hàng
-            </Btn>
+            {localStorage.getItem("accessToken") && (
+              <Btn variant="outline" onClick={() => setView(VIEW_KEYS.PROFILE)}>
+                Xem đơn hàng
+              </Btn>
+            )}
             <Btn onClick={() => setView(VIEW_KEYS.HOME)}>
               Về trang chủ
             </Btn>
@@ -413,9 +416,11 @@ export function Success({ setView, order }: any) {
         Mã đơn hàng của bạn là <strong className="text-primary">#{orderCode}</strong>. Chúng tôi sẽ sớm giao hàng đến bạn.
       </p>
       <div className="flex gap-4">
-        <Btn variant="outline" onClick={() => setView(VIEW_KEYS.PROFILE)}>
-          Xem đơn hàng
-        </Btn>
+        {localStorage.getItem("accessToken") && (
+          <Btn variant="outline" onClick={() => setView(VIEW_KEYS.PROFILE)}>
+            Xem đơn hàng
+          </Btn>
+        )}
         <Btn onClick={() => setView(VIEW_KEYS.HOME)}>Về trang chủ</Btn>
       </div>
     </div>

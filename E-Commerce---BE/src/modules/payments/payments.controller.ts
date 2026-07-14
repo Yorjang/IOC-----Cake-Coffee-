@@ -2,6 +2,7 @@ import { Controller, Get, Post, Param, Body, ParseUUIDPipe, UseGuards, Headers }
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { SepayWebhookDto } from './dto/sepay-webhook.dto';
+import { Public } from '../../common/decorators/public.decorator';
 
 @Controller('payments')
 export class PaymentsController {
@@ -31,6 +32,7 @@ export class PaymentsController {
   // Generate VietQR code for Bank Transfer payments
   @Get('qr/:orderId')
   @UseGuards(JwtAuthGuard)
+  @Public()
   generateQr(@Param('orderId', ParseUUIDPipe) orderId: string) {
     return this.paymentsService.generateQrCode(orderId);
   }

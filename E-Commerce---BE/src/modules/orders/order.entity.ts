@@ -46,7 +46,7 @@ export class Order {
   @Column({ name: 'order_code', length: 50, unique: true })
   orderCode: string;
 
-  @Column({ name: 'user_id', type: 'uuid' })
+  @Column({ name: 'user_id', type: 'uuid', nullable: true })
   userId: string;
 
   @ManyToOne(() => User)

@@ -1,21 +1,32 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Reflector } from '@nestjs/core';
 import * as jwt from 'jsonwebtoken';
 import { UsersService } from '../../modules/users/users.service';
 import * as crypto from 'crypto';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
+    private readonly reflector: Reflector,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
     const request = context.switchToHttp().getRequest();
     const authHeader = request.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      if (isPublic) {
+        return true;
+      }
       throw new UnauthorizedException('Missing or invalid authorization header');
     }
 
@@ -26,16 +37,19 @@ export class JwtAuthGuard implements CanActivate {
       
       const user = await this.usersService.findById(decoded.sub);
       if (!user) {
+        if (isPublic) return true;
         throw new UnauthorizedException('User not found');
       }
 
       if (!user.isActive) {
+        if (isPublic) return true;
         throw new UnauthorizedException('User account is inactive');
       }
 
       if (decoded.pwdSign) {
         const currentPwdSign = crypto.createHash('sha256').update(user.passwordHash).digest('hex');
         if (decoded.pwdSign !== currentPwdSign) {
+          if (isPublic) return true;
           throw new UnauthorizedException('Session has been invalidated due to password change');
         }
       }
@@ -43,6 +57,9 @@ export class JwtAuthGuard implements CanActivate {
       request.user = user;
       return true;
     } catch (error) {
+      if (isPublic) {
+        return true;
+      }
       if (error instanceof jwt.TokenExpiredError) {
         throw new UnauthorizedException('Token has expired');
       }

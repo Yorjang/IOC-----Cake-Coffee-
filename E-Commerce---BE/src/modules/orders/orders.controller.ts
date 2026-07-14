@@ -7,6 +7,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { OrdersService } from './orders.service';
 import { OrderStatus } from './order.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { Public } from '../../common/decorators/public.decorator';
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -14,8 +15,15 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post()
+  @Public()
   create(@CurrentUser() user: any, @Body() dto: CreateOrderDto) {
-    return this.ordersService.createOrder(user.id, dto);
+    return this.ordersService.createOrder(user?.id || null, dto);
+  }
+
+  @Get('public/:id')
+  @Public()
+  findPublic(@Param('id', ParseUUIDPipe) id: string) {
+    return this.ordersService.findPublicOrder(id);
   }
 
   @Get('my')

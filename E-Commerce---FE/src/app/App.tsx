@@ -613,11 +613,6 @@ export default function App() {
 
   const handlePlaceOrder = async (checkoutData: any) => {
     const token = localStorage.getItem("accessToken");
-    if (!token) {
-      toast.error("Vui lòng đăng nhập để tiến hành đặt hàng!");
-      setView(VIEW_KEYS.LOGIN);
-      return;
-    }
 
     const items = cart.map(item => {
       let rawProd = item.product.raw;
@@ -664,12 +659,16 @@ export default function App() {
     };
 
     try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`${env.API_URL}/orders`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify(payload),
       });
 
@@ -679,13 +678,15 @@ export default function App() {
       }
 
       // Also clear the cart on the backend DB!
-      try {
-        await fetch(`${env.API_URL}/cart`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      } catch (err) {
-        console.error("Lỗi khi xóa giỏ hàng DB sau checkout:", err);
+      if (token) {
+        try {
+          await fetch(`${env.API_URL}/cart`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+        } catch (err) {
+          console.error("Lỗi khi xóa giỏ hàng DB sau checkout:", err);
+        }
       }
 
       setLastCreatedOrder(resData);
