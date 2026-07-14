@@ -215,52 +215,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
         </div>
       </Section>
 
-      {/* ── Footer ── */}
-      <footer className="border-t bg-sidebar mt-4">
-        <div className="mx-auto max-w-[1500px] px-5 py-10 sm:px-6 lg:px-10">
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <p className="font-serif text-xl font-bold mb-3">Sweet Bean</p>
-              <p className="text-sm text-muted-foreground leading-relaxed">Bánh tươi mỗi ngày, cafe thơm ngon. Giao tận nơi trong 2 giờ — Nướng mới mỗi sáng.</p>
-            </div>
-            <div>
-              <p className="font-semibold mb-3 text-sm">Thông tin cửa hàng</p>
-              <ul className="space-y-1.5 text-sm text-muted-foreground">
-                <li>📍 123 Nguyễn Huệ, Q.1, TP.HCM</li>
-                <li>📞 0909 888 777</li>
-                <li>📧 hello@sweetbean.vn</li>
-                <li>🕐 07:00 – 22:00 hàng ngày</li>
-              </ul>
-            </div>
-            <div>
-              <p className="font-semibold mb-3 text-sm">Hỗ trợ khách hàng</p>
-              <ul className="space-y-1.5 text-sm text-muted-foreground">
-                <li>Chính sách đổi trả</li>
-                <li>Câu hỏi thường gặp</li>
-                <li>Theo dõi đơn hàng</li>
-                <li>Liên hệ chúng tôi</li>
-              </ul>
-            </div>
-            <div>
-              <p className="font-semibold mb-3 text-sm">Voucher hiện có</p>
-              <ul className="space-y-2">
-                {VOUCHERS.map(v => (
-                  <li key={v.code} className="flex items-center gap-2">
-                    <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">{v.code}</span>
-                    <span className="text-xs text-muted-foreground">{v.title}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <div className="mt-8 border-t pt-6 flex flex-wrap items-center justify-between gap-4 text-xs text-muted-foreground">
-            <p>© 2025 Sweet Bean Coffee & Cake. Tất cả quyền được bảo lưu.</p>
-            <div className="flex gap-4">
-              <span>Facebook</span><span>Instagram</span><span>TikTok</span>
-            </div>
-          </div>
-        </div>
-      </footer>
+
     </>
   );
 }
