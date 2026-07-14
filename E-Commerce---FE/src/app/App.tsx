@@ -451,7 +451,6 @@ export default function App() {
     ["accessToken", "refreshToken", "user", "sb_cart"].forEach(k => localStorage.removeItem(k));
     setUser(null);
     loadCartForUser(null);
-    toast.success("Đã đăng xuất thành công!");
     setView(VIEW_KEYS.LOGIN);
   };
 
@@ -459,7 +458,6 @@ export default function App() {
     ["accessToken", "refreshToken", "user"].forEach(k => localStorage.removeItem(k));
     setUser(null);
     loadCartForUser(null);
-    toast.success("Đã đăng xuất khỏi trang quản trị.");
     setView(VIEW_KEYS.ADMIN_LOGIN);
   };
 
@@ -504,7 +502,6 @@ export default function App() {
           const dbCart = await res.json();
           const legacyCart = mapDbCartToLegacy(dbCart.items || []);
           setCart(legacyCart);
-          toast.success(`Đã thêm ${qty} x ${product[0]} vào giỏ hàng!`);
           return;
         }
       } catch (err) {
@@ -535,7 +532,6 @@ export default function App() {
       }
       return newItems;
     });
-    toast.success(`Đã thêm ${qty} x ${product[0]} vào giỏ hàng!`);
   };
 
   const handleUpdateCartQty = async (index: number, newQty: number) => {
@@ -583,7 +579,6 @@ export default function App() {
         if (res.ok) {
           const dbCart = await res.json();
           setCart(mapDbCartToLegacy(dbCart.items || []));
-          toast.error("Đã xóa sản phẩm khỏi giỏ hàng");
           return;
         }
       } catch (err) {
@@ -593,13 +588,11 @@ export default function App() {
 
     // Guest fallback
     setCart(prev => prev.filter((_, i) => i !== index));
-    toast.error("Đã xóa sản phẩm khỏi giỏ hàng");
   };
 
   const handleToggleWishlist = (product: any) => {
     setWishlist(prev => {
       const exists = prev.some(i => i[0] === product[0]);
-      toast[exists ? "info" : "success"](exists ? "Đã xóa khỏi yêu thích" : "Đã thêm vào yêu thích!");
       return exists ? prev.filter(i => i[0] !== product[0]) : [...prev, product];
     });
   };
@@ -608,7 +601,6 @@ export default function App() {
   const handleSelectStore = (store: StoreLocation) => {
     setSelectedStore(store);
     localStorage.setItem(STORE_STORAGE_KEY, store.id);
-    toast.success(`Đã chọn ${store.name}`);
   };
 
   const handlePlaceOrder = async (checkoutData: any) => {
