@@ -737,6 +737,7 @@ export default function App() {
       discountAmount: discount,
       shippingFee: shipping,
       totalAmount: grandTotal,
+      couponCode: appliedCoupon ? appliedCoupon.code : undefined,
       items,
     };
 
