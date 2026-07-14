@@ -20,18 +20,26 @@ export function Btn({ children, variant = "primary", disabled = false, onClick, 
     </button>
   );
 }
-
-export function getDiscountedPrice(originalPrice: number, productId: string, coupons: any[]) {
+export function getDiscountedPrice(originalPrice: number, productOrId: any, coupons: any[]) {
   if (!originalPrice || originalPrice <= 0 || !Array.isArray(coupons)) {
     return { discountedPrice: originalPrice, discountAmount: 0, bestCoupon: null };
   }
   let maxDiscount = 0;
   let bestCoupon = null;
+
+  const product = typeof productOrId === 'object' ? productOrId : null;
+  const productId = product ? product.id : productOrId;
+  const productCategoryId = product ? (product.categoryId || product.category?.id) : null;
+
   coupons.forEach(c => {
     if (originalPrice < Number(c.minOrderValue || 0)) {
       return;
     }
-    if (!c.productId || c.productId === productId) {
+    const isUniversal = !c.productId && !c.categoriesId;
+    const isProductMatch = c.productId && c.productId === productId;
+    const isCategoryMatch = c.categoriesId && productCategoryId && c.categoriesId === productCategoryId;
+
+    if (isUniversal || isProductMatch || isCategoryMatch) {
       let discount = 0;
       if (c.discountType === 'percent') {
         discount = originalPrice * (Number(c.discountValue) / 100);
@@ -53,7 +61,6 @@ export function getDiscountedPrice(originalPrice: number, productId: string, cou
     bestCoupon
   };
 }
-
 export function ProductCard({ p, compact = false, onSelect, isWishlisted, onToggleWishlist, onAddToCart }: any) {
   return (
     <article
