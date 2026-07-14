@@ -904,7 +904,7 @@ export default function App() {
 
         </main>
         <Footer setView={setView} />
-        {showStorePopup && view === VIEW_KEYS.HOME && (
+        {showStorePopup && (
           <StoreSelectionModal
             stores={availableStores}
             selectedStore={selectedStore}
