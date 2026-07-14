@@ -262,7 +262,7 @@ export class OrdersService implements OnModuleInit {
     let couponId: string | null = null;
     if (couponCode && userId) {
       const couponRes = await this.orders.query(
-        `SELECT id, status, expires_at, usage_limit, used_count, per_customer_limit FROM coupons WHERE code = $1`,
+        `SELECT id, status, expires_at, usage_limit, used_count, per_customer_limit, product_id, categories_id FROM coupons WHERE code = $1`,
         [couponCode.toUpperCase().trim()]
       );
       if (couponRes.length === 0) {
@@ -277,6 +277,25 @@ export class OrdersService implements OnModuleInit {
       }
       if (coupon.usage_limit !== null && Number(coupon.used_count) >= Number(coupon.usage_limit)) {
         throw new BadRequestException(`Mã giảm giá "${couponCode}" đã đạt giới hạn sử dụng.`);
+      }
+      // Check product match if coupon restricts to product
+      if (coupon.product_id) {
+        const matchesProduct = items.some((item: any) => item.productId === coupon.product_id);
+        if (!matchesProduct) {
+          throw new BadRequestException(`Mã giảm giá "${couponCode}" chỉ áp dụng cho sản phẩm cụ thể.`);
+        }
+      }
+      // Check category match if coupon restricts to category
+      if (coupon.categories_id) {
+        const itemProductIds = items.map((item: any) => item.productId);
+        const productsWithCategory = await this.orders.query(
+          `SELECT id, category_id FROM products WHERE id = ANY($1)`,
+          [itemProductIds]
+        );
+        const matchesCategory = productsWithCategory.some((p: any) => p.category_id === coupon.categories_id);
+        if (!matchesCategory) {
+          throw new BadRequestException(`Mã giảm giá "${couponCode}" chỉ áp dụng cho danh mục sản phẩm cụ thể.`);
+        }
       }
       // Check per-customer usage limit
       const perLimit = Number(coupon.per_customer_limit ?? 1);
