@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Coupon, CouponStatus, DiscountType } from './coupon.entity';
+import { Coupon, CouponStatus, DiscountType, CouponScope } from './coupon.entity';
 import { CreateCouponDto } from './dto/create-coupon.dto';
 import { UpdateCouponDto } from './dto/update-coupon.dto';
 
@@ -29,7 +29,7 @@ export class CouponsService implements OnModuleInit {
 
   async findAll(): Promise<Coupon[]> {
     const list = await this.coupons.find({
-      relations: { product: true },
+      relations: { product: { category: true } },
       order: { createdAt: 'DESC' },
     });
     return list.map(c => ({
@@ -41,7 +41,7 @@ export class CouponsService implements OnModuleInit {
   async findPublicActive(): Promise<Coupon[]> {
     const coupons = await this.coupons.find({
       where: { status: CouponStatus.ACTIVE },
-      relations: { product: true },
+      relations: { product: { category: true } },
       order: { createdAt: 'DESC' },
     });
     const now = new Date();
@@ -72,6 +72,7 @@ export class CouponsService implements OnModuleInit {
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // default 30 days
       status: dto.isActive === false ? CouponStatus.DISABLED : CouponStatus.ACTIVE,
       productId: dto.productId || null,
+      couponScope: dto.productId ? CouponScope.PRODUCT : CouponScope.ORDER,
       maxDiscount: dto.maxDiscount !== undefined && dto.maxDiscount !== null ? Number(dto.maxDiscount) : null,
     });
 
@@ -107,7 +108,10 @@ export class CouponsService implements OnModuleInit {
     if (dto.usageLimit !== undefined) coupon.usageLimit = dto.usageLimit ? Number(dto.usageLimit) : null;
     if (dto.startsAt !== undefined) coupon.startsAt = new Date(dto.startsAt);
     if (dto.expiresAt !== undefined) coupon.expiresAt = new Date(dto.expiresAt);
-    if (dto.productId !== undefined) coupon.productId = dto.productId || null;
+    if (dto.productId !== undefined) {
+      coupon.productId = dto.productId || null;
+      coupon.couponScope = dto.productId ? CouponScope.PRODUCT : CouponScope.ORDER;
+    }
     if (dto.maxDiscount !== undefined) coupon.maxDiscount = dto.maxDiscount !== null ? Number(dto.maxDiscount) : null;
     if (dto.isActive !== undefined) {
       coupon.status = dto.isActive ? CouponStatus.ACTIVE : CouponStatus.DISABLED;

@@ -28,6 +28,9 @@ export function getDiscountedPrice(originalPrice: number, productId: string, cou
   let maxDiscount = 0;
   let bestCoupon = null;
   coupons.forEach(c => {
+    if (originalPrice < Number(c.minOrderValue || 0)) {
+      return;
+    }
     if (!c.productId || c.productId === productId) {
       let discount = 0;
       if (c.discountType === 'percent') {

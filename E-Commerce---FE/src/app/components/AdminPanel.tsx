@@ -2002,7 +2002,7 @@ function AdminVouchers() {
                   <td className="py-3">
                     {v.product ? (
                       <span className="rounded-full bg-sidebar-accent px-2.5 py-1 text-xs text-foreground font-semibold">
-                        {v.product.name}
+                        {v.product.name} ({v.product.category?.name || 'Khác'})
                       </span>
                     ) : (
                       <span className="text-muted-foreground text-xs">Tất cả sản phẩm</span>
@@ -2129,7 +2129,7 @@ function AdminVouchers() {
             <option value="">Áp dụng: Tất cả sản phẩm</option>
             {products.map(p => (
               <option key={p.id} value={p.id}>
-                Sản phẩm: {p.name}
+                Sản phẩm: {p.name} ({p.category?.name || 'Khác'})
               </option>
             ))}
           </select>
