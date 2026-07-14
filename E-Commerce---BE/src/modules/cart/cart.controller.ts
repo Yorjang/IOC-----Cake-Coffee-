@@ -3,6 +3,8 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '../users/user.entity';
 import { CartService } from './cart.service';
+import { AddCartItemDto } from './dto/add-cart-item.dto';
+import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 
 @Controller('cart')
 @UseGuards(JwtAuthGuard)
@@ -17,22 +19,18 @@ export class CartController {
   @Post()
   addItem(
     @CurrentUser() user: User,
-    @Body('productId', ParseUUIDPipe) productId: string,
-    @Body('variantId', ParseUUIDPipe) variantId: string,
-    @Body('quantity') quantity: number,
-    @Body('note') note: string,
+    @Body() dto: AddCartItemDto,
   ) {
-    return this.cartService.addItem(user.id, productId, variantId, quantity, note);
+    return this.cartService.addItem(user.id, dto);
   }
 
   @Patch(':itemId')
   updateItem(
     @CurrentUser() user: User,
     @Param('itemId', ParseUUIDPipe) itemId: string,
-    @Body('quantity') quantity: number,
-    @Body('note') note?: string,
+    @Body() dto: UpdateCartItemDto,
   ) {
-    return this.cartService.updateItem(user.id, itemId, quantity, note);
+    return this.cartService.updateItem(user.id, itemId, dto);
   }
 
   @Delete(':itemId')

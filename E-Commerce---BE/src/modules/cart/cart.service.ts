@@ -1,8 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { AddCartItemDto } from './dto/add-cart-item.dto';
+import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { Cart } from './entities/cart.entity';
 import { CartItem } from './entities/cart-item.entity';
+
+export type CartMutationResult = {
+  itemId: string;
+  quantity: number;
+};
 
 @Injectable()
 export class CartService {
@@ -18,125 +25,114 @@ export class CartService {
       where: { userId },
       relations: {
         items: {
-          product: {
-            category: true,
-          },
+          product: { category: true },
           variant: true,
         },
       },
     });
 
     if (!cart) {
-      cart = this.cartRepository.create({
+      cart = await this.cartRepository.save(this.cartRepository.create({
         userId,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      });
-      cart = await this.cartRepository.save(cart);
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      }));
       cart.items = [];
     }
-
     return cart;
   }
 
-  async addItem(
-    userId: string,
-    productId: string,
-    variantId: string,
-    quantity: number,
-    note: string,
-  ): Promise<Cart> {
-    const cart = await this.getCart(userId);
+  async addItem(userId: string, dto: AddCartItemDto): Promise<CartMutationResult> {
+    return this.cartRepository.manager.transaction(async (manager) => {
+      const carts = manager.getRepository(Cart);
+      const items = manager.getRepository(CartItem);
+      let cart = await carts.findOne({ where: { userId } });
+      if (!cart) {
+        cart = await carts.save(carts.create({
+          userId,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        }));
+      }
 
-    // Find if the variant and note already exist in the cart
-    let item = cart.items.find(
-      (i) => i.variantId === variantId && (i.note === note || (!i.note && !note)),
-    );
-
-    if (item) {
-      item.quantity += quantity;
-      await this.cartItemRepository.save(item);
-    } else {
-      item = this.cartItemRepository.create({
-        cartId: cart.id,
-        productId,
-        variantId,
-        quantity,
-        note: note || null,
+      const note = dto.note || null;
+      let item = await items.findOne({
+        where: { cartId: cart.id, variantId: dto.variantId, note },
+        lock: { mode: 'pessimistic_write' },
       });
-      await this.cartItemRepository.save(item);
-    }
+      if (item) {
+        const quantity = item.quantity + dto.quantity;
+        await items.update(item.id, { quantity });
+        return { itemId: item.id, quantity };
+      }
 
-    return this.getCart(userId);
+      item = await items.save(items.create({
+        cartId: cart.id,
+        productId: dto.productId,
+        variantId: dto.variantId,
+        quantity: dto.quantity,
+        note,
+      }));
+      return { itemId: item.id, quantity: item.quantity };
+    });
   }
 
   async updateItem(
     userId: string,
     itemId: string,
-    quantity: number,
-    note?: string,
-  ): Promise<Cart> {
-    const cart = await this.getCart(userId);
-    const item = cart.items.find((i) => i.id === itemId);
+    dto: UpdateCartItemDto,
+  ): Promise<CartMutationResult> {
+    const values: Partial<CartItem> = { quantity: dto.quantity };
+    if (dto.note !== undefined) values.note = dto.note || null;
+    const result = await this.cartItemRepository
+      .createQueryBuilder()
+      .update(CartItem)
+      .set(values)
+      .where('id = :itemId', { itemId })
+      .andWhere('cart_id IN (SELECT id FROM carts WHERE user_id = :userId)', { userId })
+      .execute();
 
-    if (!item) {
+    if (!result.affected) {
       throw new NotFoundException('Sản phẩm không có trong giỏ hàng');
     }
-
-    item.quantity = quantity;
-    if (note !== undefined) {
-      item.note = note || null;
-    }
-
-    await this.cartItemRepository.save(item);
-    return this.getCart(userId);
+    return { itemId, quantity: dto.quantity };
   }
 
   async removeItem(userId: string, itemId: string): Promise<Cart> {
     const cart = await this.getCart(userId);
-    const item = cart.items.find((i) => i.id === itemId);
-
-    if (!item) {
-      throw new NotFoundException('Sản phẩm không có trong giỏ hàng');
-    }
-
+    const item = cart.items.find((cartItem) => cartItem.id === itemId);
+    if (!item) throw new NotFoundException('Sản phẩm không có trong giỏ hàng');
     await this.cartItemRepository.remove(item);
     return this.getCart(userId);
   }
 
   async clearCart(userId: string): Promise<Cart> {
     const cart = await this.getCart(userId);
-    if (cart.items.length > 0) {
-      await this.cartItemRepository.remove(cart.items);
-    }
+    if (cart.items.length > 0) await this.cartItemRepository.remove(cart.items);
     return this.getCart(userId);
   }
 
   async mergeCart(userId: string, localItems: any[]): Promise<Cart> {
     const cart = await this.getCart(userId);
-
     for (const localItem of localItems) {
       const { productId, variantId, quantity, note } = localItem;
       if (!productId || !variantId) continue;
-
       let item = cart.items.find(
-        (i) => i.variantId === variantId && (i.note === note || (!i.note && !note)),
+        (cartItem) => cartItem.variantId === variantId &&
+          (cartItem.note === note || (!cartItem.note && !note)),
       );
-
       if (item) {
         item.quantity += quantity;
         await this.cartItemRepository.save(item);
       } else {
-        item = this.cartItemRepository.create({
+        item = await this.cartItemRepository.save(this.cartItemRepository.create({
           cartId: cart.id,
           productId,
           variantId,
           quantity,
           note: note || null,
-        });
-        await this.cartItemRepository.save(item);
+        }));
+        cart.items.push(item);
       }
     }
-
     return this.getCart(userId);
   }
 }

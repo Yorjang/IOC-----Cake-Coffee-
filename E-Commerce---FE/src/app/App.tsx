@@ -286,6 +286,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!showStorePopup) return;
+
     const refreshOpeningStatus = async () => {
       try {
         const res = await fetch(`${env.API_URL}/branches/active`);
@@ -319,9 +321,10 @@ export default function App() {
       }
     };
 
+    refreshOpeningStatus();
     const timer = window.setInterval(refreshOpeningStatus, 60_000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [showStorePopup]);
 
 
   useEffect(() => {
@@ -573,42 +576,16 @@ export default function App() {
       }
     }
 
-    if (user && token && productId && variantId) {
-      try {
-        const res = await fetch(`${env.API_URL}/cart`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            productId,
-            variantId,
-            quantity: qty,
-            note: JSON.stringify(options || {}),
-          }),
-        });
-        if (res.ok) {
-          const dbCart = await res.json();
-          const legacyCart = mapDbCartToLegacy(dbCart.items || []);
-          setCart(legacyCart);
-          return;
-        }
-      } catch (err) {
-        console.error("Lỗi khi lưu giỏ hàng lên server:", err);
-      }
-    }
+    const optionsKey = JSON.stringify(options || {});
+    const matchesItem = (item: any) =>
+      item.variantId === variantId && JSON.stringify(item.options || {}) === optionsKey;
 
-    // Local storage fallback for guests
+    // Update immediately; the server synchronization happens in the background.
     setCart(prev => {
-      const idx = prev.findIndex(i =>
-        i.product[0] === product[0] &&
-        i.size === size &&
-        JSON.stringify(i.options) === JSON.stringify(options)
-      );
+      const idx = prev.findIndex(matchesItem);
       const newItems = [...prev];
       if (idx > -1) {
-        newItems[idx].quantity += qty;
+        newItems[idx] = { ...newItems[idx], quantity: newItems[idx].quantity + qty };
       } else {
         newItems.push({
           product,
@@ -622,39 +599,66 @@ export default function App() {
       }
       return newItems;
     });
+
+    if (!(user && token && productId && variantId)) return;
+    try {
+      const res = await fetch(`${env.API_URL}/cart`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          productId,
+          variantId,
+          quantity: qty,
+          note: optionsKey,
+        }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message || "Không thể cập nhật giỏ hàng");
+      setCart(prev => prev.map(item =>
+        matchesItem(item) ? { ...item, dbId: result.itemId } : item,
+      ));
+    } catch (err: any) {
+      setCart(prev => prev.flatMap(item => {
+        if (!matchesItem(item)) return [item];
+        const quantity = item.quantity - qty;
+        return quantity > 0 ? [{ ...item, quantity }] : [];
+      }));
+      toast.error(err.message || "Không thể cập nhật giỏ hàng. Đã hoàn tác thay đổi.");
+    }
   };
 
   const handleUpdateCartQty = async (index: number, newQty: number) => {
     const token = localStorage.getItem("accessToken");
     const item = cart[index];
-    if (user && token && item && item.dbId) {
-      try {
-        const res = await fetch(`${env.API_URL}/cart/${item.dbId}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ quantity: newQty }),
-        });
-        if (res.ok) {
-          const dbCart = await res.json();
-          setCart(mapDbCartToLegacy(dbCart.items || []));
-          return;
-        }
-      } catch (err) {
-        console.error("Lỗi khi cập nhật số lượng giỏ hàng trên server:", err);
-      }
-    }
-
-    // Guest fallback
+    if (!item) return;
+    const previousQty = item.quantity;
     setCart(prev => {
       const updated = [...prev];
-      if (updated[index]) {
-        updated[index].quantity = newQty;
-      }
+      if (updated[index]) updated[index] = { ...updated[index], quantity: newQty };
       return updated;
     });
+
+    if (!(user && token && item.dbId)) return;
+    try {
+      const res = await fetch(`${env.API_URL}/cart/${item.dbId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ quantity: newQty }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message || "Không thể cập nhật số lượng");
+    } catch (err: any) {
+      setCart(prev => prev.map(current =>
+        current.dbId === item.dbId ? { ...current, quantity: previousQty } : current,
+      ));
+      toast.error(err.message || "Không thể cập nhật số lượng. Đã hoàn tác thay đổi.");
+    }
   };
 
   const handleRemoveCartItem = async (index: number) => {
