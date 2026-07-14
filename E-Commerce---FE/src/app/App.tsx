@@ -18,6 +18,7 @@ import { Cart } from "./pages/Cart";
 import { Checkout, Success } from "./pages/Checkout";
 import { Favorites } from "./pages/Favorites";
 import { Profile } from "./pages/Profile";
+import { StoreMap } from "./pages/StoreMap";
 
 import { navPages } from "../data/mockData";
 import { storeLocations as fallbackStoreLocations, type StoreLocation } from "../data/storeLocations";
@@ -61,6 +62,7 @@ const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.FAVORITES]: "/yeu-thich",
   [VIEW_KEYS.PROFILE]: "/ho-so",
   [VIEW_KEYS.RESET_PASSWORD]: "/reset-password",
+  [VIEW_KEYS.STORES]: "/he-thong-cua-hang",
 };
 
 const getPathFromView = (view: string, product?: any) => {
@@ -760,6 +762,7 @@ export default function App() {
             {view === VIEW_KEYS.DETAIL && <ProductDetail product={selectedProduct} setView={setView} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onSelectProduct={handleSelectProduct} products={products} />}
             {view === VIEW_KEYS.FAVORITES && <Favorites wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onAddToCart={handleAddToCart} onSelectProduct={handleSelectProduct} setView={setView} />}
             {view === VIEW_KEYS.PROFILE && <Profile user={user} setUser={setUser} setView={setView} onLogout={handleLogout} />}
+            {view === VIEW_KEYS.STORES && <StoreMap branches={availableStores} activeStoreId={selectedStore?.id} onSelectStore={(store: any) => { handleSelectStore(store); setView(VIEW_KEYS.HOME); }} />}
             {LISTABLE.includes(view) && <ProductListing category={view} setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} searchQuery={searchQuery} products={products} />}
           </div>
         </main>
