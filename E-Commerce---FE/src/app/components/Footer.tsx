@@ -37,7 +37,10 @@ export function Footer({ setView }: { setView?: (view: string) => void }) {
         <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-sidebar-accent pt-6 text-xs text-sidebar-foreground/55">
           <p>{MESSAGES.FOOTER_RIGHTS}</p>
           <div className="flex gap-4">
-            {["Điều khoản", "Bảo mật", "Cookie"].map(l => <span key={l} className="cursor-pointer hover:text-sidebar-foreground transition">{l}</span>)}
+            {["Điều khoản", "Bảo mật", "Cookie"].map(l => <span key={l} onClick={() => {
+              if (l === "Điều khoản") setView?.(VIEW_KEYS.TERMS);
+              if (l === "Bảo mật") setView?.(VIEW_KEYS.PRIVACY);
+            }} className="cursor-pointer hover:text-sidebar-foreground transition">{l}</span>)}
           </div>
         </div>
       </div>
