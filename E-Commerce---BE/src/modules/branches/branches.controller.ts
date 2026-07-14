@@ -1,13 +1,29 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { Permission } from '../../common/constants/permissions';
-import { Permissions } from '../../common/decorators/permissions.decorator';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { BranchesService } from './branches.service';
-import { CreateBranchDto } from './dto/create-branch.dto';
-import { UpdateBranchDto } from './dto/update-branch.dto';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
+import { Permission } from "../../common/constants/permissions";
+import { Permissions } from "../../common/decorators/permissions.decorator";
+import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { PermissionsGuard } from "../../common/guards/permissions.guard";
+import { BranchesService } from "./branches.service";
+import { CreateBranchDto } from "./dto/create-branch.dto";
+import { UpdateBranchDto } from "./dto/update-branch.dto";
+import { CurrentUser } from "../../common/decorators/current-user.decorator";
+import { Roles } from "../../common/decorators/roles.decorator";
+import { RolesGuard } from "../../common/guards/roles.guard";
+import { User, UserRole } from "../users/user.entity";
+import { UpdateOpeningHoursDto } from "./dto/upsert-opening-hour.dto";
 
-@Controller('branches')
+@Controller("branches")
 export class BranchesController {
   constructor(private readonly branchesService: BranchesService) {}
 
@@ -18,42 +34,64 @@ export class BranchesController {
     return this.branchesService.findAll();
   }
 
-  @Get('active')
+  @Get("active")
   findActive() {
     return this.branchesService.findActive();
   }
 
-  @Get('nearest')
-  findNearest(@Query('lat') lat: string, @Query('lng') lng: string) {
+  @Get("nearest")
+  findNearest(@Query("lat") lat: string, @Query("lng") lng: string) {
     return this.branchesService.findNearest(Number(lat), Number(lng));
   }
 
-  @Get('nearby')
-  findNearby(@Query('lat') lat: string, @Query('lng') lng: string) {
+  @Get("nearby")
+  findNearby(@Query("lat") lat: string, @Query("lng") lng: string) {
     return this.branchesService.findNearby(Number(lat), Number(lng));
   }
 
+  @Get(":id/opening-hours")
+  getOpeningHours(@Param("id", ParseUUIDPipe) id: string) {
+    return this.branchesService.getOpeningHours(id);
+  }
+
+  @Get(":id/open-status")
+  getOpenStatus(@Param("id", ParseUUIDPipe) id: string) {
+    return this.branchesService.getOpenStatus(id);
+  }
+
+  @Patch(":id/opening-hours")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.STORE_MANAGER)
+  updateOpeningHours(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateOpeningHoursDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.branchesService.updateOpeningHours(id, dto, user);
+  }
+
   @Post()
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions(Permission.MANAGE_BRANCHES)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   create(@Body() createBranchDto: CreateBranchDto) {
     return this.branchesService.create(createBranchDto);
   }
 
-  @Patch(':id')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions(Permission.MANAGE_BRANCHES)
+  @Patch(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.STORE_MANAGER)
   update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param("id", ParseUUIDPipe) id: string,
     @Body() updateBranchDto: UpdateBranchDto,
+    @CurrentUser() user: User,
   ) {
-    return this.branchesService.update(id, updateBranchDto);
+    return this.branchesService.update(id, updateBranchDto, user);
   }
 
-  @Delete(':id')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions(Permission.MANAGE_BRANCHES)
-  delete(@Param('id', ParseUUIDPipe) id: string) {
+  @Delete(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  delete(@Param("id", ParseUUIDPipe) id: string) {
     return this.branchesService.delete(id);
   }
 }

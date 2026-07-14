@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Truck, CreditCard, PackageCheck, Store, MapPin, ClipboardList, Copy, Check, Loader2, ShieldAlert } from "lucide-react";
+import { Truck, CreditCard, PackageCheck, Store, MapPin, ClipboardList, Copy, Check, Loader2, ShieldAlert, Clock, Crosshair, CheckCircle2 } from "lucide-react";
 import { Btn } from "../components/shared";
 import { CHECKOUT_CONFIG, VIEW_KEYS } from "../../config/appConfig";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ export function Checkout({ cart, setView, onPlaceOrder, subtotal, discount, ship
 
   const [branches, setBranches] = useState<any[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
+  const [hasCustomerLocation, setHasCustomerLocation] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -31,21 +32,38 @@ export function Checkout({ cart, setView, onPlaceOrder, subtotal, discount, ship
     const fetchBranches = async () => {
       setLoadingBranches(true);
       try {
-        const token = localStorage.getItem("accessToken");
-        const headers: Record<string, string> = {};
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
-        const res = await fetch(`${env.API_URL}/branches/active`, { headers });
-        if (res.ok) {
-          const data = await res.json();
-          setBranches(data);
-          if (data.length > 0) {
-            setSelectedBranchId(data[0].id);
+        let endpoint = `${env.API_URL}/branches/active`;
+        if ("geolocation" in navigator) {
+          try {
+            const position = await new Promise<GeolocationPosition>((resolve, reject) =>
+              navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: false,
+                timeout: 7000,
+                maximumAge: 300000,
+              }),
+            );
+            endpoint = `${env.API_URL}/branches/nearby?lat=${position.coords.latitude}&lng=${position.coords.longitude}`;
+            setHasCustomerLocation(true);
+          } catch {
+            setHasCustomerLocation(false);
           }
         }
+
+        let res = await fetch(endpoint);
+        if (!res.ok && endpoint.includes("/nearby")) {
+          setHasCustomerLocation(false);
+          res = await fetch(`${env.API_URL}/branches/active`);
+        }
+        if (!res.ok) throw new Error("Không thể tải danh sách chi nhánh");
+
+        const data = await res.json();
+        const openBranches = (Array.isArray(data) ? data : [data]).filter(branch => branch.isOpenNow);
+        setBranches(openBranches);
+        setSelectedBranchId(openBranches[0]?.id || "");
       } catch (err) {
         console.error("Error fetching branches:", err);
+        setBranches([]);
+        setSelectedBranchId("");
       } finally {
         setLoadingBranches(false);
       }
@@ -71,8 +89,8 @@ export function Checkout({ cart, setView, onPlaceOrder, subtotal, discount, ship
       return;
     }
 
-    if (fulfillmentType === "pickup" && !selectedBranchId) {
-      const err = "Vui lòng chọn chi nhánh nhận hàng!";
+    if (!selectedBranchId) {
+      const err = "Hiện không có chi nhánh đang mở để tiếp nhận đơn hàng!";
       setCheckoutError(err);
       toast.error(err);
       return;
@@ -86,8 +104,7 @@ export function Checkout({ cart, setView, onPlaceOrder, subtotal, discount, ship
       paymentMethod = "momo";
     }
 
-    // If pickup, we assign the selected branch ID, otherwise default to first branch ID or null
-    const finalBranchId = selectedBranchId || (branches[0]?.id || "");
+    const finalBranchId = selectedBranchId;
 
     try {
       await onPlaceOrder({
@@ -169,23 +186,61 @@ export function Checkout({ cart, setView, onPlaceOrder, subtotal, discount, ship
               </div>
             ) : (
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Chi nhánh nhận hàng</label>
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div>
+                    <label className="block text-sm font-semibold text-foreground">Chọn chi nhánh nhận hàng</label>
+                    <p className="mt-1 text-xs text-muted-foreground">Chỉ hiển thị cửa hàng đang mở và có thể tiếp nhận đơn.</p>
+                  </div>
+                  <span className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${hasCustomerLocation ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
+                    {hasCustomerLocation ? <Crosshair size={12} /> : <MapPin size={12} />}
+                    {hasCustomerLocation ? "Gần bạn nhất" : "Chưa có vị trí"}
+                  </span>
+                </div>
                 {loadingBranches ? (
-                  <p className="text-xs text-muted-foreground">Đang tải danh sách chi nhánh...</p>
+                  <div className="flex items-center justify-center gap-2 rounded-xl border bg-muted/30 py-8 text-sm text-muted-foreground">
+                    <Loader2 className="animate-spin" size={18} /> Đang tìm cửa hàng đang mở gần bạn...
+                  </div>
                 ) : branches.length > 0 ? (
-                  <select
-                    value={selectedBranchId}
-                    onChange={(e) => setSelectedBranchId(e.target.value)}
-                    className="w-full rounded-xl border bg-input px-4 py-2.5 outline-none focus:border-primary text-sm text-foreground"
-                  >
-                    {branches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name} - {b.address}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                    {branches.map((branch, index) => {
+                      const selected = selectedBranchId === branch.id;
+                      const openingTime = branch.todayOpeningHour?.openingTime?.slice(0, 5);
+                      const closingTime = branch.todayOpeningHour?.closingTime?.slice(0, 5);
+                      return (
+                        <button
+                          key={branch.id}
+                          type="button"
+                          onClick={() => setSelectedBranchId(branch.id)}
+                          className={`w-full rounded-xl border p-3 text-left transition ${selected ? "border-primary bg-primary/5 shadow-sm" : "bg-card hover:border-primary/50 hover:bg-muted/30"}`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <span className={`grid size-9 shrink-0 place-items-center rounded-full ${selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                              <Store size={16} />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <p className="text-sm font-semibold text-foreground">{branch.name}</p>
+                                  {index === 0 && hasCustomerLocation && <span className="mt-1 inline-block rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-primary">Gần nhất đang mở</span>}
+                                </div>
+                                {selected && <CheckCircle2 className="shrink-0 text-primary" size={18} />}
+                              </div>
+                              <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{branch.address}</p>
+                              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+                                <span className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 font-semibold text-green-700"><span className="size-1.5 rounded-full bg-green-500" />Đang mở</span>
+                                {openingTime && closingTime && <span className="flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-muted-foreground"><Clock size={11} />{openingTime}–{closingTime}</span>}
+                                {typeof branch.distanceKm === "number" && <span className="flex items-center gap-1 rounded-full bg-muted px-2 py-1 font-medium text-primary"><MapPin size={11} />{branch.distanceKm.toFixed(1)} km</span>}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 ) : (
-                  <p className="text-xs text-red-500 font-semibold">Không tìm thấy chi nhánh nào hoạt động.</p>
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-700">
+                    Hiện chưa có chi nhánh nào đang mở cửa. Vui lòng quay lại trong giờ phục vụ.
+                  </div>
                 )}
               </div>
             )}

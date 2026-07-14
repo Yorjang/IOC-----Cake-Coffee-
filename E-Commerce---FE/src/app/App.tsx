@@ -166,6 +166,10 @@ const estimateDelivery = (distanceKm?: number) => {
 
 const apiBranchToStore = (branch: any): StoreLocation => {
   const distanceKm = typeof branch.distanceKm === "number" ? branch.distanceKm : undefined;
+  const todayHours = branch.todayOpeningHour;
+  const hours = todayHours && !todayHours.isClosed
+    ? `${todayHours.openingTime?.slice(0, 5)} - ${todayHours.closingTime?.slice(0, 5)}`
+    : "Đóng cửa hôm nay";
 
   return {
     id: branch.id,
@@ -173,12 +177,14 @@ const apiBranchToStore = (branch: any): StoreLocation => {
     shortName: branch.name?.replace(/^Sweet Bean\s*/i, "") || branch.name,
     address: branch.address,
     phone: branch.phone || "",
-    hours: branch.hours || "07:00 - 22:00",
+    hours,
     distance: typeof distanceKm === "number" ? `${distanceKm.toFixed(1)} km` : "Đang tính",
     delivery: branch.deliveryEstimate || estimateDelivery(distanceKm),
-    status: branch.status === "active" ? "Đang mở cửa" : branch.status || "Đang mở cửa",
+    status: branch.isOpenNow ? "Đang mở cửa" : "Đã đóng cửa",
     highlight: typeof distanceKm === "number" ? "Gần bạn nhất" : "Chi nhánh đang phục vụ",
     mapQuery: branch.address || branch.name,
+    isOpenNow: !!branch.isOpenNow,
+    todayOpeningHour: todayHours ?? null,
   };
 };
 
@@ -259,6 +265,44 @@ export default function App() {
     })();
   }, []);
 
+  useEffect(() => {
+    const refreshOpeningStatus = async () => {
+      try {
+        const res = await fetch(`${env.API_URL}/branches/active`);
+        if (!res.ok) return;
+        const branches = await res.json();
+        const statusById = new Map(
+          branches.map((branch: any) => [branch.id, apiBranchToStore(branch)]),
+        );
+        setAvailableStores(current => current.map(store => {
+          const fresh = statusById.get(store.id) as StoreLocation | undefined;
+          return fresh ? {
+            ...store,
+            isOpenNow: fresh.isOpenNow,
+            status: fresh.status,
+            hours: fresh.hours,
+            todayOpeningHour: fresh.todayOpeningHour,
+          } : store;
+        }));
+        setSelectedStore(current => {
+          const fresh = statusById.get(current.id) as StoreLocation | undefined;
+          return fresh ? {
+            ...current,
+            isOpenNow: fresh.isOpenNow,
+            status: fresh.status,
+            hours: fresh.hours,
+            todayOpeningHour: fresh.todayOpeningHour,
+          } : current;
+        });
+      } catch {
+        // Keep the latest known status when the API is temporarily unavailable.
+      }
+    };
+
+    const timer = window.setInterval(refreshOpeningStatus, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
 
   useEffect(() => {
     let cancelled = false;
@@ -297,7 +341,7 @@ export default function App() {
             const storesWithDistance = Array.isArray(nearbyBranches)
               ? nearbyBranches.map(apiBranchToStore)
               : [apiBranchToStore(nearbyBranches)];
-            const nearest = storesWithDistance[0];
+            const nearest = storesWithDistance.find(store => store.isOpenNow);
             if (cancelled) return;
 
             if (storesWithDistance.length > 0) {
@@ -812,7 +856,7 @@ export default function App() {
             {view === VIEW_KEYS.CART && <Cart cart={cart} onUpdateQty={handleUpdateCartQty} onRemoveItem={handleRemoveCartItem} setView={setView} publicCoupons={publicCoupons} appliedCoupon={appliedCoupon} setAppliedCoupon={setAppliedCoupon} user={user} />}
             {view === VIEW_KEYS.CHECKOUT && <Checkout cart={cart} setView={setView} onPlaceOrder={handlePlaceOrder} subtotal={subtotal} discount={discount} shipping={shipping} grandTotal={grandTotal} user={user} />}
             {view === VIEW_KEYS.SUCCESS && <Success setView={setView} order={lastCreatedOrder} />}
-            {view === VIEW_KEYS.DETAIL && <ProductDetail product={selectedProduct} setView={setView} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={onToggleWishlist} onSelectProduct={handleSelectProduct} products={products} publicCoupons={publicCoupons} />}
+            {view === VIEW_KEYS.DETAIL && <ProductDetail product={selectedProduct} setView={setView} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onSelectProduct={handleSelectProduct} products={products} publicCoupons={publicCoupons} />}
             {view === VIEW_KEYS.FAVORITES && <Favorites wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onAddToCart={handleAddToCart} onSelectProduct={handleSelectProduct} setView={setView} />}
             {view === VIEW_KEYS.PROFILE && <Profile user={user} setUser={setUser} setView={setView} onLogout={handleLogout} />}
             {view === VIEW_KEYS.STORES && <StoreMap branches={availableStores} activeStoreId={selectedStore?.id} onSelectStore={(store: any) => { handleSelectStore(store); setView(VIEW_KEYS.HOME); }} />}

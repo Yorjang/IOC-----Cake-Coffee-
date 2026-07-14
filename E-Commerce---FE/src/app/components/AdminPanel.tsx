@@ -596,11 +596,32 @@ function AdminOptions() {
 }
 
 // ── Branches ─────────────────────────────────────────────────────────────────
-function AdminBranches() {
+const WEEK_DAYS = [
+  { value: "monday", label: "Thứ Hai" },
+  { value: "tuesday", label: "Thứ Ba" },
+  { value: "wednesday", label: "Thứ Tư" },
+  { value: "thursday", label: "Thứ Năm" },
+  { value: "friday", label: "Thứ Sáu" },
+  { value: "saturday", label: "Thứ Bảy" },
+  { value: "sunday", label: "Chủ Nhật" },
+];
+
+const defaultOpeningHours = () => WEEK_DAYS.map(day => ({
+  dayOfWeek: day.value,
+  openingTime: "07:00",
+  closingTime: "22:00",
+  isClosed: false,
+}));
+
+function AdminBranches({ adminUser }: { adminUser?: any }) {
   const [branchRows, setBranchRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [branchForm, setBranchForm] = useState<any>(null);
+  const [scheduleBranch, setScheduleBranch] = useState<any>(null);
+  const [openingHours, setOpeningHours] = useState<any[]>(defaultOpeningHours());
+  const [loadingHours, setLoadingHours] = useState(false);
+  const [savingHours, setSavingHours] = useState(false);
 
   const getToken = () => localStorage.getItem("accessToken");
   const statusLabel = (status: string) => ({
@@ -720,6 +741,72 @@ function AdminBranches() {
     }
   };
 
+  const canEditOpeningHours = (branch: any) =>
+    (adminUser?.role ?? "admin") === "admin" ||
+    (adminUser?.role === "store_manager" && adminUser?.branchId === branch.id);
+
+  const canManageBranch = (branch: any) =>
+    (adminUser?.role ?? "admin") === "admin" || adminUser?.branchId === branch.id;
+
+  const openSchedule = async (branch: any) => {
+    setScheduleBranch(branch);
+    setOpeningHours(defaultOpeningHours());
+    setLoadingHours(true);
+    try {
+      const res = await fetch(`${env.API_URL}/branches/${branch.id}/opening-hours`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Không thể tải giờ mở cửa.");
+      const byDay = new Map(data.map((item: any) => [item.dayOfWeek, item]));
+      setOpeningHours(defaultOpeningHours().map(item => {
+        const saved: any = byDay.get(item.dayOfWeek);
+        return saved ? {
+          dayOfWeek: item.dayOfWeek,
+          openingTime: saved.openingTime?.slice(0, 5) || "07:00",
+          closingTime: saved.closingTime?.slice(0, 5) || "22:00",
+          isClosed: !!saved.isClosed,
+        } : item;
+      }));
+    } catch (err: any) {
+      toast.error(err.message || "Không thể tải giờ mở cửa.");
+    } finally {
+      setLoadingHours(false);
+    }
+  };
+
+  const updateOpeningHour = (dayOfWeek: string, changes: any) => {
+    setOpeningHours(prev => prev.map(item =>
+      item.dayOfWeek === dayOfWeek ? { ...item, ...changes } : item,
+    ));
+  };
+
+  const saveOpeningHours = async () => {
+    if (!scheduleBranch) return;
+    const token = getToken();
+    if (!token) {
+      toast.error("Bạn cần đăng nhập lại để lưu giờ mở cửa.");
+      return;
+    }
+    setSavingHours(true);
+    try {
+      const res = await fetch(`${env.API_URL}/branches/${scheduleBranch.id}/opening-hours`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ openingHours }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Không thể lưu giờ mở cửa.");
+      toast.success("Đã cập nhật giờ mở cửa.");
+      setScheduleBranch(null);
+    } catch (err: any) {
+      toast.error(err.message || "Không thể lưu giờ mở cửa.");
+    } finally {
+      setSavingHours(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -731,7 +818,9 @@ function AdminBranches() {
           <button onClick={loadBranches} className="rounded-xl bg-sidebar px-3 py-2 text-sm text-muted-foreground hover:bg-sidebar-accent transition">
             {loading ? "Đang tải..." : "Tải lại"}
           </button>
-          <AdminBtn onClick={() => setBranchForm(emptyBranchForm())}><span className="flex items-center gap-1"><Plus size={14} />Thêm chi nhánh</span></AdminBtn>
+          {(adminUser?.role ?? "admin") === "admin" && (
+            <AdminBtn onClick={() => setBranchForm(emptyBranchForm())}><span className="flex items-center gap-1"><Plus size={14} />Thêm chi nhánh</span></AdminBtn>
+          )}
         </div>
       </div>
 
@@ -761,8 +850,13 @@ function AdminBranches() {
               </div>
             </div>
             <div className="mt-4 flex gap-2">
-              <AdminBtn variant="ghost" onClick={() => setBranchForm({ ...branch })}><Edit size={14} /></AdminBtn>
-              <AdminBtn variant="danger" onClick={() => deleteBranch(branch)}><Trash2 size={14} /></AdminBtn>
+              {canManageBranch(branch) && <AdminBtn variant="ghost" onClick={() => setBranchForm({ ...branch })}><Edit size={14} /></AdminBtn>}
+              {canEditOpeningHours(branch) && (
+                <AdminBtn variant="ghost" onClick={() => openSchedule(branch)}>
+                  <span className="flex items-center gap-1"><Clock size={14} />Giờ mở cửa</span>
+                </AdminBtn>
+              )}
+              {(adminUser?.role ?? "admin") === "admin" && <AdminBtn variant="danger" onClick={() => deleteBranch(branch)}><Trash2 size={14} /></AdminBtn>}
             </div>
           </div>
         ))}
@@ -825,6 +919,56 @@ function AdminBranches() {
               <button onClick={() => setBranchForm(null)} className="rounded-full border border-sidebar-accent px-4 py-2 text-sm text-muted-foreground hover:bg-sidebar">Hủy</button>
               <button onClick={saveBranch} disabled={saving} className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/80 disabled:opacity-50">
                 {saving ? "Đang lưu..." : "Lưu chi nhánh"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {scheduleBranch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-sidebar-accent bg-background p-6 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-semibold text-foreground">Giờ mở cửa</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{scheduleBranch.name}</p>
+              </div>
+              <button onClick={() => setScheduleBranch(null)} className="rounded-full bg-sidebar px-3 py-1 text-sm text-muted-foreground hover:bg-sidebar-accent">Đóng</button>
+            </div>
+
+            {loadingHours ? (
+              <div className="grid min-h-48 place-items-center text-sm text-muted-foreground">
+                <Loader2 className="animate-spin" size={24} />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {WEEK_DAYS.map(day => {
+                  const item = openingHours.find(hour => hour.dayOfWeek === day.value);
+                  return (
+                    <div key={day.value} className="grid items-center gap-3 rounded-xl bg-sidebar p-3 sm:grid-cols-[110px_1fr_1fr_130px]">
+                      <span className="text-sm font-semibold text-foreground">{day.label}</span>
+                      <label className="grid gap-1 text-xs text-muted-foreground">
+                        Mở cửa
+                        <input type="time" disabled={item?.isClosed} value={item?.openingTime || "07:00"} onChange={e => updateOpeningHour(day.value, { openingTime: e.target.value })} className="rounded-lg bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none disabled:opacity-40" />
+                      </label>
+                      <label className="grid gap-1 text-xs text-muted-foreground">
+                        Đóng cửa
+                        <input type="time" disabled={item?.isClosed} value={item?.closingTime || "22:00"} onChange={e => updateOpeningHour(day.value, { closingTime: e.target.value })} className="rounded-lg bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none disabled:opacity-40" />
+                      </label>
+                      <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground sm:justify-end">
+                        <input type="checkbox" checked={!!item?.isClosed} onChange={e => updateOpeningHour(day.value, { isClosed: e.target.checked })} className="size-4 accent-primary" />
+                        Đóng cả ngày
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setScheduleBranch(null)} className="rounded-full border border-sidebar-accent px-4 py-2 text-sm text-muted-foreground hover:bg-sidebar">Hủy</button>
+              <button onClick={saveOpeningHours} disabled={loadingHours || savingHours} className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/80 disabled:opacity-50">
+                {savingHours ? "Đang lưu..." : "Lưu giờ mở cửa"}
               </button>
             </div>
           </div>
@@ -2551,7 +2695,7 @@ export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUse
   const content: Record<string, any> = {
     dashboard: <Dashboard />,
     orders: <AdminOrders />,
-    branches: <AdminBranches />,
+    branches: <AdminBranches adminUser={adminUser} />,
     storeMap: <AdminStoreMap />,
     products: <AdminProducts />,
     categories: <AdminCategories />,
