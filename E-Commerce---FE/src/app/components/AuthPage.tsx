@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { CakeSlice, Eye, EyeOff, Mail, Lock, User, Phone, X } from "lucide-react";
 import { toast } from "sonner";
 import { AUTH_CONTENT } from "../../constants/authContent";
@@ -6,6 +6,7 @@ import { env } from "../../config/env";
 import { policyContentMap } from "../pages/PolicyPage";
 import type { AuthMode, AuthErrors } from "./authUtils";
 import { validateRegisterFields, apiRegister, getAuthErrorMessage } from "./authUtils";
+import { saveAuthSession } from "./authSession";
 
 declare global {
   interface Window {
@@ -46,6 +47,8 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", se
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
+  const [remember, setRemember] = useState(false);
+  const rememberRef = useRef(false);
   const [errors, setErrors] = useState<AuthErrors>({});
 
   const switchMode = (m: AuthMode) => {
@@ -59,14 +62,12 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", se
       const res = await fetch(`${env.API_URL}/auth/google-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken: response.credential }),
+        body: JSON.stringify({ idToken: response.credential, remember: rememberRef.current }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(getAuthErrorMessage(data.message, "Đăng nhập Google thất bại"));
 
-      localStorage.setItem("accessToken", data.accessToken);
-      localStorage.setItem("refreshToken", data.refreshToken);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      saveAuthSession(data, rememberRef.current);
 
       toast.success("Đăng nhập bằng Google thành công!");
       onSuccess();
@@ -102,10 +103,10 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", se
     try {
       if (mode === "login") {
         setLoading(true);
-        const res = await fetch(`${env.API_URL}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
+        const res = await fetch(`${env.API_URL}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password, remember }) });
         const data = await res.json();
         if (!res.ok) throw new Error(getAuthErrorMessage(data.message, "Đăng nhập thất bại"));
-        localStorage.setItem("accessToken", data.accessToken); localStorage.setItem("refreshToken", data.refreshToken); localStorage.setItem("user", JSON.stringify(data.user));
+        saveAuthSession(data, remember);
         toast.success("Đăng nhập thành công!"); onSuccess();
       } else if (mode === "register") {
         const err = validateRegisterFields(fullName, email, phone, password);
@@ -188,7 +189,7 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", se
                 <div className="relative"><Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><input type="email" required placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-xl border bg-input-background py-3 pl-10 pr-4 text-sm outline-none focus:border-primary" /></div>
                 <div className="relative"><Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><input type={showPass ? "text" : "password"} required placeholder="Mật khẩu" value={password} onChange={e => setPassword(e.target.value)} className="w-full rounded-xl border bg-input-background py-3 pl-10 pr-10 text-sm outline-none focus:border-primary" /><button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">{showPass ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
                 <div className="flex items-center justify-between text-sm">
-                  <label className="flex items-center gap-2 text-muted-foreground"><input type="checkbox" className="rounded" /> Ghi nhớ đăng nhập</label>
+                  <label className="flex cursor-pointer items-center gap-2 text-muted-foreground"><input type="checkbox" checked={remember} onChange={e => { setRemember(e.target.checked); rememberRef.current = e.target.checked; }} className="rounded accent-primary" /> Ghi nhớ đăng nhập</label>
                   <button type="button" onClick={() => setMode("forgot")} className="text-primary hover:underline">Quên mật khẩu?</button>
                 </div>
                 <button type="submit" disabled={loading} className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 disabled:opacity-50">{loading ? "Đang đăng nhập..." : "Đăng nhập"}</button>

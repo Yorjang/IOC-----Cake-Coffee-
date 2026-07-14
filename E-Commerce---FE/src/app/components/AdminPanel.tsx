@@ -4,7 +4,7 @@ import {
   BarChart2, Image, Edit, Trash2, Eye, Plus, CheckCircle, XCircle,
   TrendingUp, AlertCircle, Loader2, ToggleLeft, Search, Filter,
   ArrowUpRight, DollarSign, Clock, ChevronDown, Store, MapPin, Boxes,
-  ReceiptText, ClipboardList, UploadCloud
+  ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
 } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
@@ -711,58 +711,6 @@ function AdminCategories() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// ── Options ───────────────────────────────────────────────────────────────────
-function AdminOptions() {
-  const localOptions = [
-    { id: 1, name: "Size", values: "S / M / L", applies: "Cafe, Trà, Đồ uống khác", type: "Size" },
-    { id: 2, name: "Đường", values: "Ít / Bình thường / Nhiều", applies: "Cafe, Trà, Đồ uống khác", type: "Tùy chỉnh" },
-    { id: 3, name: "Đá", values: "Ít đá / Bình thường / Nhiều đá", applies: "Cafe, Trà, Đồ uống khác", type: "Tùy chỉnh" },
-    { id: 4, name: "Size bánh", values: "4 inch / 6 inch / 8 inch", applies: "Bánh sinh nhật, Bánh mousse", type: "Size" },
-    { id: 5, name: "Lời chúc", values: "Nhập văn bản", applies: "Bánh sinh nhật", type: "Text" },
-    { id: 6, name: "Topping", values: "Dâu / Việt quất / Kiwi / Không", applies: "Bánh tart, Bánh mousse", type: "Topping" },
-  ];
-
-  return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold text-foreground">Quản lý tùy chọn sản phẩm</h2>
-        <AdminBtn><span className="flex items-center gap-1"><Plus size={14} />Thêm tùy chọn</span></AdminBtn>
-      </div>
-      <div className="overflow-auto rounded-2xl bg-sidebar">
-        <table className="w-full text-sm">
-          <TableHeader cols={["#", "Tên tùy chọn", "Kiểu", "Giá trị", "Áp dụng cho", "Thao tác"]} />
-          <tbody>
-            {localOptions.map(o => (
-              <tr key={o.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
-                <td className="py-3 text-muted-foreground">{o.id}</td>
-                <td className="py-3 font-medium text-foreground">{o.name}</td>
-                <td className="py-3"><span className="rounded-full bg-sidebar-accent px-2 py-0.5 text-xs text-primary">{o.type}</span></td>
-                <td className="py-3 text-muted-foreground">{o.values}</td>
-                <td className="py-3 text-xs text-muted-foreground">{o.applies}</td>
-                <td className="py-3">
-                  <div className="flex gap-2">
-                    <AdminBtn variant="ghost"><Edit size={14} /></AdminBtn>
-                    <AdminBtn variant="danger"><Trash2 size={14} /></AdminBtn>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="rounded-2xl bg-sidebar p-5">
-        <h3 className="mb-4 text-sm font-semibold text-foreground">Thêm tùy chọn mới</h3>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <input className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground" placeholder="Tên tùy chọn" />
-          <select className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none"><option>Kiểu: Size</option><option>Tùy chỉnh</option><option>Topping</option><option>Text</option></select>
-          <input className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground" placeholder="Giá trị (ngăn cách bằng /)" />
-          <AdminBtn>Lưu tùy chọn</AdminBtn>
-        </div>
-      </div>
     </div>
   );
 }
@@ -2875,7 +2823,6 @@ const navItems = [
   { key: "storeMap", label: "Bản đồ", icon: MapPin, allowedRoles: ["admin", "store_manager"] },
   { key: "products", label: "Sản phẩm", icon: Package, allowedRoles: ["admin", "store_manager", "staff"] },
   { key: "categories", label: "Danh mục", icon: Tag, allowedRoles: ["admin", "store_manager", "staff"] },
-  { key: "options", label: "Tùy chọn SP", icon: Settings, allowedRoles: ["admin", "store_manager"] },
   { key: "inventory", label: "Tồn kho", icon: Boxes, allowedRoles: ["admin", "store_manager", "staff"] },
   { key: "users", label: "Người dùng", icon: Users, allowedRoles: ["admin"] },
   { key: "reviews", label: "Đánh giá", icon: Star, allowedRoles: ["admin", "store_manager", "staff"] },
@@ -2895,6 +2842,15 @@ export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUse
   const visibleNav = navItems.filter(item => item.allowedRoles.includes(role));
   const [active, setActive] = useState(visibleNav[0]?.key ?? "dashboard");
   const [mobileNav, setMobileNav] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("sb_admin_sidebar_collapsed") === "true");
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(previous => {
+      const next = !previous;
+      localStorage.setItem("sb_admin_sidebar_collapsed", String(next));
+      return next;
+    });
+  };
 
   const content: Record<string, any> = {
     dashboard: <Dashboard />,
@@ -2903,7 +2859,6 @@ export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUse
     storeMap: <AdminStoreMap />,
     products: <AdminProducts />,
     categories: <AdminCategories />,
-    options: <AdminOptions />,
     inventory: <AdminInventory />,
     users: <AdminUsers />,
     reviews: <AdminReviews />,
@@ -2918,8 +2873,23 @@ export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUse
       {/* Admin top bar */}
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-sidebar-accent bg-background/95 px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-3">
-          <button className="lg:hidden" onClick={() => setMobileNav(!mobileNav)}>
-            <ChevronDown size={20} className={`transition ${mobileNav ? "rotate-180" : ""}`} />
+          <button
+            type="button"
+            onClick={() => setMobileNav(previous => !previous)}
+            className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground lg:hidden"
+            aria-label={mobileNav ? "Đóng menu quản trị" : "Mở menu quản trị"}
+            title={mobileNav ? "Đóng menu" : "Mở menu"}
+          >
+            {mobileNav ? <X size={20} /> : <Menu size={20} />}
+          </button>
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            className="hidden size-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground lg:inline-flex"
+            aria-label={sidebarCollapsed ? "Mở rộng menu quản trị" : "Thu gọn menu quản trị"}
+            title={sidebarCollapsed ? "Mở rộng menu" : "Thu gọn menu"}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
           </button>
           <span className="font-serif text-lg font-bold text-primary">Sweet Bean Admin</span>
           {adminUser && (
@@ -2935,22 +2905,33 @@ export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUse
         </button>
       </header>
 
-      <div className="mx-auto grid max-w-screen-xl gap-0 lg:grid-cols-[220px_1fr]">
+      {mobileNav && (
+        <button
+          type="button"
+          aria-label="Đóng menu quản trị"
+          onClick={() => setMobileNav(false)}
+          className="fixed inset-0 top-[61px] z-20 bg-black/50 backdrop-blur-[1px] lg:hidden"
+        />
+      )}
+
+      <div className={`grid w-full min-w-0 gap-0 transition-[grid-template-columns] duration-300 ${sidebarCollapsed ? "lg:grid-cols-[72px_minmax(0,1fr)]" : "lg:grid-cols-[220px_minmax(0,1fr)]"}`}>
         {/* Sidebar */}
-        <aside className={`${mobileNav ? "block" : "hidden"} lg:flex lg:flex-col bg-sidebar border-r border-sidebar-accent min-h-screen p-4`}>
+        <aside className={`${mobileNav ? "flex" : "hidden"} fixed bottom-0 left-0 top-[61px] z-30 w-[280px] flex-col overflow-y-auto border-r border-sidebar-accent bg-sidebar p-4 shadow-2xl transition-[width,padding] duration-300 lg:sticky lg:top-[61px] lg:z-auto lg:flex lg:h-[calc(100vh-61px)] lg:w-auto lg:shadow-none ${sidebarCollapsed ? "lg:px-2" : "lg:px-4"}`}>
           <nav className="flex-1 space-y-1">
             {visibleNav.map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
                 onClick={() => { setActive(key); setMobileNav(false); }}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${active === key ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:bg-sidebar-accent"}`}
+                title={sidebarCollapsed ? label : undefined}
+                aria-label={label}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${sidebarCollapsed ? "lg:justify-center lg:gap-0 lg:px-0" : ""} ${active === key ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:bg-sidebar-accent"}`}
               >
-                <Icon size={16} />
-                {label}
+                <Icon size={17} className="shrink-0" />
+                <span className={sidebarCollapsed ? "lg:hidden" : ""}>{label}</span>
               </button>
             ))}
           </nav>
-          <div className="mt-6 rounded-xl border border-sidebar-accent bg-background/40 p-3">
+          <div className={`mt-6 rounded-xl border border-sidebar-accent bg-background/40 p-3 ${sidebarCollapsed ? "lg:hidden" : ""}`}>
             <p className="mb-1 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Vai trò</p>
             <p className="text-xs font-semibold text-foreground">{ROLE_LABEL[role] ?? role}</p>
             <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
@@ -2963,7 +2944,7 @@ export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUse
         </aside>
 
         {/* Content */}
-        <main className="p-5 lg:p-7">
+        <main className="min-w-0 w-full p-5 lg:p-7">
           {content[active]}
         </main>
       </div>

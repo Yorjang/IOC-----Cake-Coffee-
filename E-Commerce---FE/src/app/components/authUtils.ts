@@ -1,5 +1,6 @@
 import { toast } from "sonner";
 import { env } from "../../config/env";
+import { saveAuthSession } from "./authSession";
 
 export type AuthMode = "login" | "register" | "forgot" | "reset";
 
@@ -80,9 +81,7 @@ export async function apiLogin(email: string, password: string, onSuccess: () =>
 
   if (!res.ok) throw new Error(getAuthErrorMessage(data.message, "Đăng nhập thất bại"));
 
-  localStorage.setItem("accessToken", data.accessToken);
-  localStorage.setItem("refreshToken", data.refreshToken);
-  localStorage.setItem("user", JSON.stringify(data.user));
+  saveAuthSession(data, false);
   toast.success("Đăng nhập thành công!");
   onSuccess();
 }
@@ -120,8 +119,7 @@ export async function apiRegister(
     toast.success(VERIFY_EMAIL_MESSAGE, { duration: 8000 });
     setMode("login");
   } else {
-    localStorage.setItem("accessToken", data.accessToken);
-    localStorage.setItem("user", JSON.stringify(data.user));
+    saveAuthSession(data, false);
     toast.success(data.message || VERIFY_EMAIL_MESSAGE, { duration: 8000 });
     onSuccess();
   }

@@ -22,6 +22,7 @@ export class PaymentsController {
 
   // Sepay Bank Transfer Webhook integration
   @Post('webhook/sepay')
+  @Public()
   handleSepayWebhook(
     @Headers('authorization') authHeader: string,
     @Body() body: SepayWebhookDto,

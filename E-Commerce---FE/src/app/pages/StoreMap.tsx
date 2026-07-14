@@ -22,7 +22,7 @@ export function StoreMap({ branches, activeStoreId, onSelectStore }: any) {
   );
 
   return (
-    <div className="mx-auto max-w-[1500px] px-5 sm:px-6 lg:px-10 py-6 md:py-10 animate-fade-in">
+    <div className="w-full px-2 sm:px-4 lg:px-4 py-6 md:py-10 animate-fade-in">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Hệ thống cửa hàng</h1>

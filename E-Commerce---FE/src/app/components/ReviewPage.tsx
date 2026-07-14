@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Star, ThumbsUp, Camera, ArrowLeft } from "lucide-react";
 import { env } from "../../config/env";
+import { getAccessToken } from "./authSession";
 import { toast } from "sonner";
 
 const mockProducts = [
@@ -106,7 +107,7 @@ export function ReviewPage({ product, onBack }: any) {
     e.preventDefault();
     if (rating === 0 || !comment.trim()) return;
 
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     if (!token) {
       toast.error("Vui lòng đăng nhập để viết đánh giá!");
       return;

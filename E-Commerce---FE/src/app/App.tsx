@@ -20,21 +20,30 @@ import { Favorites } from "./pages/Favorites";
 import { Profile } from "./pages/Profile";
 import { StoreMap } from "./pages/StoreMap";
 import { PolicyPage } from "./pages/PolicyPage";
+import { OrderTracking } from "./pages/OrderTracking";
 
 import { navPages } from "../data/mockData";
 import { storeLocations as fallbackStoreLocations, type StoreLocation } from "../data/storeLocations";
 import { env } from "../config/env";
 import { VIEW_KEYS } from "../config/appConfig";
 import { getDiscountedPrice } from "./components/shared";
+import { clearAuthSession, getAccessToken, getAccessTokenExpiry, getStoredUser, refreshAuthSession } from "./components/authSession";
 
 // Array format: [name, price, categoryName, imageUrl, rating, badge, discountPrice, bestCouponCode]
 const apiProductToArray = (p: any, coupons: any[] = []): any[] => {
-  const originalPrice = p.variants?.[0]?.price ? Number(p.variants[0].price) : 0;
+  const activeVariants = (p.variants || [])
+    .filter((variant: any) => variant.status === "active")
+    .sort((a: any, b: any) => Number(a.price) - Number(b.price));
+  const originalPrice = activeVariants[0]?.price ? Number(activeVariants[0].price) : 0;
   const price = originalPrice ? `${originalPrice.toLocaleString("vi-VN")}đ` : "0đ";
   const categoryName = p.category?.name ?? "Khác";
   const imageUrl = p.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=600&h=520&fit=crop&auto=format";
   const rating = "4.8";
-  const badge = p.productType === "combo" ? "Combo" : (p.variants?.length > 1 ? "S/M/L" : "Còn hàng");
+  const badge = p.productType === "combo"
+    ? "Combo"
+    : activeVariants.length > 1
+      ? `${activeVariants.length} kích cỡ`
+      : activeVariants.length === 1 ? "Còn hàng" : "Hết hàng";
 
   const { discountedPrice, discountAmount, bestCoupon } = getDiscountedPrice(originalPrice, p, coupons);
   const discountPriceStr = discountAmount > 0 ? `${discountedPrice.toLocaleString("vi-VN")}đ` : null;
@@ -71,6 +80,7 @@ const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.STORES]: "/he-thong-cua-hang",
   [VIEW_KEYS.PRIVACY]: "/chinh-sach-bao-mat",
   [VIEW_KEYS.TERMS]: "/dieu-khoan-dich-vu",
+  [VIEW_KEYS.TRACKING]: "/theo-doi",
 };
 
 const getPathFromView = (view: string, product?: any) => {
@@ -204,7 +214,7 @@ export default function App() {
   const [cart, setCart] = useState<any[]>([]);
   const [cartSessionId] = useState(getCartSessionId);
   const [wishlist, setWishlist] = useState<any[]>(() => JSON.parse(localStorage.getItem("sb_wishlist") || "[]"));
-  const [user, setUser] = useState<any>(() => JSON.parse(localStorage.getItem("user") || "null"));
+  const [user, setUser] = useState<any>(getStoredUser);
   const [selectedStore, setSelectedStore] = useState<StoreLocation>(() => {
     const saved = localStorage.getItem(STORE_STORAGE_KEY);
     const savedStore = saved ? fallbackStoreLocations.find((store) => store.id === saved) : null;
@@ -217,6 +227,7 @@ export default function App() {
   const [manualLocationRequired, setManualLocationRequired] = useState(false);
   const [orderCode, setOrderCode] = useState("");
   const [lastCreatedOrder, setLastCreatedOrder] = useState<any>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   // ── Fetch real products & categories from API ───────────────────────
   const [products, setProducts] = useState<any[]>([]);
@@ -279,7 +290,7 @@ export default function App() {
   }, [cart, appliedCoupon]);
 
 
-  const fetchCart = async (branchId: string, token = localStorage.getItem("accessToken")) => {
+  const fetchCart = async (branchId: string, token = getAccessToken()) => {
     if (!UUID_PATTERN.test(branchId)) return;
     try {
       const headers: Record<string, string> = { "X-Session-Id": cartSessionId };
@@ -299,7 +310,7 @@ export default function App() {
 
   const cartHeaders = (includeJson = false) => {
     const headers: Record<string, string> = { "X-Session-Id": cartSessionId };
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     if (token) headers.Authorization = `Bearer ${token}`;
     if (includeJson) headers["Content-Type"] = "application/json";
     return headers;
@@ -490,16 +501,34 @@ export default function App() {
 
   // ── Session verification on mount ──────────────────────────────────────────
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (user && token) {
+    if (user) {
       (async () => {
         try {
-          const res = await fetch(`${env.API_URL}/users/me`, {
+          let token = getAccessToken();
+          if (!token) {
+            const refreshed = await refreshAuthSession();
+            token = refreshed?.accessToken || null;
+            if (refreshed?.user) setUser(refreshed.user);
+          }
+          if (!token) {
+            handleLogout();
+            return;
+          }
+          let res = await fetch(`${env.API_URL}/users/me`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (res.status === 401) {
+            const refreshed = await refreshAuthSession();
+            if (refreshed) {
+              setUser(refreshed.user);
+              res = await fetch(`${env.API_URL}/users/me`, {
+                headers: { Authorization: `Bearer ${refreshed.accessToken}` },
+              });
+            }
+          }
+          if (res.status === 401) {
             handleLogout();
-            toast.error("Phiên đăng nhập đã hết hạn hoặc đã thay đổi mật khẩu. Vui lòng đăng nhập lại.");
+            toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
           }
         } catch {
           // Silent catch to prevent logging out if server is temporarily unreachable
@@ -507,19 +536,53 @@ export default function App() {
       })();
     }
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    let timer: number | undefined;
+    let cancelled = false;
+
+    const scheduleRefresh = () => {
+      const expiresAt = getAccessTokenExpiry();
+      if (!expiresAt || cancelled) return;
+      const delay = Math.max(30_000, expiresAt - Date.now() - 60_000);
+      timer = window.setTimeout(async () => {
+        const refreshed = await refreshAuthSession();
+        if (cancelled) return;
+        if (!refreshed) {
+          handleLogout();
+          toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+          return;
+        }
+        setUser(refreshed.user);
+        scheduleRefresh();
+      }, delay);
+    };
+
+    scheduleRefresh();
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [user?.id]);
   const setView = (newView: any, productData?: any) => {
     const target = productData || (newView === VIEW_KEYS.DETAIL ? selectedProduct : null);
     const newPath = getPathFromView(newView, target);
     if (window.location.pathname !== newPath) window.history.pushState(null, "", newPath);
     setViewInternal(newView);
-    if (productData) setSelectedProduct(productData);
-    else if (newView !== VIEW_KEYS.DETAIL && newView !== VIEW_KEYS.REVIEW) setSelectedProduct(null);
+    
+    if (newView === VIEW_KEYS.TRACKING) {
+      setSelectedOrderId(productData || null);
+    } else {
+      if (productData) setSelectedProduct(productData);
+      else if (newView !== VIEW_KEYS.DETAIL && newView !== VIEW_KEYS.REVIEW) setSelectedProduct(null);
+    }
   };
 
   // ── Auth handlers ────────────────────────────────────────────────────────
   const handleLoginSuccess = async () => {
-    const currentUser = JSON.parse(localStorage.getItem("user") || "null");
-    const token = localStorage.getItem("accessToken");
+    const currentUser = getStoredUser();
+    const token = getAccessToken();
     if (token && UUID_PATTERN.test(selectedStore?.id || "")) {
       try {
         const res = await fetch(`${env.API_URL}/cart/merge-session?branchId=${selectedStore.id}`, {
@@ -550,7 +613,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    ["accessToken", "refreshToken", "user", "sb_cart"].forEach(k => localStorage.removeItem(k));
+    clearAuthSession();
     setUser(null);
     setAppliedCoupon(null);
     setCart([]);
@@ -558,33 +621,29 @@ export default function App() {
   };
 
   const handleAdminLogout = () => {
-    ["accessToken", "refreshToken", "user"].forEach(k => localStorage.removeItem(k));
+    clearAuthSession();
     setUser(null);
     setCart([]);
     setView(VIEW_KEYS.HOME);
   };
 
   // ── Cart / Wishlist handlers ─────────────────────────────────────────────
-  const handleAddToCart = async (product: any, size = "Vừa", qty = 1, options?: any, price?: number) => {
-    const token = localStorage.getItem("accessToken");
+  const handleAddToCart = async (product: any, size = "Vừa", qty = 1, options?: any, price?: number, selectedVariantId?: string) => {
+    const token = getAccessToken();
     const rawProduct = product.raw;
     const productId = rawProduct?.id;
     
     let variantId = "";
+    let selectedVariant: any = null;
     if (rawProduct && rawProduct.variants) {
-      let mappedSize = size;
-      if (rawProduct.category?.name === "Bánh sinh nhật" || product[2] === "Bánh sinh nhật") {
-        if (size === "Nhỏ") mappedSize = "Nhỏ (15cm)";
-        else if (size === "Vừa") mappedSize = "Vừa (20cm)";
-        else if (size === "Lớn") mappedSize = "Lớn (25cm)";
-      }
-      const match = rawProduct.variants.find((v: any) => v.size === mappedSize);
-      if (match) {
-        variantId = match.id;
-      } else {
-        variantId = rawProduct.variants[0]?.id;
-      }
+      selectedVariant = rawProduct.variants.find((variant: any) => variant.id === selectedVariantId)
+        || rawProduct.variants.find((variant: any) => variant.status === "active" && variant.size === size)
+        || rawProduct.variants.find((variant: any) => variant.status === "active");
+      variantId = selectedVariant?.id || "";
     }
+
+    const cartSize = selectedVariant?.size || size;
+    const cartPrice = price ?? Number(selectedVariant?.price || 0);
 
     const optionsKey = JSON.stringify(options || {});
     const matchesItem = (item: any) =>
@@ -599,10 +658,10 @@ export default function App() {
       } else {
         newItems.push({
           product,
-          size,
+          size: cartSize,
           quantity: qty,
           options,
-          price,
+          price: cartPrice,
           productId,
           variantId,
         });
@@ -638,7 +697,7 @@ export default function App() {
   };
 
   const handleUpdateCartQty = async (index: number, newQty: number) => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     const item = cart[index];
     if (!item) return;
     const previousQty = item.quantity;
@@ -666,7 +725,7 @@ export default function App() {
   };
 
   const handleRemoveCartItem = async (index: number) => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     const item = cart[index];
     if (!item) return;
 
@@ -707,7 +766,7 @@ export default function App() {
   };
 
   const handlePlaceOrder = async (checkoutData: any) => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
 
     const items = cart.map(item => {
       let rawProd = item.product.raw;
@@ -716,21 +775,11 @@ export default function App() {
         rawProd = fullProd?.raw;
       }
       if (!rawProd || !rawProd.variants) {
-        // Fallback for mock data or legacy cart items
-        const priceStr = item.product[1] || "0";
-        const numericPrice = parseInt(priceStr.replace(/\D/g, "")) || 0;
-        return {
-          productId: "00000000-0000-0000-0000-000000000000",
-          variantId: "00000000-0000-0000-0000-000000000000",
-          productName: item.product[0],
-          variantName: item.size || "Mặc định",
-          quantity: item.quantity,
-          unitPrice: numericPrice,
-          totalPrice: numericPrice * item.quantity,
-        };
+        throw new Error(`Món "${item.product[0]}" không còn tồn tại trên hệ thống. Vui lòng xóa món này khỏi Giỏ hàng của bạn!`);
       }
 
-      let variant = rawProd.variants?.find((v: any) => v.size === item.size);
+      let variant = rawProd.variants?.find((v: any) => v.id === item.variantId);
+      if (!variant) variant = rawProd.variants?.find((v: any) => v.size === item.size);
       if (!variant) {
         const sizeMap: Record<string, string> = {
           "Nhỏ": "Nhỏ", "Vừa": "Vừa", "Lớn": "Lớn",
@@ -773,10 +822,7 @@ export default function App() {
         headers["Authorization"] = `Bearer ${token}`;
       }
 
-      const hasMockItems = items.some(i => i.productId === "00000000-0000-0000-0000-000000000000");
-      if (hasMockItems) {
-        throw new Error("MOCK_FALLBACK_TRIGGER");
-      }
+
 
       const res = await fetch(`${env.API_URL}/orders`, {
         method: "POST",
@@ -806,28 +852,7 @@ export default function App() {
     } catch (err: any) {
       console.error(err);
       
-      if (err.message === "MOCK_FALLBACK_TRIGGER" || err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
-        console.warn("Giả lập giao dịch thành công (do dùng hàng ảo hoặc Máy chủ đang tắt).");
-        const mockOrder = {
-          id: `ORD${Date.now()}`,
-          orderCode: `SB${Math.floor(100000 + Math.random() * 900000)}`,
-          paymentMethod: checkoutData.paymentMethod || "bank_transfer",
-          createdAt: new Date().toISOString(),
-          customerInfo: checkoutData,
-          items,
-          subtotal,
-          discountAmount: discount,
-          shippingFee: shipping,
-          totalAmount: grandTotal,
-          status: "pending"
-        };
-        setLastCreatedOrder(mockOrder);
-        setCart([]);
-        setAppliedCoupon(null);
-        toast.success("Giả lập Đặt hàng thành công!");
-        setView(VIEW_KEYS.SUCCESS);
-        return;
-      }
+
 
       toast.error(err.message || "Lỗi khi gửi đơn hàng lên máy chủ.");
       throw err;
@@ -935,6 +960,7 @@ export default function App() {
           products={products}
           selectedStore={selectedStore}
           onChooseStore={() => setShowStorePopup(true)}
+          onLogout={handleLogout}
         />
         <main className="min-h-[calc(100vh-400px)]">
           <div className="animate-page-change" key={view}>
@@ -945,6 +971,7 @@ export default function App() {
             {view === VIEW_KEYS.DETAIL && <ProductDetail product={selectedProduct} setView={setView} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onSelectProduct={handleSelectProduct} products={products} publicCoupons={publicCoupons} />}
             {view === VIEW_KEYS.FAVORITES && <Favorites wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onAddToCart={handleAddToCart} onSelectProduct={handleSelectProduct} setView={setView} />}
             {view === VIEW_KEYS.PROFILE && <Profile user={user} setUser={setUser} setView={setView} onLogout={handleLogout} />}
+            {view === VIEW_KEYS.TRACKING && <OrderTracking orderId={selectedOrderId || lastCreatedOrder?.id} onBack={() => setView(VIEW_KEYS.HOME)} />}
             {view === VIEW_KEYS.STORES && <StoreMap branches={availableStores} activeStoreId={selectedStore?.id} onSelectStore={(store: any) => { handleSelectStore(store); setView(VIEW_KEYS.HOME); }} />}
             {view === VIEW_KEYS.PRIVACY && <PolicyPage type="privacy" setView={setView} />}
             {view === VIEW_KEYS.TERMS && <PolicyPage type="terms" setView={setView} />}

@@ -74,7 +74,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-sidebar/95 via-sidebar/70 to-sidebar/20" />
         <div className="absolute inset-0 bg-black/20" />
-        <div className="absolute inset-0 mx-auto flex w-full max-w-[1500px] flex-col justify-center px-5 sm:px-6 lg:px-10">
+        <div className="absolute inset-0 flex w-full flex-col justify-center px-2 sm:px-4 lg:px-4">
           <p className="font-mono text-xs uppercase tracking-[.3em] text-primary-foreground/85 drop-shadow">{env.APP_NAME}</p>
           <h1 className="mt-4 max-w-2xl text-4xl leading-tight text-primary-foreground drop-shadow-[0_3px_14px_rgba(0,0,0,0.65)] md:text-6xl whitespace-pre-line">{MESSAGES.HERO_TITLE}</h1>
           <p className="mt-4 max-w-lg text-base leading-7 text-primary-foreground/85 drop-shadow md:text-lg">{MESSAGES.HERO_SUBTITLE}</p>
@@ -87,7 +87,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
             {MESSAGES.FLASH_SALE_TEXT} <b className="text-primary ml-1">COFFEE20</b>
           </div>
         </div>
-        <div className="absolute bottom-5 left-1/2 z-10 flex w-full max-w-[1500px] -translate-x-1/2 gap-2 px-5 sm:px-6 lg:px-10">
+        <div className="absolute bottom-5 left-1/2 z-10 flex w-full -translate-x-1/2 gap-2 px-2 sm:px-4 lg:px-4">
           {heroBanners.map((banner, index) => (
             <button key={banner.alt} type="button" aria-label={`Chuyển sang banner ${index + 1}`} onClick={() => setActiveBanner(index)}
               className={`h-2.5 rounded-full transition-all ${activeBanner === index ? "w-8 bg-primary" : "w-2.5 bg-primary-foreground/60 hover:bg-primary-foreground"}`} />
@@ -97,7 +97,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
 
       {/* ── Value propositions strip ── */}
       <div className="border-b bg-background">
-        <div className="mx-auto grid max-w-[1500px] grid-cols-2 gap-px px-5 sm:px-6 lg:grid-cols-4 lg:px-10">
+        <div className="w-full grid grid-cols-2 gap-px px-2 sm:px-4 lg:grid-cols-4 lg:px-4">
           {VALUE_PROPS.map(({ icon: Icon, title, sub }) => (
             <div key={title} className="flex items-center gap-3 py-5 px-2">
               <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"><Icon size={20} /></span>
@@ -123,7 +123,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
       </Section>
 
       {/* ── Deal ngọt + Vouchers ── */}
-      <section className="mx-auto max-w-[1500px] px-5 py-9 sm:px-6 lg:px-10">
+      <section className="w-full px-2 sm:px-4 lg:px-4 py-9">
         <div className="mb-6 flex items-end justify-between gap-6">
           <div>
             <p className="font-mono text-xs uppercase tracking-[.22em] text-primary">{env.APP_NAME}</p>
