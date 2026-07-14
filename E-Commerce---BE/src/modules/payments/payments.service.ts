@@ -12,7 +12,7 @@ export class PaymentsService {
     private readonly payments: Repository<Payment>,
     @InjectRepository(Order)
     private readonly orders: Repository<Order>,
-  ) {}
+  ) { }
 
   async createPayment(orderId: string, amount: number, gateway: string): Promise<Payment> {
     // Map string gateway to PaymentGateway enum
@@ -75,7 +75,7 @@ export class PaymentsService {
 
   async processSepayWebhook(authHeader: string, body: SepayWebhookDto) {
     const expectedKey = process.env.SEPAY_API_KEY || 'sepay_secret_key_123';
-    
+
     // 1. Verify API Key
     if (!authHeader || !authHeader.startsWith('Apikey ') || authHeader.slice(7) !== expectedKey) {
       throw new UnauthorizedException('Chữ ký/API Key của SePay không hợp lệ.');

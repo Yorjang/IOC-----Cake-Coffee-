@@ -192,7 +192,10 @@ export default function App() {
     return window.location.pathname === "/" && !localStorage.getItem(STORE_STORAGE_KEY);
   });
   const [manualLocationRequired, setManualLocationRequired] = useState(false);
+  const [orderCode, setOrderCode] = useState("");
   const [lastCreatedOrder, setLastCreatedOrder] = useState<any>(null);
+
+  // ── Fetch real products & categories from API ───────────────────────
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
 
@@ -301,10 +304,10 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem(`sb_cart_${user?.id || "guest"}`, JSON.stringify(cart));
+  // ── Persist cart & wishlist ──────────────────────────────────────────────
+  useEffect(() => { 
+    localStorage.setItem(`sb_cart_${user?.id || 'guest'}`, JSON.stringify(cart)); 
   }, [cart, user?.id]);
-
   useEffect(() => { localStorage.setItem("sb_wishlist", JSON.stringify(wishlist)); }, [wishlist]);
 
   useEffect(() => {
@@ -602,6 +605,11 @@ export default function App() {
   };
 
   const handleSelectProduct = (product: any) => setView(VIEW_KEYS.DETAIL, product);
+  const handleSelectStore = (store: StoreLocation) => {
+    setSelectedStore(store);
+    localStorage.setItem(STORE_STORAGE_KEY, store.id);
+    toast.success(`Đã chọn ${store.name}`);
+  };
 
   const handlePlaceOrder = async (checkoutData: any) => {
     const token = localStorage.getItem("accessToken");
