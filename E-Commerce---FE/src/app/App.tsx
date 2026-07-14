@@ -664,24 +664,28 @@ export default function App() {
   const handleRemoveCartItem = async (index: number) => {
     const token = localStorage.getItem("accessToken");
     const item = cart[index];
-    if (user && token && item && item.dbId) {
-      try {
-        const res = await fetch(`${env.API_URL}/cart/${item.dbId}`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const dbCart = await res.json();
-          setCart(mapDbCartToLegacy(dbCart.items || []));
-          return;
-        }
-      } catch (err) {
-        console.error("Lỗi khi xóa sản phẩm giỏ hàng trên server:", err);
-      }
-    }
+    if (!item) return;
 
-    // Guest fallback
+    // Remove immediately; restore the item if server synchronization fails.
     setCart(prev => prev.filter((_, i) => i !== index));
+
+    if (!(user && token && item.dbId)) return;
+    try {
+      const res = await fetch(`${env.API_URL}/cart/${item.dbId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message || "Không thể xóa sản phẩm");
+    } catch (err: any) {
+      setCart(prev => {
+        if (prev.some(current => current.dbId === item.dbId)) return prev;
+        const restored = [...prev];
+        restored.splice(Math.min(index, restored.length), 0, item);
+        return restored;
+      });
+      toast.error(err.message || "Không thể xóa sản phẩm. Đã khôi phục lại giỏ hàng.");
+    }
   };
 
   const handleToggleWishlist = (product: any) => {

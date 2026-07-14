@@ -96,12 +96,19 @@ export class CartService {
     return { itemId, quantity: dto.quantity };
   }
 
-  async removeItem(userId: string, itemId: string): Promise<Cart> {
-    const cart = await this.getCart(userId);
-    const item = cart.items.find((cartItem) => cartItem.id === itemId);
-    if (!item) throw new NotFoundException('Sản phẩm không có trong giỏ hàng');
-    await this.cartItemRepository.remove(item);
-    return this.getCart(userId);
+  async removeItem(userId: string, itemId: string): Promise<{ itemId: string }> {
+    const result = await this.cartItemRepository
+      .createQueryBuilder()
+      .delete()
+      .from(CartItem)
+      .where('id = :itemId', { itemId })
+      .andWhere('cart_id IN (SELECT id FROM carts WHERE user_id = :userId)', { userId })
+      .execute();
+
+    if (!result.affected) {
+      throw new NotFoundException('Sản phẩm không có trong giỏ hàng');
+    }
+    return { itemId };
   }
 
   async clearCart(userId: string): Promise<Cart> {
