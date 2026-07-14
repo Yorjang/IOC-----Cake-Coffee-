@@ -141,13 +141,13 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`inline-block rounded-full px-3 py-0.5 text-xs font-semibold ${statusColor[status] ?? "bg-gray-100 text-gray-600"}`}>{status}</span>;
 }
 
-function AdminBtn({ children, variant = "primary", onClick }: any) {
+function AdminBtn({ children, variant = "primary", onClick, disabled = false }: any) {
   const cls = variant === "primary"
     ? "bg-primary text-primary-foreground hover:bg-primary/80"
     : variant === "danger"
       ? "bg-red-100 text-red-700 hover:bg-red-200"
       : "border border-primary/30 bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary-foreground";
-  return <button onClick={onClick} className={`inline-flex min-h-8 min-w-10 items-center justify-center rounded-lg px-3 py-1.5 text-sm transition ${cls}`}>{children}</button>;
+  return <button type="button" onClick={onClick} disabled={disabled} className={`inline-flex min-h-8 min-w-10 items-center justify-center rounded-lg px-3 py-1.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${cls}`}>{children}</button>;
 }
 
 function TableHeader({ cols }: { cols: string[] }) {
@@ -317,7 +317,10 @@ function AdminProducts() {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ name: "", categoryId: "", description: "", imageUrl: "", productType: "cake", price: "45000" });
+  const [form, setForm] = useState({ name: "", categoryId: "", description: "", imageUrl: "", productType: "cake" });
+  const [variantForms, setVariantForms] = useState<any[]>([]);
+  const [removedVariantIds, setRemovedVariantIds] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
 
   const getToken = () => localStorage.getItem("accessToken");
 
@@ -335,23 +338,125 @@ function AdminProducts() {
 
   useEffect(() => { load(); }, []);
 
-  const openAdd = () => { setEditing(null); setForm({ name: "", categoryId: cats[0]?.id ?? "", description: "", imageUrl: "", productType: "cake", price: "45000" }); setShowModal(true); };
-  const openEdit = (p: any) => { setEditing(p); setForm({ name: p.name, categoryId: p.categoryId, description: p.description || "", imageUrl: p.imageUrl || "", productType: p.productType, price: p.variants?.[0]?.price?.toString() || "45000" }); setShowModal(true); };
+  const emptyVariant = (name = "") => ({
+    sku: `${name.toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "") || "PRODUCT"}-${Date.now().toString().slice(-6)}`,
+    variantName: name ? `${name} - Mặc định` : "Biến thể mặc định",
+    size: "Mặc định",
+    flavor: "",
+    topping: "",
+    price: "45000",
+    status: "active",
+    imageUrl: "",
+  });
+
+  const openAdd = () => {
+    setEditing(null);
+    setForm({ name: "", categoryId: cats[0]?.id ?? "", description: "", imageUrl: "", productType: "cake" });
+    setVariantForms([emptyVariant()]);
+    setRemovedVariantIds([]);
+    setShowModal(true);
+  };
+
+  const openEdit = (p: any) => {
+    setEditing(p);
+    setForm({ name: p.name, categoryId: p.categoryId, description: p.description || "", imageUrl: p.imageUrl || "", productType: p.productType });
+    setVariantForms((p.variants || []).map((variant: any) => ({
+      ...variant,
+      price: String(variant.price),
+      flavor: variant.flavor || "",
+      topping: variant.topping || "",
+      imageUrl: variant.imageUrl || "",
+    })));
+    setRemovedVariantIds([]);
+    setShowModal(true);
+  };
+
+  const updateVariantForm = (index: number, changes: any) => {
+    setVariantForms(current => current.map((variant, variantIndex) =>
+      variantIndex === index ? { ...variant, ...changes } : variant,
+    ));
+  };
+
+  const removeVariantForm = (index: number) => {
+    if (variantForms.length <= 1) {
+      toast.error("Sản phẩm phải có ít nhất một biến thể.");
+      return;
+    }
+    const variant = variantForms[index];
+    if (variant.id) setRemovedVariantIds(current => [...current, variant.id]);
+    setVariantForms(current => current.filter((_, variantIndex) => variantIndex !== index));
+  };
 
   const save = async () => {
     const token = getToken();
     if (!token) return;
+    if (!form.name.trim() || !form.categoryId) {
+      toast.error("Vui lòng nhập tên và chọn danh mục sản phẩm.");
+      return;
+    }
+    if (variantForms.length === 0 || variantForms.some(variant =>
+      !variant.sku.trim() || !variant.variantName.trim() || variant.price === "" || Number(variant.price) < 0
+    )) {
+      toast.error("Mỗi biến thể cần có SKU, tên biến thể và giá hợp lệ.");
+      return;
+    }
     const url = editing ? `${env.API_URL}/products/${editing.id}` : `${env.API_URL}/products`;
     const method = editing ? "PATCH" : "POST";
     const body: any = { name: form.name, categoryId: form.categoryId, description: form.description, imageUrl: form.imageUrl, productType: form.productType };
     if (!editing) {
-      body.variants = [{ sku: form.name.toUpperCase().replace(/\s+/g, "-") + "-DEFAULT", variantName: `${form.name} - Mặc định`, size: "Mặc định", price: parseInt(form.price) || 45000 }];
+      body.variants = variantForms.map(({ id, createdAt, updatedAt, productId, product, ...variant }) => ({
+        ...variant,
+        price: Number(variant.price),
+        flavor: variant.flavor || undefined,
+        topping: variant.topping || undefined,
+        imageUrl: variant.imageUrl || undefined,
+      }));
     }
+    setSaving(true);
     try {
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
       if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      const savedProduct = await res.json();
+      if (editing) {
+        for (const variant of variantForms) {
+          const payload = {
+            sku: variant.sku.trim(),
+            variantName: variant.variantName.trim(),
+            size: variant.size || undefined,
+            flavor: variant.flavor || undefined,
+            topping: variant.topping || undefined,
+            price: Number(variant.price),
+            status: variant.status || "active",
+            imageUrl: variant.imageUrl || undefined,
+          };
+          const variantRes = await fetch(
+            variant.id ? `${env.API_URL}/products/variants/${variant.id}` : `${env.API_URL}/products/${savedProduct.id}/variants`,
+            {
+              method: variant.id ? "PATCH" : "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify(payload),
+            },
+          );
+          if (!variantRes.ok) {
+            const error = await variantRes.json();
+            throw new Error(error.message || `Không thể lưu biến thể ${variant.variantName}`);
+          }
+        }
+        for (const variantId of removedVariantIds) {
+          const deleteRes = await fetch(`${env.API_URL}/products/variants/${variantId}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!deleteRes.ok) {
+            const error = await deleteRes.json();
+            throw new Error(error.message || "Không thể xóa biến thể");
+          }
+        }
+      }
       setShowModal(false); load();
+      toast.success(editing ? "Đã cập nhật sản phẩm và biến thể." : "Đã tạo sản phẩm cùng các biến thể.");
     } catch (err: any) { toast.error(err.message || "Lỗi khi lưu sản phẩm"); }
+    finally { setSaving(false); }
   };
 
   const remove = async (id: string) => {
@@ -370,7 +475,13 @@ function AdminProducts() {
   };
 
   const filtered = items.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
-  const fmtPrice = (p: any) => { const v = p.variants?.[0]; return v ? `${Number(v.price).toLocaleString("vi-VN")}đ` : "-"; };
+  const fmtPrice = (p: any) => {
+    const prices = (p.variants || []).map((variant: any) => Number(variant.price)).filter(Number.isFinite);
+    if (prices.length === 0) return "-";
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    return min === max ? `${min.toLocaleString("vi-VN")}đ` : `${min.toLocaleString("vi-VN")}đ – ${max.toLocaleString("vi-VN")}đ`;
+  };
 
   return (
     <div className="space-y-5">
@@ -415,7 +526,7 @@ function AdminProducts() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)}>
-          <div className="w-full max-w-lg rounded-2xl bg-sidebar p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-sidebar p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-foreground mb-4">{editing ? "Sửa sản phẩm" : "Thêm sản phẩm mới"}</h3>
             <div className="space-y-3">
               <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" placeholder="Tên sản phẩm" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
@@ -428,11 +539,72 @@ function AdminProducts() {
               </select>
               <textarea className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none resize-none" rows={2} placeholder="Mô tả sản phẩm" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
               <ImageUploader label="Hình ảnh sản phẩm" value={form.imageUrl} onChange={url => setForm({ ...form, imageUrl: url })} />
-              {!editing && <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" placeholder="Giá bán mặc định (VNĐ)" type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} />}
+              <div className="rounded-2xl border border-sidebar-accent p-4">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <h4 className="font-semibold text-foreground">Biến thể và giá bán</h4>
+                    <p className="mt-1 text-xs text-muted-foreground">Giá được lưu riêng cho từng biến thể sản phẩm.</p>
+                  </div>
+                  <AdminBtn variant="ghost" onClick={() => setVariantForms(current => [...current, emptyVariant(form.name)])}>
+                    <span className="flex items-center gap-1"><Plus size={14} />Thêm biến thể</span>
+                  </AdminBtn>
+                </div>
+
+                <div className="space-y-4">
+                  {variantForms.map((variant, index) => (
+                    <div key={variant.id || index} className="rounded-xl bg-sidebar-accent p-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="text-sm font-semibold text-foreground">Biến thể {index + 1}</span>
+                        <button type="button" onClick={() => removeVariantForm(index)} className="rounded-lg p-1.5 text-red-400 transition hover:bg-red-500/10" title="Xóa biến thể">
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <label className="grid gap-1 text-xs text-muted-foreground">
+                          SKU
+                          <input value={variant.sku || ""} onChange={e => updateVariantForm(index, { sku: e.target.value })} className="rounded-lg bg-sidebar px-3 py-2 text-sm text-foreground outline-none" placeholder="CAFE-SUA-M" />
+                        </label>
+                        <label className="grid gap-1 text-xs text-muted-foreground sm:col-span-2">
+                          Tên biến thể
+                          <input value={variant.variantName || ""} onChange={e => updateVariantForm(index, { variantName: e.target.value })} className="rounded-lg bg-sidebar px-3 py-2 text-sm text-foreground outline-none" placeholder="Cà phê sữa - Vừa" />
+                        </label>
+                        <label className="grid gap-1 text-xs text-muted-foreground">
+                          Kích thước
+                          <input value={variant.size || ""} onChange={e => updateVariantForm(index, { size: e.target.value })} className="rounded-lg bg-sidebar px-3 py-2 text-sm text-foreground outline-none" placeholder="Vừa / 20cm" />
+                        </label>
+                        <label className="grid gap-1 text-xs text-muted-foreground">
+                          Hương vị
+                          <input value={variant.flavor || ""} onChange={e => updateVariantForm(index, { flavor: e.target.value })} className="rounded-lg bg-sidebar px-3 py-2 text-sm text-foreground outline-none" placeholder="Chocolate" />
+                        </label>
+                        <label className="grid gap-1 text-xs text-muted-foreground">
+                          Topping
+                          <input value={variant.topping || ""} onChange={e => updateVariantForm(index, { topping: e.target.value })} className="rounded-lg bg-sidebar px-3 py-2 text-sm text-foreground outline-none" placeholder="Kem phô mai" />
+                        </label>
+                        <label className="grid gap-1 text-xs text-muted-foreground">
+                          Giá bán (VNĐ)
+                          <input type="number" min="0" step="1000" value={variant.price ?? ""} onChange={e => updateVariantForm(index, { price: e.target.value })} className="rounded-lg bg-sidebar px-3 py-2 text-sm font-semibold text-primary outline-none" />
+                        </label>
+                        <label className="grid gap-1 text-xs text-muted-foreground">
+                          Trạng thái
+                          <select value={variant.status || "active"} onChange={e => updateVariantForm(index, { status: e.target.value })} className="rounded-lg bg-sidebar px-3 py-2 text-sm text-foreground outline-none">
+                            <option value="active">Đang bán</option>
+                            <option value="inactive">Tạm ẩn</option>
+                            <option value="out_of_stock">Hết hàng</option>
+                          </select>
+                        </label>
+                        <label className="grid gap-1 text-xs text-muted-foreground lg:col-span-1">
+                          Ảnh biến thể (URL)
+                          <input value={variant.imageUrl || ""} onChange={e => updateVariantForm(index, { imageUrl: e.target.value })} className="rounded-lg bg-sidebar px-3 py-2 text-sm text-foreground outline-none" placeholder="https://..." />
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="mt-5 flex justify-end gap-3">
               <AdminBtn variant="ghost" onClick={() => setShowModal(false)}>Hủy</AdminBtn>
-              <AdminBtn onClick={save}>{editing ? "Cập nhật" : "Tạo sản phẩm"}</AdminBtn>
+              <AdminBtn onClick={save} disabled={saving}>{saving ? "Đang lưu..." : editing ? "Cập nhật" : "Tạo sản phẩm"}</AdminBtn>
             </div>
           </div>
         </div>
