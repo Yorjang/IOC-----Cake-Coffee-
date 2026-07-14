@@ -25,24 +25,11 @@ export class CouponsService implements OnModuleInit {
     } catch (err) {
       // Ignore if constraint already exists
     }
-    // Migrate categories_id column
-    try {
-      await this.coupons.query('ALTER TABLE coupons ADD COLUMN IF NOT EXISTS categories_id UUID');
-    } catch (err) {
-      console.error('Error adding categories_id to coupons:', err);
-    }
-    try {
-      await this.coupons.query(
-        'ALTER TABLE coupons ADD CONSTRAINT fk_coupons_category FOREIGN KEY (categories_id) REFERENCES categories(id) ON DELETE SET NULL'
-      );
-    } catch (err) {
-      // Ignore if constraint already exists
-    }
   }
 
   async findAll(): Promise<Coupon[]> {
     const list = await this.coupons.find({
-      relations: { product: { category: true }, category: true },
+      relations: { product: { category: true } },
       order: { createdAt: 'DESC' },
     });
     return list.map(c => ({
@@ -54,7 +41,7 @@ export class CouponsService implements OnModuleInit {
   async findPublicActive(): Promise<Coupon[]> {
     const coupons = await this.coupons.find({
       where: { status: CouponStatus.ACTIVE },
-      relations: { product: { category: true }, category: true },
+      relations: { product: { category: true } },
       order: { createdAt: 'DESC' },
     });
     const now = new Date();
@@ -85,8 +72,7 @@ export class CouponsService implements OnModuleInit {
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // default 30 days
       status: dto.isActive === false ? CouponStatus.DISABLED : CouponStatus.ACTIVE,
       productId: dto.productId || null,
-      categoriesId: dto.categoriesId || null,
-      couponScope: dto.productId ? CouponScope.PRODUCT : dto.categoriesId ? CouponScope.CATEGORY : CouponScope.ORDER,
+      couponScope: dto.productId ? CouponScope.PRODUCT : CouponScope.ORDER,
       maxDiscount: dto.maxDiscount !== undefined && dto.maxDiscount !== null ? Number(dto.maxDiscount) : null,
     });
 
@@ -124,19 +110,7 @@ export class CouponsService implements OnModuleInit {
     if (dto.expiresAt !== undefined) coupon.expiresAt = new Date(dto.expiresAt);
     if (dto.productId !== undefined) {
       coupon.productId = dto.productId || null;
-    }
-    if (dto.categoriesId !== undefined) {
-      coupon.categoriesId = dto.categoriesId || null;
-    }
-    // Recompute couponScope based on latest productId / categoriesId
-    if (dto.productId !== undefined || dto.categoriesId !== undefined) {
-      const effectiveProductId = dto.productId !== undefined ? dto.productId : coupon.productId;
-      const effectiveCategoriesId = dto.categoriesId !== undefined ? dto.categoriesId : coupon.categoriesId;
-      coupon.couponScope = effectiveProductId
-        ? CouponScope.PRODUCT
-        : effectiveCategoriesId
-          ? CouponScope.CATEGORY
-          : CouponScope.ORDER;
+      coupon.couponScope = dto.productId ? CouponScope.PRODUCT : CouponScope.ORDER;
     }
     if (dto.maxDiscount !== undefined) coupon.maxDiscount = dto.maxDiscount !== null ? Number(dto.maxDiscount) : null;
     if (dto.isActive !== undefined) {

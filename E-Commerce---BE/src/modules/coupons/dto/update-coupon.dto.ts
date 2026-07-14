@@ -43,10 +43,6 @@ export class UpdateCouponDto {
   @IsOptional()
   productId?: string;
 
-  @IsUUID('4', { message: 'ID danh mục không hợp lệ.' })
-  @IsOptional()
-  categoriesId?: string;
-
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;

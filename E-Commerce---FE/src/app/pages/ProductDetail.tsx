@@ -56,7 +56,7 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
   }, 0);
 
   const unitPrice = Math.max(0, basePriceVal + sizeSurcharge + toppingsPrice);
-  const { discountedPrice, discountAmount, bestCoupon } = getDiscountedPrice(unitPrice, p.raw, publicCoupons);
+  const { discountedPrice, discountAmount, bestCoupon } = getDiscountedPrice(unitPrice, p.raw?.id, publicCoupons);
   const totalPriceStr = formatPrice(discountedPrice * quantity);
 
   const toggleTopping = (name: string) => {
