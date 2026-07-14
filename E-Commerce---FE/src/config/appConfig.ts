@@ -16,6 +16,8 @@ export const VIEW_KEYS = {
   PROFILE: "Hồ sơ",
   RESET_PASSWORD: "ResetPassword",
   STORES: "Hệ thống cửa hàng",
+  PRIVACY: "Chính sách bảo mật",
+  TERMS: "Điều khoản dịch vụ",
 } as const;
 
 export const CATEGORY_GROUPS = {

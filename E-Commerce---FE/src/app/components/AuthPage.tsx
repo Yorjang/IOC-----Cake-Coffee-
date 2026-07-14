@@ -35,7 +35,7 @@ function AuthLeftPanel({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
-export function AuthPage({ onSuccess, initialMode = "login", resetToken = "" }: { onSuccess: () => void; onAdminDemo?: () => void; initialMode?: AuthMode; resetToken?: string }) {
+export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", setView }: { onSuccess: () => void; onAdminDemo?: () => void; initialMode?: AuthMode; resetToken?: string; setView?: (view: string) => void; }) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -220,7 +220,11 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "" }: 
                 </div>
                 <label className="flex items-start gap-2 text-sm text-muted-foreground cursor-pointer select-none">
                   <input type="checkbox" required className="mt-1 rounded shrink-0 accent-primary" />
-                  <span>Tôi đồng ý với{" "}<span className="text-primary hover:underline font-semibold">Điều khoản dịch vụ</span>{" và "}<span className="text-primary hover:underline font-semibold">Chính sách bảo mật</span>.</span>
+                  <span>Tôi đồng ý với{" "}
+                    <button type="button" onClick={() => setView?.(VIEW_KEYS.TERMS)} className="text-primary hover:underline font-semibold bg-transparent border-0 p-0">Điều khoản dịch vụ</button>
+                    {" và "}
+                    <button type="button" onClick={() => setView?.(VIEW_KEYS.PRIVACY)} className="text-primary hover:underline font-semibold bg-transparent border-0 p-0">Chính sách bảo mật</button>.
+                  </span>
                 </label>
                 <button type="submit" disabled={loading} className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 disabled:opacity-50">{loading ? "Đang tạo tài khoản..." : "Tạo tài khoản"}</button>
               </form>

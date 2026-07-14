@@ -19,6 +19,7 @@ import { Checkout, Success } from "./pages/Checkout";
 import { Favorites } from "./pages/Favorites";
 import { Profile } from "./pages/Profile";
 import { StoreMap } from "./pages/StoreMap";
+import { PolicyPage } from "./pages/PolicyPage";
 
 import { navPages } from "../data/mockData";
 import { storeLocations as fallbackStoreLocations, type StoreLocation } from "../data/storeLocations";
@@ -63,6 +64,8 @@ const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.PROFILE]: "/ho-so",
   [VIEW_KEYS.RESET_PASSWORD]: "/reset-password",
   [VIEW_KEYS.STORES]: "/he-thong-cua-hang",
+  [VIEW_KEYS.PRIVACY]: "/chinh-sach-bao-mat",
+  [VIEW_KEYS.TERMS]: "/dieu-khoan-dich-vu",
 };
 
 const getPathFromView = (view: string, product?: any) => {
@@ -728,7 +731,7 @@ export default function App() {
     return <><Toaster richColors position="top-center" /><StaffPanel onExit={handleAdminLogout} staffUser={user} products={products} /></>;
   }
 
-  if (view === VIEW_KEYS.LOGIN) return <><Toaster richColors position="top-center" /><AuthPage onSuccess={handleLoginSuccess} /></>;
+  if (view === VIEW_KEYS.LOGIN) return <><Toaster richColors position="top-center" /><AuthPage onSuccess={handleLoginSuccess} setView={setView} /></>;
   if (view === VIEW_KEYS.RESET_PASSWORD) {
     const token = new URLSearchParams(window.location.search).get("token") || "";
     return <><Toaster richColors position="top-center" /><AuthPage onSuccess={handleLoginSuccess} initialMode="reset" resetToken={token} /></>;
@@ -764,10 +767,12 @@ export default function App() {
             {view === VIEW_KEYS.FAVORITES && <Favorites wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onAddToCart={handleAddToCart} onSelectProduct={handleSelectProduct} setView={setView} />}
             {view === VIEW_KEYS.PROFILE && <Profile user={user} setUser={setUser} setView={setView} onLogout={handleLogout} />}
             {view === VIEW_KEYS.STORES && <StoreMap branches={availableStores} activeStoreId={selectedStore?.id} onSelectStore={(store: any) => { handleSelectStore(store); setView(VIEW_KEYS.HOME); }} />}
+            {view === VIEW_KEYS.PRIVACY && <PolicyPage type="privacy" setView={setView} />}
+            {view === VIEW_KEYS.TERMS && <PolicyPage type="terms" setView={setView} />}
             {LISTABLE.includes(view) && <ProductListing category={view} setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} searchQuery={searchQuery} products={products} />}
           </div>
         </main>
-        <Footer />
+        <Footer setView={setView} />
         {showStorePopup && view === VIEW_KEYS.HOME && (
           <StoreSelectionModal
             stores={availableStores}
