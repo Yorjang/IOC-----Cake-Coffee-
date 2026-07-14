@@ -81,6 +81,10 @@ export class CreateOrderDto {
   @IsOptional()
   note?: string;
 
+  @IsString()
+  @IsOptional()
+  couponCode?: string;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateOrderItemDto)

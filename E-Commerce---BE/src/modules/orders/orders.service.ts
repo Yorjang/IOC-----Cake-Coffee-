@@ -245,6 +245,7 @@ export class OrdersService implements OnModuleInit {
       shippingAddressPhone,
       shippingRecipientName,
       note,
+      couponCode,
       items
     } = dto;
 
@@ -254,6 +255,41 @@ export class OrdersService implements OnModuleInit {
 
     if (!userId && Number(discountAmount) > 0) {
       throw new BadRequestException('Khách vãng lai không được phép sử dụng mã giảm giá. Vui lòng đăng nhập.');
+    }
+
+    // Validate coupon if provided
+    let couponId: string | null = null;
+    if (couponCode && userId) {
+      const couponRes = await this.orders.query(
+        `SELECT id, status, expires_at, usage_limit, used_count, per_customer_limit FROM coupons WHERE code = $1`,
+        [couponCode.toUpperCase().trim()]
+      );
+      if (couponRes.length === 0) {
+        throw new BadRequestException(`Mã giảm giá "${couponCode}" không hợp lệ.`);
+      }
+      const coupon = couponRes[0];
+      if (coupon.status !== 'active') {
+        throw new BadRequestException(`Mã giảm giá "${couponCode}" không còn hoạt động.`);
+      }
+      if (new Date(coupon.expires_at) < new Date()) {
+        throw new BadRequestException(`Mã giảm giá "${couponCode}" đã hết hạn.`);
+      }
+      if (coupon.usage_limit !== null && Number(coupon.used_count) >= Number(coupon.usage_limit)) {
+        throw new BadRequestException(`Mã giảm giá "${couponCode}" đã đạt giới hạn sử dụng.`);
+      }
+      // Check per-customer usage limit
+      const perLimit = Number(coupon.per_customer_limit ?? 1);
+      if (perLimit > 0) {
+        const usageRes = await this.orders.query(
+          `SELECT COUNT(*) as count FROM orders WHERE user_id = $1 AND coupon_code = $2 AND order_status != 'cancelled'`,
+          [userId, couponCode.toUpperCase().trim()]
+        );
+        const usedByCustomer = Number(usageRes[0]?.count ?? 0);
+        if (usedByCustomer >= perLimit) {
+          throw new BadRequestException(`Bạn đã sử dụng mã giảm giá "${couponCode}" rồi. Mỗi tài khoản chỉ được dùng ${perLimit} lần.`);
+        }
+      }
+      couponId = coupon.id;
     }
 
     // Backend calculation for safety and robustness
@@ -297,20 +333,26 @@ export class OrdersService implements OnModuleInit {
       }
     }
 
+    // Ensure coupon_code column exists (safe migration)
+    try {
+      await this.orders.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code VARCHAR(100)`);
+    } catch { /* ignore */ }
+
     // 3. Save order
     const orderInsert = await this.orders.query(`
       INSERT INTO orders (
         order_code, user_id, branch_id, subtotal, discount_amount, shipping_fee, total_amount, 
         payment_method, payment_status, order_status, order_type, fulfillment_type, 
         shipping_address_street, shipping_address_ward, shipping_address_district, shipping_address_province,
-        shipping_address_phone, shipping_recipient_name, note
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        shipping_address_phone, shipping_recipient_name, note, coupon_code
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING id
     `, [
       orderCode, userId || null, branchId, finalSubtotal, discountAmount, shippingFee, finalTotalAmount,
       paymentMethod, 'pending', 'pending', 'online', fulfillmentType,
       shippingAddressStreet, shippingAddressWard, shippingAddressDistrict, shippingAddressProvince,
-      shippingAddressPhone, shippingRecipientName, note
+      shippingAddressPhone, shippingRecipientName, note,
+      couponCode ? couponCode.toUpperCase().trim() : null
     ]);
 
     const orderId = orderInsert[0].id;
@@ -326,7 +368,15 @@ export class OrdersService implements OnModuleInit {
       ]);
     }
 
-    // 5. Create payment log
+    // 5. Increment coupon usedCount
+    if (couponId) {
+      await this.orders.query(
+        `UPDATE coupons SET used_count = used_count + 1 WHERE id = $1`,
+        [couponId]
+      );
+    }
+
+    // 6. Create payment log
     await this.paymentsService.createPayment(orderId, finalTotalAmount, paymentMethod);
 
     return this.orders.findOne({
