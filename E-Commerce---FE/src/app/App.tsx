@@ -31,7 +31,7 @@ const apiProductToArray = (p: any): any[] => {
   const imageUrl = p.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=600&h=520&fit=crop&auto=format";
   const rating = "4.8";
   const badge = p.productType === "combo" ? "Combo" : (p.variants?.length > 1 ? "S/M/L" : "Còn hàng");
-  return [p.name, price, categoryName, imageUrl, rating, badge];
+  return [p.name, price, categoryName, imageUrl, rating, badge, p.id, p];
 };
 
 // ── Transform API category to legacy format ───────────────────────────────────
@@ -95,6 +95,49 @@ const LISTABLE = [
   "Cafe", "Trà", "Đồ uống khác", "Tìm kiếm",
 ];
 
+// ── Helper to map DB cart items to FE legacy format ─────────────────────────
+const mapDbCartToLegacy = (dbItems: any[]): any[] => {
+  return dbItems.map(item => {
+    const p = item.product;
+    if (!p) return null;
+    const variantPrice = item.variant?.price || 0;
+    const formattedPrice = `${Number(variantPrice).toLocaleString("vi-VN")}đ`;
+    const categoryName = p.category?.name ?? "Khác";
+    const imageUrl = p.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=600&h=520&fit=crop&auto=format";
+    const rating = "4.8";
+    const badge = p.productType === "combo" ? "Combo" : (p.variants?.length > 1 ? "S/M/L" : "Còn hàng");
+    
+    const legacyProduct = [
+      p.name,
+      formattedPrice,
+      categoryName,
+      imageUrl,
+      rating,
+      badge,
+      p.id,
+      p
+    ];
+    
+    let options = {};
+    try {
+      options = item.note ? JSON.parse(item.note) : {};
+    } catch {
+      options = { customText: item.note };
+    }
+
+    return {
+      dbId: item.id,
+      product: legacyProduct,
+      size: item.variant?.size || "Vừa",
+      quantity: item.quantity,
+      options: options,
+      price: Number(variantPrice),
+      productId: item.productId,
+      variantId: item.variantId
+    };
+  }).filter(Boolean);
+};
+
 // ── App ───────────────────────────────────────────────────────────────────────
 const ADMIN_ROLES = ["admin"];
 const isAdminUser = (currentUser: any) => ADMIN_ROLES.includes(currentUser?.role);
@@ -110,6 +153,21 @@ export default function App() {
   // ── Fetch real products & categories from API ─────────────────────────
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+
+  const fetchUserCart = async (token: string) => {
+    try {
+      const res = await fetch(`${env.API_URL}/cart`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const dbCart = await res.json();
+        const legacyCart = mapDbCartToLegacy(dbCart.items || []);
+        setCart(legacyCart);
+      }
+    } catch (err) {
+      console.error("Lỗi khi tải giỏ hàng từ server:", err);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -164,6 +222,28 @@ export default function App() {
     })();
   }, []);
 
+  // ── Session verification on mount ──────────────────────────────────────────
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+    if (user && token) {
+      (async () => {
+        try {
+          const res = await fetch(`${env.API_URL}/users/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.status === 401) {
+            handleLogout();
+            toast.error("Phiên đăng nhập đã hết hạn hoặc đã thay đổi mật khẩu. Vui lòng đăng nhập lại.");
+          } else {
+            await fetchUserCart(token);
+          }
+        } catch {
+          // Silent catch to prevent logging out if server is temporarily unreachable
+        }
+      })();
+    }
+  }, []);
+
   // ── Navigation helper ────────────────────────────────────────────────────
   const setView = (newView: any, productData?: any) => {
     const target = productData || (newView === VIEW_KEYS.DETAIL ? selectedProduct : null);
@@ -175,21 +255,77 @@ export default function App() {
   };
 
   // ── Auth handlers ────────────────────────────────────────────────────────
-  const handleLoginSuccess = () => {
+  const handleLoginSuccess = async () => {
     const currentUser = JSON.parse(localStorage.getItem("user") || "null");
     setUser(currentUser);
+    
+    // Merge local cart to server database
+    const token = localStorage.getItem("accessToken");
+    const localCart = JSON.parse(localStorage.getItem("sb_cart") || "[]");
+    if (token) {
+      if (localCart.length > 0) {
+        try {
+          const mappedLocal = localCart.map((item: any) => {
+            const rawProduct = item.product?.[7];
+            let variantId = item.variantId;
+            if (!variantId && rawProduct?.variants) {
+              let mappedSize = item.size;
+              if (rawProduct.category?.name === "Bánh sinh nhật" || item.product?.[2] === "Bánh sinh nhật") {
+                if (item.size === "Nhỏ") mappedSize = "Nhỏ (15cm)";
+                else if (item.size === "Vừa") mappedSize = "Vừa (20cm)";
+                else if (item.size === "Lớn") mappedSize = "Lớn (25cm)";
+              }
+              variantId = rawProduct.variants.find((v: any) => v.size === mappedSize)?.id || rawProduct.variants[0]?.id;
+            }
+            return {
+              productId: item.productId || item.product?.[6],
+              variantId,
+              quantity: item.quantity,
+              note: JSON.stringify(item.options || {}),
+            };
+          }).filter((i: any) => i.productId && i.variantId);
+
+          const res = await fetch(`${env.API_URL}/cart/merge`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ items: mappedLocal }),
+          });
+          if (res.ok) {
+            const dbCart = await res.json();
+            const legacyCart = mapDbCartToLegacy(dbCart.items || []);
+            setCart(legacyCart);
+            localStorage.removeItem("sb_cart");
+          } else {
+            await fetchUserCart(token);
+          }
+        } catch (err) {
+          console.error("Lỗi khi merge giỏ hàng:", err);
+          await fetchUserCart(token);
+        }
+      } else {
+        await fetchUserCart(token);
+      }
+    }
+
     setView(isAdminUser(currentUser) ? VIEW_KEYS.ADMIN : VIEW_KEYS.HOME);
   };
+
   const handleAdminLoginSuccess = (adminUser: any) => {
     setUser(adminUser);
     setView(VIEW_KEYS.ADMIN);
   };
+
   const handleLogout = () => {
-    ["accessToken", "refreshToken", "user"].forEach(k => localStorage.removeItem(k));
+    ["accessToken", "refreshToken", "user", "sb_cart"].forEach(k => localStorage.removeItem(k));
     setUser(null);
+    setCart([]);
     toast.success("Đã đăng xuất thành công!");
     setView(VIEW_KEYS.LOGIN);
   };
+
   const handleAdminLogout = () => {
     ["accessToken", "refreshToken", "user"].forEach(k => localStorage.removeItem(k));
     setUser(null);
@@ -198,17 +334,138 @@ export default function App() {
   };
 
   // ── Cart / Wishlist handlers ─────────────────────────────────────────────
-  const handleAddToCart = (product: any, size = "Vừa", qty = 1, options?: any, price?: number) => {
+  const handleAddToCart = async (product: any, size = "Vừa", qty = 1, options?: any, price?: number) => {
+    const token = localStorage.getItem("accessToken");
+    const productId = product[6];
+    const rawProduct = product[7];
+    
+    let variantId = "";
+    if (rawProduct && rawProduct.variants) {
+      let mappedSize = size;
+      if (rawProduct.category?.name === "Bánh sinh nhật" || product[2] === "Bánh sinh nhật") {
+        if (size === "Nhỏ") mappedSize = "Nhỏ (15cm)";
+        else if (size === "Vừa") mappedSize = "Vừa (20cm)";
+        else if (size === "Lớn") mappedSize = "Lớn (25cm)";
+      }
+      const match = rawProduct.variants.find((v: any) => v.size === mappedSize);
+      if (match) {
+        variantId = match.id;
+      } else {
+        variantId = rawProduct.variants[0]?.id;
+      }
+    }
+
+    if (user && token && productId && variantId) {
+      try {
+        const res = await fetch(`${env.API_URL}/cart`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            productId,
+            variantId,
+            quantity: qty,
+            note: JSON.stringify(options || {}),
+          }),
+        });
+        if (res.ok) {
+          const dbCart = await res.json();
+          const legacyCart = mapDbCartToLegacy(dbCart.items || []);
+          setCart(legacyCart);
+          toast.success(`Đã thêm ${qty} x ${product[0]} vào giỏ hàng!`);
+          return;
+        }
+      } catch (err) {
+        console.error("Lỗi khi lưu giỏ hàng lên server:", err);
+      }
+    }
+
+    // Local storage fallback for guests
     setCart(prev => {
       const idx = prev.findIndex(i => 
         i.product[0] === product[0] && 
         i.size === size && 
         JSON.stringify(i.options) === JSON.stringify(options)
       );
-      if (idx > -1) { const c = [...prev]; c[idx].quantity += qty; return c; }
-      return [...prev, { product, size, quantity: qty, options, price }];
+      const newItems = [...prev];
+      if (idx > -1) {
+        newItems[idx].quantity += qty;
+      } else {
+        newItems.push({
+          product,
+          size,
+          quantity: qty,
+          options,
+          price,
+          productId,
+          variantId,
+        });
+      }
+      return newItems;
+    });
+    toast.success(`Đã thêm ${qty} x ${product[0]} vào giỏ hàng!`);
+  };
+
+  const handleUpdateCartQty = async (index: number, newQty: number) => {
+    const token = localStorage.getItem("accessToken");
+    const item = cart[index];
+    if (user && token && item && item.dbId) {
+      try {
+        const res = await fetch(`${env.API_URL}/cart/${item.dbId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ quantity: newQty }),
+        });
+        if (res.ok) {
+          const dbCart = await res.json();
+          setCart(mapDbCartToLegacy(dbCart.items || []));
+          return;
+        }
+      } catch (err) {
+        console.error("Lỗi khi cập nhật số lượng giỏ hàng trên server:", err);
+      }
+    }
+
+    // Guest fallback
+    setCart(prev => {
+      const updated = [...prev];
+      if (updated[index]) {
+        updated[index].quantity = newQty;
+      }
+      return updated;
     });
   };
+
+  const handleRemoveCartItem = async (index: number) => {
+    const token = localStorage.getItem("accessToken");
+    const item = cart[index];
+    if (user && token && item && item.dbId) {
+      try {
+        const res = await fetch(`${env.API_URL}/cart/${item.dbId}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const dbCart = await res.json();
+          setCart(mapDbCartToLegacy(dbCart.items || []));
+          toast.error("Đã xóa sản phẩm khỏi giỏ hàng");
+          return;
+        }
+      } catch (err) {
+        console.error("Lỗi khi xóa sản phẩm giỏ hàng trên server:", err);
+      }
+    }
+
+    // Guest fallback
+    setCart(prev => prev.filter((_, i) => i !== index));
+    toast.error("Đã xóa sản phẩm khỏi giỏ hàng");
+  };
+
   const handleToggleWishlist = (product: any) => {
     setWishlist(prev => {
       const exists = prev.some(i => i[0] === product[0]);
@@ -216,8 +473,24 @@ export default function App() {
       return exists ? prev.filter(i => i[0] !== product[0]) : [...prev, product];
     });
   };
+
   const handleSelectProduct = (product: any) => setView(VIEW_KEYS.DETAIL, product);
-  const handlePlaceOrder = () => { setCart([]); setView(VIEW_KEYS.SUCCESS); };
+
+  const handlePlaceOrder = async () => {
+    const token = localStorage.getItem("accessToken");
+    if (user && token) {
+      try {
+        await fetch(`${env.API_URL}/cart`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (err) {
+        console.error("Lỗi khi xóa giỏ hàng DB sau checkout:", err);
+      }
+    }
+    setCart([]);
+    setView(VIEW_KEYS.SUCCESS);
+  };
  
   // ── Checkout totals ──────────────────────────────────────────────────────
   const subtotal = cart.reduce((s, i) => s + (i.price || parsePrice(i.product[1])) * i.quantity, 0);
@@ -273,7 +546,7 @@ export default function App() {
         <main className="min-h-[calc(100vh-400px)]">
           <div className="animate-page-change" key={view}>
             {view === VIEW_KEYS.HOME && <Home setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} products={products} categories={categories} />}
-            {view === VIEW_KEYS.CART && <Cart cart={cart} setCart={setCart} setView={setView} />}
+            {view === VIEW_KEYS.CART && <Cart cart={cart} onUpdateQty={handleUpdateCartQty} onRemoveItem={handleRemoveCartItem} setView={setView} />}
             {view === VIEW_KEYS.CHECKOUT && <Checkout cart={cart} setView={setView} onPlaceOrder={handlePlaceOrder} subtotal={subtotal} discount={0} shipping={shipping} grandTotal={grandTotal} />}
             {view === VIEW_KEYS.SUCCESS && <Success setView={setView} />}
             {view === VIEW_KEYS.DETAIL && <ProductDetail product={selectedProduct} setView={setView} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onSelectProduct={handleSelectProduct} products={products} />}

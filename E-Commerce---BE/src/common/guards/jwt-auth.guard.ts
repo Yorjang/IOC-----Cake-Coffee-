@@ -2,6 +2,7 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 import { UsersService } from '../../modules/users/users.service';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -21,7 +22,7 @@ export class JwtAuthGuard implements CanActivate {
     const token = authHeader.split(' ')[1];
     try {
       const secret = this.configService.get<string>('JWT_SECRET') || 'super_secret_jwt_key_123_cake_coffee';
-      const decoded = jwt.verify(token, secret) as { sub: string; role: string };
+      const decoded = jwt.verify(token, secret) as { sub: string; role: string; pwdSign?: string };
       
       const user = await this.usersService.findById(decoded.sub);
       if (!user) {
@@ -30,6 +31,13 @@ export class JwtAuthGuard implements CanActivate {
 
       if (!user.isActive) {
         throw new UnauthorizedException('User account is inactive');
+      }
+
+      if (decoded.pwdSign) {
+        const currentPwdSign = crypto.createHash('sha256').update(user.passwordHash).digest('hex');
+        if (decoded.pwdSign !== currentPwdSign) {
+          throw new UnauthorizedException('Session has been invalidated due to password change');
+        }
       }
 
       request.user = user;

@@ -7,20 +7,20 @@ import { toast } from "sonner";
 const parsePrice = (priceStr: string) => parseInt(priceStr.replace(/[^0-9]/g, ""), 10);
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
-export function Cart({ cart, setCart, setView }: any) {
+export function Cart({ cart, onUpdateQty, onRemoveItem, setView }: any) {
   const [coupon, setCoupon] = useState("");
   const [discountPercent, setDiscountPercent] = useState(0);
 
   const updateQty = (index: number, delta: number) => {
-    const newCart = [...cart];
-    newCart[index].quantity = Math.max(1, newCart[index].quantity + delta);
-    setCart(newCart);
+    const item = cart[index];
+    if (item) {
+      const newQty = Math.max(1, item.quantity + delta);
+      onUpdateQty(index, newQty);
+    }
   };
 
   const removeCartItem = (index: number) => {
-    const newCart = cart.filter((_: any, i: number) => i !== index);
-    setCart(newCart);
-    toast.error("Đã xóa sản phẩm khỏi giỏ hàng");
+    onRemoveItem(index);
   };
 
   const subtotal = cart.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);

@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import { User } from '../users/entities/user.entity';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -238,6 +239,7 @@ export class AuthService {
     try {
       const decoded = jwt.verify(refreshToken, this.getJwtSecret()) as {
         sub: string;
+        pwdSign?: string;
       };
 
       const user = await this.usersService.findById(decoded.sub);
@@ -247,6 +249,13 @@ export class AuthService {
 
       if (!user.isActive) {
         throw new BadRequestException('User account is inactive');
+      }
+
+      if (decoded.pwdSign) {
+        const currentPwdSign = crypto.createHash('sha256').update(user.passwordHash).digest('hex');
+        if (decoded.pwdSign !== currentPwdSign) {
+          throw new BadRequestException('Phiên đăng nhập đã hết hạn do thay đổi mật khẩu. Vui lòng đăng nhập lại.');
+        }
       }
 
       const accessToken = this.generateAccessToken(user);
@@ -273,16 +282,18 @@ export class AuthService {
   }
 
   generateAccessToken(user: User): string {
+    const pwdSign = crypto.createHash('sha256').update(user.passwordHash).digest('hex');
     return jwt.sign(
-      { sub: user.id, email: user.email, phone: user.phone, role: user.role },
+      { sub: user.id, email: user.email, phone: user.phone, role: user.role, pwdSign },
       this.getJwtSecret(),
       { expiresIn: '15m' },
     );
   }
 
   generateRefreshToken(user: User): string {
+    const pwdSign = crypto.createHash('sha256').update(user.passwordHash).digest('hex');
     return jwt.sign(
-      { sub: user.id },
+      { sub: user.id, pwdSign },
       this.getJwtSecret(),
       { expiresIn: '7d' },
     );

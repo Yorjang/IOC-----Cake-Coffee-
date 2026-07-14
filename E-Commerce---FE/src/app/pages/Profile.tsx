@@ -152,10 +152,13 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
         throw new Error(data.message || "Đổi mật khẩu thất bại");
       }
 
-      toast.success("Đổi mật khẩu thành công!");
+      toast.success("Đổi mật khẩu thành công! Vui lòng đăng nhập lại.");
       setOldPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      setTimeout(() => {
+        onLogout();
+      }, 1500);
     } catch (err: any) {
       toast.error(err.message || "Đã xảy ra lỗi khi đổi mật khẩu.");
     } finally {
