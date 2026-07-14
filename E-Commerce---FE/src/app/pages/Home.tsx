@@ -122,39 +122,6 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
         </div>
       </Section>
 
-      {/* ── Store locator ── */}
-      <section className="mx-auto max-w-[1500px] px-5 py-9 sm:px-6 lg:px-10">
-        <div className="mb-6 flex items-end justify-between gap-6">
-          <div>
-            <p className="font-mono text-xs uppercase tracking-[.22em] text-primary">{env.APP_NAME}</p>
-            <h2 className="mt-1 text-3xl md:text-4xl">Tìm cửa hàng gần bạn</h2>
-            <p className="mt-2 text-muted-foreground">Chọn chi nhánh để xem địa chỉ, giờ mở cửa</p>
-          </div>
-        </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="lg:col-span-1 space-y-3">
-            <div className="flex items-center gap-2 rounded-xl border bg-card px-3 py-2.5 focus-within:ring-2 focus-within:ring-primary/40">
-              <MapPin size={16} className="text-muted-foreground shrink-0" />
-              <input type="text" placeholder="Tìm quận, đường, chi nhánh..." value={storeSearch} onChange={e => setStoreSearch(e.target.value)} className="w-full bg-transparent text-sm outline-none border-none" />
-            </div>
-            {filteredStores.map(s => (
-              <div key={s.name} className="rounded-xl border bg-card p-4 hover:border-primary transition cursor-pointer">
-                <p className="font-semibold text-sm">{s.name}</p>
-                <p className="text-xs text-muted-foreground mt-1">{s.addr}</p>
-                <p className="text-xs text-muted-foreground">🕐 {s.hours}</p>
-              </div>
-            ))}
-          </div>
-          <div className="lg:col-span-2 h-64 lg:h-auto rounded-2xl border overflow-hidden bg-muted flex items-center justify-center">
-            <div className="text-center text-muted-foreground">
-              <MapPin size={32} className="mx-auto mb-2 text-primary/40" />
-              <p className="text-sm">Bản đồ Google Maps</p>
-              <a href="https://maps.google.com/?q=Sweet+Bean+Coffee+Ho+Chi+Minh" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs text-primary hover:underline">Mở trong Maps →</a>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ── Deal ngọt + Vouchers ── */}
       <section className="mx-auto max-w-[1500px] px-5 py-9 sm:px-6 lg:px-10">
         <div className="mb-6 flex items-end justify-between gap-6">
