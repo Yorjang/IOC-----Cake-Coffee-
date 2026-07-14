@@ -1,14 +1,8 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Heart, Minus, Plus, Star, Check } from "lucide-react";
 import { Btn, ProductCard, getDiscountedPrice } from "../components/shared";
-import { CATEGORY_GROUPS, PRODUCT_DETAIL_CONFIG, VIEW_KEYS } from "../../config/appConfig";
+import { CATEGORY_GROUPS, VIEW_KEYS } from "../../config/appConfig";
 import { toast } from "sonner";
-
-// Price helper utilities
-const parsePrice = (priceStr: string): number => {
-  if (!priceStr) return 0;
-  return parseInt(priceStr.replace(/[^0-9]/g, ""), 10);
-};
 
 const formatPrice = (priceNum: number): string => {
   return priceNum.toLocaleString("vi-VN") + "đ";
@@ -27,15 +21,32 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
   const p = product || products[0] || ["Sản phẩm", "0đ", "Khác", "", "5.0", ""];
   const isDrink = CATEGORY_GROUPS.DRINKS.includes(p[2] as any);
   const isBirthdayCake = p[2] === "Bánh sinh nhật";
+  const availableVariants = useMemo(() => {
+    const variants = Array.isArray(p.raw?.variants) ? p.raw.variants : [];
+    return variants
+      .filter((variant: any) => variant.status === "active")
+      .sort((a: any, b: any) => Number(a.price) - Number(b.price));
+  }, [p.raw?.id, p.raw?.variants]);
 
   // Form states
-  const [selectedSize, setSelectedSize] = useState("Vừa");
+  const [selectedVariantId, setSelectedVariantId] = useState("");
   const [sugar, setSugar] = useState("100%");
   const [ice, setIce] = useState("100%");
   const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
   const [customText, setCustomText] = useState("");
   const [needCandles, setNeedCandles] = useState(false);
   const [quantity, setQuantity] = useState(1);
+
+  useEffect(() => {
+    setSelectedVariantId(current =>
+      availableVariants.some((variant: any) => variant.id === current)
+        ? current
+        : availableVariants[0]?.id || "",
+    );
+  }, [p.raw?.id, availableVariants]);
+
+  const selectedVariant = availableVariants.find((variant: any) => variant.id === selectedVariantId)
+    || availableVariants[0];
 
   const isWishlisted = wishlist.some((w: any) => w[0] === p[0]);
 
@@ -44,18 +55,13 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
     .filter(item => item[2] === p[2] && item[0] !== p[0])
     .slice(0, 4);
 
-  // Price calculations
-  const basePriceVal = parsePrice(p[1]);
-  const sizeSurcharge = isDrink
-    ? (selectedSize === "Nhỏ" ? -5000 : selectedSize === "Vừa" ? 0 : 10000)
-    : (selectedSize === "Nhỏ" ? -20000 : selectedSize === "Vừa" ? 0 : 40000);
-
   const toppingsPrice = selectedToppings.reduce((sum, name) => {
     const option = TOPPING_OPTIONS.find(t => t.name === name);
     return sum + (option ? option.price : 0);
   }, 0);
 
-  const unitPrice = Math.max(0, basePriceVal + sizeSurcharge + toppingsPrice);
+  const variantPrice = Number(selectedVariant?.price || 0);
+  const unitPrice = Math.max(0, variantPrice + toppingsPrice);
   const { discountedPrice, discountAmount, bestCoupon } = getDiscountedPrice(unitPrice, p.raw, publicCoupons);
   const totalPriceStr = formatPrice(discountedPrice * quantity);
 
@@ -66,6 +72,10 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
   };
 
   const handleAdd = (buyNow = false) => {
+    if (!selectedVariant) {
+      toast.error("Sản phẩm hiện chưa có kích cỡ khả dụng.");
+      return;
+    }
     const options = {
       sugar: isDrink ? sugar : undefined,
       ice: isDrink ? ice : undefined,
@@ -73,7 +83,14 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
       customText: isBirthdayCake && customText.trim() ? customText : undefined,
       needCandles: isBirthdayCake && needCandles ? true : undefined,
     };
-    onAddToCart(p, selectedSize, quantity, options, unitPrice);
+    onAddToCart(
+      p,
+      selectedVariant.size || selectedVariant.variantName,
+      quantity,
+      options,
+      unitPrice,
+      selectedVariant.id,
+    );
     if (buyNow) {
       setView(VIEW_KEYS.CART);
     } else {
@@ -95,7 +112,7 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
       <div className="grid gap-8 md:grid-cols-2 lg:gap-12">
         {/* Left Column: Image */}
         <div className="overflow-hidden rounded-3xl border bg-muted relative aspect-square max-h-[500px] shadow-sm">
-          <img src={p[3] as string} alt={p[0] as string} className="w-full h-full object-cover" />
+          <img src={(selectedVariant?.imageUrl || p[3]) as string} alt={p[0] as string} className="w-full h-full object-cover" />
           <button
             onClick={() => onToggleWishlist(p)}
             className={`absolute right-4 top-4 rounded-full p-3 transition shadow-md ${isWishlisted ? "bg-rose-100 text-rose-500" : "bg-card/95 hover:bg-accent text-foreground"}`}
@@ -141,18 +158,25 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
           {/* Size selection */}
           <div className="space-y-3">
             <h3 className="font-semibold text-sm text-foreground">Kích cỡ</h3>
-            <div className="flex gap-3">
-              {PRODUCT_DETAIL_CONFIG.SIZE_OPTIONS.map((s) => (
+            {availableVariants.length > 0 ? (
+            <div className="flex flex-wrap gap-3">
+              {availableVariants.map((variant: any) => (
                 <button
-                  key={s}
+                  key={variant.id}
                   type="button"
-                  onClick={() => setSelectedSize(s)}
-                  className={`rounded-xl border px-5 py-2.5 text-sm font-medium transition ${selectedSize === s ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border hover:border-primary/50 text-foreground"}`}
+                  onClick={() => setSelectedVariantId(variant.id)}
+                  className={`rounded-xl border px-5 py-2.5 text-sm font-medium transition ${selectedVariant?.id === variant.id ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border hover:border-primary/50 text-foreground"}`}
                 >
-                  {s}
+                  <span>{variant.size || variant.variantName}</span>
+                  <span className="ml-2 text-xs opacity-75">{formatPrice(Number(variant.price))}</span>
                 </button>
               ))}
             </div>
+            ) : (
+              <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+                Sản phẩm hiện chưa có kích cỡ đang bán.
+              </p>
+            )}
           </div>
 
           {/* Drinks specific options */}
@@ -261,10 +285,10 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
             </div>
 
             <div className="flex flex-1 gap-3 min-w-[240px]">
-              <Btn type="button" className="flex-1 py-3 text-sm font-semibold" onClick={() => handleAdd(false)}>
+              <Btn type="button" disabled={!selectedVariant} className="flex-1 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50" onClick={() => handleAdd(false)}>
                 Thêm vào giỏ
               </Btn>
-              <Btn type="button" variant="secondary" className="flex-1 py-3 text-sm font-semibold" onClick={() => handleAdd(true)}>
+              <Btn type="button" disabled={!selectedVariant} variant="secondary" className="flex-1 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50" onClick={() => handleAdd(true)}>
                 Mua ngay ({totalPriceStr})
               </Btn>
             </div>

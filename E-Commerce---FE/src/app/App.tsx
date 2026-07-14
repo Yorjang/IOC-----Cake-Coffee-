@@ -31,12 +31,19 @@ import { clearAuthSession, getAccessToken, getAccessTokenExpiry, getStoredUser, 
 
 // Array format: [name, price, categoryName, imageUrl, rating, badge, discountPrice, bestCouponCode]
 const apiProductToArray = (p: any, coupons: any[] = []): any[] => {
-  const originalPrice = p.variants?.[0]?.price ? Number(p.variants[0].price) : 0;
+  const activeVariants = (p.variants || [])
+    .filter((variant: any) => variant.status === "active")
+    .sort((a: any, b: any) => Number(a.price) - Number(b.price));
+  const originalPrice = activeVariants[0]?.price ? Number(activeVariants[0].price) : 0;
   const price = originalPrice ? `${originalPrice.toLocaleString("vi-VN")}đ` : "0đ";
   const categoryName = p.category?.name ?? "Khác";
   const imageUrl = p.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=600&h=520&fit=crop&auto=format";
   const rating = "4.8";
-  const badge = p.productType === "combo" ? "Combo" : (p.variants?.length > 1 ? "S/M/L" : "Còn hàng");
+  const badge = p.productType === "combo"
+    ? "Combo"
+    : activeVariants.length > 1
+      ? `${activeVariants.length} kích cỡ`
+      : activeVariants.length === 1 ? "Còn hàng" : "Hết hàng";
 
   const { discountedPrice, discountAmount, bestCoupon } = getDiscountedPrice(originalPrice, p, coupons);
   const discountPriceStr = discountAmount > 0 ? `${discountedPrice.toLocaleString("vi-VN")}đ` : null;
@@ -587,26 +594,22 @@ export default function App() {
   };
 
   // ── Cart / Wishlist handlers ─────────────────────────────────────────────
-  const handleAddToCart = async (product: any, size = "Vừa", qty = 1, options?: any, price?: number) => {
+  const handleAddToCart = async (product: any, size = "Vừa", qty = 1, options?: any, price?: number, selectedVariantId?: string) => {
     const token = getAccessToken();
     const rawProduct = product.raw;
     const productId = rawProduct?.id;
     
     let variantId = "";
+    let selectedVariant: any = null;
     if (rawProduct && rawProduct.variants) {
-      let mappedSize = size;
-      if (rawProduct.category?.name === "Bánh sinh nhật" || product[2] === "Bánh sinh nhật") {
-        if (size === "Nhỏ") mappedSize = "Nhỏ (15cm)";
-        else if (size === "Vừa") mappedSize = "Vừa (20cm)";
-        else if (size === "Lớn") mappedSize = "Lớn (25cm)";
-      }
-      const match = rawProduct.variants.find((v: any) => v.size === mappedSize);
-      if (match) {
-        variantId = match.id;
-      } else {
-        variantId = rawProduct.variants[0]?.id;
-      }
+      selectedVariant = rawProduct.variants.find((variant: any) => variant.id === selectedVariantId)
+        || rawProduct.variants.find((variant: any) => variant.status === "active" && variant.size === size)
+        || rawProduct.variants.find((variant: any) => variant.status === "active");
+      variantId = selectedVariant?.id || "";
     }
+
+    const cartSize = selectedVariant?.size || size;
+    const cartPrice = price ?? Number(selectedVariant?.price || 0);
 
     const optionsKey = JSON.stringify(options || {});
     const matchesItem = (item: any) =>
@@ -621,10 +624,10 @@ export default function App() {
       } else {
         newItems.push({
           product,
-          size,
+          size: cartSize,
           quantity: qty,
           options,
-          price,
+          price: cartPrice,
           productId,
           variantId,
         });
@@ -741,7 +744,8 @@ export default function App() {
         throw new Error(`Món "${item.product[0]}" không còn tồn tại trên hệ thống. Vui lòng xóa món này khỏi Giỏ hàng của bạn!`);
       }
 
-      let variant = rawProd.variants?.find((v: any) => v.size === item.size);
+      let variant = rawProd.variants?.find((v: any) => v.id === item.variantId);
+      if (!variant) variant = rawProd.variants?.find((v: any) => v.size === item.size);
       if (!variant) {
         const sizeMap: Record<string, string> = {
           "Nhỏ": "Nhỏ", "Vừa": "Vừa", "Lớn": "Lớn",
