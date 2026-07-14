@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { CakeSlice, Eye, EyeOff, Mail, Lock, User, Phone } from "lucide-react";
+import { CakeSlice, Eye, EyeOff, Mail, Lock, User, Phone, X } from "lucide-react";
 import { toast } from "sonner";
 import { AUTH_CONTENT } from "../../constants/authContent";
 import { env } from "../../config/env";
+import { policyContentMap } from "../pages/PolicyPage";
 import type { AuthMode, AuthErrors } from "./authUtils";
 import { validateRegisterFields, apiRegister, getAuthErrorMessage } from "./authUtils";
 
@@ -40,6 +41,7 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", se
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [showPolicy, setShowPolicy] = useState<"privacy" | "terms" | null>(null);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -221,9 +223,9 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", se
                 <label className="flex items-start gap-2 text-sm text-muted-foreground cursor-pointer select-none">
                   <input type="checkbox" required className="mt-1 rounded shrink-0 accent-primary" />
                   <span>Tôi đồng ý với{" "}
-                    <button type="button" onClick={() => setView?.(VIEW_KEYS.TERMS)} className="text-primary hover:underline font-semibold bg-transparent border-0 p-0">Điều khoản dịch vụ</button>
+                    <button type="button" onClick={() => setShowPolicy("terms")} className="text-primary hover:underline font-semibold bg-transparent border-0 p-0">Điều khoản dịch vụ</button>
                     {" và "}
-                    <button type="button" onClick={() => setView?.(VIEW_KEYS.PRIVACY)} className="text-primary hover:underline font-semibold bg-transparent border-0 p-0">Chính sách bảo mật</button>.
+                    <button type="button" onClick={() => setShowPolicy("privacy")} className="text-primary hover:underline font-semibold bg-transparent border-0 p-0">Chính sách bảo mật</button>.
                   </span>
                 </label>
                 <button type="submit" disabled={loading} className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 disabled:opacity-50">{loading ? "Đang tạo tài khoản..." : "Tạo tài khoản"}</button>
@@ -261,6 +263,24 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", se
           )}
         </div>
       </div>
+
+      {/* Policy Modal Overlay */}
+      {showPolicy && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in zoom-in-95">
+          <div className="relative w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-2xl bg-card shadow-2xl flex flex-col">
+            <div className="flex items-center justify-between border-b p-4">
+              <h2 className="text-xl font-bold font-serif">{policyContentMap[showPolicy].title}</h2>
+              <button type="button" onClick={() => setShowPolicy(null)} className="rounded-full p-2 hover:bg-muted text-muted-foreground transition-colors"><X size={20} /></button>
+            </div>
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+              {policyContentMap[showPolicy].content}
+            </div>
+            <div className="border-t p-4 flex justify-end">
+              <button type="button" onClick={() => setShowPolicy(null)} className="rounded-xl bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition">Đã hiểu</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

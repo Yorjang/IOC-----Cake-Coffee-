@@ -1,7 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import { VIEW_KEYS } from "../../config/appConfig";
 
-const contentMap: Record<string, { title: string; content: React.ReactNode }> = {
+export const policyContentMap: Record<string, { title: string; content: React.ReactNode }> = {
   privacy: {
     title: "Chính sách bảo mật",
     content: (
@@ -72,7 +72,7 @@ const contentMap: Record<string, { title: string; content: React.ReactNode }> = 
 };
 
 export function PolicyPage({ type, setView }: { type: "privacy" | "terms"; setView: (view: string) => void }) {
-  const policy = contentMap[type] || contentMap.privacy;
+  const policy = policyContentMap[type] || policyContentMap.privacy;
 
   return (
     <div className="container mx-auto px-4 py-8 md:py-16 max-w-4xl animate-fade-in min-h-[calc(100vh-300px)]">
