@@ -4,6 +4,7 @@ import { Btn } from "../components/shared";
 import { CHECKOUT_CONFIG, VIEW_KEYS } from "../../config/appConfig";
 import { toast } from "sonner";
 import { env } from "../../config/env";
+import { getAccessToken } from "../components/authSession";
 
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
@@ -321,7 +322,7 @@ export function Success({ setView, order }: any) {
       return;
     }
 
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     const headers: Record<string, string> = {};
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
@@ -460,7 +461,7 @@ export function Success({ setView, order }: any) {
           )}
 
           <div className="mt-8 flex justify-center gap-4">
-            {localStorage.getItem("accessToken") && (
+            {getAccessToken() && (
               <Btn variant="outline" onClick={() => setView(VIEW_KEYS.PROFILE)}>
                 Xem đơn hàng
               </Btn>
@@ -484,7 +485,7 @@ export function Success({ setView, order }: any) {
         Mã đơn hàng của bạn là <strong className="text-primary">#{orderCode}</strong>. Chúng tôi sẽ sớm giao hàng đến bạn.
       </p>
       <div className="flex gap-4">
-        {localStorage.getItem("accessToken") && (
+        {getAccessToken() && (
           <Btn variant="outline" onClick={() => setView(VIEW_KEYS.PROFILE)}>
             Xem đơn hàng
           </Btn>

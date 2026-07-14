@@ -60,11 +60,13 @@ export class AuthService {
 
     // If phone-only registration, they are active immediately
     const loginToken = this.generateJwt(newUser);
+    const refreshToken = this.generateRefreshToken(newUser);
     const { passwordHash: _, ...result } = newUser;
     return {
       message: 'Registration successful.',
       user: result,
       accessToken: loginToken,
+      refreshToken,
     };
   }
 
@@ -146,7 +148,7 @@ export class AuthService {
     }
 
     const accessToken = this.generateAccessToken(user);
-    const refreshToken = this.generateRefreshToken(user);
+    const refreshToken = this.generateRefreshToken(user, !!loginDto.remember);
 
     return {
       message: 'Login successful',
@@ -156,7 +158,7 @@ export class AuthService {
     };
   }
 
-  async googleLogin(idToken: string) {
+  async googleLogin(idToken: string, remember = false) {
     try {
       const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
       if (!response.ok) {
@@ -200,7 +202,7 @@ export class AuthService {
       }
 
       const accessToken = this.generateAccessToken(user);
-      const refreshToken = this.generateRefreshToken(user);
+      const refreshToken = this.generateRefreshToken(user, remember);
 
       return {
         message: 'Đăng nhập Google thành công.',
@@ -240,6 +242,7 @@ export class AuthService {
       const decoded = jwt.verify(refreshToken, this.getJwtSecret()) as {
         sub: string;
         pwdSign?: string;
+        remember?: boolean;
       };
 
       const user = await this.usersService.findById(decoded.sub);
@@ -259,7 +262,7 @@ export class AuthService {
       }
 
       const accessToken = this.generateAccessToken(user);
-      const newRefreshToken = this.generateRefreshToken(user);
+      const newRefreshToken = this.generateRefreshToken(user, !!decoded.remember);
 
       return {
         accessToken,
@@ -290,12 +293,12 @@ export class AuthService {
     );
   }
 
-  generateRefreshToken(user: User): string {
+  generateRefreshToken(user: User, remember = false): string {
     const pwdSign = crypto.createHash('sha256').update(user.passwordHash).digest('hex');
     return jwt.sign(
-      { sub: user.id, pwdSign },
+      { sub: user.id, pwdSign, remember },
       this.getJwtSecret(),
-      { expiresIn: '7d' },
+      { expiresIn: remember ? '30d' : '1d' },
     );
   }
 

@@ -29,7 +29,7 @@ export class AuthController {
 
   @Post('google-login')
   async googleLogin(@Body() googleLoginDto: GoogleLoginDto) {
-    return this.authService.googleLogin(googleLoginDto.idToken);
+    return this.authService.googleLogin(googleLoginDto.idToken, !!googleLoginDto.remember);
   }
 
   @Post('refresh')

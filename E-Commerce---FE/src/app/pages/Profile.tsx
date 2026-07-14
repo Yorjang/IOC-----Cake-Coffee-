@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { LogOut, User, Lock, Phone, Upload, Image as ImageIcon, History, Save, ShieldAlert, Check } from "lucide-react";
 import { toast } from "sonner";
 import { env } from "../../config/env";
+import { getAccessToken } from "../components/authSession";
 
 const MOCK_ORDERS = [
   { id: "SB98124", date: "05/07/2026", items: "1x Cafe Latte, 1x Bánh Tiramisu", total: "100.000đ", status: "Đã hoàn thành" },
@@ -51,7 +52,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
   const [loadingOrders, setLoadingOrders] = useState(false);
 
   const fetchMyOrders = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     if (!token) return;
     setLoadingOrders(true);
     try {
@@ -114,7 +115,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
 
     setLoadingInfo(true);
     try {
-      const token = localStorage.getItem("accessToken");
+      const token = getAccessToken();
       const res = await fetch(`${env.API_URL}/users/profile`, {
         method: "PATCH",
         headers: {
@@ -165,7 +166,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
 
     setLoadingPassword(true);
     try {
-      const token = localStorage.getItem("accessToken");
+      const token = getAccessToken();
       const res = await fetch(`${env.API_URL}/users/change-password`, {
         method: "PATCH",
         headers: {

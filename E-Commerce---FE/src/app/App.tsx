@@ -26,6 +26,7 @@ import { storeLocations as fallbackStoreLocations, type StoreLocation } from "..
 import { env } from "../config/env";
 import { VIEW_KEYS } from "../config/appConfig";
 import { getDiscountedPrice } from "./components/shared";
+import { clearAuthSession, getAccessToken, getAccessTokenExpiry, getStoredUser, refreshAuthSession } from "./components/authSession";
 
 // Array format: [name, price, categoryName, imageUrl, rating, badge, discountPrice, bestCouponCode]
 const apiProductToArray = (p: any, coupons: any[] = []): any[] => {
@@ -204,7 +205,7 @@ export default function App() {
   const [cart, setCart] = useState<any[]>([]);
   const [cartSessionId] = useState(getCartSessionId);
   const [wishlist, setWishlist] = useState<any[]>(() => JSON.parse(localStorage.getItem("sb_wishlist") || "[]"));
-  const [user, setUser] = useState<any>(() => JSON.parse(localStorage.getItem("user") || "null"));
+  const [user, setUser] = useState<any>(getStoredUser);
   const [selectedStore, setSelectedStore] = useState<StoreLocation>(() => {
     const saved = localStorage.getItem(STORE_STORAGE_KEY);
     const savedStore = saved ? fallbackStoreLocations.find((store) => store.id === saved) : null;
@@ -245,7 +246,7 @@ export default function App() {
   };
 
 
-  const fetchCart = async (branchId: string, token = localStorage.getItem("accessToken")) => {
+  const fetchCart = async (branchId: string, token = getAccessToken()) => {
     if (!UUID_PATTERN.test(branchId)) return;
     try {
       const headers: Record<string, string> = { "X-Session-Id": cartSessionId };
@@ -265,7 +266,7 @@ export default function App() {
 
   const cartHeaders = (includeJson = false) => {
     const headers: Record<string, string> = { "X-Session-Id": cartSessionId };
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     if (token) headers.Authorization = `Bearer ${token}`;
     if (includeJson) headers["Content-Type"] = "application/json";
     return headers;
@@ -456,16 +457,34 @@ export default function App() {
 
   // ── Session verification on mount ──────────────────────────────────────────
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (user && token) {
+    if (user) {
       (async () => {
         try {
-          const res = await fetch(`${env.API_URL}/users/me`, {
+          let token = getAccessToken();
+          if (!token) {
+            const refreshed = await refreshAuthSession();
+            token = refreshed?.accessToken || null;
+            if (refreshed?.user) setUser(refreshed.user);
+          }
+          if (!token) {
+            handleLogout();
+            return;
+          }
+          let res = await fetch(`${env.API_URL}/users/me`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (res.status === 401) {
+            const refreshed = await refreshAuthSession();
+            if (refreshed) {
+              setUser(refreshed.user);
+              res = await fetch(`${env.API_URL}/users/me`, {
+                headers: { Authorization: `Bearer ${refreshed.accessToken}` },
+              });
+            }
+          }
+          if (res.status === 401) {
             handleLogout();
-            toast.error("Phiên đăng nhập đã hết hạn hoặc đã thay đổi mật khẩu. Vui lòng đăng nhập lại.");
+            toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
           }
         } catch {
           // Silent catch to prevent logging out if server is temporarily unreachable
@@ -473,6 +492,35 @@ export default function App() {
       })();
     }
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    let timer: number | undefined;
+    let cancelled = false;
+
+    const scheduleRefresh = () => {
+      const expiresAt = getAccessTokenExpiry();
+      if (!expiresAt || cancelled) return;
+      const delay = Math.max(30_000, expiresAt - Date.now() - 60_000);
+      timer = window.setTimeout(async () => {
+        const refreshed = await refreshAuthSession();
+        if (cancelled) return;
+        if (!refreshed) {
+          handleLogout();
+          toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+          return;
+        }
+        setUser(refreshed.user);
+        scheduleRefresh();
+      }, delay);
+    };
+
+    scheduleRefresh();
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [user?.id]);
   const setView = (newView: any, productData?: any) => {
     const target = productData || (newView === VIEW_KEYS.DETAIL ? selectedProduct : null);
     const newPath = getPathFromView(newView, target);
@@ -484,8 +532,8 @@ export default function App() {
 
   // ── Auth handlers ────────────────────────────────────────────────────────
   const handleLoginSuccess = async () => {
-    const currentUser = JSON.parse(localStorage.getItem("user") || "null");
-    const token = localStorage.getItem("accessToken");
+    const currentUser = getStoredUser();
+    const token = getAccessToken();
     if (token && UUID_PATTERN.test(selectedStore?.id || "")) {
       try {
         const res = await fetch(`${env.API_URL}/cart/merge-session?branchId=${selectedStore.id}`, {
@@ -516,7 +564,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    ["accessToken", "refreshToken", "user", "sb_cart"].forEach(k => localStorage.removeItem(k));
+    clearAuthSession();
     setUser(null);
     setAppliedCoupon(null);
     setCart([]);
@@ -524,7 +572,7 @@ export default function App() {
   };
 
   const handleAdminLogout = () => {
-    ["accessToken", "refreshToken", "user"].forEach(k => localStorage.removeItem(k));
+    clearAuthSession();
     setUser(null);
     setCart([]);
     setView(VIEW_KEYS.HOME);
@@ -532,7 +580,7 @@ export default function App() {
 
   // ── Cart / Wishlist handlers ─────────────────────────────────────────────
   const handleAddToCart = async (product: any, size = "Vừa", qty = 1, options?: any, price?: number) => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     const rawProduct = product.raw;
     const productId = rawProduct?.id;
     
@@ -604,7 +652,7 @@ export default function App() {
   };
 
   const handleUpdateCartQty = async (index: number, newQty: number) => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     const item = cart[index];
     if (!item) return;
     const previousQty = item.quantity;
@@ -632,7 +680,7 @@ export default function App() {
   };
 
   const handleRemoveCartItem = async (index: number) => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     const item = cart[index];
     if (!item) return;
 
@@ -673,7 +721,7 @@ export default function App() {
   };
 
   const handlePlaceOrder = async (checkoutData: any) => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
 
     const items = cart.map(item => {
       let rawProd = item.product.raw;
