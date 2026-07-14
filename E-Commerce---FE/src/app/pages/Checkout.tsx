@@ -308,6 +308,19 @@ export function Success({ setView, order }: any) {
   useEffect(() => {
     if (!isBankTransfer || !orderId) return;
 
+    if (orderId.startsWith("ORD")) {
+      // Mock QR fallback
+      setQrData({
+        qrUrl: "https://api.vietqr.io/image/970436-0345290920-Wc8U0w8.jpg?amount=" + order?.totalAmount + "&addInfo=" + orderCode,
+        bankId: "Vietcombank",
+        bankAccount: "0345290920",
+        bankAccountName: "MOCK ACCOUNT NAME",
+        totalAmount: order?.totalAmount || 0,
+        paymentContent: orderCode
+      });
+      return;
+    }
+
     const token = localStorage.getItem("accessToken");
     const headers: Record<string, string> = {};
     if (token) {

@@ -1,58 +1,85 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, ParseUUIDPipe } from '@nestjs/common';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Public } from '../../common/decorators/public.decorator';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { User } from '../users/user.entity';
 import { CartService } from './cart.service';
+import { AddCartItemDto } from './dto/add-cart-item.dto';
+import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 
+@Public()
 @Controller('cart')
 @UseGuards(JwtAuthGuard)
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 
   @Get()
-  getCart(@CurrentUser() user: User) {
-    return this.cartService.getCart(user.id);
+  getCart(
+    @CurrentUser() user: User | undefined,
+    @Headers('x-session-id') sessionId: string | undefined,
+    @Query('branchId', ParseUUIDPipe) branchId: string,
+  ) {
+    return this.cartService.getCart(user?.id, sessionId, branchId);
   }
 
   @Post()
   addItem(
-    @CurrentUser() user: User,
-    @Body('productId', ParseUUIDPipe) productId: string,
-    @Body('variantId', ParseUUIDPipe) variantId: string,
-    @Body('quantity') quantity: number,
-    @Body('note') note: string,
+    @CurrentUser() user: User | undefined,
+    @Headers('x-session-id') sessionId: string | undefined,
+    @Query('branchId', ParseUUIDPipe) branchId: string,
+    @Body() dto: AddCartItemDto,
   ) {
-    return this.cartService.addItem(user.id, productId, variantId, quantity, note);
+    return this.cartService.addItem(user?.id, sessionId, branchId, dto);
+  }
+
+  @Post('merge-session')
+  mergeSessionCart(
+    @CurrentUser() user: User | undefined,
+    @Headers('x-session-id') sessionId: string | undefined,
+    @Query('branchId', ParseUUIDPipe) branchId: string,
+  ) {
+    return this.cartService.mergeSessionCart(user?.id, sessionId, branchId);
   }
 
   @Patch(':itemId')
   updateItem(
-    @CurrentUser() user: User,
+    @CurrentUser() user: User | undefined,
+    @Headers('x-session-id') sessionId: string | undefined,
+    @Query('branchId', ParseUUIDPipe) branchId: string,
     @Param('itemId', ParseUUIDPipe) itemId: string,
-    @Body('quantity') quantity: number,
-    @Body('note') note?: string,
+    @Body() dto: UpdateCartItemDto,
   ) {
-    return this.cartService.updateItem(user.id, itemId, quantity, note);
+    return this.cartService.updateItem(user?.id, sessionId, branchId, itemId, dto);
   }
 
   @Delete(':itemId')
   removeItem(
-    @CurrentUser() user: User,
+    @CurrentUser() user: User | undefined,
+    @Headers('x-session-id') sessionId: string | undefined,
+    @Query('branchId', ParseUUIDPipe) branchId: string,
     @Param('itemId', ParseUUIDPipe) itemId: string,
   ) {
-    return this.cartService.removeItem(user.id, itemId);
+    return this.cartService.removeItem(user?.id, sessionId, branchId, itemId);
   }
 
   @Delete()
-  clearCart(@CurrentUser() user: User) {
-    return this.cartService.clearCart(user.id);
-  }
-
-  @Post('merge')
-  mergeCart(
-    @CurrentUser() user: User,
-    @Body('items') localItems: any[],
+  clearCart(
+    @CurrentUser() user: User | undefined,
+    @Headers('x-session-id') sessionId: string | undefined,
+    @Query('branchId', ParseUUIDPipe) branchId: string,
   ) {
-    return this.cartService.mergeCart(user.id, localItems);
+    return this.cartService.clearCart(user?.id, sessionId, branchId);
   }
 }

@@ -12,7 +12,7 @@ async function bootstrap() {
   // Bật ValidationPipe để tự động kiểm tra dữ liệu gửi lên (DTO)
     app.useGlobalPipes(new ValidationPipe({
       whitelist: true, // Loại bỏ các trường không được khai báo trong DTO
-      forbidNonWhitelisted: true, // Báo lỗi nếu gửi lên trường dư thừa
+      forbidNonWhitelisted: false, // Không báo lỗi nếu gửi lên trường dư thừa (phù hợp cho Webhook)
       transform: true, // Tự động chuyển đổi kiểu dữ liệu
     }));
 
