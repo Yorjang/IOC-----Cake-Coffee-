@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { Category } from './category.entity';
 import { ProductVariant } from './product-variant.entity';
+import { ProductTopping } from './product-topping.entity';
 
 export enum ProductType {
     CAKE = 'cake',
@@ -51,6 +52,9 @@ export class Product {
 
     @OneToMany(() => ProductVariant, (variant) => variant.product)
     variants: ProductVariant[];
+
+    @OneToMany(() => ProductTopping, (topping) => topping.product)
+    toppings: ProductTopping[];
 
     @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
     createdAt: Date;
