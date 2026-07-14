@@ -74,7 +74,7 @@ export function ProductListing({ category, setView, onSelectProduct, onAddToCart
   }
 
   return (
-    <div className="mx-auto max-w-[1500px] px-5 py-8 sm:px-6 lg:px-10">
+    <div className="w-full px-2 sm:px-4 lg:px-4 py-8">
       <div className="grid gap-8 lg:grid-cols-4">
         {/* Left Side: Sidebar Filters */}
         <div className="lg:col-span-1 space-y-6">

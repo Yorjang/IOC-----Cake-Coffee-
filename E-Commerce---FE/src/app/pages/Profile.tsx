@@ -50,6 +50,8 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
 
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 5;
 
   const fetchMyOrders = async () => {
     const token = getAccessToken();
@@ -62,6 +64,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
       if (res.ok) {
         const data = await res.json();
         setOrders(data);
+        setCurrentPage(1);
       }
     } catch (err) {
       console.error("Error fetching my orders:", err);
@@ -208,7 +211,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
   };
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="w-full mx-auto px-4 sm:px-8 lg:px-12 xl:px-20 py-8 min-h-screen">
       {/* Title */}
       <div className="mb-8">
         <h2 className="text-3xl font-bold font-serif text-foreground">Hồ sơ của tôi</h2>
@@ -257,12 +260,6 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
               </div>
             </div>
 
-            <button
-              onClick={onLogout}
-              className="w-full rounded-xl border border-destructive/20 text-destructive hover:bg-destructive/5 py-2.5 text-sm font-semibold transition flex items-center justify-center gap-1.5"
-            >
-              <LogOut size={14} /> Đăng xuất
-            </button>
           </div>
         </div>
 
@@ -529,8 +526,16 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
                   </div>
                 ) : orders.length > 0 ? (
                   <div className="space-y-4">
-                    {orders.map((o) => {
-                      const itemsStr = o.items
+                    {(() => {
+                      const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+                      const paginatedOrders = orders.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+                      const totalPages = Math.ceil(orders.length / ITEMS_PER_PAGE);
+
+                      return (
+                        <>
+                          <div className="space-y-3 max-h-[380px] overflow-y-auto pr-2">
+                            {paginatedOrders.map((o) => {
+                            const itemsStr = o.items
                         ?.map((i: any) => `${i.quantity}x ${i.productName} (${i.variantName})`)
                         .join(", ") || "Không có sản phẩm";
 
@@ -561,9 +566,9 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
                       return (
                         <div
                           key={o.id}
-                          className="border bg-secondary/20 p-4 rounded-xl text-sm flex flex-col sm:flex-row justify-between sm:items-center gap-4 transition hover:bg-secondary/40"
+                          className="border bg-secondary/20 py-2.5 px-3.5 rounded-lg text-sm flex flex-col sm:flex-row justify-between sm:items-center gap-2 transition hover:bg-secondary/40"
                         >
-                          <div className="space-y-1.5">
+                          <div className="space-y-0.5">
                             <div className="flex items-center gap-2">
                               <span className="font-semibold text-primary">{o.orderCode}</span>
                               <span className="text-muted-foreground text-xs">• {dateStr}</span>
@@ -579,10 +584,44 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
                             >
                               {getStatusLabel(o.orderStatus)}
                             </span>
+                            {o.orderStatus !== 'cancelled' && (
+                              <button 
+                                onClick={() => setView("Theo dõi", o.id)}
+                                className="mt-2 text-xs font-semibold text-primary hover:underline"
+                              >
+                                Theo dõi đơn
+                              </button>
+                            )}
                           </div>
                         </div>
                       );
                     })}
+                    </div>
+                    
+                    {totalPages > 1 && (
+                      <div className="flex justify-center items-center gap-2 pt-4 border-t mt-2">
+                        <button 
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={currentPage === 1}
+                          className="px-4 py-2 rounded-lg border border-border bg-card hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+                        >
+                          Trước
+                        </button>
+                        <span className="text-sm font-medium text-muted-foreground mx-3">
+                          Trang {currentPage} / {totalPages}
+                        </span>
+                        <button 
+                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                          disabled={currentPage === totalPages}
+                          className="px-4 py-2 rounded-lg border border-border bg-card hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+                        >
+                          Sau
+                        </button>
+                      </div>
+                    )}
+                        </>
+                      );
+                    })()}
                   </div>
                 ) : (
                   <div className="text-center py-10">

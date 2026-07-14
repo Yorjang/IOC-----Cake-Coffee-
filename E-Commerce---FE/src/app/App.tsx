@@ -20,6 +20,7 @@ import { Favorites } from "./pages/Favorites";
 import { Profile } from "./pages/Profile";
 import { StoreMap } from "./pages/StoreMap";
 import { PolicyPage } from "./pages/PolicyPage";
+import { OrderTracking } from "./pages/OrderTracking";
 
 import { navPages } from "../data/mockData";
 import { storeLocations as fallbackStoreLocations, type StoreLocation } from "../data/storeLocations";
@@ -72,6 +73,7 @@ const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.STORES]: "/he-thong-cua-hang",
   [VIEW_KEYS.PRIVACY]: "/chinh-sach-bao-mat",
   [VIEW_KEYS.TERMS]: "/dieu-khoan-dich-vu",
+  [VIEW_KEYS.TRACKING]: "/theo-doi",
 };
 
 const getPathFromView = (view: string, product?: any) => {
@@ -218,6 +220,7 @@ export default function App() {
   const [manualLocationRequired, setManualLocationRequired] = useState(false);
   const [orderCode, setOrderCode] = useState("");
   const [lastCreatedOrder, setLastCreatedOrder] = useState<any>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   // ── Fetch real products & categories from API ───────────────────────
   const [products, setProducts] = useState<any[]>([]);
@@ -526,8 +529,13 @@ export default function App() {
     const newPath = getPathFromView(newView, target);
     if (window.location.pathname !== newPath) window.history.pushState(null, "", newPath);
     setViewInternal(newView);
-    if (productData) setSelectedProduct(productData);
-    else if (newView !== VIEW_KEYS.DETAIL && newView !== VIEW_KEYS.REVIEW) setSelectedProduct(null);
+    
+    if (newView === VIEW_KEYS.TRACKING) {
+      setSelectedOrderId(productData || null);
+    } else {
+      if (productData) setSelectedProduct(productData);
+      else if (newView !== VIEW_KEYS.DETAIL && newView !== VIEW_KEYS.REVIEW) setSelectedProduct(null);
+    }
   };
 
   // ── Auth handlers ────────────────────────────────────────────────────────
@@ -730,18 +738,7 @@ export default function App() {
         rawProd = fullProd?.raw;
       }
       if (!rawProd || !rawProd.variants) {
-        // Fallback for mock data or legacy cart items
-        const priceStr = item.product[1] || "0";
-        const numericPrice = parseInt(priceStr.replace(/\D/g, "")) || 0;
-        return {
-          productId: "00000000-0000-0000-0000-000000000000",
-          variantId: "00000000-0000-0000-0000-000000000000",
-          productName: item.product[0],
-          variantName: item.size || "Mặc định",
-          quantity: item.quantity,
-          unitPrice: numericPrice,
-          totalPrice: numericPrice * item.quantity,
-        };
+        throw new Error(`Món "${item.product[0]}" không còn tồn tại trên hệ thống. Vui lòng xóa món này khỏi Giỏ hàng của bạn!`);
       }
 
       let variant = rawProd.variants?.find((v: any) => v.size === item.size);
@@ -787,10 +784,7 @@ export default function App() {
         headers["Authorization"] = `Bearer ${token}`;
       }
 
-      const hasMockItems = items.some(i => i.productId === "00000000-0000-0000-0000-000000000000");
-      if (hasMockItems) {
-        throw new Error("MOCK_FALLBACK_TRIGGER");
-      }
+
 
       const res = await fetch(`${env.API_URL}/orders`, {
         method: "POST",
@@ -820,28 +814,7 @@ export default function App() {
     } catch (err: any) {
       console.error(err);
       
-      if (err.message === "MOCK_FALLBACK_TRIGGER" || err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
-        console.warn("Giả lập giao dịch thành công (do dùng hàng ảo hoặc Máy chủ đang tắt).");
-        const mockOrder = {
-          id: `ORD${Date.now()}`,
-          orderCode: `SB${Math.floor(100000 + Math.random() * 900000)}`,
-          paymentMethod: checkoutData.paymentMethod || "bank_transfer",
-          createdAt: new Date().toISOString(),
-          customerInfo: checkoutData,
-          items,
-          subtotal,
-          discountAmount: discount,
-          shippingFee: shipping,
-          totalAmount: grandTotal,
-          status: "pending"
-        };
-        setLastCreatedOrder(mockOrder);
-        setCart([]);
-        setAppliedCoupon(null);
-        toast.success("Giả lập Đặt hàng thành công!");
-        setView(VIEW_KEYS.SUCCESS);
-        return;
-      }
+
 
       toast.error(err.message || "Lỗi khi gửi đơn hàng lên máy chủ.");
       throw err;
@@ -949,6 +922,7 @@ export default function App() {
           products={products}
           selectedStore={selectedStore}
           onChooseStore={() => setShowStorePopup(true)}
+          onLogout={handleLogout}
         />
         <main className="min-h-[calc(100vh-400px)]">
           <div className="animate-page-change" key={view}>
@@ -959,6 +933,7 @@ export default function App() {
             {view === VIEW_KEYS.DETAIL && <ProductDetail product={selectedProduct} setView={setView} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onSelectProduct={handleSelectProduct} products={products} publicCoupons={publicCoupons} />}
             {view === VIEW_KEYS.FAVORITES && <Favorites wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onAddToCart={handleAddToCart} onSelectProduct={handleSelectProduct} setView={setView} />}
             {view === VIEW_KEYS.PROFILE && <Profile user={user} setUser={setUser} setView={setView} onLogout={handleLogout} />}
+            {view === VIEW_KEYS.TRACKING && <OrderTracking orderId={selectedOrderId || lastCreatedOrder?.id} onBack={() => setView(VIEW_KEYS.HOME)} />}
             {view === VIEW_KEYS.STORES && <StoreMap branches={availableStores} activeStoreId={selectedStore?.id} onSelectStore={(store: any) => { handleSelectStore(store); setView(VIEW_KEYS.HOME); }} />}
             {view === VIEW_KEYS.PRIVACY && <PolicyPage type="privacy" setView={setView} />}
             {view === VIEW_KEYS.TERMS && <PolicyPage type="terms" setView={setView} />}

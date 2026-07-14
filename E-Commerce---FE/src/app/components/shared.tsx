@@ -110,7 +110,7 @@ export function ProductCard({ p, compact = false, onSelect, isWishlisted, onTogg
 
 export function Section({ title, children, sub, onViewAll }: any) {
   return (
-    <section className="mx-auto max-w-[1500px] px-5 py-9 sm:px-6 lg:px-10">
+    <section className="w-full px-2 sm:px-4 lg:px-4 py-9">
       <div className="mb-6 flex items-end justify-between gap-6">
         <div>
           <p className="font-mono text-xs uppercase tracking-[.22em] text-primary">{env.APP_NAME}</p>

@@ -309,18 +309,7 @@ export function Success({ setView, order }: any) {
   useEffect(() => {
     if (!isBankTransfer || !orderId) return;
 
-    if (orderId.startsWith("ORD")) {
-      // Mock QR fallback
-      setQrData({
-        qrUrl: "https://api.vietqr.io/image/970436-0345290920-Wc8U0w8.jpg?amount=" + order?.totalAmount + "&addInfo=" + orderCode,
-        bankId: "Vietcombank",
-        bankAccount: "0345290920",
-        bankAccountName: "MOCK ACCOUNT NAME",
-        totalAmount: order?.totalAmount || 0,
-        paymentContent: orderCode
-      });
-      return;
-    }
+
 
     const token = getAccessToken();
     const headers: Record<string, string> = {};
@@ -466,6 +455,7 @@ export function Success({ setView, order }: any) {
                 Xem đơn hàng
               </Btn>
             )}
+            <Btn onClick={() => setView("Theo dõi", orderId)}>Theo dõi đơn</Btn>
             <Btn onClick={() => setView(VIEW_KEYS.HOME)}>
               Về trang chủ
             </Btn>
@@ -490,6 +480,7 @@ export function Success({ setView, order }: any) {
             Xem đơn hàng
           </Btn>
         )}
+        <Btn onClick={() => setView("Theo dõi", order?.id)}>Theo dõi đơn</Btn>
         <Btn onClick={() => setView(VIEW_KEYS.HOME)}>Về trang chủ</Btn>
       </div>
     </div>

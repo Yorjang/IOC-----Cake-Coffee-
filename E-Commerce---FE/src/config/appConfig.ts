@@ -18,6 +18,7 @@ export const VIEW_KEYS = {
   STORES: "Hệ thống cửa hàng",
   PRIVACY: "Chính sách bảo mật",
   TERMS: "Điều khoản dịch vụ",
+  TRACKING: "Theo dõi",
 } as const;
 
 export const CATEGORY_GROUPS = {

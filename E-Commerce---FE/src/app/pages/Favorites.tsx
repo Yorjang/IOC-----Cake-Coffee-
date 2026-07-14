@@ -3,7 +3,7 @@ import { VIEW_KEYS } from "../../config/appConfig";
 
 export function Favorites({ wishlist, onToggleWishlist, onAddToCart, onSelectProduct, setView }: any) {
   return (
-    <div className="mx-auto max-w-[1500px] px-5 py-8 sm:px-6 lg:px-10">
+    <div className="w-full px-2 py-8 sm:px-4 lg:px-4">
       <h2 className="mb-6 text-2xl md:text-3xl font-bold font-serif">Sản phẩm yêu thích</h2>
       {wishlist.length > 0 ? (
         <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">

@@ -326,8 +326,11 @@ export class OrdersService implements OnModuleInit {
       );
       if (stockRes.length === 0) {
         // Tạm thời vô hiệu hóa lỗi để cho phép đặt hàng khi dữ liệu kho chưa được seed
-        // throw new BadRequestException(`Sản phẩm ${item.productName} không có sẵn tại chi nhánh này.`);
-        console.warn(`[Mock Stock] Sản phẩm ${item.productName} chưa có dữ liệu kho tại chi nhánh này.`);
+        console.warn(`[Mock Stock] Sản phẩm ${item.productName} chưa có dữ liệu kho tại chi nhánh này. Đang tạo tự động...`);
+        await this.orders.query(
+          'INSERT INTO branch_variant_stocks (branch_id, variant_id, quantity) VALUES ($1, $2, $3)',
+          [branchId, item.variantId, 999]
+        );
       } else {
         const availableQty = Number(stockRes[0].quantity);
         if (availableQty < item.quantity) {
