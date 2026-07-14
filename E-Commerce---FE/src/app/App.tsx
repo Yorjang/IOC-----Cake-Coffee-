@@ -36,7 +36,7 @@ const apiProductToArray = (p: any, coupons: any[] = []): any[] => {
   const rating = "4.8";
   const badge = p.productType === "combo" ? "Combo" : (p.variants?.length > 1 ? "S/M/L" : "Còn hàng");
 
-  const { discountedPrice, discountAmount, bestCoupon } = getDiscountedPrice(originalPrice, p.id, coupons);
+  const { discountedPrice, discountAmount, bestCoupon } = getDiscountedPrice(originalPrice, p, coupons);
   const discountPriceStr = discountAmount > 0 ? `${discountedPrice.toLocaleString("vi-VN")}đ` : null;
 
   const arr = [p.name, price, categoryName, imageUrl, rating, badge, discountPriceStr, bestCoupon?.code];
@@ -806,6 +806,21 @@ export default function App() {
   if (user && appliedCoupon) {
     if (appliedCoupon.productId) {
       const matchingItems = cart.filter((item: any) => (item.productId || item.product?.raw?.id) === appliedCoupon.productId);
+      const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
+      if (appliedCoupon.discountType === "percent") {
+        discount = Math.round(matchingSubtotal * (Number(appliedCoupon.discountValue) / 100));
+        if (appliedCoupon.maxDiscount && Number(appliedCoupon.maxDiscount) > 0) {
+          discount = Math.min(discount, Number(appliedCoupon.maxDiscount));
+        }
+      } else {
+        discount = Math.min(matchingSubtotal, Number(appliedCoupon.discountValue));
+      }
+    } else if (appliedCoupon.categoriesId) {
+      const matchingItems = cart.filter((item: any) => {
+        const prod = item.product?.raw;
+        if (!prod) return false;
+        return prod.categoryId === appliedCoupon.categoriesId || prod.categoriesId === appliedCoupon.categoriesId || prod.category?.id === appliedCoupon.categoriesId;
+      });
       const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
       if (appliedCoupon.discountType === "percent") {
         discount = Math.round(matchingSubtotal * (Number(appliedCoupon.discountValue) / 100));

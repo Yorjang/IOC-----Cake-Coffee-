@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Product } from '../products/product.entity';
+import { Category } from '../products/category.entity';
 
 export enum DiscountType {
   PERCENT = 'percent',
@@ -76,6 +77,13 @@ export class Coupon {
   @ManyToOne(() => Product, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'product_id' })
   product: Product;
+
+  @Column({ name: 'categories_id', type: 'uuid', nullable: true })
+  categoriesId: string;
+
+  @ManyToOne(() => Category, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'categories_id' })
+  category: Category;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

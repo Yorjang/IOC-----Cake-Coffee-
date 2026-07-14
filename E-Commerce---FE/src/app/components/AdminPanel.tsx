@@ -2138,6 +2138,7 @@ function AdminReviews() {
 function AdminVouchers() {
   const [coupons, setCoupons] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Form states
@@ -2148,6 +2149,7 @@ function AdminVouchers() {
   const [usageLimit, setUsageLimit] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [productId, setProductId] = useState("");
+  const [categoriesId, setCategoriesId] = useState("");
   const [editingVoucher, setEditingVoucher] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
   const [maxDiscount, setMaxDiscount] = useState("");
@@ -2178,9 +2180,19 @@ function AdminVouchers() {
     }
   };
 
+  const loadCategoriesOnly = async () => {
+    try {
+      const res = await fetch(`${env.API_URL}/categories`);
+      if (res.ok) setCategories(await res.json());
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     loadCoupons();
     loadProductsOnly();
+    loadCategoriesOnly();
   }, []);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -2212,6 +2224,7 @@ function AdminVouchers() {
           startsAt: new Date(),
           expiresAt: new Date(expiresAt),
           productId: productId || null,
+          categoriesId: categoriesId || null,
           isActive: true,
         }),
       });
@@ -2226,6 +2239,7 @@ function AdminVouchers() {
         setUsageLimit("");
         setExpiresAt("");
         setProductId("");
+        setCategoriesId("");
         setEditingVoucher(null);
         loadCoupons();
       } else {
@@ -2250,6 +2264,7 @@ function AdminVouchers() {
     const dateStr = v.expiresAt ? new Date(v.expiresAt).toISOString().split('T')[0] : "";
     setExpiresAt(dateStr);
     setProductId(v.productId || "");
+    setCategoriesId(v.categoriesId || "");
   };
 
   const handleCancelEdit = () => {
@@ -2262,6 +2277,7 @@ function AdminVouchers() {
     setUsageLimit("");
     setExpiresAt("");
     setProductId("");
+    setCategoriesId("");
   };
 
   const handleDelete = async (id: string) => {
@@ -2316,9 +2332,13 @@ function AdminVouchers() {
                 <tr key={v.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
                   <td className="py-3 font-mono font-bold text-primary">{v.code}</td>
                   <td className="py-3">
-                    {v.product ? (
-                      <span className="rounded-full bg-sidebar-accent px-2.5 py-1 text-xs text-foreground font-semibold">
-                        {v.product.name} ({v.product.category?.name || 'Khác'})
+                    {v.productId && v.product ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2.5 py-1 text-xs text-blue-500 font-semibold">
+                        🛍 {v.product.name}
+                      </span>
+                    ) : v.categoriesId && v.category ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/10 px-2.5 py-1 text-xs text-purple-500 font-semibold">
+                        🏷 {v.category.name}
                       </span>
                     ) : (
                       <span className="text-muted-foreground text-xs">Tất cả sản phẩm</span>
@@ -2440,12 +2460,24 @@ function AdminVouchers() {
           <select
             className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
             value={productId}
-            onChange={e => setProductId(e.target.value)}
+            onChange={e => { setProductId(e.target.value); if (e.target.value) setCategoriesId(""); }}
           >
-            <option value="">Áp dụng: Tất cả sản phẩm</option>
+            <option value="">Sản phẩm: Tất cả</option>
             {products.map(p => (
               <option key={p.id} value={p.id}>
                 🛍 {p.name} ({p.category?.name || 'Khác'})
+              </option>
+            ))}
+          </select>
+          <select
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
+            value={categoriesId}
+            onChange={e => { setCategoriesId(e.target.value); if (e.target.value) setProductId(""); }}
+          >
+            <option value="">Danh mục: Tất cả</option>
+            {categories.map(c => (
+              <option key={c.id} value={c.id}>
+                🏷 {c.name}
               </option>
             ))}
           </select>
