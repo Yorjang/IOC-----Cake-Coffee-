@@ -46,5 +46,10 @@ export class UpdateCouponDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsNumber()
+  @Min(0, { message: 'Giảm giá tối đa phải lớn hơn hoặc bằng 0.' })
+  @IsOptional()
+  maxDiscount?: number;
 }
 

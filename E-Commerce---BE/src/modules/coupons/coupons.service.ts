@@ -72,6 +72,7 @@ export class CouponsService implements OnModuleInit {
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // default 30 days
       status: dto.isActive === false ? CouponStatus.DISABLED : CouponStatus.ACTIVE,
       productId: dto.productId || null,
+      maxDiscount: dto.maxDiscount !== undefined && dto.maxDiscount !== null ? Number(dto.maxDiscount) : null,
     });
 
     const saved = await this.coupons.save(coupon);
@@ -107,6 +108,7 @@ export class CouponsService implements OnModuleInit {
     if (dto.startsAt !== undefined) coupon.startsAt = new Date(dto.startsAt);
     if (dto.expiresAt !== undefined) coupon.expiresAt = new Date(dto.expiresAt);
     if (dto.productId !== undefined) coupon.productId = dto.productId || null;
+    if (dto.maxDiscount !== undefined) coupon.maxDiscount = dto.maxDiscount !== null ? Number(dto.maxDiscount) : null;
     if (dto.isActive !== undefined) {
       coupon.status = dto.isActive ? CouponStatus.ACTIVE : CouponStatus.DISABLED;
     }

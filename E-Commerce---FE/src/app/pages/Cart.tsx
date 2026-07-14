@@ -31,12 +31,18 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
       const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
       if (appliedCoupon.discountType === "percent") {
         discount = Math.round(matchingSubtotal * (Number(appliedCoupon.discountValue) / 100));
+        if (appliedCoupon.maxDiscount && Number(appliedCoupon.maxDiscount) > 0) {
+          discount = Math.min(discount, Number(appliedCoupon.maxDiscount));
+        }
       } else {
         discount = Math.min(matchingSubtotal, Number(appliedCoupon.discountValue));
       }
     } else {
       if (appliedCoupon.discountType === "percent") {
         discount = Math.round(subtotal * (Number(appliedCoupon.discountValue) / 100));
+        if (appliedCoupon.maxDiscount && Number(appliedCoupon.maxDiscount) > 0) {
+          discount = Math.min(discount, Number(appliedCoupon.maxDiscount));
+        }
       } else {
         discount = Math.min(subtotal, Number(appliedCoupon.discountValue));
       }
@@ -96,12 +102,18 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
         const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
         if (c.discountType === "percent") {
           currentDiscount = Math.round(matchingSubtotal * (Number(c.discountValue) / 100));
+          if (c.maxDiscount && Number(c.maxDiscount) > 0) {
+            currentDiscount = Math.min(currentDiscount, Number(c.maxDiscount));
+          }
         } else {
           currentDiscount = Math.min(matchingSubtotal, Number(c.discountValue));
         }
       } else {
         if (c.discountType === "percent") {
           currentDiscount = Math.round(subtotal * (Number(c.discountValue) / 100));
+          if (c.maxDiscount && Number(c.maxDiscount) > 0) {
+            currentDiscount = Math.min(currentDiscount, Number(c.maxDiscount));
+          }
         } else {
           currentDiscount = Math.min(subtotal, Number(c.discountValue));
         }
