@@ -431,8 +431,6 @@ export default function App() {
       }
     }
 
-    const currentUser = JSON.parse(localStorage.getItem("user") || "null");
-    setUser(currentUser);
     loadCartForUser(currentUser);
 
     if (isAdminUser(currentUser)) setView(VIEW_KEYS.ADMIN);
