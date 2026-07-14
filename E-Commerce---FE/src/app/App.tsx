@@ -699,11 +699,6 @@ export default function App() {
     }
   };
 
-  const handleSelectStore = (store: StoreLocation) => {
-    setSelectedStore(store);
-    localStorage.setItem(STORE_STORAGE_KEY, store.id);
-    toast.success(`Đã chọn ${store.name}`);
-  };
   const subtotal = cart.reduce((s, i) => s + (i.price || parsePrice(i.product[1])) * i.quantity, 0);
   const shipping = subtotal >= 300000 || subtotal === 0 ? 0 : 15000;
   const grandTotal = subtotal + shipping;
