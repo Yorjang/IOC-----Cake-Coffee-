@@ -10,6 +10,12 @@ export type StoreLocation = {
   status: string;
   highlight: string;
   mapQuery: string;
+  isOpenNow: boolean;
+  todayOpeningHour?: {
+    openingTime: string | null;
+    closingTime: string | null;
+    isClosed: boolean;
+  } | null;
 };
 
 export const storeLocations: StoreLocation[] = [
@@ -25,6 +31,7 @@ export const storeLocations: StoreLocation[] = [
     status: "Đang mở cửa",
     highlight: "Gần bạn nhất",
     mapQuery: "Sweet Bean 123 Nguyen Hue Quan 1 Ho Chi Minh",
+    isOpenNow: true,
   },
   {
     id: "thao-dien",
@@ -38,6 +45,7 @@ export const storeLocations: StoreLocation[] = [
     status: "Đang mở cửa",
     highlight: "Nhiều bàn trống",
     mapQuery: "45 Xuan Thuy Thao Dien Thu Duc Ho Chi Minh",
+    isOpenNow: true,
   },
   {
     id: "phu-nhuan",
@@ -51,5 +59,6 @@ export const storeLocations: StoreLocation[] = [
     status: "Đang mở cửa",
     highlight: "Còn nhiều bánh sinh nhật",
     mapQuery: "88 Phan Xich Long Phu Nhuan Ho Chi Minh",
+    isOpenNow: true,
   },
 ];

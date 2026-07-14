@@ -43,20 +43,21 @@ export function StoreSelectionModal({
   onClose,
 }: StoreSelectionModalProps) {
   const [manualLocation, setManualLocation] = useState("");
+  const [openOnly, setOpenOnly] = useState(true);
 
   const filteredStores = useMemo(() => {
     const keyword = manualLocation.trim().toLowerCase();
-    if (!keyword) return stores;
-
     return stores.filter((store) => {
+      if (openOnly && !store.isOpenNow) return false;
+      if (!keyword) return true;
       const searchable = `${store.name} ${store.shortName} ${store.address}`.toLowerCase();
       return searchable.includes(keyword);
     });
-  }, [manualLocation, stores]);
+  }, [manualLocation, openOnly, stores]);
 
-  const recommended = stores[0] ?? filteredStores[0];
+  const recommended = filteredStores.find(store => store.isOpenNow) ?? stores.find(store => store.isOpenNow);
 
-  if (!recommended) return null;
+  if (stores.length === 0) return null;
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-sidebar/70 px-3 py-4 backdrop-blur-sm">
@@ -94,22 +95,33 @@ export function StoreSelectionModal({
               className="w-full border-none bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
           </label>
+          <div className="mt-3 flex items-center gap-2">
+            <button type="button" onClick={() => setOpenOnly(false)} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${!openOnly ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground"}`}>
+              Tất cả chi nhánh
+            </button>
+            <button type="button" onClick={() => setOpenOnly(true)} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${openOnly ? "bg-green-600 text-white" : "bg-card text-muted-foreground"}`}>
+              Đang mở cửa
+            </button>
+          </div>
         </div>
 
         <div className="grid min-h-0 flex-1 gap-4 p-4 lg:grid-cols-[1fr_260px]">
           <div className="grid max-h-[52vh] gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
             {filteredStores.map((store) => {
               const active = selectedStore?.id === store.id;
+              const isOpen = store.isOpenNow;
 
               return (
                 <button
                   key={store.id}
                   type="button"
                   onClick={() => {
+                    if (!isOpen) return;
                     onSelect(store);
                     onClose();
                   }}
-                  className={`rounded-2xl border p-3 text-left transition hover:border-primary hover:shadow-md ${
+                  disabled={!isOpen}
+                  className={`rounded-2xl border p-3 text-left transition ${isOpen ? "hover:border-primary hover:shadow-md" : "cursor-not-allowed opacity-65"} ${
                     active ? "border-primary bg-secondary" : "bg-card"
                   }`}
                 >
@@ -120,6 +132,11 @@ export function StoreSelectionModal({
                     {active && <CheckCircle size={18} className="text-primary" />}
                   </div>
                   <h3 className="mt-3 line-clamp-2 font-sans text-sm font-semibold text-foreground">{store.name}</h3>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                    <span className={`size-2 rounded-full ${isOpen ? "bg-green-500" : "bg-red-500"}`} />
+                    <span className={isOpen ? "font-semibold text-green-700" : "font-semibold text-red-600"}>{store.status}</span>
+                    <span className="text-muted-foreground">{store.hours}</span>
+                  </div>
                   <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">{store.address}</p>
                   <div className="mt-3 flex flex-wrap gap-2 text-xs">
                     <span className="rounded-full bg-background px-2.5 py-1 text-primary">{store.distance}</span>
@@ -133,8 +150,9 @@ export function StoreSelectionModal({
 
             {filteredStores.length === 0 && (
               <div className="rounded-2xl border bg-card p-4 text-sm text-muted-foreground sm:col-span-2">
-                Chưa tìm thấy chi nhánh phù hợp. Bạn có thể thử nhập tên quận, tên đường hoặc chọn tiếp chi nhánh
-                đang hiển thị gần nhất.
+                {openOnly
+                  ? "Không có chi nhánh nào đang mở phù hợp. Hãy chọn “Tất cả chi nhánh” để xem lịch phục vụ."
+                  : "Chưa tìm thấy chi nhánh phù hợp với khu vực đã nhập."}
               </div>
             )}
           </div>
@@ -149,25 +167,29 @@ export function StoreSelectionModal({
                   {manualLocationRequired ? "Gợi ý theo nhập tay" : "Gợi ý gần nhất"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {manualLocationRequired ? "Dựa trên khu vực bạn nhập" : `${recommended.distance} từ vị trí hiện tại`}
+                  {recommended
+                    ? (manualLocationRequired ? "Đang mở cửa theo khu vực bạn nhập" : `${recommended.distance} từ vị trí hiện tại`)
+                    : "Chưa có cửa hàng đang mở"}
                 </p>
               </div>
             </div>
-            <div className="mt-4 rounded-xl bg-secondary p-3 text-sm leading-6 text-muted-foreground">
+            {recommended ? <div className="mt-4 rounded-xl bg-secondary p-3 text-sm leading-6 text-muted-foreground">
               <b className="text-foreground">{recommended.name}</b>
               <br />
               <span className="font-medium text-foreground">{recommended.highlight}</span>
               <span className="text-muted-foreground"> - giao dự kiến {recommended.delivery}.</span>
-            </div>
+              <div className="mt-1 font-semibold text-green-700">{recommended.status} · {recommended.hours}</div>
+            </div> : <div className="mt-4 rounded-xl bg-secondary p-3 text-sm text-muted-foreground">Hiện không có chi nhánh nào đang mở cửa.</div>}
             <div className="mt-4 grid gap-3">
-              <ModalButton
+              {recommended && <ModalButton
                 onClick={() => {
+                  if (!recommended) return;
                   onSelect(recommended);
                   onClose();
                 }}
               >
                 Dùng chi nhánh này
-              </ModalButton>
+              </ModalButton>}
               <ModalButton variant="secondary" onClick={onClose}>
                 Tiếp tục xem menu
               </ModalButton>
