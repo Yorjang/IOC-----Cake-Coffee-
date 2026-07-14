@@ -152,6 +152,15 @@ const mapDbCartToLegacy = (dbItems: any[]): any[] => {
 const ADMIN_ROLES = ["admin", "store_manager"];
 const STAFF_ROLES = ["staff", "cashier"];
 const STORE_STORAGE_KEY = "sb_selected_store";
+const CART_SESSION_KEY = "sb_cart_session_id";
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const getCartSessionId = () => {
+  const existing = localStorage.getItem(CART_SESSION_KEY);
+  if (existing && UUID_PATTERN.test(existing)) return existing;
+  const sessionId = crypto.randomUUID();
+  localStorage.setItem(CART_SESSION_KEY, sessionId);
+  return sessionId;
+};
 const isAdminUser = (currentUser: any) => ADMIN_ROLES.includes(currentUser?.role);
 const isStaffUser = (currentUser: any) => STAFF_ROLES.includes(currentUser?.role);
 
@@ -192,10 +201,8 @@ export default function App() {
   const [view, setViewInternal] = useState<any>(() => getViewFromPath(window.location.pathname));
   const [selectedProduct, setSelectedProduct] = useState<any>(() => getProductFromPath(window.location.pathname));
   const [searchQuery, setSearchQuery] = useState("");
-  const [cart, setCart] = useState<any[]>(() => {
-    const u = JSON.parse(localStorage.getItem("user") || "null");
-    return JSON.parse(localStorage.getItem(`sb_cart_${u?.id || "guest"}`) || "[]");
-  });
+  const [cart, setCart] = useState<any[]>([]);
+  const [cartSessionId] = useState(getCartSessionId);
   const [wishlist, setWishlist] = useState<any[]>(() => JSON.parse(localStorage.getItem("sb_wishlist") || "[]"));
   const [user, setUser] = useState<any>(() => JSON.parse(localStorage.getItem("user") || "null"));
   const [selectedStore, setSelectedStore] = useState<StoreLocation>(() => {
@@ -238,10 +245,13 @@ export default function App() {
   };
 
 
-  const fetchUserCart = async (token: string) => {
+  const fetchCart = async (branchId: string, token = localStorage.getItem("accessToken")) => {
+    if (!UUID_PATTERN.test(branchId)) return;
     try {
-      const res = await fetch(`${env.API_URL}/cart`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const headers: Record<string, string> = { "X-Session-Id": cartSessionId };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const res = await fetch(`${env.API_URL}/cart?branchId=${branchId}`, {
+        headers,
       });
       if (res.ok) {
         const dbCart = await res.json();
@@ -249,9 +259,20 @@ export default function App() {
         setCart(legacyCart);
       }
     } catch (err) {
-      console.error("Lỗi khi tải giỏ hàng từ server:", err);
+      console.error("Lỗi khi tải giỏ hàng theo chi nhánh:", err);
     }
   };
+
+  const cartHeaders = (includeJson = false) => {
+    const headers: Record<string, string> = { "X-Session-Id": cartSessionId };
+    const token = localStorage.getItem("accessToken");
+    if (token) headers.Authorization = `Bearer ${token}`;
+    if (includeJson) headers["Content-Type"] = "application/json";
+    return headers;
+  };
+
+  const cartUrl = (path = "") =>
+    `${env.API_URL}/cart${path}?branchId=${selectedStore.id}`;
 
   useEffect(() => {
     (async () => {
@@ -397,10 +418,13 @@ export default function App() {
   }, []);
 
   // ── Persist cart & wishlist ──────────────────────────────────────────────
-  useEffect(() => { 
-    localStorage.setItem(`sb_cart_${user?.id || 'guest'}`, JSON.stringify(cart)); 
-  }, [cart, user?.id]);
   useEffect(() => { localStorage.setItem("sb_wishlist", JSON.stringify(wishlist)); }, [wishlist]);
+
+  useEffect(() => {
+    if (!UUID_PATTERN.test(selectedStore?.id || "")) return;
+    setCart([]);
+    fetchCart(selectedStore.id);
+  }, [selectedStore?.id, user?.id]);
 
   useEffect(() => {
     const onPop = () => {
@@ -442,8 +466,6 @@ export default function App() {
           if (res.status === 401) {
             handleLogout();
             toast.error("Phiên đăng nhập đã hết hạn hoặc đã thay đổi mật khẩu. Vui lòng đăng nhập lại.");
-          } else {
-            await fetchUserCart(token);
           }
         } catch {
           // Silent catch to prevent logging out if server is temporarily unreachable
@@ -461,72 +483,27 @@ export default function App() {
   };
 
   // ── Auth handlers ────────────────────────────────────────────────────────
-  const loadCartForUser = async (currentUser: any) => {
-    const token = localStorage.getItem("accessToken");
-    if (currentUser && token) {
-      await fetchUserCart(token);
-    } else {
-      const userCart = JSON.parse(localStorage.getItem("sb_cart_guest") || "[]");
-      setCart(userCart);
-    }
-  };
-
   const handleLoginSuccess = async () => {
     const currentUser = JSON.parse(localStorage.getItem("user") || "null");
-    setUser(currentUser);
-    
-    // Merge local guest cart to server database
     const token = localStorage.getItem("accessToken");
-    const localCart = JSON.parse(localStorage.getItem("sb_cart_guest") || "[]");
-    if (token) {
-      if (localCart.length > 0) {
-        try {
-          const mappedLocal = localCart.map((item: any) => {
-            const rawProduct = item.product?.raw;
-            let variantId = item.variantId;
-            if (!variantId && rawProduct?.variants) {
-              let mappedSize = item.size;
-              if (rawProduct.category?.name === "Bánh sinh nhật" || item.product?.[2] === "Bánh sinh nhật") {
-                if (item.size === "Nhỏ") mappedSize = "Nhỏ (15cm)";
-                else if (item.size === "Vừa") mappedSize = "Vừa (20cm)";
-                else if (item.size === "Lớn") mappedSize = "Lớn (25cm)";
-              }
-              variantId = rawProduct.variants.find((v: any) => v.size === mappedSize)?.id || rawProduct.variants[0]?.id;
-            }
-            return {
-              productId: item.productId || item.product?.raw?.id,
-              variantId,
-              quantity: item.quantity,
-              note: JSON.stringify(item.options || {}),
-            };
-          }).filter((i: any) => i.productId && i.variantId);
-
-          const res = await fetch(`${env.API_URL}/cart/merge`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ items: mappedLocal }),
-          });
-          if (res.ok) {
-            const dbCart = await res.json();
-            const legacyCart = mapDbCartToLegacy(dbCart.items || []);
-            setCart(legacyCart);
-            localStorage.removeItem("sb_cart_guest");
-          } else {
-            await fetchUserCart(token);
-          }
-        } catch (err) {
-          console.error("Lỗi khi merge giỏ hàng:", err);
-          await fetchUserCart(token);
+    if (token && UUID_PATTERN.test(selectedStore?.id || "")) {
+      try {
+        const res = await fetch(`${env.API_URL}/cart/merge-session?branchId=${selectedStore.id}`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "X-Session-Id": cartSessionId,
+          },
+        });
+        if (res.ok) {
+          const dbCart = await res.json();
+          setCart(mapDbCartToLegacy(dbCart.items || []));
         }
-      } else {
-        await fetchUserCart(token);
+      } catch (err) {
+        console.error("Lỗi khi gộp giỏ session vào tài khoản:", err);
       }
     }
-
-    loadCartForUser(currentUser);
+    setUser(currentUser);
 
     if (isAdminUser(currentUser)) setView(VIEW_KEYS.ADMIN);
     else if (isStaffUser(currentUser)) setView(VIEW_KEYS.STAFF);
@@ -535,7 +512,6 @@ export default function App() {
 
   const handleAdminLoginSuccess = (adminUser: any) => {
     setUser(adminUser);
-    loadCartForUser(adminUser);
     setView(isStaffUser(adminUser) ? VIEW_KEYS.STAFF : VIEW_KEYS.ADMIN);
   };
 
@@ -543,14 +519,14 @@ export default function App() {
     ["accessToken", "refreshToken", "user", "sb_cart"].forEach(k => localStorage.removeItem(k));
     setUser(null);
     setAppliedCoupon(null);
-    loadCartForUser(null);
+    setCart([]);
     setView(VIEW_KEYS.HOME);
   };
 
   const handleAdminLogout = () => {
     ["accessToken", "refreshToken", "user"].forEach(k => localStorage.removeItem(k));
     setUser(null);
-    loadCartForUser(null);
+    setCart([]);
     setView(VIEW_KEYS.HOME);
   };
 
@@ -600,14 +576,11 @@ export default function App() {
       return newItems;
     });
 
-    if (!(user && token && productId && variantId)) return;
+    if (!(productId && variantId && UUID_PATTERN.test(selectedStore?.id || ""))) return;
     try {
-      const res = await fetch(`${env.API_URL}/cart`, {
+      const res = await fetch(cartUrl(), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: cartHeaders(true),
         body: JSON.stringify({
           productId,
           variantId,
@@ -641,14 +614,11 @@ export default function App() {
       return updated;
     });
 
-    if (!(user && token && item.dbId)) return;
+    if (!(item.dbId && UUID_PATTERN.test(selectedStore?.id || ""))) return;
     try {
-      const res = await fetch(`${env.API_URL}/cart/${item.dbId}`, {
+      const res = await fetch(cartUrl(`/${item.dbId}`), {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: cartHeaders(true),
         body: JSON.stringify({ quantity: newQty }),
       });
       const result = await res.json();
@@ -669,11 +639,11 @@ export default function App() {
     // Remove immediately; restore the item if server synchronization fails.
     setCart(prev => prev.filter((_, i) => i !== index));
 
-    if (!(user && token && item.dbId)) return;
+    if (!(item.dbId && UUID_PATTERN.test(selectedStore?.id || ""))) return;
     try {
-      const res = await fetch(`${env.API_URL}/cart/${item.dbId}`, {
+      const res = await fetch(cartUrl(`/${item.dbId}`), {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: cartHeaders(),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.message || "Không thể xóa sản phẩm");
@@ -697,6 +667,7 @@ export default function App() {
 
   const handleSelectProduct = (product: any) => setView(VIEW_KEYS.DETAIL, product);
   const handleSelectStore = (store: StoreLocation) => {
+    if (store.id !== selectedStore.id) setCart([]);
     setSelectedStore(store);
     localStorage.setItem(STORE_STORAGE_KEY, store.id);
   };
@@ -784,16 +755,13 @@ export default function App() {
         throw new Error(resData.message || "Đặt hàng thất bại");
       }
 
-      // Also clear the cart on the backend DB!
-      if (token) {
-        try {
-          await fetch(`${env.API_URL}/cart`, {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${token}` },
-          });
-        } catch (err) {
-          console.error("Lỗi khi xóa giỏ hàng DB sau checkout:", err);
-        }
+      try {
+        await fetch(cartUrl(), {
+          method: "DELETE",
+          headers: cartHeaders(),
+        });
+      } catch (err) {
+        console.error("Lỗi khi xóa giỏ hàng theo chi nhánh sau checkout:", err);
       }
 
       setLastCreatedOrder(resData);
