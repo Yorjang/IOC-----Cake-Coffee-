@@ -4,6 +4,7 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/constants/permissions';
 import { InventoryService } from './inventory.service';
+import { UpdateInventoryDto } from './dto/update-inventory.dto';
 
 @Controller('inventory')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -20,8 +21,8 @@ export class InventoryController {
   @Permissions(Permission.MANAGE_INVENTORY)
   updateStock(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: { quantity?: number; minQuantity?: number },
+    @Body() dto: UpdateInventoryDto,
   ) {
-    return this.inventoryService.updateStock(id, body);
+    return this.inventoryService.updateStock(id, dto);
   }
 }

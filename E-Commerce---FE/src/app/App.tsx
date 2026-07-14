@@ -4,10 +4,12 @@ import { Toaster } from "./components/ui/sonner";
 
 import { AdminPanel } from "./components/AdminPanel";
 import { AdminLoginPage } from "./components/AdminLoginPage";
+import { StaffPanel } from "./components/StaffPanel";
 import { AuthPage } from "./components/AuthPage";
 import { ReviewPage } from "./components/ReviewPage";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
+import { StoreSelectionModal } from "./components/StoreSelectionModal";
 
 import { Home } from "./pages/Home";
 import { ProductListing } from "./pages/ProductListing";
@@ -17,11 +19,11 @@ import { Checkout, Success } from "./pages/Checkout";
 import { Favorites } from "./pages/Favorites";
 import { Profile } from "./pages/Profile";
 
-import { navPages, heroBanners } from "../data/mockData";
+import { navPages } from "../data/mockData";
+import { storeLocations as fallbackStoreLocations, type StoreLocation } from "../data/storeLocations";
 import { env } from "../config/env";
 import { VIEW_KEYS } from "../config/appConfig";
 
-// ── Transform API product to legacy array format ──────────────────────────────
 // Array format: [name, price, categoryName, imageUrl, rating, badge]
 const apiProductToArray = (p: any): any[] => {
   const price = p.variants?.[0]?.price
@@ -31,17 +33,17 @@ const apiProductToArray = (p: any): any[] => {
   const imageUrl = p.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=600&h=520&fit=crop&auto=format";
   const rating = "4.8";
   const badge = p.productType === "combo" ? "Combo" : (p.variants?.length > 1 ? "S/M/L" : "Còn hàng");
-  return [p.name, price, categoryName, imageUrl, rating, badge, p.id, p];
+  const arr = [p.name, price, categoryName, imageUrl, rating, badge];
+  (arr as any).raw = p;
+  return arr;
 };
 
-// ── Transform API category to legacy format ───────────────────────────────────
 const apiCategoryToLegacy = (c: any) => ({
   name: c.name,
   icon: "",
   img: c.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=280&h=180&fit=crop&auto=format",
 });
 
-// ── URL / Router helpers ──────────────────────────────────────────────────────
 const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.HOME]: "/",
   [VIEW_KEYS.SWEETS]: "/banh-ngot",
@@ -53,6 +55,7 @@ const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.DETAIL]: "/chi-tiet",
   [VIEW_KEYS.ADMIN]: "/admin",
   [VIEW_KEYS.ADMIN_LOGIN]: "/admin/login",
+  [VIEW_KEYS.STAFF]: "/nhan-vien",
   [VIEW_KEYS.LOGIN]: "/dang-nhap",
   [VIEW_KEYS.REVIEW]: "/danh-gia",
   [VIEW_KEYS.FAVORITES]: "/yeu-thich",
@@ -85,10 +88,8 @@ const getProductFromPath = (path: string, prods: any[] = []) => {
   return prods.find(p => p[0].toLowerCase().replace(/\s+/g, "-") === slug) ?? null;
 };
 
-// ── Price helpers ─────────────────────────────────────────────────────────────
 const parsePrice = (s: string) => parseInt(s.replace(/[^0-9]/g, ""), 10);
 
-// ── Listable categories ───────────────────────────────────────────────────────
 const LISTABLE = [
   VIEW_KEYS.SWEETS, VIEW_KEYS.DRINKS, VIEW_KEYS.COMBO,
   "Bánh sinh nhật", "Bánh mousse", "Bánh tart", "Bánh quy",
@@ -113,10 +114,9 @@ const mapDbCartToLegacy = (dbItems: any[]): any[] => {
       categoryName,
       imageUrl,
       rating,
-      badge,
-      p.id,
-      p
+      badge
     ];
+    (legacyProduct as any).raw = p;
     
     let options = {};
     try {
@@ -139,18 +139,60 @@ const mapDbCartToLegacy = (dbItems: any[]): any[] => {
 };
 
 // ── App ───────────────────────────────────────────────────────────────────────
-const ADMIN_ROLES = ["admin"];
+const ADMIN_ROLES = ["admin", "store_manager"];
+const STAFF_ROLES = ["staff", "cashier"];
+const STORE_STORAGE_KEY = "sb_selected_store";
 const isAdminUser = (currentUser: any) => ADMIN_ROLES.includes(currentUser?.role);
+const isStaffUser = (currentUser: any) => STAFF_ROLES.includes(currentUser?.role);
+
+const estimateDelivery = (distanceKm?: number) => {
+  if (typeof distanceKm !== "number") return "Chưa tính";
+
+  const minMinutes = Math.max(25, Math.ceil(22 + distanceKm * 4));
+  const maxMinutes = minMinutes + (distanceKm <= 5 ? 12 : distanceKm <= 12 ? 18 : 25);
+
+  return `${minMinutes}-${maxMinutes} phút`;
+};
+
+const apiBranchToStore = (branch: any): StoreLocation => {
+  const distanceKm = typeof branch.distanceKm === "number" ? branch.distanceKm : undefined;
+
+  return {
+    id: branch.id,
+    name: branch.name,
+    shortName: branch.name?.replace(/^Sweet Bean\s*/i, "") || branch.name,
+    address: branch.address,
+    phone: branch.phone || "",
+    hours: branch.hours || "07:00 - 22:00",
+    distance: typeof distanceKm === "number" ? `${distanceKm.toFixed(1)} km` : "Đang tính",
+    delivery: branch.deliveryEstimate || estimateDelivery(distanceKm),
+    status: branch.status === "active" ? "Đang mở cửa" : branch.status || "Đang mở cửa",
+    highlight: typeof distanceKm === "number" ? "Gần bạn nhất" : "Chi nhánh đang phục vụ",
+    mapQuery: branch.address || branch.name,
+  };
+};
 
 export default function App() {
   const [view, setViewInternal] = useState<any>(() => getViewFromPath(window.location.pathname));
   const [selectedProduct, setSelectedProduct] = useState<any>(() => getProductFromPath(window.location.pathname));
   const [searchQuery, setSearchQuery] = useState("");
-  const [cart, setCart] = useState<any[]>(() => JSON.parse(localStorage.getItem("sb_cart") || "[]"));
+  const [cart, setCart] = useState<any[]>(() => {
+    const u = JSON.parse(localStorage.getItem("user") || "null");
+    return JSON.parse(localStorage.getItem(`sb_cart_${u?.id || "guest"}`) || "[]");
+  });
   const [wishlist, setWishlist] = useState<any[]>(() => JSON.parse(localStorage.getItem("sb_wishlist") || "[]"));
   const [user, setUser] = useState<any>(() => JSON.parse(localStorage.getItem("user") || "null"));
-
-  // ── Fetch real products & categories from API ─────────────────────────
+  const [selectedStore, setSelectedStore] = useState<StoreLocation>(() => {
+    const saved = localStorage.getItem(STORE_STORAGE_KEY);
+    const savedStore = saved ? fallbackStoreLocations.find((store) => store.id === saved) : null;
+    return savedStore ?? fallbackStoreLocations[0];
+  });
+  const [availableStores, setAvailableStores] = useState<StoreLocation[]>(fallbackStoreLocations);
+  const [showStorePopup, setShowStorePopup] = useState(() => {
+    return window.location.pathname === "/" && !localStorage.getItem(STORE_STORAGE_KEY);
+  });
+  const [manualLocationRequired, setManualLocationRequired] = useState(false);
+  const [lastCreatedOrder, setLastCreatedOrder] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
 
@@ -184,15 +226,87 @@ export default function App() {
           const apiCategories = await cRes.json();
           setCategories(apiCategories.map(apiCategoryToLegacy));
         }
-      } catch { /* silent — fallback to empty */ }
+      } catch {
+        // Keep empty fallback data if the API is unavailable.
+      }
     })();
   }, []);
 
-  // ── Persist cart & wishlist ──────────────────────────────────────────────
-  useEffect(() => { localStorage.setItem("sb_cart", JSON.stringify(cart)); }, [cart]);
+  useEffect(() => {
+    let cancelled = false;
+    let loadedNearbyBranches = false;
+
+    const loadBranches = async () => {
+      try {
+        const res = await fetch(`${env.API_URL}/branches/active`);
+        if (!res.ok) throw new Error("Cannot load branches");
+
+        const apiBranches = await res.json();
+        const stores = Array.isArray(apiBranches) ? apiBranches.map(apiBranchToStore) : [];
+        if (cancelled || loadedNearbyBranches || stores.length === 0) return;
+
+        setAvailableStores(stores);
+        const savedId = localStorage.getItem(STORE_STORAGE_KEY);
+        const savedStore = savedId ? stores.find((store) => store.id === savedId) : null;
+        setSelectedStore(savedStore ?? stores[0]);
+      } catch {
+        if (!cancelled) setAvailableStores(fallbackStoreLocations);
+      }
+    };
+
+    loadBranches();
+
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          setManualLocationRequired(false);
+          try {
+            const { latitude, longitude } = position.coords;
+            const res = await fetch(`${env.API_URL}/branches/nearby?lat=${latitude}&lng=${longitude}`);
+            if (!res.ok) return;
+
+            const nearbyBranches = await res.json();
+            const storesWithDistance = Array.isArray(nearbyBranches)
+              ? nearbyBranches.map(apiBranchToStore)
+              : [apiBranchToStore(nearbyBranches)];
+            const nearest = storesWithDistance[0];
+            if (cancelled) return;
+
+            if (storesWithDistance.length > 0) {
+              loadedNearbyBranches = true;
+              setAvailableStores(storesWithDistance);
+            }
+
+            if (nearest) {
+              setSelectedStore(nearest);
+            }
+          } catch {
+            // Keep the regular active branch list if location lookup fails.
+          }
+        },
+        () => {
+          setManualLocationRequired(true);
+          if (!localStorage.getItem(STORE_STORAGE_KEY) && window.location.pathname === "/") {
+            setShowStorePopup(true);
+          }
+        },
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 },
+      );
+    } else {
+      setManualLocationRequired(true);
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(`sb_cart_${user?.id || "guest"}`, JSON.stringify(cart));
+  }, [cart, user?.id]);
+
   useEffect(() => { localStorage.setItem("sb_wishlist", JSON.stringify(wishlist)); }, [wishlist]);
 
-  // ── History API (back/forward) ───────────────────────────────────────────
   useEffect(() => {
     const onPop = () => {
       setViewInternal(getViewFromPath(window.location.pathname, categories));
@@ -200,9 +314,8 @@ export default function App() {
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, []);
+  }, [categories, products]);
 
-  // ── Email verification via token query param ─────────────────────────────
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("token");
     if (!token) return;
@@ -243,8 +356,6 @@ export default function App() {
       })();
     }
   }, []);
-
-  // ── Navigation helper ────────────────────────────────────────────────────
   const setView = (newView: any, productData?: any) => {
     const target = productData || (newView === VIEW_KEYS.DETAIL ? selectedProduct : null);
     const newPath = getPathFromView(newView, target);
@@ -255,18 +366,28 @@ export default function App() {
   };
 
   // ── Auth handlers ────────────────────────────────────────────────────────
+  const loadCartForUser = async (currentUser: any) => {
+    const token = localStorage.getItem("accessToken");
+    if (currentUser && token) {
+      await fetchUserCart(token);
+    } else {
+      const userCart = JSON.parse(localStorage.getItem("sb_cart_guest") || "[]");
+      setCart(userCart);
+    }
+  };
+
   const handleLoginSuccess = async () => {
     const currentUser = JSON.parse(localStorage.getItem("user") || "null");
     setUser(currentUser);
     
-    // Merge local cart to server database
+    // Merge local guest cart to server database
     const token = localStorage.getItem("accessToken");
-    const localCart = JSON.parse(localStorage.getItem("sb_cart") || "[]");
+    const localCart = JSON.parse(localStorage.getItem("sb_cart_guest") || "[]");
     if (token) {
       if (localCart.length > 0) {
         try {
           const mappedLocal = localCart.map((item: any) => {
-            const rawProduct = item.product?.[7];
+            const rawProduct = item.product?.raw;
             let variantId = item.variantId;
             if (!variantId && rawProduct?.variants) {
               let mappedSize = item.size;
@@ -278,7 +399,7 @@ export default function App() {
               variantId = rawProduct.variants.find((v: any) => v.size === mappedSize)?.id || rawProduct.variants[0]?.id;
             }
             return {
-              productId: item.productId || item.product?.[6],
+              productId: item.productId || item.product?.raw?.id,
               variantId,
               quantity: item.quantity,
               note: JSON.stringify(item.options || {}),
@@ -297,7 +418,7 @@ export default function App() {
             const dbCart = await res.json();
             const legacyCart = mapDbCartToLegacy(dbCart.items || []);
             setCart(legacyCart);
-            localStorage.removeItem("sb_cart");
+            localStorage.removeItem("sb_cart_guest");
           } else {
             await fetchUserCart(token);
           }
@@ -310,18 +431,25 @@ export default function App() {
       }
     }
 
-    setView(isAdminUser(currentUser) ? VIEW_KEYS.ADMIN : VIEW_KEYS.HOME);
+    const currentUser = JSON.parse(localStorage.getItem("user") || "null");
+    setUser(currentUser);
+    loadCartForUser(currentUser);
+
+    if (isAdminUser(currentUser)) setView(VIEW_KEYS.ADMIN);
+    else if (isStaffUser(currentUser)) setView(VIEW_KEYS.STAFF);
+    else setView(VIEW_KEYS.HOME);
   };
 
   const handleAdminLoginSuccess = (adminUser: any) => {
     setUser(adminUser);
-    setView(VIEW_KEYS.ADMIN);
+    loadCartForUser(adminUser);
+    setView(isStaffUser(adminUser) ? VIEW_KEYS.STAFF : VIEW_KEYS.ADMIN);
   };
 
   const handleLogout = () => {
     ["accessToken", "refreshToken", "user", "sb_cart"].forEach(k => localStorage.removeItem(k));
     setUser(null);
-    setCart([]);
+    loadCartForUser(null);
     toast.success("Đã đăng xuất thành công!");
     setView(VIEW_KEYS.LOGIN);
   };
@@ -329,6 +457,7 @@ export default function App() {
   const handleAdminLogout = () => {
     ["accessToken", "refreshToken", "user"].forEach(k => localStorage.removeItem(k));
     setUser(null);
+    loadCartForUser(null);
     toast.success("Đã đăng xuất khỏi trang quản trị.");
     setView(VIEW_KEYS.ADMIN_LOGIN);
   };
@@ -336,8 +465,8 @@ export default function App() {
   // ── Cart / Wishlist handlers ─────────────────────────────────────────────
   const handleAddToCart = async (product: any, size = "Vừa", qty = 1, options?: any, price?: number) => {
     const token = localStorage.getItem("accessToken");
-    const productId = product[6];
-    const rawProduct = product[7];
+    const rawProduct = product.raw;
+    const productId = rawProduct?.id;
     
     let variantId = "";
     if (rawProduct && rawProduct.variants) {
@@ -384,9 +513,9 @@ export default function App() {
 
     // Local storage fallback for guests
     setCart(prev => {
-      const idx = prev.findIndex(i => 
-        i.product[0] === product[0] && 
-        i.size === size && 
+      const idx = prev.findIndex(i =>
+        i.product[0] === product[0] &&
+        i.size === size &&
         JSON.stringify(i.options) === JSON.stringify(options)
       );
       const newItems = [...prev];
@@ -476,9 +605,74 @@ export default function App() {
 
   const handleSelectProduct = (product: any) => setView(VIEW_KEYS.DETAIL, product);
 
-  const handlePlaceOrder = async () => {
+  const handlePlaceOrder = async (checkoutData: any) => {
     const token = localStorage.getItem("accessToken");
-    if (user && token) {
+    if (!token) {
+      toast.error("Vui lòng đăng nhập để tiến hành đặt hàng!");
+      setView(VIEW_KEYS.LOGIN);
+      return;
+    }
+
+    const items = cart.map(item => {
+      let rawProd = item.product.raw;
+      if (!rawProd) {
+        const fullProd = products.find(p => p[0] === item.product[0]);
+        rawProd = fullProd?.raw || (fullProd as any);
+      }
+      if (!rawProd || !rawProd.variants) {
+        throw new Error(`Không tìm thấy thông tin sản phẩm: ${item.product[0]}`);
+      }
+
+      let variant = rawProd.variants?.find((v: any) => v.size === item.size);
+      if (!variant) {
+        const sizeMap: Record<string, string> = {
+          "Nhỏ": "Nhỏ", "Vừa": "Vừa", "Lớn": "Lớn",
+          "S": "Nhỏ", "M": "Vừa", "L": "Lớn",
+        };
+        const mappedSize = sizeMap[item.size] || item.size;
+        variant = rawProd.variants?.find((v: any) => v.size === mappedSize) || rawProd.variants?.[0];
+      }
+
+      if (!variant) {
+        throw new Error(`Sản phẩm ${rawProd.name} không có phiên bản kích thước tương thích.`);
+      }
+
+      return {
+        productId: rawProd.id,
+        variantId: variant.id,
+        productName: rawProd.name,
+        variantName: variant.variantName,
+        quantity: item.quantity,
+        unitPrice: Number(variant.price),
+        totalPrice: Number(variant.price) * item.quantity,
+      };
+    });
+
+    const payload = {
+      ...checkoutData,
+      subtotal,
+      discountAmount: 0,
+      shippingFee: shipping,
+      totalAmount: grandTotal,
+      items,
+    };
+
+    try {
+      const res = await fetch(`${env.API_URL}/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const resData = await res.json();
+      if (!res.ok) {
+        throw new Error(resData.message || "Đặt hàng thất bại");
+      }
+
+      // Also clear the cart on the backend DB!
       try {
         await fetch(`${env.API_URL}/cart`, {
           method: "DELETE",
@@ -487,36 +681,55 @@ export default function App() {
       } catch (err) {
         console.error("Lỗi khi xóa giỏ hàng DB sau checkout:", err);
       }
+
+      setLastCreatedOrder(resData);
+      setCart([]);
+      toast.success("Đặt hàng thành công!");
+      setView(VIEW_KEYS.SUCCESS);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Lỗi khi gửi đơn hàng lên máy chủ.");
+      throw err;
     }
-    setCart([]);
-    setView(VIEW_KEYS.SUCCESS);
   };
- 
-  // ── Checkout totals ──────────────────────────────────────────────────────
+
+  const handleSelectStore = (store: StoreLocation) => {
+    setSelectedStore(store);
+    localStorage.setItem(STORE_STORAGE_KEY, store.id);
+    toast.success(`Đã chọn ${store.name}`);
+  };
   const subtotal = cart.reduce((s, i) => s + (i.price || parsePrice(i.product[1])) * i.quantity, 0);
   const shipping = subtotal >= 300000 || subtotal === 0 ? 0 : 15000;
   const grandTotal = subtotal + shipping;
 
-  // ── Render ───────────────────────────────────────────────────────────────
-  // Admin login page (separate, no header)
   if (view === VIEW_KEYS.ADMIN_LOGIN) {
     return <><Toaster richColors position="top-center" /><AdminLoginPage onSuccess={handleAdminLoginSuccess} onBack={() => setView(VIEW_KEYS.HOME)} /></>;
   }
 
-  // Admin panel — role-guarded
   if (view === VIEW_KEYS.ADMIN) {
     if (!user) {
-      // Not logged in → redirect to admin login
       setTimeout(() => setView(VIEW_KEYS.ADMIN_LOGIN), 0);
       return <><Toaster richColors position="top-center" /></>;
     }
     if (!isAdminUser(user)) {
-      // Logged in but not admin → back to home
       toast.error("Bạn không có quyền truy cập trang quản trị.");
       setTimeout(() => setView(VIEW_KEYS.HOME), 0);
       return <><Toaster richColors position="top-center" /></>;
     }
     return <><Toaster richColors position="top-center" /><AdminPanel onExit={handleAdminLogout} adminUser={user} /></>;
+  }
+
+  if (view === VIEW_KEYS.STAFF) {
+    if (!user) {
+      setTimeout(() => setView(VIEW_KEYS.ADMIN_LOGIN), 0);
+      return <><Toaster richColors position="top-center" /></>;
+    }
+    if (!isStaffUser(user) && !isAdminUser(user)) {
+      toast.error("Bạn không có quyền truy cập trang nhân viên.");
+      setTimeout(() => setView(VIEW_KEYS.HOME), 0);
+      return <><Toaster richColors position="top-center" /></>;
+    }
+    return <><Toaster richColors position="top-center" /><StaffPanel onExit={handleAdminLogout} staffUser={user} products={products} /></>;
   }
 
   if (view === VIEW_KEYS.LOGIN) return <><Toaster richColors position="top-center" /><AuthPage onSuccess={handleLoginSuccess} /></>;
@@ -542,13 +755,15 @@ export default function App() {
           isLoggedIn={!!user}
           user={user}
           products={products}
+          selectedStore={selectedStore}
+          onChooseStore={() => setShowStorePopup(true)}
         />
         <main className="min-h-[calc(100vh-400px)]">
           <div className="animate-page-change" key={view}>
             {view === VIEW_KEYS.HOME && <Home setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} products={products} categories={categories} />}
             {view === VIEW_KEYS.CART && <Cart cart={cart} onUpdateQty={handleUpdateCartQty} onRemoveItem={handleRemoveCartItem} setView={setView} />}
-            {view === VIEW_KEYS.CHECKOUT && <Checkout cart={cart} setView={setView} onPlaceOrder={handlePlaceOrder} subtotal={subtotal} discount={0} shipping={shipping} grandTotal={grandTotal} />}
-            {view === VIEW_KEYS.SUCCESS && <Success setView={setView} />}
+            {view === VIEW_KEYS.CHECKOUT && <Checkout cart={cart} setView={setView} onPlaceOrder={handlePlaceOrder} subtotal={subtotal} discount={0} shipping={shipping} grandTotal={grandTotal} user={user} />}
+            {view === VIEW_KEYS.SUCCESS && <Success setView={setView} order={lastCreatedOrder} />}
             {view === VIEW_KEYS.DETAIL && <ProductDetail product={selectedProduct} setView={setView} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onSelectProduct={handleSelectProduct} products={products} />}
             {view === VIEW_KEYS.FAVORITES && <Favorites wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onAddToCart={handleAddToCart} onSelectProduct={handleSelectProduct} setView={setView} />}
             {view === VIEW_KEYS.PROFILE && <Profile user={user} setUser={setUser} setView={setView} onLogout={handleLogout} />}
@@ -556,6 +771,15 @@ export default function App() {
           </div>
         </main>
         <Footer />
+        {showStorePopup && view === VIEW_KEYS.HOME && (
+          <StoreSelectionModal
+            stores={availableStores}
+            selectedStore={selectedStore}
+            manualLocationRequired={manualLocationRequired}
+            onSelect={handleSelectStore}
+            onClose={() => setShowStorePopup(false)}
+          />
+        )}
       </div>
     </>
   );

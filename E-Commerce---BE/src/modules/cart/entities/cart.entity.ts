@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
+import { User } from '../../users/user.entity';
 import { CartItem } from './cart-item.entity';
 
 export enum FulfillmentType {

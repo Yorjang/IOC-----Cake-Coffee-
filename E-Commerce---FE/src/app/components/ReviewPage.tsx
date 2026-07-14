@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Star, ThumbsUp, Camera, ArrowLeft } from "lucide-react";
+import { env } from "../../config/env";
+import { toast } from "sonner";
 
 const mockProducts = [
   ["Bánh Tiramisu", "45.000đ", "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=120&h=120&fit=crop&auto=format"],
@@ -47,13 +49,48 @@ export function ReviewPage({ product, onBack }: any) {
   const [filterRating, setFilterRating] = useState(0);
   const [sortBy, setSortBy] = useState("newest");
   const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
-  const [reviewsList, setReviewsList] = useState(initialReviews);
+  const [reviewsList, setReviewsList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const displayProductName = product ? product[0] : mockProducts[0][0];
   const displayProductPrice = product ? product[1] : mockProducts[0][1];
   const displayProductImage = product ? product[3] : mockProducts[0][2];
 
-  const avgRating = (reviewsList.reduce((a, r) => a + r.rating, 0) / reviewsList.length).toFixed(1);
+  const productId = product?.raw?.id;
+
+  const loadReviews = async () => {
+    if (!productId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${env.API_URL}/reviews/product/${productId}`);
+      if (res.ok) {
+        const data = await res.json();
+        const mapped = data.map((r: any) => ({
+          user: r.user?.fullName || "Khách hàng",
+          avatar: (r.user?.fullName || "K").charAt(0).toUpperCase(),
+          rating: r.rating,
+          date: new Date(r.createdAt).toLocaleDateString("vi-VN"),
+          comment: r.comment || "",
+          likes: 0,
+          verified: r.isVerified,
+          images: []
+        }));
+        setReviewsList(mapped);
+      }
+    } catch (err) {
+      console.error("Error loading reviews:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadReviews();
+  }, [productId]);
+
+  const avgRating = reviewsList.length > 0 
+    ? (reviewsList.reduce((a, r) => a + r.rating, 0) / reviewsList.length).toFixed(1)
+    : "5.0";
   const dist = [5, 4, 3, 2, 1].map(r => ({ r, count: reviewsList.filter(x => x.rating === r).length }));
 
   const filtered = reviewsList
@@ -65,24 +102,43 @@ export function ReviewPage({ product, onBack }: any) {
       return 0; // newest/default
     });
 
-  function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (rating === 0 || !comment.trim()) return;
 
-    const newReview = {
-      user: "Khách hàng",
-      avatar: "K",
-      rating,
-      date: new Date().toLocaleDateString("vi-VN"),
-      comment,
-      likes: 0,
-      verified: true,
-      images: []
-    };
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      toast.error("Vui lòng đăng nhập để viết đánh giá!");
+      return;
+    }
 
-    setReviewsList([newReview, ...reviewsList]);
-    setSubmitted(true);
-  }
+    try {
+      const res = await fetch(`${env.API_URL}/reviews`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          productId,
+          rating,
+          comment
+        })
+      });
+
+      const resData = await res.json();
+      if (!res.ok) {
+        throw new Error(resData.message || "Gửi đánh giá thất bại");
+      }
+
+      toast.success("Gửi đánh giá thành công!");
+      setSubmitted(true);
+      loadReviews();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Lỗi khi gửi đánh giá.");
+    }
+  };
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">

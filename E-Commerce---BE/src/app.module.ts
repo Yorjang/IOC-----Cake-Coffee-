@@ -11,6 +11,7 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
 import { BannersModule } from './modules/banners/banners.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { CartModule } from './modules/cart/cart.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { CartModule } from './modules/cart/cart.module';
     BannersModule,
     InventoryModule,
     CartModule,
+    PaymentsModule,
   ],
   controllers: [],
   providers: [],

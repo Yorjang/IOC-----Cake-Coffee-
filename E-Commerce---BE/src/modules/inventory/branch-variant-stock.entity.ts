@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
-import { Branch } from '../../branches/entities/branch.entity';
-import { ProductVariant } from '../../products/entities/product-variant.entity';
+import { Branch } from '../branches/branch.entity';
+import { ProductVariant } from '../products/product-variant.entity';
 
 @Entity('branch_variant_stocks')
 export class BranchVariantStock {

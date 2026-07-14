@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { User } from '../users/entities/user.entity';
+import { User } from '../users/user.entity';
 import { CartService } from './cart.service';
 
 @Controller('cart')
