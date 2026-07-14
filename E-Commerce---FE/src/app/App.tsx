@@ -7,6 +7,7 @@ import { AdminLoginPage } from "./components/AdminLoginPage";
 import { StaffPanel } from "./components/StaffPanel";
 import { AuthPage } from "./components/AuthPage";
 import { ReviewPage } from "./components/ReviewPage";
+import { LoadingScreen } from "./components/LoadingScreen";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { StoreSelectionModal } from "./components/StoreSelectionModal";
@@ -209,6 +210,7 @@ const apiBranchToStore = (branch: any): StoreLocation => {
 
 export default function App() {
   const [view, setViewInternal] = useState<any>(() => getViewFromPath(window.location.pathname));
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(() => getProductFromPath(window.location.pathname));
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<any[]>([]);
@@ -569,14 +571,19 @@ export default function App() {
     const target = productData || (newView === VIEW_KEYS.DETAIL ? selectedProduct : null);
     const newPath = getPathFromView(newView, target);
     if (window.location.pathname !== newPath) window.history.pushState(null, "", newPath);
-    setViewInternal(newView);
     
-    if (newView === VIEW_KEYS.TRACKING) {
-      setSelectedOrderId(productData || null);
-    } else {
-      if (productData) setSelectedProduct(productData);
-      else if (newView !== VIEW_KEYS.DETAIL && newView !== VIEW_KEYS.REVIEW) setSelectedProduct(null);
-    }
+    setIsLoading(true);
+    setTimeout(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      setViewInternal(newView);
+      if (newView === VIEW_KEYS.TRACKING) {
+        setSelectedOrderId(productData || null);
+      } else {
+        if (productData) setSelectedProduct(productData);
+        else if (newView !== VIEW_KEYS.DETAIL && newView !== VIEW_KEYS.REVIEW) setSelectedProduct(null);
+      }
+      setTimeout(() => setIsLoading(false), 100);
+    }, 400);
   };
 
   // ── Auth handlers ────────────────────────────────────────────────────────
@@ -945,6 +952,7 @@ export default function App() {
   return (
     <>
       <Toaster richColors position="top-center" />
+      <LoadingScreen isLoading={isLoading} />
       <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/20">
         <Header
           view={view}
@@ -975,6 +983,8 @@ export default function App() {
             {view === VIEW_KEYS.STORES && <StoreMap branches={availableStores} activeStoreId={selectedStore?.id} onSelectStore={(store: any) => { handleSelectStore(store); setView(VIEW_KEYS.HOME); }} />}
             {view === VIEW_KEYS.PRIVACY && <PolicyPage type="privacy" setView={setView} />}
             {view === VIEW_KEYS.TERMS && <PolicyPage type="terms" setView={setView} />}
+            {view === VIEW_KEYS.RETURN_POLICY && <PolicyPage type="return" setView={setView} />}
+            {view === VIEW_KEYS.ORDER_GUIDE && <PolicyPage type="guide" setView={setView} />}
             {LISTABLE.includes(view) && <ProductListing category={view} setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} searchQuery={searchQuery} products={products} />}
           </div>
 

@@ -18,6 +18,8 @@ export const VIEW_KEYS = {
   STORES: "Hệ thống cửa hàng",
   PRIVACY: "Chính sách bảo mật",
   TERMS: "Điều khoản dịch vụ",
+  RETURN_POLICY: "Chính sách đổi trả",
+  ORDER_GUIDE: "Hướng dẫn đặt bánh",
   TRACKING: "Theo dõi",
 } as const;
 

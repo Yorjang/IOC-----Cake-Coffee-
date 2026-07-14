@@ -33,6 +33,8 @@ export function Footer({ setView }: { setView?: (view: string) => void }) {
                 {col.links.map(l => <li key={l} onClick={() => {
                   if (l === "Chính sách bảo mật") setView?.(VIEW_KEYS.PRIVACY);
                   if (l === "Điều khoản dịch vụ") setView?.(VIEW_KEYS.TERMS);
+                  if (l === "Chính sách đổi trả") setView?.(VIEW_KEYS.RETURN_POLICY);
+                  if (l === "Hướng dẫn đặt bánh") setView?.(VIEW_KEYS.ORDER_GUIDE);
                 }} className="text-sm text-sidebar-foreground/65 hover:text-sidebar-foreground cursor-pointer transition">{l}</li>)}
               </ul>
             </div>

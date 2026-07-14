@@ -69,9 +69,88 @@ export const policyContentMap: Record<string, { title: string; content: React.Re
       </div>
     ),
   },
+  return: {
+    title: "Chính sách đổi trả",
+    content: (
+      <div className="space-y-6 text-muted-foreground leading-relaxed text-sm md:text-base">
+        <p>Để đảm bảo trải nghiệm thưởng thức tốt nhất và duy trì chất lượng của các sản phẩm F&B, <strong>Sweet Bean Coffee</strong> áp dụng chính sách đổi trả với các quy định cụ thể như sau:</p>
+        
+        <h3 className="text-lg font-bold text-foreground mt-8">1. Các trường hợp được hỗ trợ đổi trả</h3>
+        <p>Khách hàng sẽ được đổi sản phẩm mới hoặc hoàn tiền 100% trong các trường hợp sau đây (vui lòng kiểm tra và phản hồi ngay lúc nhận hàng):</p>
+        <ul className="list-disc pl-6 space-y-2 mt-2">
+          <li><strong>Sản phẩm bị lỗi hoặc hỏng:</strong> Bánh bị biến dạng mạnh, dập nát do quá trình vận chuyển. Đồ uống bị đổ, chảy tràn ra ngoài.</li>
+          <li><strong>Giao sai sản phẩm:</strong> Đơn hàng nhận được không đúng với món hoặc kích cỡ (size) mà khách hàng đã đặt.</li>
+          <li><strong>Thiếu sản phẩm:</strong> Đơn hàng giao đến bị thiếu món so với hóa đơn thanh toán.</li>
+        </ul>
+
+        <h3 className="text-lg font-bold text-foreground mt-8">2. Các trường hợp KHÔNG hỗ trợ đổi trả</h3>
+        <p>Chúng tôi rất tiếc không thể hỗ trợ đổi trả hoặc hoàn tiền đối với các trường hợp:</p>
+        <ul className="list-disc pl-6 space-y-2 mt-2">
+          <li>Khách hàng đã nhận hàng, ký xác nhận (nếu có) và sau đó mới báo lỗi (do đặc thù thực phẩm cần dùng ngay).</li>
+          <li>Khách hàng thay đổi ý định, muốn đổi sang món khác sau khi đơn hàng đã được cửa hàng làm và giao đi.</li>
+          <li>Sản phẩm bị hỏng do khách hàng bảo quản sai cách sau khi nhận (ví dụ: để bánh kem ở nơi nắng nóng).</li>
+        </ul>
+
+        <h3 className="text-lg font-bold text-foreground mt-8">3. Quy trình xử lý đổi trả</h3>
+        <p>Khi gặp vấn đề với đơn hàng, quý khách vui lòng thực hiện các bước sau:</p>
+        <ol className="list-decimal pl-6 space-y-2 mt-2">
+          <li><strong>Chụp ảnh/Quay video:</strong> Ghi lại tình trạng thực tế của món ăn/thức uống ngay khi nhận từ shipper.</li>
+          <li><strong>Liên hệ ngay:</strong> Gọi vào số Hotline của cửa hàng hoặc nhắn tin qua Fanpage/Zalo trong vòng tối đa 30 phút kể từ lúc nhận hàng.</li>
+          <li><strong>Xác nhận:</strong> Cửa hàng sẽ kiểm tra hình ảnh và đối chiếu. Nếu lỗi thuộc về Sweet Bean hoặc đối tác vận chuyển, chúng tôi sẽ lập tức làm món mới giao lại cho bạn hoàn toàn miễn phí, hoặc tiến hành hoàn tiền qua số tài khoản/ví điện tử của bạn trong vòng 24h.</li>
+        </ol>
+      </div>
+    ),
+  },
+  guide: {
+    title: "Hướng dẫn đặt bánh",
+    content: (
+      <div className="space-y-10 text-muted-foreground leading-relaxed text-sm md:text-base">
+        <p className="text-lg text-foreground">Chỉ với 3 bước đơn giản, bạn có thể dễ dàng đặt những chiếc bánh thơm ngon và đồ uống yêu thích từ <strong>Sweet Bean Coffee</strong> để thưởng thức ngay tại nhà!</p>
+        
+        <div className="grid md:grid-cols-2 gap-8 items-center">
+          <div className="order-2 md:order-1">
+            <h3 className="text-xl font-bold text-foreground mb-3 flex items-center gap-2">
+              <span className="grid size-8 place-items-center bg-primary text-primary-foreground rounded-full text-base font-sans">1</span>
+              Chọn món yêu thích
+            </h3>
+            <p>Trải nghiệm lướt web mượt mà trên cả điện thoại và máy tính. Bạn chỉ cần chọn danh mục (Bánh ngọt, Đồ uống, hoặc Combo), xem chi tiết hình ảnh và thông tin của từng món, sau đó bấm <strong>"Thêm vào giỏ"</strong>.</p>
+          </div>
+          <div className="order-1 md:order-2">
+            <img src="/images/step_1.png" alt="Bước 1: Chọn món" className="w-full max-w-sm mx-auto rounded-2xl shadow-md border" />
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-8 items-center">
+          <div className="order-1 md:order-1">
+            <img src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&h=400&fit=crop" alt="Bước 2: Thanh toán" className="w-full max-w-sm mx-auto rounded-2xl shadow-md border object-cover h-[250px]" />
+          </div>
+          <div className="order-2 md:order-2">
+            <h3 className="text-xl font-bold text-foreground mb-3 flex items-center gap-2">
+              <span className="grid size-8 place-items-center bg-primary text-primary-foreground rounded-full text-base font-sans">2</span>
+              Nhập địa chỉ và Thanh toán
+            </h3>
+            <p>Kiểm tra lại giỏ hàng của bạn. Áp dụng các Voucher giảm giá (nếu có). Điền thông tin người nhận và chọn hình thức thanh toán phù hợp: Tiền mặt (COD) hoặc Chuyển khoản.</p>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-8 items-center">
+          <div className="order-2 md:order-1">
+            <h3 className="text-xl font-bold text-foreground mb-3 flex items-center gap-2">
+              <span className="grid size-8 place-items-center bg-primary text-primary-foreground rounded-full text-base font-sans">3</span>
+              Giao hàng hỏa tốc
+            </h3>
+            <p>Sau khi đặt hàng thành công, hệ thống sẽ gửi thông báo xác nhận. Shipper của Sweet Bean sẽ cẩn thận giao những phần bánh và nước đến tận tay bạn trong vòng tối đa 2 giờ!</p>
+          </div>
+          <div className="order-1 md:order-2">
+            <img src="/images/step_3.png" alt="Bước 3: Giao hàng" className="w-full max-w-sm mx-auto rounded-2xl shadow-md border" />
+          </div>
+        </div>
+      </div>
+    ),
+  },
 };
 
-export function PolicyPage({ type, setView }: { type: "privacy" | "terms"; setView: (view: string) => void }) {
+export function PolicyPage({ type, setView }: { type: "privacy" | "terms" | "return" | "guide"; setView: (view: string) => void }) {
   const policy = policyContentMap[type] || policyContentMap.privacy;
 
   return (
