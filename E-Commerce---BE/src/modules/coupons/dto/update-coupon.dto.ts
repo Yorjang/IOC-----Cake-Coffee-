@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsNumber, IsDateString, Min, IsUUID } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsNumber, IsDateString, Min, IsUUID, IsBoolean } from 'class-validator';
 import { DiscountType } from '../coupon.entity';
 
 export class UpdateCouponDto {
@@ -42,5 +42,14 @@ export class UpdateCouponDto {
   @IsUUID('4', { message: 'ID sản phẩm không hợp lệ.' })
   @IsOptional()
   productId?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+
+  @IsNumber()
+  @Min(0, { message: 'Giảm giá tối đa phải lớn hơn hoặc bằng 0.' })
+  @IsOptional()
+  maxDiscount?: number;
 }
 

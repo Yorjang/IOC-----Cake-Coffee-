@@ -32,6 +32,9 @@ export function getDiscountedPrice(originalPrice: number, productId: string, cou
       let discount = 0;
       if (c.discountType === 'percent') {
         discount = originalPrice * (Number(c.discountValue) / 100);
+        if (c.maxDiscount && Number(c.maxDiscount) > 0) {
+          discount = Math.min(discount, Number(c.maxDiscount));
+        }
       } else if (c.discountType === 'fixed') {
         discount = Number(c.discountValue);
       }

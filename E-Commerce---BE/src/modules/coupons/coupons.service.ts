@@ -28,10 +28,14 @@ export class CouponsService implements OnModuleInit {
   }
 
   async findAll(): Promise<Coupon[]> {
-    return this.coupons.find({
+    const list = await this.coupons.find({
       relations: { product: true },
       order: { createdAt: 'DESC' },
     });
+    return list.map(c => ({
+      ...c,
+      isActive: c.status === CouponStatus.ACTIVE,
+    })) as any;
   }
 
   async findPublicActive(): Promise<Coupon[]> {
@@ -41,7 +45,12 @@ export class CouponsService implements OnModuleInit {
       order: { createdAt: 'DESC' },
     });
     const now = new Date();
-    return coupons.filter(c => new Date(c.expiresAt) > now);
+    return coupons
+      .filter(c => new Date(c.expiresAt) > now)
+      .map(c => ({
+        ...c,
+        isActive: true,
+      })) as any;
   }
 
 
@@ -61,11 +70,16 @@ export class CouponsService implements OnModuleInit {
       usageLimit: dto.usageLimit ? Number(dto.usageLimit) : null,
       startsAt: dto.startsAt ? new Date(dto.startsAt) : new Date(),
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // default 30 days
-      status: CouponStatus.ACTIVE,
+      status: dto.isActive === false ? CouponStatus.DISABLED : CouponStatus.ACTIVE,
       productId: dto.productId || null,
+      maxDiscount: dto.maxDiscount !== undefined && dto.maxDiscount !== null ? Number(dto.maxDiscount) : null,
     });
 
-    return this.coupons.save(coupon);
+    const saved = await this.coupons.save(coupon);
+    return {
+      ...saved,
+      isActive: saved.status === CouponStatus.ACTIVE,
+    } as any;
   }
 
   async update(id: string, dto: UpdateCouponDto): Promise<Coupon> {
@@ -94,8 +108,16 @@ export class CouponsService implements OnModuleInit {
     if (dto.startsAt !== undefined) coupon.startsAt = new Date(dto.startsAt);
     if (dto.expiresAt !== undefined) coupon.expiresAt = new Date(dto.expiresAt);
     if (dto.productId !== undefined) coupon.productId = dto.productId || null;
+    if (dto.maxDiscount !== undefined) coupon.maxDiscount = dto.maxDiscount !== null ? Number(dto.maxDiscount) : null;
+    if (dto.isActive !== undefined) {
+      coupon.status = dto.isActive ? CouponStatus.ACTIVE : CouponStatus.DISABLED;
+    }
 
-    return this.coupons.save(coupon);
+    const saved = await this.coupons.save(coupon);
+    return {
+      ...saved,
+      isActive: saved.status === CouponStatus.ACTIVE,
+    } as any;
   }
 
   async delete(id: string): Promise<{ message: string }> {

@@ -1978,6 +1978,7 @@ function AdminVouchers() {
   const [productId, setProductId] = useState("");
   const [editingVoucher, setEditingVoucher] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
+  const [maxDiscount, setMaxDiscount] = useState("");
 
   const loadCoupons = async () => {
     const token = localStorage.getItem("accessToken");
@@ -2034,6 +2035,7 @@ function AdminVouchers() {
           discountType,
           discountValue: Number(discountValue),
           minOrderValue: minOrderValue ? Number(minOrderValue) : 0,
+          maxDiscount: maxDiscount ? Number(maxDiscount) : null,
           usageLimit: usageLimit ? Number(usageLimit) : null,
           startsAt: new Date(),
           expiresAt: new Date(expiresAt),
@@ -2048,6 +2050,7 @@ function AdminVouchers() {
         setCode("");
         setDiscountValue("");
         setMinOrderValue("");
+        setMaxDiscount("");
         setUsageLimit("");
         setExpiresAt("");
         setProductId("");
@@ -2070,6 +2073,7 @@ function AdminVouchers() {
     setDiscountType(v.discountType);
     setDiscountValue(String(v.discountValue));
     setMinOrderValue(String(v.minOrderValue));
+    setMaxDiscount(v.maxDiscount ? String(v.maxDiscount) : "");
     setUsageLimit(v.usageLimit ? String(v.usageLimit) : "");
     const dateStr = v.expiresAt ? new Date(v.expiresAt).toISOString().split('T')[0] : "";
     setExpiresAt(dateStr);
@@ -2082,6 +2086,7 @@ function AdminVouchers() {
     setDiscountType("percent");
     setDiscountValue("");
     setMinOrderValue("");
+    setMaxDiscount("");
     setUsageLimit("");
     setExpiresAt("");
     setProductId("");
@@ -2127,7 +2132,7 @@ function AdminVouchers() {
       </div>
       <div className="overflow-auto rounded-2xl bg-sidebar p-5">
         <table className="w-full text-sm">
-          <TableHeader cols={["Mã", "Sản phẩm", "Kiểu", "Giá trị", "Đơn tối thiểu", "Đã dùng / Giới hạn", "Hết hạn", "Trạng thái", "Thao tác"]} />
+          <TableHeader cols={["Mã", "Sản phẩm", "Kiểu", "Giá trị", "Giảm tối đa", "Đơn tối thiểu", "Đã dùng / Giới hạn", "Hết hạn", "Trạng thái", "Thao tác"]} />
           <tbody>
             {coupons.map(v => {
               const hasLimit = v.usageLimit !== null;
@@ -2152,6 +2157,9 @@ function AdminVouchers() {
                   </td>
                   <td className="py-3 font-semibold text-foreground">
                     {v.discountType === "percent" ? `${v.discountValue}%` : formatMoney(Number(v.discountValue))}
+                  </td>
+                  <td className="py-3 text-muted-foreground">
+                    {v.maxDiscount && Number(v.maxDiscount) > 0 ? formatMoney(Number(v.maxDiscount)) : "-"}
                   </td>
                   <td className="py-3 text-muted-foreground">{formatMoney(Number(v.minOrderValue))}</td>
                   <td className="py-3">
@@ -2234,6 +2242,15 @@ function AdminVouchers() {
             value={minOrderValue}
             onChange={e => setMinOrderValue(e.target.value)}
           />
+          {discountType === "percent" && (
+            <input
+              type="number"
+              className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent"
+              placeholder="Giảm tối đa (đ) - Để trống nếu không giới hạn"
+              value={maxDiscount}
+              onChange={e => setMaxDiscount(e.target.value)}
+            />
+          )}
           <input
             type="number"
             className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent"
