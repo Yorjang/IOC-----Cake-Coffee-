@@ -315,8 +315,51 @@ export class OrdersService implements OnModuleInit {
     // Backend calculation for safety and robustness
     const calculatedSubtotal = items.reduce((sum: number, item: any) => sum + (Number(item.unitPrice) * item.quantity), 0);
 
+    let calculatedDiscount = 0;
+    if (couponCode && userId && couponId) {
+      const couponRes = await this.orders.query(
+        `SELECT discount_type, discount_value, max_discount, min_order_value, product_id, categories_id FROM coupons WHERE id = $1`,
+        [couponId]
+      );
+      if (couponRes.length > 0) {
+        const couponDetail = couponRes[0];
+        const minOrderVal = Number(couponDetail.min_order_value || 0);
+        
+        if (calculatedSubtotal >= minOrderVal) {
+          let matchingSubtotal = calculatedSubtotal;
+          
+          if (couponDetail.product_id) {
+            const matchingItems = items.filter((item: any) => item.productId === couponDetail.product_id);
+            matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (Number(item.unitPrice) * item.quantity), 0);
+          } else if (couponDetail.categories_id) {
+            const itemProductIds = items.map((item: any) => item.productId);
+            const productsWithCategory = await this.orders.query(
+              `SELECT id, category_id FROM products WHERE id = ANY($1)`,
+              [itemProductIds]
+            );
+            const matchingProductIds = productsWithCategory
+              .filter((p: any) => p.category_id === couponDetail.categories_id)
+              .map((p: any) => p.id);
+            
+            const matchingItems = items.filter((item: any) => matchingProductIds.includes(item.productId));
+            matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (Number(item.unitPrice) * item.quantity), 0);
+          }
+          
+          if (couponDetail.discount_type === 'percent') {
+            calculatedDiscount = Math.round(matchingSubtotal * (Number(couponDetail.discount_value) / 100));
+            if (couponDetail.max_discount && Number(couponDetail.max_discount) > 0) {
+              calculatedDiscount = Math.min(calculatedDiscount, Number(couponDetail.max_discount));
+            }
+          } else if (couponDetail.discount_type === 'fixed') {
+            calculatedDiscount = Math.min(matchingSubtotal, Number(couponDetail.discount_value));
+          }
+        }
+      }
+    }
+
     const finalSubtotal = subtotal !== undefined ? Number(subtotal) : calculatedSubtotal;
-    const finalTotalAmount = totalAmount !== undefined ? Number(totalAmount) : (finalSubtotal - Number(discountAmount) + Number(shippingFee));
+    const finalDiscount = calculatedDiscount > 0 ? calculatedDiscount : Number(discountAmount || 0);
+    const finalTotalAmount = totalAmount !== undefined ? Number(totalAmount) : (finalSubtotal - finalDiscount + Number(shippingFee));
 
     // 1. Validate stocks
     for (const item of items) {
@@ -372,7 +415,7 @@ export class OrdersService implements OnModuleInit {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING id
     `, [
-      orderCode, userId || null, branchId, finalSubtotal, discountAmount, shippingFee, finalTotalAmount,
+      orderCode, userId || null, branchId, finalSubtotal, finalDiscount, shippingFee, finalTotalAmount,
       paymentMethod, 'pending', 'pending', 'online', fulfillmentType,
       shippingAddressStreet, shippingAddressWard, shippingAddressDistrict, shippingAddressProvince,
       shippingAddressPhone, shippingRecipientName, note,

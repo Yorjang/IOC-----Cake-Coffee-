@@ -244,6 +244,40 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    if (appliedCoupon && cart.length > 0) {
+      const currentSubtotal = cart.reduce((s, i) => s + (i.price || parsePrice(i.product[1])) * i.quantity, 0);
+      const minOrderVal = Number(appliedCoupon.minOrderValue || 0);
+      if (currentSubtotal < minOrderVal) {
+        setAppliedCoupon(null);
+        toast.error("Voucher đã bị hủy do giỏ hàng không đủ điều kiện đơn hàng tối thiểu.");
+        return;
+      }
+      
+      if (appliedCoupon.productId) {
+        const hasProduct = cart.some((item: any) => (item.productId || item.product?.raw?.id) === appliedCoupon.productId);
+        if (!hasProduct) {
+          setAppliedCoupon(null);
+          toast.error("Voucher đã bị hủy do sản phẩm áp dụng không còn trong giỏ hàng.");
+          return;
+        }
+      }
+      
+      if (appliedCoupon.categoriesId) {
+        const hasCategory = cart.some((item: any) => {
+          const prod = item.product?.raw;
+          if (!prod) return false;
+          return prod.categoryId === appliedCoupon.categoriesId || prod.categoriesId === appliedCoupon.categoriesId || prod.category?.id === appliedCoupon.categoriesId;
+        });
+        if (!hasCategory) {
+          setAppliedCoupon(null);
+          toast.error("Voucher đã bị hủy do không còn sản phẩm thuộc danh mục áp dụng trong giỏ hàng.");
+          return;
+        }
+      }
+    }
+  }, [cart, appliedCoupon]);
+
 
   const fetchCart = async (branchId: string, token = localStorage.getItem("accessToken")) => {
     if (!UUID_PATTERN.test(branchId)) return;

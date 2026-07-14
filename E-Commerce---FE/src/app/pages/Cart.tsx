@@ -92,6 +92,18 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
       }
     }
 
+    if (found.categoriesId) {
+      const hasCategory = cart.some((item: any) => {
+        const prod = item.product?.raw;
+        if (!prod) return false;
+        return prod.categoryId === found.categoriesId || prod.categoriesId === found.categoriesId || prod.category?.id === found.categoriesId;
+      });
+      if (!hasCategory) {
+        toast.error("Mã này chỉ áp dụng cho danh mục sản phẩm nhất định.");
+        return;
+      }
+    }
+
     const isReplacement = !!appliedCoupon;
     setAppliedCoupon(found);
     toast.success(

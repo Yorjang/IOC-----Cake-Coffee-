@@ -2182,7 +2182,7 @@ function AdminVouchers() {
 
   const loadCategoriesOnly = async () => {
     try {
-      const res = await fetch(`${env.API_URL}/categories`);
+      const res = await fetch(`${env.API_URL}/products/categories`);
       if (res.ok) setCategories(await res.json());
     } catch (err) {
       console.error(err);
