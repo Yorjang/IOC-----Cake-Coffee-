@@ -319,6 +319,7 @@ function AdminProducts() {
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({ name: "", categoryId: "", description: "", imageUrl: "", productType: "cake" });
   const [variantForms, setVariantForms] = useState<any[]>([]);
+  const [toppingForms, setToppingForms] = useState<any[]>([]);
   const [removedVariantIds, setRemovedVariantIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -349,10 +350,13 @@ function AdminProducts() {
     imageUrl: "",
   });
 
+  const emptyTopping = () => ({ name: "", price: "0", isActive: true });
+
   const openAdd = () => {
     setEditing(null);
     setForm({ name: "", categoryId: cats[0]?.id ?? "", description: "", imageUrl: "", productType: "cake" });
     setVariantForms([emptyVariant()]);
+    setToppingForms([]);
     setRemovedVariantIds([]);
     setShowModal(true);
   };
@@ -367,6 +371,9 @@ function AdminProducts() {
       topping: variant.topping || "",
       imageUrl: variant.imageUrl || "",
     })));
+    setToppingForms([...(p.toppings || [])]
+      .sort((a: any, b: any) => Number(a.sortOrder) - Number(b.sortOrder))
+      .map((topping: any) => ({ ...topping, price: String(topping.price) })));
     setRemovedVariantIds([]);
     setShowModal(true);
   };
@@ -398,6 +405,16 @@ function AdminProducts() {
       !variant.sku.trim() || !variant.variantName.trim() || variant.price === "" || Number(variant.price) < 0
     )) {
       toast.error("Mỗi biến thể cần có SKU, tên biến thể và giá hợp lệ.");
+      return;
+    }
+    const usesToppings = form.productType === "coffee" || form.productType === "drink";
+    if (usesToppings && toppingForms.some(topping => !topping.name.trim() || topping.price === "" || Number(topping.price) < 0)) {
+      toast.error("Mỗi topping cần có tên và giá hợp lệ.");
+      return;
+    }
+    const toppingNames = toppingForms.map(topping => topping.name.trim().toLocaleLowerCase("vi"));
+    if (usesToppings && new Set(toppingNames).size !== toppingNames.length) {
+      toast.error("Tên topping trong cùng một sản phẩm không được trùng nhau.");
       return;
     }
     const url = editing ? `${env.API_URL}/products/${editing.id}` : `${env.API_URL}/products`;
@@ -453,8 +470,24 @@ function AdminProducts() {
           }
         }
       }
+      const toppingRes = await fetch(`${env.API_URL}/products/${savedProduct.id}/toppings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          toppings: usesToppings ? toppingForms.map((topping, index) => ({
+            name: topping.name.trim(),
+            price: Number(topping.price),
+            isActive: topping.isActive ?? true,
+            sortOrder: index,
+          })) : [],
+        }),
+      });
+      if (!toppingRes.ok) {
+        const error = await toppingRes.json();
+        throw new Error(error.message || "Không thể lưu danh sách topping");
+      }
       setShowModal(false); load();
-      toast.success(editing ? "Đã cập nhật sản phẩm và biến thể." : "Đã tạo sản phẩm cùng các biến thể.");
+      toast.success(editing ? "Đã cập nhật sản phẩm, biến thể và topping." : "Đã tạo sản phẩm cùng biến thể và topping.");
     } catch (err: any) { toast.error(err.message || "Lỗi khi lưu sản phẩm"); }
     finally { setSaving(false); }
   };
@@ -577,10 +610,6 @@ function AdminProducts() {
                           <input value={variant.flavor || ""} onChange={e => updateVariantForm(index, { flavor: e.target.value })} className="rounded-lg bg-sidebar px-3 py-2 text-sm text-foreground outline-none" placeholder="Chocolate" />
                         </label>
                         <label className="grid gap-1 text-xs text-muted-foreground">
-                          Topping
-                          <input value={variant.topping || ""} onChange={e => updateVariantForm(index, { topping: e.target.value })} className="rounded-lg bg-sidebar px-3 py-2 text-sm text-foreground outline-none" placeholder="Kem phô mai" />
-                        </label>
-                        <label className="grid gap-1 text-xs text-muted-foreground">
                           Giá bán (VNĐ)
                           <input type="number" min="0" step="1000" value={variant.price ?? ""} onChange={e => updateVariantForm(index, { price: e.target.value })} className="rounded-lg bg-sidebar px-3 py-2 text-sm font-semibold text-primary outline-none" />
                         </label>
@@ -601,6 +630,67 @@ function AdminProducts() {
                   ))}
                 </div>
               </div>
+              {(form.productType === "coffee" || form.productType === "drink") && (
+                <div className="rounded-2xl border border-sidebar-accent p-4">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <h4 className="font-semibold text-foreground">Topping của sản phẩm</h4>
+                      <p className="mt-1 text-xs text-muted-foreground">Khách hàng sẽ nhìn thấy tên và giá topping đang bật ở trang chi tiết.</p>
+                    </div>
+                    <AdminBtn variant="ghost" onClick={() => setToppingForms(current => [...current, emptyTopping()])}>
+                      <span className="flex items-center gap-1"><Plus size={14} />Thêm topping</span>
+                    </AdminBtn>
+                  </div>
+                  <div className="space-y-3">
+                    {toppingForms.map((topping, index) => (
+                      <div key={topping.id || index} className="grid items-end gap-3 rounded-xl bg-sidebar-accent p-3 sm:grid-cols-[minmax(0,1fr)_180px_130px_40px]">
+                        <label className="grid gap-1 text-xs text-muted-foreground">
+                          Tên topping
+                          <input
+                            value={topping.name || ""}
+                            onChange={e => setToppingForms(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, name: e.target.value } : item))}
+                            className="rounded-lg bg-sidebar px-3 py-2 text-sm text-foreground outline-none"
+                            placeholder="Ví dụ: Kem phô mai"
+                          />
+                        </label>
+                        <label className="grid gap-1 text-xs text-muted-foreground">
+                          Giá thêm (VNĐ)
+                          <input
+                            type="number"
+                            min="0"
+                            step="1000"
+                            value={topping.price ?? ""}
+                            onChange={e => setToppingForms(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, price: e.target.value } : item))}
+                            className="rounded-lg bg-sidebar px-3 py-2 text-sm font-semibold text-primary outline-none"
+                          />
+                        </label>
+                        <label className="grid gap-1 text-xs text-muted-foreground">
+                          Trạng thái
+                          <select
+                            value={topping.isActive === false ? "inactive" : "active"}
+                            onChange={e => setToppingForms(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, isActive: e.target.value === "active" } : item))}
+                            className="rounded-lg bg-sidebar px-3 py-2 text-sm text-foreground outline-none"
+                          >
+                            <option value="active">Đang bán</option>
+                            <option value="inactive">Tạm ẩn</option>
+                          </select>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setToppingForms(current => current.filter((_, itemIndex) => itemIndex !== index))}
+                          className="inline-flex size-9 items-center justify-center rounded-lg text-red-400 transition hover:bg-red-500/10"
+                          title="Xóa topping"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    ))}
+                    {toppingForms.length === 0 && (
+                      <p className="rounded-xl bg-sidebar-accent px-4 py-5 text-center text-sm text-muted-foreground">Sản phẩm chưa có topping.</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="mt-5 flex justify-end gap-3">
               <AdminBtn variant="ghost" onClick={() => setShowModal(false)}>Hủy</AdminBtn>

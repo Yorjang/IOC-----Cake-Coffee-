@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { Category } from './category.entity';
 import { Product, ProductType } from './product.entity';
 import { ProductVariant, VariantStatus } from './product-variant.entity';
+import { ProductTopping } from './product-topping.entity';
+import { ReplaceProductToppingsDto } from './dto/product-topping.dto';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/create-product.dto';
 import { CreateProductVariantDto, UpdateProductVariantDto } from './dto/product-variant.dto';
@@ -34,6 +36,9 @@ export class ProductsService {
 
         @InjectRepository(ProductVariant)
         private readonly variants: Repository<ProductVariant>,
+
+        @InjectRepository(ProductTopping)
+        private readonly toppings: Repository<ProductTopping>,
     ) {}
 
     // ── Categories CRUD ──────────────────────────────────────────────────────
@@ -87,7 +92,7 @@ export class ProductsService {
     // ── Products CRUD ────────────────────────────────────────────────────────
     async findAllProducts(): Promise<Product[]> {
         return this.products.find({
-            relations: { category: true, variants: true },
+            relations: { category: true, variants: true, toppings: true },
             order: { name: 'ASC' },
         });
     }
@@ -95,7 +100,7 @@ export class ProductsService {
     async findProductById(id: string): Promise<Product> {
         const prod = await this.products.findOne({
             where: { id },
-            relations: { category: true, variants: true },
+            relations: { category: true, variants: true, toppings: true },
         });
         if (!prod) throw new NotFoundException('Không tìm thấy sản phẩm');
         return prod;
@@ -167,6 +172,36 @@ export class ProductsService {
     async deleteProduct(id: string): Promise<void> {
         const prod = await this.findProductById(id);
         await this.products.remove(prod);
+    }
+
+    async findProductToppings(productId: string): Promise<ProductTopping[]> {
+        await this.findProductById(productId);
+        return this.toppings.find({
+            where: { productId },
+            order: { sortOrder: 'ASC', name: 'ASC' },
+        });
+    }
+
+    async replaceProductToppings(productId: string, dto: ReplaceProductToppingsDto): Promise<ProductTopping[]> {
+        await this.findProductById(productId);
+        const normalized = dto.toppings.map((topping, index) => ({
+            productId,
+            name: topping.name.trim(),
+            price: topping.price,
+            isActive: topping.isActive ?? true,
+            sortOrder: topping.sortOrder ?? index,
+        }));
+        const normalizedNames = normalized.map(topping => topping.name.toLocaleLowerCase('vi'));
+        if (new Set(normalizedNames).size !== normalizedNames.length) {
+            throw new BadRequestException('Tên topping trong cùng một sản phẩm không được trùng nhau');
+        }
+
+        await this.toppings.manager.transaction(async manager => {
+            const repository = manager.getRepository(ProductTopping);
+            await repository.delete({ productId });
+            if (normalized.length > 0) await repository.save(repository.create(normalized));
+        });
+        return this.findProductToppings(productId);
     }
 
     // ── Variants CRUD ────────────────────────────────────────────────────────

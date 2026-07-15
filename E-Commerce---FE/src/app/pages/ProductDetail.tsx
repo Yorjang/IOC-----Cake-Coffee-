@@ -8,12 +8,6 @@ const formatPrice = (priceNum: number): string => {
   return priceNum.toLocaleString("vi-VN") + "đ";
 };
 
-const TOPPING_OPTIONS = [
-  { name: "Trân châu trắng", price: 8000 },
-  { name: "Thạch sương sáo", price: 5000 },
-  { name: "Kem phô mai", price: 10000 },
-];
-
 const SUGAR_OPTIONS = ["100%", "70%", "50%", "30%"];
 const ICE_OPTIONS = ["100%", "70%", "50%", "Không đá"];
 
@@ -27,6 +21,12 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
       .filter((variant: any) => variant.status === "active")
       .sort((a: any, b: any) => Number(a.price) - Number(b.price));
   }, [p.raw?.id, p.raw?.variants]);
+  const toppingOptions = useMemo(() => {
+    const toppings = Array.isArray(p.raw?.toppings) ? p.raw.toppings : [];
+    return toppings
+      .filter((topping: any) => topping.isActive)
+      .sort((a: any, b: any) => Number(a.sortOrder) - Number(b.sortOrder));
+  }, [p.raw?.id, p.raw?.toppings]);
 
   // Form states
   const [selectedVariantId, setSelectedVariantId] = useState("");
@@ -45,6 +45,10 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
     );
   }, [p.raw?.id, availableVariants]);
 
+  useEffect(() => {
+    setSelectedToppings(current => current.filter(name => toppingOptions.some((topping: any) => topping.name === name)));
+  }, [p.raw?.id, toppingOptions]);
+
   const selectedVariant = availableVariants.find((variant: any) => variant.id === selectedVariantId)
     || availableVariants[0];
 
@@ -55,9 +59,9 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
     .filter(item => item[2] === p[2] && item[0] !== p[0])
     .slice(0, 4);
 
-  const toppingsPrice = selectedToppings.reduce((sum, name) => {
-    const option = TOPPING_OPTIONS.find(t => t.name === name);
-    return sum + (option ? option.price : 0);
+  const toppingsPrice = selectedToppings.reduce((sum: number, name: string) => {
+    const option = toppingOptions.find((topping: any) => topping.name === name);
+    return sum + Number(option?.price || 0);
   }, 0);
 
   const variantPrice = Number(selectedVariant?.price || 0);
@@ -209,10 +213,10 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
                 </div>
               </div>
 
-              <div className="space-y-3">
+              {toppingOptions.length > 0 && <div className="space-y-3">
                 <h3 className="font-semibold text-sm text-foreground">Thêm Topping</h3>
                 <div className="flex flex-wrap gap-2.5">
-                  {TOPPING_OPTIONS.map(t => {
+                  {toppingOptions.map((t: any) => {
                     const isSelected = selectedToppings.includes(t.name);
                     return (
                       <button
@@ -226,12 +230,12 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
                         }`}
                       >
                         {isSelected && <Check size={12} />}
-                        <span>{t.name} (+{formatPrice(t.price)})</span>
+                        <span>{t.name} (+{formatPrice(Number(t.price || 0))})</span>
                       </button>
                     );
                   })}
                 </div>
-              </div>
+              </div>}
             </div>
           )}
 

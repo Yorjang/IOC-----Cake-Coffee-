@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Param, Body, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -7,6 +7,7 @@ import { Permission } from '../../common/constants/permissions';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/create-product.dto';
 import { CreateProductVariantDto, UpdateProductVariantDto } from './dto/product-variant.dto';
+import { ReplaceProductToppingsDto } from './dto/product-topping.dto';
 
 @Controller('products')
 export class ProductsController {
@@ -86,6 +87,21 @@ export class ProductsController {
     @Permissions(Permission.DELETE_PRODUCT)
     deleteProduct(@Param('id', ParseUUIDPipe) id: string) {
         return this.productsService.deleteProduct(id);
+    }
+
+    @Get(':productId/toppings')
+    findProductToppings(@Param('productId', ParseUUIDPipe) productId: string) {
+        return this.productsService.findProductToppings(productId);
+    }
+
+    @Put(':productId/toppings')
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions(Permission.UPDATE_PRODUCT)
+    replaceProductToppings(
+        @Param('productId', ParseUUIDPipe) productId: string,
+        @Body() dto: ReplaceProductToppingsDto,
+    ) {
+        return this.productsService.replaceProductToppings(productId, dto);
     }
 
     // ── Product Variants Routes ──────────────────────────────────────────────
