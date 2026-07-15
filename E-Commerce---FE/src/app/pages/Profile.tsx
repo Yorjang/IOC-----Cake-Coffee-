@@ -231,16 +231,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
               ) : (
                 <span className="font-bold text-4xl text-primary">{initial}</span>
               )}
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab("info");
-                  toast.info("Vui lòng cuộn xuống phần Thiết lập ảnh đại diện bên dưới.");
-                }}
-                className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-xs font-semibold"
-              >
-                Thay đổi
-              </button>
+
             </div>
 
             <div>

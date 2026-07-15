@@ -26,8 +26,8 @@ export function Header({
   const showSuggestions = isFocused && searchQuery.trim().length > 0;
   const suggestions = showSuggestions
     ? products
-        .filter((p: any) => p[0].toLowerCase().includes(searchQuery.toLowerCase()))
-        .slice(0, 5)
+      .filter((p: any) => p[0].toLowerCase().includes(searchQuery.toLowerCase()))
+      .slice(0, 5)
     : [];
 
   return (
@@ -48,9 +48,8 @@ export function Header({
                 <button
                   key={v}
                   onClick={() => setView(v)}
-                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                    view === v ? "bg-primary/10 text-primary font-medium" : "hover:bg-secondary text-foreground"
-                  }`}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${view === v ? "bg-primary/10 text-primary font-medium" : "hover:bg-secondary text-foreground"
+                    }`}
                 >
                   {v}
                 </button>
@@ -67,28 +66,13 @@ export function Header({
           <span className="hidden font-serif text-xl font-bold sm:block">Sweet Bean</span>
         </button>
 
-        {/* Spacer to push everything else to the right */}
-        <div className="flex-1" />
-
-        <div className="hidden lg:block">
-          <button
-            type="button"
-            onClick={onChooseStore}
-            className="flex items-center gap-1.5 rounded-full border border-border bg-secondary/60 px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-secondary"
-            title="Chọn cửa hàng"
-          >
-            <MapPin size={12} className="shrink-0 text-primary" />
-            <span className="max-w-[150px] truncate">{selectedStore?.name ?? "Chọn cửa hàng"}</span>
-          </button>
-        </div>
-
+        {/* Search (Moved to left) */}
         {(() => {
           const isSearchExpanded = isFocused || searchQuery.trim().length > 0;
           return (
-            <div 
-              className={`group relative hidden md:flex items-center rounded-full border bg-card transition-all duration-300 ease-in-out overflow-hidden h-[36px] ${
-                isSearchExpanded ? 'w-64 ring-2 ring-primary/40' : 'w-[36px] hover:w-64'
-              }`}
+            <div
+              className={`group relative hidden md:flex items-center rounded-full border bg-card transition-all duration-300 ease-in-out overflow-hidden h-[36px] ml-3 ${isSearchExpanded ? 'w-64 ring-2 ring-primary/40' : 'w-[36px] hover:w-64'
+                }`}
             >
               <div className="absolute left-0 top-0 flex h-full w-[36px] items-center justify-center text-muted-foreground pointer-events-none">
                 <Search size={16} />
@@ -106,9 +90,8 @@ export function Header({
                     setIsFocused(false);
                   }
                 }}
-                className={`w-full h-full pl-[36px] pr-4 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60 transition-opacity duration-300 ${
-                  isSearchExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                }`}
+                className={`w-full h-full pl-[36px] pr-4 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60 transition-opacity duration-300 ${isSearchExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                  }`}
               />
 
               {suggestions.length > 0 && (
@@ -137,27 +120,26 @@ export function Header({
           );
         })()}
 
-        <button
-          type="button"
-          onClick={() => setView(VIEW_KEYS.FAVORITES)}
-          className={`relative rounded-full p-2 transition ${
-            view === VIEW_KEYS.FAVORITES ? "bg-primary text-primary-foreground" : "hover:bg-secondary"
-          }`}
-          title={MESSAGES.HEADER_FAVORITE}
-        >
-          <Heart size={20} className={view === VIEW_KEYS.FAVORITES ? "fill-current" : ""} />
-          {wishlistCount > 0 && (
-            <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-primary text-[10px] text-primary-foreground">
-              {wishlistCount}
-            </span>
-          )}
-        </button>
+        {/* Spacer to push everything else to the right */}
+        <div className="flex-1" />
+
+        <div className="hidden lg:block mr-2">
+          <button
+            type="button"
+            onClick={onChooseStore}
+            className="flex items-center gap-1.5 rounded-full border border-border bg-secondary/60 px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-secondary"
+            title="Chọn cửa hàng"
+          >
+            <MapPin size={12} className="shrink-0 text-primary" />
+            <span className="max-w-[150px] truncate">{selectedStore?.name ?? "Chọn cửa hàng"}</span>
+          </button>
+        </div>
+
         <button
           type="button"
           onClick={() => setView(VIEW_KEYS.CART)}
-          className={`relative rounded-full p-2 transition ${
-            view === VIEW_KEYS.CART ? "bg-primary text-primary-foreground" : "hover:bg-secondary"
-          }`}
+          className={`relative rounded-full p-2 transition ${view === VIEW_KEYS.CART ? "bg-primary text-primary-foreground" : "hover:bg-secondary"
+            }`}
           title={MESSAGES.HEADER_CART}
         >
           <ShoppingBag size={20} />
@@ -176,7 +158,7 @@ export function Header({
               className="relative flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full border border-border bg-secondary hover:bg-accent transition group"
               title={MESSAGES.HEADER_PROFILE}
             >
-              <div className="h-full w-full overflow-hidden rounded-full">
+              <div className="h-full w-full flex items-center justify-center overflow-hidden rounded-full">
                 {user?.avatarUrl || user?.avatar ? (
                   <img src={user.avatarUrl || user.avatar} alt="Avatar" className="h-full w-full object-cover" />
                 ) : (
@@ -189,6 +171,23 @@ export function Header({
             </button>
             <div className={`absolute top-full right-0 mt-2 w-40 z-50 transition-all duration-200 ${profileOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'}`}>
               <div className="rounded-xl bg-card border shadow-lg overflow-hidden py-1">
+                <button
+                  onClick={() => {
+                    setView(VIEW_KEYS.FAVORITES);
+                    setProfileOpen(false);
+                  }}
+                  className="flex items-center justify-between w-full px-4 py-2.5 text-sm text-foreground hover:bg-secondary transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Heart size={16} className="text-muted-foreground" />
+                    Yêu thích
+                  </div>
+                  {wishlistCount > 0 && (
+                    <span className="grid size-5 place-items-center rounded-full bg-primary text-xs text-primary-foreground font-semibold">
+                      {wishlistCount}
+                    </span>
+                  )}
+                </button>
                 <button
                   onClick={() => {
                     setView(VIEW_KEYS.PROFILE);
@@ -248,9 +247,8 @@ export function Header({
                   setView(v);
                   setMobileOpen(false);
                 }}
-                className={`rounded-xl p-2.5 text-left text-sm transition ${
-                  view === v ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-accent"
-                }`}
+                className={`rounded-xl p-2.5 text-left text-sm transition ${view === v ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-accent"
+                  }`}
               >
                 {v}
               </button>
