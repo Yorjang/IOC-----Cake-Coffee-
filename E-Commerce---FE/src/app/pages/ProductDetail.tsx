@@ -66,7 +66,7 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
 
   const variantPrice = Number(selectedVariant?.price || 0);
   const unitPrice = Math.max(0, variantPrice + toppingsPrice);
-  const { discountedPrice, discountAmount, bestCoupon } = getDiscountedPrice(unitPrice, p.raw, publicCoupons);
+  const { discountedPrice, discountAmount, bestCoupon } = getDiscountedPrice(unitPrice, p.raw, publicCoupons, selectedSize);
   const totalPriceStr = formatPrice(discountedPrice * quantity);
 
   const toggleTopping = (name: string) => {
@@ -146,7 +146,7 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
                 <span className="text-3xl font-bold text-primary">{formatPrice(discountedPrice)}</span>
                 <span className="text-base text-muted-foreground line-through">{formatPrice(unitPrice)}</span>
                 <span className="rounded-full bg-green-500/10 border border-green-500/20 px-2 py-0.5 text-xs text-green-600 dark:text-green-400 font-bold">
-                  Mã {bestCoupon.code} giảm {bestCoupon.discountType === 'percent' ? `${bestCoupon.discountValue}%` : formatPrice(Number(bestCoupon.discountValue))}
+                  Mã {bestCoupon.code} giảm {bestCoupon.discountType === 'percent' ? `${Math.round(Number(bestCoupon.discountValue))}%` : formatPrice(Number(bestCoupon.discountValue))}
                 </span>
               </div>
             ) : (

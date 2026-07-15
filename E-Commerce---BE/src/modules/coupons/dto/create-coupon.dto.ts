@@ -54,6 +54,11 @@ export class CreateCouponDto {
   @Min(0, { message: 'Giảm giá tối đa phải lớn hơn hoặc bằng 0.' })
   @IsOptional()
   maxDiscount?: number;
+
+  @IsString()
+  @IsOptional()
+  targetSize?: string;
 }
+
 
 

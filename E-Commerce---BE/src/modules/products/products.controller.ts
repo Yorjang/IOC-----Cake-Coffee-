@@ -54,8 +54,14 @@ export class ProductsController {
         return this.productsService.findAllProducts();
     }
 
+    @Get('sizes/distinct')
+    findDistinctSizes() {
+        return this.productsService.findDistinctVariantSizes();
+    }
+
     @Get(':id')
     findProductById(@Param('id', ParseUUIDPipe) id: string) {
+
         return this.productsService.findProductById(id);
     }
 

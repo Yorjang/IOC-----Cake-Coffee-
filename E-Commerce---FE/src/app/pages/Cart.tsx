@@ -3,6 +3,7 @@ import { Minus, Plus, Trash2, Ticket, X, ChevronRight, Check } from "lucide-reac
 import { Btn } from "../components/shared";
 import { VIEW_KEYS } from "../../config/appConfig";
 import { toast } from "sonner";
+import { matchSize } from "../App";
 
 const parsePrice = (priceStr: string) => parseInt(priceStr.replace(/[^0-9]/g, ""), 10);
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
@@ -27,9 +28,20 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
 
   let discount = 0;
   if (appliedCoupon) {
-    if (appliedCoupon.productId) {
-      const matchingItems = cart.filter((item: any) => (item.productId || item.product?.raw?.id) === appliedCoupon.productId);
-      const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
+    const matchingItems = cart.filter((item: any) => {
+      const isProductMatch = !appliedCoupon.productId || (item.productId || item.product?.raw?.id) === appliedCoupon.productId;
+      const isCategoryMatch = !appliedCoupon.categoriesId || (
+        item.product?.raw?.categoryId === appliedCoupon.categoriesId ||
+        item.product?.raw?.categoriesId === appliedCoupon.categoriesId ||
+        item.product?.raw?.category?.id === appliedCoupon.categoriesId
+      );
+      const isSizeMatch = !appliedCoupon.targetSize || matchSize(item.size, appliedCoupon.targetSize);
+      return isProductMatch && isCategoryMatch && isSizeMatch;
+    });
+
+    const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
+
+    if (matchingItems.length > 0) {
       if (appliedCoupon.discountType === "percent") {
         discount = Math.round(matchingSubtotal * (Number(appliedCoupon.discountValue) / 100));
         if (appliedCoupon.maxDiscount && Number(appliedCoupon.maxDiscount) > 0) {
@@ -37,30 +49,6 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
         }
       } else {
         discount = Math.min(matchingSubtotal, Number(appliedCoupon.discountValue));
-      }
-    } else if (appliedCoupon.categoriesId) {
-      const matchingItems = cart.filter((item: any) => {
-        const prod = item.product?.raw;
-        if (!prod) return false;
-        return prod.categoryId === appliedCoupon.categoriesId || prod.categoriesId === appliedCoupon.categoriesId || prod.category?.id === appliedCoupon.categoriesId;
-      });
-      const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
-      if (appliedCoupon.discountType === "percent") {
-        discount = Math.round(matchingSubtotal * (Number(appliedCoupon.discountValue) / 100));
-        if (appliedCoupon.maxDiscount && Number(appliedCoupon.maxDiscount) > 0) {
-          discount = Math.min(discount, Number(appliedCoupon.maxDiscount));
-        }
-      } else {
-        discount = Math.min(matchingSubtotal, Number(appliedCoupon.discountValue));
-      }
-    } else {
-      if (appliedCoupon.discountType === "percent") {
-        discount = Math.round(subtotal * (Number(appliedCoupon.discountValue) / 100));
-        if (appliedCoupon.maxDiscount && Number(appliedCoupon.maxDiscount) > 0) {
-          discount = Math.min(discount, Number(appliedCoupon.maxDiscount));
-        }
-      } else {
-        discount = Math.min(subtotal, Number(appliedCoupon.discountValue));
       }
     }
   }
@@ -105,6 +93,14 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
       }
     }
 
+    if (found.targetSize) {
+      const hasSize = cart.some((item: any) => matchSize(item.size, found.targetSize));
+      if (!hasSize) {
+        toast.error(`Mã này chỉ áp dụng cho sản phẩm size ${found.targetSize}.`);
+        return;
+      }
+    }
+
     const isReplacement = !!appliedCoupon;
     setAppliedCoupon(found);
     toast.success(
@@ -123,44 +119,28 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
     publicCoupons.forEach((c: any) => {
       if (subtotal < Number(c.minOrderValue || 0)) return;
 
+      const matchingItems = cart.filter((item: any) => {
+        const isProductMatch = !c.productId || (item.productId || item.product?.raw?.id) === c.productId;
+        const isCategoryMatch = !c.categoriesId || (
+          item.product?.raw?.categoryId === c.categoriesId ||
+          item.product?.raw?.categoriesId === c.categoriesId ||
+          item.product?.raw?.category?.id === c.categoriesId
+        );
+        const isSizeMatch = !c.targetSize || matchSize(item.size, c.targetSize);
+        return isProductMatch && isCategoryMatch && isSizeMatch;
+      });
+
+      if (matchingItems.length === 0) return;
+      const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
+
       let currentDiscount = 0;
-      if (c.productId) {
-        const matchingItems = cart.filter((item: any) => (item.productId || item.product?.raw?.id) === c.productId);
-        if (matchingItems.length === 0) return;
-        const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
-        if (c.discountType === "percent") {
-          currentDiscount = Math.round(matchingSubtotal * (Number(c.discountValue) / 100));
-          if (c.maxDiscount && Number(c.maxDiscount) > 0) {
-            currentDiscount = Math.min(currentDiscount, Number(c.maxDiscount));
-          }
-        } else {
-          currentDiscount = Math.min(matchingSubtotal, Number(c.discountValue));
-        }
-      } else if (c.categoriesId) {
-        const matchingItems = cart.filter((item: any) => {
-          const prod = item.product?.raw;
-          if (!prod) return false;
-          return prod.categoryId === c.categoriesId || prod.categoriesId === c.categoriesId || prod.category?.id === c.categoriesId;
-        });
-        if (matchingItems.length === 0) return;
-        const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
-        if (c.discountType === "percent") {
-          currentDiscount = Math.round(matchingSubtotal * (Number(c.discountValue) / 100));
-          if (c.maxDiscount && Number(c.maxDiscount) > 0) {
-            currentDiscount = Math.min(currentDiscount, Number(c.maxDiscount));
-          }
-        } else {
-          currentDiscount = Math.min(matchingSubtotal, Number(c.discountValue));
+      if (c.discountType === "percent") {
+        currentDiscount = Math.round(matchingSubtotal * (Number(c.discountValue) / 100));
+        if (c.maxDiscount && Number(c.maxDiscount) > 0) {
+          currentDiscount = Math.min(currentDiscount, Number(c.maxDiscount));
         }
       } else {
-        if (c.discountType === "percent") {
-          currentDiscount = Math.round(subtotal * (Number(c.discountValue) / 100));
-          if (c.maxDiscount && Number(c.maxDiscount) > 0) {
-            currentDiscount = Math.min(currentDiscount, Number(c.maxDiscount));
-          }
-        } else {
-          currentDiscount = Math.min(subtotal, Number(c.discountValue));
-        }
+        currentDiscount = Math.min(matchingSubtotal, Number(c.discountValue));
       }
 
       if (currentDiscount > bestCouponDiscount) {
