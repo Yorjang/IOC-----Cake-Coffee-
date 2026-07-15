@@ -29,6 +29,16 @@ import { VIEW_KEYS } from "../config/appConfig";
 import { getDiscountedPrice } from "./components/shared";
 import { clearAuthSession, getAccessToken, getAccessTokenExpiry, getStoredUser, refreshAuthSession } from "./components/authSession";
 
+export const matchSize = (itemSize: string, targetSize: string): boolean => {
+  if (!targetSize) return true;
+  if (!itemSize) return false;
+  
+  const cleanItem = itemSize.toLowerCase().trim();
+  const cleanTarget = targetSize.toLowerCase().trim();
+  
+  return cleanItem === cleanTarget || cleanItem.startsWith(cleanTarget);
+};
+
 // Array format: [name, price, categoryName, imageUrl, rating, badge, discountPrice, bestCouponCode]
 const apiProductToArray = (p: any, coupons: any[] = []): any[] => {
   const activeVariants = (p.variants || [])
@@ -45,13 +55,19 @@ const apiProductToArray = (p: any, coupons: any[] = []): any[] => {
       ? `${activeVariants.length} kích cỡ`
       : activeVariants.length === 1 ? "Còn hàng" : "Hết hàng";
 
-  const { discountedPrice, discountAmount, bestCoupon } = getDiscountedPrice(originalPrice, p, coupons);
+  let sizeStr = activeVariants[0]?.size || "Vừa";
+  if (sizeStr.includes("(")) {
+    sizeStr = sizeStr.split("(")[0].trim();
+  }
+
+  const { discountedPrice, discountAmount, bestCoupon } = getDiscountedPrice(originalPrice, p, coupons, sizeStr);
   const discountPriceStr = discountAmount > 0 ? `${discountedPrice.toLocaleString("vi-VN")}đ` : null;
 
   const arr = [p.name, price, categoryName, imageUrl, rating, badge, discountPriceStr, bestCoupon?.code];
   (arr as any).raw = p;
   return arr;
 };
+
 
 
 const apiCategoryToLegacy = (c: any) => ({
@@ -863,9 +879,20 @@ export default function App() {
 
   let discount = 0;
   if (user && appliedCoupon) {
-    if (appliedCoupon.productId) {
-      const matchingItems = cart.filter((item: any) => (item.productId || item.product?.raw?.id) === appliedCoupon.productId);
-      const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
+    const matchingItems = cart.filter((item: any) => {
+      const isProductMatch = !appliedCoupon.productId || (item.productId || item.product?.raw?.id) === appliedCoupon.productId;
+      const isCategoryMatch = !appliedCoupon.categoriesId || (
+        item.product?.raw?.categoryId === appliedCoupon.categoriesId ||
+        item.product?.raw?.categoriesId === appliedCoupon.categoriesId ||
+        item.product?.raw?.category?.id === appliedCoupon.categoriesId
+      );
+      const isSizeMatch = !appliedCoupon.targetSize || matchSize(item.size, appliedCoupon.targetSize);
+      return isProductMatch && isCategoryMatch && isSizeMatch;
+    });
+
+    const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
+
+    if (matchingItems.length > 0) {
       if (appliedCoupon.discountType === "percent") {
         discount = Math.round(matchingSubtotal * (Number(appliedCoupon.discountValue) / 100));
         if (appliedCoupon.maxDiscount && Number(appliedCoupon.maxDiscount) > 0) {
@@ -873,33 +900,10 @@ export default function App() {
         }
       } else {
         discount = Math.min(matchingSubtotal, Number(appliedCoupon.discountValue));
-      }
-    } else if (appliedCoupon.categoriesId) {
-      const matchingItems = cart.filter((item: any) => {
-        const prod = item.product?.raw;
-        if (!prod) return false;
-        return prod.categoryId === appliedCoupon.categoriesId || prod.categoriesId === appliedCoupon.categoriesId || prod.category?.id === appliedCoupon.categoriesId;
-      });
-      const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
-      if (appliedCoupon.discountType === "percent") {
-        discount = Math.round(matchingSubtotal * (Number(appliedCoupon.discountValue) / 100));
-        if (appliedCoupon.maxDiscount && Number(appliedCoupon.maxDiscount) > 0) {
-          discount = Math.min(discount, Number(appliedCoupon.maxDiscount));
-        }
-      } else {
-        discount = Math.min(matchingSubtotal, Number(appliedCoupon.discountValue));
-      }
-    } else {
-      if (appliedCoupon.discountType === "percent") {
-        discount = Math.round(subtotal * (Number(appliedCoupon.discountValue) / 100));
-        if (appliedCoupon.maxDiscount && Number(appliedCoupon.maxDiscount) > 0) {
-          discount = Math.min(discount, Number(appliedCoupon.maxDiscount));
-        }
-      } else {
-        discount = Math.min(subtotal, Number(appliedCoupon.discountValue));
       }
     }
   }
+
 
   const shipping = subtotal >= 300000 || subtotal === 0 ? 0 : 15000;
   const grandTotal = Math.max(0, subtotal - discount + shipping);

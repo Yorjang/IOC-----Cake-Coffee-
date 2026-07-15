@@ -25,6 +25,12 @@ export class CouponsService implements OnModuleInit {
     } catch (err) {
       // Ignore if constraint already exists
     }
+    try {
+      await this.coupons.query('ALTER TABLE coupons ADD COLUMN IF NOT EXISTS target_size VARCHAR(50)');
+    } catch (err) {
+      console.error('Error adding target_size to coupons:', err);
+    }
+
   }
 
   async findAll(): Promise<Coupon[]> {
@@ -73,8 +79,16 @@ export class CouponsService implements OnModuleInit {
       status: dto.isActive === false ? CouponStatus.DISABLED : CouponStatus.ACTIVE,
       productId: dto.productId || null,
       categoriesId: dto.categoriesId || null,
-      couponScope: dto.productId ? CouponScope.PRODUCT : dto.categoriesId ? CouponScope.CATEGORY : CouponScope.ORDER,
+      targetSize: dto.targetSize || null,
+      couponScope: dto.targetSize
+        ? CouponScope.VARIANT
+        : dto.productId
+          ? CouponScope.PRODUCT
+          : dto.categoriesId
+            ? CouponScope.CATEGORY
+            : CouponScope.ORDER,
       maxDiscount: dto.maxDiscount !== undefined && dto.maxDiscount !== null ? Number(dto.maxDiscount) : null,
+
     });
 
     const saved = await this.coupons.save(coupon);
@@ -115,16 +129,23 @@ export class CouponsService implements OnModuleInit {
     if (dto.categoriesId !== undefined) {
       coupon.categoriesId = dto.categoriesId || null;
     }
-    // Recompute couponScope based on latest productId / categoriesId
-    if (dto.productId !== undefined || dto.categoriesId !== undefined) {
+    if (dto.targetSize !== undefined) {
+      coupon.targetSize = dto.targetSize || null;
+    }
+    // Recompute couponScope based on latest productId / categoriesId / targetSize
+    if (dto.productId !== undefined || dto.categoriesId !== undefined || dto.targetSize !== undefined) {
       const effectiveProductId = dto.productId !== undefined ? dto.productId : coupon.productId;
       const effectiveCategoriesId = dto.categoriesId !== undefined ? dto.categoriesId : coupon.categoriesId;
-      coupon.couponScope = effectiveProductId
-        ? CouponScope.PRODUCT
-        : effectiveCategoriesId
-          ? CouponScope.CATEGORY
-          : CouponScope.ORDER;
+      const effectiveTargetSize = dto.targetSize !== undefined ? dto.targetSize : coupon.targetSize;
+      coupon.couponScope = effectiveTargetSize
+        ? CouponScope.VARIANT
+        : effectiveProductId
+          ? CouponScope.PRODUCT
+          : effectiveCategoriesId
+            ? CouponScope.CATEGORY
+            : CouponScope.ORDER;
     }
+
     if (dto.maxDiscount !== undefined) coupon.maxDiscount = dto.maxDiscount !== null ? Number(dto.maxDiscount) : null;
     if (dto.isActive !== undefined) {
       coupon.status = dto.isActive ? CouponStatus.ACTIVE : CouponStatus.DISABLED;

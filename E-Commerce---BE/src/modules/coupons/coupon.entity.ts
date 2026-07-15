@@ -38,7 +38,7 @@ export class Coupon {
   @Column({ name: 'discount_type', type: 'enum', enum: DiscountType })
   discountType: DiscountType;
 
-  @Column({ name: 'discount_value', type: 'numeric', precision: 12, scale: 2 })
+  @Column({ name: 'discount_value', type: 'numeric', precision: 12, scale: 1 })
   discountValue: number;
 
   @Column({ name: 'coupon_scope', type: 'enum', enum: CouponScope, default: CouponScope.ORDER })
@@ -85,6 +85,10 @@ export class Coupon {
   @JoinColumn({ name: 'categories_id' })
   category: Category;
 
+  @Column({ name: 'target_size', type: 'varchar', length: 50, nullable: true })
+  targetSize: string;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
+
 }

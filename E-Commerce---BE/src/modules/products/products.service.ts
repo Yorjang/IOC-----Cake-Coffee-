@@ -208,4 +208,16 @@ export class ProductsService {
 
         await this.variants.remove(variant);
     }
+
+    async findDistinctVariantSizes(): Promise<string[]> {
+        const results = await this.variants
+            .createQueryBuilder('variant')
+            .select('DISTINCT(variant.size)', 'size')
+            .where("variant.status = :status", { status: VariantStatus.ACTIVE })
+            .andWhere("variant.size IS NOT NULL AND variant.size != ''")
+            .orderBy('size', 'ASC')
+            .getRawMany();
+        return results.map(r => r.size);
+    }
 }
+

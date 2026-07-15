@@ -2101,6 +2101,9 @@ function AdminVouchers() {
   const [editingVoucher, setEditingVoucher] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
   const [maxDiscount, setMaxDiscount] = useState("");
+  const [targetSize, setTargetSize] = useState("");
+  const [description, setDescription] = useState("");
+  const [availableSizes, setAvailableSizes] = useState<string[]>([]);
 
   const loadCoupons = async () => {
     const token = localStorage.getItem("accessToken");
@@ -2137,10 +2140,20 @@ function AdminVouchers() {
     }
   };
 
+  const loadSizesOnly = async () => {
+    try {
+      const res = await fetch(`${env.API_URL}/products/sizes/distinct`);
+      if (res.ok) setAvailableSizes(await res.json());
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     loadCoupons();
     loadProductsOnly();
     loadCategoriesOnly();
+    loadSizesOnly();
   }, []);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -2173,6 +2186,8 @@ function AdminVouchers() {
           expiresAt: new Date(expiresAt),
           productId: productId || null,
           categoriesId: categoriesId || null,
+          targetSize: targetSize || null,
+          description: description || "",
           isActive: true,
         }),
       });
@@ -2188,6 +2203,8 @@ function AdminVouchers() {
         setExpiresAt("");
         setProductId("");
         setCategoriesId("");
+        setTargetSize("");
+        setDescription("");
         setEditingVoucher(null);
         loadCoupons();
       } else {
@@ -2205,7 +2222,7 @@ function AdminVouchers() {
     setEditingVoucher(v);
     setCode(v.code);
     setDiscountType(v.discountType);
-    setDiscountValue(String(v.discountValue));
+    setDiscountValue(String(Math.round(Number(v.discountValue))));
     setMinOrderValue(String(v.minOrderValue));
     setMaxDiscount(v.maxDiscount ? String(v.maxDiscount) : "");
     setUsageLimit(v.usageLimit ? String(v.usageLimit) : "");
@@ -2213,6 +2230,8 @@ function AdminVouchers() {
     setExpiresAt(dateStr);
     setProductId(v.productId || "");
     setCategoriesId(v.categoriesId || "");
+    setTargetSize(v.targetSize || "");
+    setDescription(v.description || "");
   };
 
   const handleCancelEdit = () => {
@@ -2226,6 +2245,16 @@ function AdminVouchers() {
     setExpiresAt("");
     setProductId("");
     setCategoriesId("");
+    setTargetSize("");
+    setDescription("");
+  };
+
+  const getFilteredSizes = () => {
+    if (!productId) return availableSizes;
+    const selProd = products.find(p => p.id === productId);
+    if (!selProd || !selProd.variants) return [];
+    const sizes = selProd.variants.map((v: any) => v.size).filter(Boolean);
+    return Array.from(new Set(sizes.map((s: string) => s.trim()))) as string[];
   };
 
   const handleDelete = async (id: string) => {
@@ -2291,12 +2320,17 @@ function AdminVouchers() {
                     ) : (
                       <span className="text-muted-foreground text-xs">Tất cả sản phẩm</span>
                     )}
+                    {v.targetSize && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-orange-500/10 px-2.5 py-1 text-xs text-orange-500 font-semibold ml-1">
+                        📐 Size: {v.targetSize}
+                      </span>
+                    )}
                   </td>
                   <td className="py-3 text-muted-foreground">
                     {v.discountType === "percent" ? "Phần trăm" : "Cố định"}
                   </td>
                   <td className="py-3 font-semibold text-foreground">
-                    {v.discountType === "percent" ? `${v.discountValue}%` : formatMoney(Number(v.discountValue))}
+                    {v.discountType === "percent" ? `${Math.round(Number(v.discountValue))}%` : formatMoney(Number(v.discountValue))}
                   </td>
                   <td className="py-3 text-muted-foreground">
                     {v.maxDiscount && Number(v.maxDiscount) > 0 ? formatMoney(Number(v.maxDiscount)) : "-"}
@@ -2408,7 +2442,20 @@ function AdminVouchers() {
           <select
             className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
             value={productId}
-            onChange={e => { setProductId(e.target.value); if (e.target.value) setCategoriesId(""); }}
+            onChange={e => {
+              const val = e.target.value;
+              setProductId(val);
+              if (val) {
+                setCategoriesId("");
+                // Auto-reset targetSize if not supported by the new product variants
+                const selProd = products.find(p => p.id === val);
+                if (selProd && selProd.variants) {
+                  const sizes = selProd.variants.map((v: any) => v.size || "");
+                  const exists = sizes.some((s: string) => s.trim() === targetSize);
+                  if (!exists) setTargetSize("");
+                }
+              }
+            }}
           >
             <option value="">Sản phẩm: Tất cả</option>
             {products.map(p => (
@@ -2429,6 +2476,22 @@ function AdminVouchers() {
               </option>
             ))}
           </select>
+          <select
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
+            value={targetSize}
+            onChange={e => setTargetSize(e.target.value)}
+          >
+            <option value="">Size áp dụng: Tất cả</option>
+            {getFilteredSizes().map(sz => (
+              <option key={sz} value={sz}>Size áp dụng: {sz}</option>
+            ))}
+          </select>
+          <input
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent sm:col-span-2 lg:col-span-3"
+            placeholder="Mô tả voucher (VD: Giảm giá 20k cho sản phẩm size Lớn)"
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+          />
           <div className="sm:col-span-2 lg:col-span-3 flex justify-end gap-2">
             {editingVoucher && (
               <button
