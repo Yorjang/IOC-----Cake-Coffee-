@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Lock, Mail, CakeSlice, Eye, EyeOff, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { env } from "../../config/env";
+import { saveAuthSession } from "./authSession";
 
 const ADMIN_ROLES = ["admin", "staff", "cashier", "store_manager"];
 
@@ -34,9 +35,11 @@ export function AdminLoginPage({ onSuccess, onBack }: Props) {
         return;
       }
 
-      localStorage.setItem("accessToken", data.accessToken);
-      localStorage.setItem("refreshToken", data.refreshToken);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      saveAuthSession({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        user: data.user
+      }, true);
       toast.success(`Xin chào, ${data.user?.fullName || "Admin"}!`);
       onSuccess(data.user, data.accessToken);
     } catch (err: any) {
