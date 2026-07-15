@@ -33,7 +33,7 @@ export const HOME_CONFIG = {
   NEW_COMBOS_START: 8,
   NEW_COMBOS_END: 14,
   FEATURE_ITEMS: [
-    { title: "Giao hỏa tốc 2H", sub: "TP.HCM", icon: "Clock" },
+    { title: "Giao hàng hỏa tốc 45p", sub: "TP.HCM", icon: "Clock" },
     { title: "Nướng mới", sub: "Mỗi ngày", icon: "Coffee" },
     { title: "Hữu cơ", sub: "100% sạch", icon: "AlertCircle" },
     { title: "Miễn phí ship", sub: "Từ 300k", icon: "Truck" },

@@ -158,13 +158,6 @@ function VoucherDetailModal({ voucher, onClose }: any) {
 }
 
 function VoucherRow({ code, title, sub, onClick }: any) {
-  const [copied, setCopied] = useState(false);
-  function copy(e: any) {
-    e.stopPropagation();
-    navigator.clipboard.writeText(code).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
-  }
   return (
     <div onClick={onClick} className="flex items-center justify-between gap-3 rounded-xl border bg-background px-4 py-3 cursor-pointer hover:border-primary/50 transition">
       <div>
@@ -172,10 +165,6 @@ function VoucherRow({ code, title, sub, onClick }: any) {
         <p className="text-sm font-semibold text-foreground">{title}</p>
         <p className="text-xs text-muted-foreground">{sub}</p>
       </div>
-      <button type="button" onClick={copy} className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition hover:bg-secondary shrink-0">
-        {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
-        {copied ? "Đã lưu" : "Lưu mã"}
-      </button>
     </div>
   );
 }
@@ -346,13 +335,13 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
 
       {/* ── Why Sweet Bean ── */}
       <Section title={MESSAGES.SECTION_WHY_US_TITLE}>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="flex gap-4 overflow-x-auto pb-2 snap-x no-scrollbar">
           {HOME_CONFIG.FEATURE_ITEMS.map(f => {
             const Icon = { Clock, Coffee, AlertCircle, Truck }[f.icon];
             return (
-              <div key={f.title} className="flex items-center gap-4 rounded-2xl bg-card p-5 border">
-                <div className="grid size-12 place-items-center rounded-full bg-primary/10 text-primary">{Icon && <Icon size={24} />}</div>
-                <div><h3 className="font-bold text-sm sm:text-base">{f.title}</h3><p className="text-xs sm:text-sm text-muted-foreground">{f.sub}</p></div>
+              <div key={f.title} className="flex items-center gap-4 rounded-2xl bg-card p-5 border min-w-[240px] flex-1 snap-start">
+                <div className="grid size-12 place-items-center rounded-full bg-primary/10 text-primary shrink-0">{Icon && <Icon size={24} />}</div>
+                <div><h3 className="font-bold text-sm sm:text-base line-clamp-1">{f.title}</h3><p className="text-xs sm:text-sm text-muted-foreground line-clamp-1">{f.sub}</p></div>
               </div>
             );
           })}
