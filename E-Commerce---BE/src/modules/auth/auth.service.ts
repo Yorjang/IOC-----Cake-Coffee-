@@ -298,7 +298,7 @@ export class AuthService {
     return jwt.sign(
       { sub: user.id, pwdSign, remember },
       this.getJwtSecret(),
-      { expiresIn: remember ? '30d' : '7d' },
+      { expiresIn: remember ? '1d' : '10m' },
     );
   }
 
