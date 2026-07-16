@@ -68,7 +68,7 @@ function VoucherDetailModal({ voucher, onClose }: any) {
               <span className="text-muted-foreground font-medium">Giảm giá:</span>
               <span className="text-foreground font-semibold">
                 {d.discountType === 'percent'
-                  ? `${d.discountValue}%${d.maxDiscount ? ` (tối đa ${Number(d.maxDiscount).toLocaleString()}đ)` : ''}`
+                  ? `${Number(d.discountValue)}%${d.maxDiscount ? ` (tối đa ${Number(d.maxDiscount).toLocaleString()}đ)` : ''}`
                   : `${Number(d.discountValue).toLocaleString()}đ`}
               </span>
 
@@ -183,7 +183,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
     ? publicCoupons.slice(0, 3).map((c: any) => ({
         code: c.code,
         title: c.description || (c.minOrderValue > 0 ? `Đơn từ ${Number(c.minOrderValue).toLocaleString()}đ` : 'Không yêu cầu đơn tối thiểu'),
-        sub: c.name || `Giảm ${c.discountType === 'percent' ? c.discountValue + '%' : Number(c.discountValue).toLocaleString() + 'đ'}`,
+        sub: c.name || `Giảm ${c.discountType === 'percent' ? Number(c.discountValue) + '%' : Number(c.discountValue).toLocaleString() + 'đ'}`,
         rawData: c
       }))
     : VOUCHERS.map(v => ({ ...v, rawData: null }));

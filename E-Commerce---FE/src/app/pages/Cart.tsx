@@ -352,10 +352,10 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
                               : "border-transparent bg-secondary hover:bg-secondary/80 hover:border-border cursor-pointer"
                         }`}
                       >
-                        <div className="text-primary flex flex-col items-center justify-center shrink-0 mr-[25px]">
+                        <div className="text-primary flex flex-col items-center justify-center shrink-0 w-[70px] mr-3">
                           <span className="text-[10px] font-semibold uppercase leading-none">Giảm</span>
                           <span className="font-bold leading-none mt-1 text-base">
-                            {c.discountType === 'percent' ? `${c.discountValue}%` : (Number(c.discountValue) / 1000) + 'k'}
+                            {c.discountType === 'percent' ? `${Number(c.discountValue)}%` : (Number(c.discountValue) / 1000) + 'k'}
                           </span>
                         </div>
                         
