@@ -51,6 +51,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [orderTab, setOrderTab] = useState<"active" | "history">("active");
   const ITEMS_PER_PAGE = 5;
 
   const fetchMyOrders = async () => {
@@ -510,17 +511,50 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
             {/* TAB: Order History */}
             {activeTab === "orders" && (
               <div className="space-y-6">
-                <h3 className="text-xl font-bold font-serif border-b pb-3 mb-4">Lịch sử đơn hàng</h3>
+                <div className="border-b pb-3 mb-4">
+                  <h3 className="text-xl font-bold font-serif">Đơn hàng của tôi</h3>
+                  <div className="flex gap-4 mt-4">
+                    <button 
+                      onClick={() => { setOrderTab("active"); setCurrentPage(1); }}
+                      className={`text-sm font-semibold pb-2 border-b-2 transition-colors ${orderTab === "active" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                    >
+                      Đang xử lý
+                    </button>
+                    <button 
+                      onClick={() => { setOrderTab("history"); setCurrentPage(1); }}
+                      className={`text-sm font-semibold pb-2 border-b-2 transition-colors ${orderTab === "history" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                    >
+                      Đã hoàn tất
+                    </button>
+                  </div>
+                </div>
+
                 {loadingOrders ? (
                   <div className="text-center py-10 text-muted-foreground">
-                    Đang tải lịch sử đơn hàng...
+                    Đang tải danh sách đơn hàng...
                   </div>
-                ) : orders.length > 0 ? (
+                ) : (
                   <div className="space-y-4">
                     {(() => {
+                      const filteredOrders = orders.filter(o => 
+                        orderTab === "active" 
+                          ? !['completed', 'cancelled'].includes(o.orderStatus)
+                          : ['completed', 'cancelled'].includes(o.orderStatus)
+                      );
+
+                      if (filteredOrders.length === 0) {
+                        return (
+                          <div className="text-center py-10">
+                            <p className="text-sm text-muted-foreground">
+                              {orderTab === "active" ? "Bạn không có đơn hàng nào đang xử lý." : "Bạn chưa có đơn hàng nào hoàn tất."}
+                            </p>
+                          </div>
+                        );
+                      }
+
                       const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-                      const paginatedOrders = orders.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-                      const totalPages = Math.ceil(orders.length / ITEMS_PER_PAGE);
+                      const paginatedOrders = filteredOrders.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+                      const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
 
                       return (
                         <>
@@ -613,10 +647,6 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
                         </>
                       );
                     })()}
-                  </div>
-                ) : (
-                  <div className="text-center py-10">
-                    <p className="text-sm text-muted-foreground">Bạn chưa thực hiện đơn hàng nào.</p>
                   </div>
                 )}
               </div>

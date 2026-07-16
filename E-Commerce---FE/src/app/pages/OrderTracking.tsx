@@ -81,10 +81,10 @@ export function OrderTracking({ orderId, onBack }: OrderTrackingProps) {
 
   // Determine current step index based on order status
   let currentStepIndex = 0;
-  if (order.orderStatus === 'confirmed' || order.orderStatus === 'preparing') {
-    currentStepIndex = 1;
+  if (order.orderStatus === 'pending' || order.orderStatus === 'confirmed' || order.orderStatus === 'preparing') {
+    currentStepIndex = 0; // Vẫn ở bước "Xác nhận đơn hàng" chờ shipper
   } else if (order.orderStatus === 'shipping') {
-    currentStepIndex = 2;
+    currentStepIndex = 2; // "Đang vận chuyển", sẽ tạo hiệu ứng transition đi qua "Đã lấy đơn"
   } else if (order.orderStatus === 'completed') {
     currentStepIndex = 3;
   } else if (order.orderStatus === 'cancelled') {
@@ -139,7 +139,7 @@ export function OrderTracking({ orderId, onBack }: OrderTrackingProps) {
               
               {/* Active Connecting Line */}
               <div 
-                className="absolute left-[80px] top-[32px] -translate-y-1/2 h-1 bg-green-500 rounded-full z-0 transition-all duration-500 ease-in-out"
+                className="absolute left-[80px] top-[32px] -translate-y-1/2 h-1 bg-green-500 rounded-full z-0 transition-all duration-1000 ease-in-out"
                 style={{ width: currentStepIndex > 0 ? `calc((100% - 160px) * ${currentStepIndex / (STEPS.length - 1)})` : '0px' }}
               ></div>
 
@@ -150,14 +150,17 @@ export function OrderTracking({ orderId, onBack }: OrderTrackingProps) {
                 return (
                   <div key={step.key} className="relative z-10 flex flex-col items-center gap-3 w-24">
                     <div 
-                      className={`flex size-12 items-center justify-center rounded-full border-4 shadow-sm transition-colors duration-500
+                      className={`relative flex size-12 items-center justify-center rounded-full border-4 shadow-sm transition-colors duration-1000
                         ${isActive 
                           ? 'border-green-100 bg-green-500 text-white dark:border-green-950' 
                           : 'border-muted bg-card text-muted-foreground'
                         }`
                       }
                     >
-                      {isActive ? <Check size={20} strokeWidth={3} /> : <div className="size-3 rounded-full bg-muted-foreground/30"></div>}
+                      {isActive && isCurrent && currentStepIndex !== 3 && (
+                        <span className="absolute inset-0 rounded-full bg-green-400 opacity-50 animate-ping"></span>
+                      )}
+                      {isActive ? <Check size={20} strokeWidth={3} className="z-10" /> : <div className="size-3 rounded-full bg-muted-foreground/30 z-10"></div>}
                     </div>
                     <span className={`text-sm font-medium text-center ${isCurrent ? 'text-foreground font-bold' : isActive ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
                       {step.label}

@@ -1,27 +1,30 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, Suspense, lazy, useMemo } from "react";
 import { toast } from "sonner";
 import { Toaster } from "./components/ui/sonner";
 
-import { AdminPanel } from "./components/AdminPanel";
-import { AdminLoginPage } from "./components/AdminLoginPage";
-import { StaffPanel } from "./components/StaffPanel";
-import { AuthPage } from "./components/AuthPage";
-import { ReviewPage } from "./components/ReviewPage";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { StoreSelectionModal } from "./components/StoreSelectionModal";
+import { ActiveOrderBanner } from "./components/ActiveOrderBanner";
 
 import { Home } from "./pages/Home";
 import { ProductListing } from "./pages/ProductListing";
 import { ProductDetail } from "./pages/ProductDetail";
 import { Cart } from "./pages/Cart";
 import { Checkout, Success } from "./pages/Checkout";
-import { Favorites } from "./pages/Favorites";
-import { Profile } from "./pages/Profile";
-import { StoreMap } from "./pages/StoreMap";
-import { PolicyPage } from "./pages/PolicyPage";
-import { OrderTracking } from "./pages/OrderTracking";
+
+// Lazy Loaded Components
+const AdminPanel = lazy(() => import("./components/AdminPanel").then(m => ({ default: m.AdminPanel })));
+const AdminLoginPage = lazy(() => import("./components/AdminLoginPage").then(m => ({ default: m.AdminLoginPage })));
+const StaffPanel = lazy(() => import("./components/StaffPanel").then(m => ({ default: m.StaffPanel })));
+const AuthPage = lazy(() => import("./components/AuthPage").then(m => ({ default: m.AuthPage })));
+const ReviewPage = lazy(() => import("./components/ReviewPage").then(m => ({ default: m.ReviewPage })));
+const Favorites = lazy(() => import("./pages/Favorites").then(m => ({ default: m.Favorites })));
+const Profile = lazy(() => import("./pages/Profile").then(m => ({ default: m.Profile })));
+const StoreMap = lazy(() => import("./pages/StoreMap").then(m => ({ default: m.StoreMap })));
+const PolicyPage = lazy(() => import("./pages/PolicyPage").then(m => ({ default: m.PolicyPage })));
+const OrderTracking = lazy(() => import("./pages/OrderTracking").then(m => ({ default: m.OrderTracking })));
 
 import { navPages } from "../data/mockData";
 import { storeLocations as fallbackStoreLocations, type StoreLocation } from "../data/storeLocations";
@@ -483,9 +486,12 @@ export default function App() {
   // ── Persist cart & wishlist ──────────────────────────────────────────────
   useEffect(() => { localStorage.setItem("sb_wishlist", JSON.stringify(wishlist)); }, [wishlist]);
 
+  const prevStoreIdRef = useRef(selectedStore?.id);
   useEffect(() => {
     if (!UUID_PATTERN.test(selectedStore?.id || "")) return;
-    setCart([]);
+    const storeChanged = prevStoreIdRef.current !== selectedStore?.id;
+    prevStoreIdRef.current = selectedStore?.id;
+    if (storeChanged) setCart([]);
     fetchCart(selectedStore.id);
   }, [selectedStore?.id, user?.id]);
 
@@ -882,38 +888,40 @@ export default function App() {
     }
   };
 
-  const subtotal = cart.reduce((s, i) => s + (i.price || parsePrice(i.product[1])) * i.quantity, 0);
+  const subtotal = useMemo(() => cart.reduce((s, i) => s + (i.price || parsePrice(i.product[1])) * i.quantity, 0), [cart]);
 
-  let discount = 0;
-  if (user && appliedCoupon) {
-    const matchingItems = cart.filter((item: any) => {
-      const isProductMatch = !appliedCoupon.productId || (item.productId || item.product?.raw?.id) === appliedCoupon.productId;
-      const isCategoryMatch = !appliedCoupon.categoriesId || (
-        item.product?.raw?.categoryId === appliedCoupon.categoriesId ||
-        item.product?.raw?.categoriesId === appliedCoupon.categoriesId ||
-        item.product?.raw?.category?.id === appliedCoupon.categoriesId
-      );
-      const isSizeMatch = !appliedCoupon.targetSize || matchSize(item.size, appliedCoupon.targetSize);
-      return isProductMatch && isCategoryMatch && isSizeMatch;
-    });
+  const discount = useMemo(() => {
+    let d = 0;
+    if (user && appliedCoupon) {
+      const matchingItems = cart.filter((item: any) => {
+        const isProductMatch = !appliedCoupon.productId || (item.productId || item.product?.raw?.id) === appliedCoupon.productId;
+        const isCategoryMatch = !appliedCoupon.categoriesId || (
+          item.product?.raw?.categoryId === appliedCoupon.categoriesId ||
+          item.product?.raw?.categoriesId === appliedCoupon.categoriesId ||
+          item.product?.raw?.category?.id === appliedCoupon.categoriesId
+        );
+        const isSizeMatch = !appliedCoupon.targetSize || matchSize(item.size, appliedCoupon.targetSize);
+        return isProductMatch && isCategoryMatch && isSizeMatch;
+      });
 
-    const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
+      const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
 
-    if (matchingItems.length > 0) {
-      if (appliedCoupon.discountType === "percent") {
-        discount = Math.round(matchingSubtotal * (Number(appliedCoupon.discountValue) / 100));
-        if (appliedCoupon.maxDiscount && Number(appliedCoupon.maxDiscount) > 0) {
-          discount = Math.min(discount, Number(appliedCoupon.maxDiscount));
+      if (matchingItems.length > 0) {
+        if (appliedCoupon.discountType === "percent") {
+          d = Math.round(matchingSubtotal * (Number(appliedCoupon.discountValue) / 100));
+          if (appliedCoupon.maxDiscount && Number(appliedCoupon.maxDiscount) > 0) {
+            d = Math.min(d, Number(appliedCoupon.maxDiscount));
+          }
+        } else {
+          d = Math.min(matchingSubtotal, Number(appliedCoupon.discountValue));
         }
-      } else {
-        discount = Math.min(matchingSubtotal, Number(appliedCoupon.discountValue));
       }
     }
-  }
+    return d;
+  }, [cart, user, appliedCoupon]);
 
-
-  const shipping = subtotal >= 300000 || subtotal === 0 ? 0 : 15000;
-  const grandTotal = Math.max(0, subtotal - discount + shipping);
+  const shipping = useMemo(() => subtotal >= 300000 || subtotal === 0 ? 0 : 15000, [subtotal]);
+  const grandTotal = useMemo(() => Math.max(0, subtotal - discount + shipping), [subtotal, discount, shipping]);
 
 
   if (view === VIEW_KEYS.ADMIN_LOGIN) {
@@ -994,6 +1002,11 @@ export default function App() {
 
         </main>
         <Footer setView={setView} />
+        <ActiveOrderBanner 
+          lastCreatedOrder={lastCreatedOrder} 
+          isHidden={view === VIEW_KEYS.TRACKING}
+          onClick={(id) => { setSelectedOrderId(id); setView(VIEW_KEYS.TRACKING); }} 
+        />
         {showStorePopup && (
           <StoreSelectionModal
             stores={availableStores}
