@@ -38,7 +38,7 @@ export class Coupon {
   @Column({ name: 'discount_type', type: 'enum', enum: DiscountType })
   discountType: DiscountType;
 
-  @Column({ name: 'discount_value', type: 'numeric', precision: 12, scale: 1 })
+  @Column({ name: 'discount_value', type: 'numeric', precision: 12, scale: 2 })
   discountValue: number;
 
   @Column({ name: 'coupon_scope', type: 'enum', enum: CouponScope, default: CouponScope.ORDER })

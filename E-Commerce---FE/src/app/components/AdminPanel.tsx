@@ -313,6 +313,8 @@ function Dashboard() {
 function AdminProducts() {
   const [items, setItems] = useState<any[]>([]);
   const [cats, setCats] = useState<any[]>([]);
+  const [tags, setTags] = useState<any[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -328,12 +330,14 @@ function AdminProducts() {
   const load = async () => {
     setLoading(true);
     try {
-      const [pRes, cRes] = await Promise.all([
+      const [pRes, cRes, tRes] = await Promise.all([
         fetch(`${env.API_URL}/products`),
         fetch(`${env.API_URL}/products/categories`),
+        fetch(`${env.API_URL}/products/tags`),
       ]);
       if (pRes.ok) setItems(await pRes.json());
       if (cRes.ok) setCats(await cRes.json());
+      if (tRes.ok) setTags(await tRes.json());
     } catch { /* silent */ } finally { setLoading(false); }
   };
 
@@ -357,6 +361,7 @@ function AdminProducts() {
     setForm({ name: "", categoryId: cats[0]?.id ?? "", description: "", imageUrl: "", productType: "cake" });
     setVariantForms([emptyVariant()]);
     setToppingForms([]);
+    setSelectedTagIds([]);
     setRemovedVariantIds([]);
     setShowModal(true);
   };
@@ -374,6 +379,7 @@ function AdminProducts() {
     setToppingForms([...(p.toppings || [])]
       .sort((a: any, b: any) => Number(a.sortOrder) - Number(b.sortOrder))
       .map((topping: any) => ({ ...topping, price: String(topping.price) })));
+    setSelectedTagIds((p.tags || []).map((tag: any) => tag.id));
     setRemovedVariantIds([]);
     setShowModal(true);
   };
@@ -486,6 +492,15 @@ function AdminProducts() {
         const error = await toppingRes.json();
         throw new Error(error.message || "Không thể lưu danh sách topping");
       }
+      const tagRes = await fetch(`${env.API_URL}/products/${savedProduct.id}/tags`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ tagIds: selectedTagIds }),
+      });
+      if (!tagRes.ok) {
+        const error = await tagRes.json();
+        throw new Error(error.message || "Không thể lưu danh sách tag");
+      }
       setShowModal(false); load();
       toast.success(editing ? "Đã cập nhật sản phẩm, biến thể và topping." : "Đã tạo sản phẩm cùng biến thể và topping.");
     } catch (err: any) { toast.error(err.message || "Lỗi khi lưu sản phẩm"); }
@@ -528,7 +543,7 @@ function AdminProducts() {
       {loading ? <div className="py-10 text-center text-muted-foreground"><Loader2 className="inline animate-spin mr-2" size={16} />Đang tải…</div> : (
         <div className="overflow-auto rounded-2xl bg-sidebar">
           <table className="w-full text-sm">
-            <TableHeader cols={["Sản phẩm", "Danh mục", "Giá", "Biến thể", "Loại", "Thao tác"]} />
+            <TableHeader cols={["Sản phẩm", "Danh mục", "Giá", "Biến thể", "Loại", "Tag", "Thao tác"]} />
             <tbody>
               {filtered.map(p => (
                 <tr key={p.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
@@ -542,6 +557,19 @@ function AdminProducts() {
                   <td className="py-3 font-semibold text-primary">{fmtPrice(p)}</td>
                   <td className="py-3 text-muted-foreground">{p.variants?.length ?? 0}</td>
                   <td className="py-3"><span className="rounded-full bg-sidebar-accent px-2 py-0.5 text-xs text-primary">{p.productType}</span></td>
+                  <td className="py-3 pr-4">
+                    {(p.tags || []).length > 0 ? (
+                      <div className="flex max-w-[240px] flex-wrap gap-1.5">
+                        {p.tags.map((tag: any) => (
+                          <span key={tag.id} className="whitespace-nowrap rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                            {tag.name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </td>
                   <td className="py-3">
                     <div className="flex gap-2">
                       <AdminBtn variant="ghost" onClick={() => openEdit(p)}><Edit size={14} /></AdminBtn>
@@ -572,6 +600,22 @@ function AdminProducts() {
               </select>
               <textarea className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none resize-none" rows={2} placeholder="Mô tả sản phẩm" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
               <ImageUploader label="Hình ảnh sản phẩm" value={form.imageUrl} onChange={url => setForm({ ...form, imageUrl: url })} />
+              <div className="rounded-2xl border border-sidebar-accent p-4">
+                <h4 className="font-semibold text-foreground">Tag hiển thị sản phẩm</h4>
+                <p className="mt-1 text-xs text-muted-foreground">Sản phẩm sẽ xuất hiện trong khu vực tương ứng trên trang chủ.</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {tags.map(tag => {
+                    const checked = selectedTagIds.includes(tag.id);
+                    return (
+                      <label key={tag.id} className={`cursor-pointer rounded-full border px-3 py-1.5 text-xs transition ${checked ? "border-primary bg-primary/15 text-primary" : "border-sidebar-accent text-muted-foreground"}`}>
+                        <input type="checkbox" className="sr-only" checked={checked} onChange={() => setSelectedTagIds(current => checked ? current.filter(id => id !== tag.id) : [...current, tag.id])} />
+                        {tag.name}
+                      </label>
+                    );
+                  })}
+                  {tags.length === 0 && <span className="text-xs text-muted-foreground">Chưa có tag. Hãy tạo tag trong mục Tag sản phẩm.</span>}
+                </div>
+              </div>
               <div className="rounded-2xl border border-sidebar-accent p-4">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
@@ -806,6 +850,46 @@ function AdminCategories() {
 }
 
 // ── Branches ─────────────────────────────────────────────────────────────────
+function AdminProductTags() {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [name, setName] = useState("");
+  const load = async () => {
+    setLoading(true);
+    try { const res = await fetch(`${env.API_URL}/products/tags`); if (res.ok) setItems(await res.json()); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+  const openForm = (tag?: any) => { setEditing(tag || null); setName(tag?.name || ""); setShowModal(true); };
+  const save = async () => {
+    if (!name.trim()) return toast.error("Vui lòng nhập tên tag.");
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+    try {
+      const res = await fetch(`${env.API_URL}/products/tags${editing ? `/${editing.id}` : ""}`, { method: editing ? "PATCH" : "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ name: name.trim() }) });
+      if (!res.ok) { const error = await res.json(); throw new Error(error.message); }
+      setShowModal(false); await load(); toast.success(editing ? "Đã cập nhật tag." : "Đã tạo tag.");
+    } catch (error: any) { toast.error(error.message || "Không thể lưu tag."); }
+  };
+  const remove = async (tag: any) => {
+    if (!confirm(`Xóa tag “${tag.name}”? Tag sẽ được gỡ khỏi các sản phẩm.`)) return;
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+    try {
+      const res = await fetch(`${env.API_URL}/products/tags/${tag.id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) { const error = await res.json(); throw new Error(error.message); }
+      await load(); toast.success("Đã xóa tag.");
+    } catch (error: any) { toast.error(error.message || "Không thể xóa tag."); }
+  };
+  return <div className="space-y-5">
+    <div className="flex items-center justify-between gap-3"><div><h2 className="text-2xl font-semibold text-foreground">Tag sản phẩm</h2><p className="mt-1 text-sm text-muted-foreground">Mỗi tag tạo thành một khu vực sản phẩm trên trang chủ.</p></div><AdminBtn onClick={() => openForm()}><span className="flex items-center gap-1"><Plus size={14} />Thêm tag</span></AdminBtn></div>
+    {loading ? <div className="py-10 text-center text-muted-foreground"><Loader2 className="inline animate-spin mr-2" size={16} />Đang tải…</div> : <div className="overflow-auto rounded-2xl bg-sidebar"><table className="w-full text-sm"><TableHeader cols={["Tên tag", "Slug/API", "Thao tác"]} /><tbody>{items.map(tag => <tr key={tag.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition"><td className="py-3 font-medium text-foreground">{tag.name}</td><td className="py-3 font-mono text-xs text-muted-foreground">?tag={tag.slug}</td><td className="py-3"><div className="flex gap-2"><AdminBtn variant="ghost" onClick={() => openForm(tag)}><Edit size={14} /></AdminBtn><AdminBtn variant="danger" onClick={() => remove(tag)}><Trash2 size={14} /></AdminBtn></div></td></tr>)}</tbody></table></div>}
+    {showModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)}><div className="w-full max-w-md rounded-2xl bg-sidebar p-6 shadow-2xl" onClick={event => event.stopPropagation()}><h3 className="mb-4 text-lg font-semibold text-foreground">{editing ? "Sửa tag" : "Thêm tag mới"}</h3><input autoFocus className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" placeholder="Ví dụ: Bán chạy" value={name} onChange={event => setName(event.target.value)} /><div className="mt-5 flex justify-end gap-3"><AdminBtn variant="ghost" onClick={() => setShowModal(false)}>Hủy</AdminBtn><AdminBtn onClick={save}>{editing ? "Cập nhật" : "Tạo tag"}</AdminBtn></div></div></div>}
+  </div>;
+}
+
 const WEEK_DAYS = [
   { value: "monday", label: "Thứ Hai" },
   { value: "tuesday", label: "Thứ Ba" },
@@ -2976,6 +3060,7 @@ const navItems = [
   { key: "storeMap", label: "Bản đồ", icon: MapPin, allowedRoles: ["admin", "store_manager"] },
   { key: "products", label: "Sản phẩm", icon: Package, allowedRoles: ["admin", "store_manager", "staff"] },
   { key: "categories", label: "Danh mục", icon: Tag, allowedRoles: ["admin", "store_manager", "staff"] },
+  { key: "productTags", label: "Tag sản phẩm", icon: Tag, allowedRoles: ["admin", "store_manager", "staff"] },
   { key: "inventory", label: "Tồn kho", icon: Boxes, allowedRoles: ["admin", "store_manager", "staff"] },
   { key: "users", label: "Người dùng", icon: Users, allowedRoles: ["admin"] },
   { key: "reviews", label: "Đánh giá", icon: Star, allowedRoles: ["admin", "store_manager", "staff"] },
@@ -3012,6 +3097,7 @@ export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUse
     storeMap: <AdminStoreMap />,
     products: <AdminProducts />,
     categories: <AdminCategories />,
+    productTags: <AdminProductTags />,
     inventory: <AdminInventory />,
     users: <AdminUsers />,
     reviews: <AdminReviews />,

@@ -289,7 +289,7 @@ export class AuthService {
     return jwt.sign(
       { sub: user.id, email: user.email, phone: user.phone, role: user.role, pwdSign },
       this.getJwtSecret(),
-      { expiresIn: '15m' },
+      { expiresIn: '1d' },
     );
   }
 
@@ -298,7 +298,7 @@ export class AuthService {
     return jwt.sign(
       { sub: user.id, pwdSign, remember },
       this.getJwtSecret(),
-      { expiresIn: remember ? '30d' : '1d' },
+      { expiresIn: remember ? '1d' : '10m' },
     );
   }
 
