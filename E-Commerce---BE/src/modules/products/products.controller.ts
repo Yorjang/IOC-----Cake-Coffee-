@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Patch, Delete, Param, Body, UseGuards, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Param, Body, UseGuards, ParseUUIDPipe, Query } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -8,6 +8,7 @@ import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/create-product.dto';
 import { CreateProductVariantDto, UpdateProductVariantDto } from './dto/product-variant.dto';
 import { ReplaceProductToppingsDto } from './dto/product-topping.dto';
+import { CreateProductTagDto, ReplaceProductTagsDto, UpdateProductTagDto } from './dto/product-tag.dto';
 
 @Controller('products')
 export class ProductsController {
@@ -48,10 +49,41 @@ export class ProductsController {
         return this.productsService.deleteCategory(id);
     }
 
+    @Get('tags')
+    findAllTags() {
+        return this.productsService.findAllTags();
+    }
+
+    @Get('tags/:id')
+    findTagById(@Param('id', ParseUUIDPipe) id: string) {
+        return this.productsService.findTagById(id);
+    }
+
+    @Post('tags')
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions(Permission.CREATE_PRODUCT)
+    createTag(@Body() dto: CreateProductTagDto) {
+        return this.productsService.createTag(dto);
+    }
+
+    @Patch('tags/:id')
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions(Permission.UPDATE_PRODUCT)
+    updateTag(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateProductTagDto) {
+        return this.productsService.updateTag(id, dto);
+    }
+
+    @Delete('tags/:id')
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions(Permission.DELETE_PRODUCT)
+    deleteTag(@Param('id', ParseUUIDPipe) id: string) {
+        return this.productsService.deleteTag(id);
+    }
+
     // ── Products Routes ──────────────────────────────────────────────────────
     @Get()
-    findAllProducts() {
-        return this.productsService.findAllProducts();
+    findAllProducts(@Query('tag') tag?: string) {
+        return this.productsService.findAllProducts(tag);
     }
 
     @Get('sizes/distinct')
@@ -102,6 +134,21 @@ export class ProductsController {
         @Body() dto: ReplaceProductToppingsDto,
     ) {
         return this.productsService.replaceProductToppings(productId, dto);
+    }
+
+    @Get(':productId/tags')
+    findProductTags(@Param('productId', ParseUUIDPipe) productId: string) {
+        return this.productsService.findProductTags(productId);
+    }
+
+    @Put(':productId/tags')
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions(Permission.UPDATE_PRODUCT)
+    replaceProductTags(
+        @Param('productId', ParseUUIDPipe) productId: string,
+        @Body() dto: ReplaceProductTagsDto,
+    ) {
+        return this.productsService.replaceProductTags(productId, dto);
     }
 
     // ── Product Variants Routes ──────────────────────────────────────────────

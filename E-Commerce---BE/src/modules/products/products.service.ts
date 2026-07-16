@@ -9,6 +9,8 @@ import { ReplaceProductToppingsDto } from './dto/product-topping.dto';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/create-product.dto';
 import { CreateProductVariantDto, UpdateProductVariantDto } from './dto/product-variant.dto';
+import { ProductTag } from './product-tag.entity';
+import { CreateProductTagDto, ReplaceProductTagsDto, UpdateProductTagDto } from './dto/product-tag.dto';
 
 // Utility helper to generate slug
 function generateSlug(name: string): string {
@@ -39,6 +41,9 @@ export class ProductsService {
 
         @InjectRepository(ProductTopping)
         private readonly toppings: Repository<ProductTopping>,
+
+        @InjectRepository(ProductTag)
+        private readonly tags: Repository<ProductTag>,
     ) {}
 
     // ── Categories CRUD ──────────────────────────────────────────────────────
@@ -90,9 +95,10 @@ export class ProductsService {
     }
 
     // ── Products CRUD ────────────────────────────────────────────────────────
-    async findAllProducts(): Promise<Product[]> {
+    async findAllProducts(tagSlug?: string): Promise<Product[]> {
         return this.products.find({
-            relations: { category: true, variants: true, toppings: true },
+            where: tagSlug ? { tags: { slug: tagSlug } } : undefined,
+            relations: { category: true, variants: true, toppings: true, tags: true },
             order: { name: 'ASC' },
         });
     }
@@ -100,7 +106,7 @@ export class ProductsService {
     async findProductById(id: string): Promise<Product> {
         const prod = await this.products.findOne({
             where: { id },
-            relations: { category: true, variants: true, toppings: true },
+            relations: { category: true, variants: true, toppings: true, tags: true },
         });
         if (!prod) throw new NotFoundException('Không tìm thấy sản phẩm');
         return prod;
@@ -202,6 +208,64 @@ export class ProductsService {
             if (normalized.length > 0) await repository.save(repository.create(normalized));
         });
         return this.findProductToppings(productId);
+    }
+
+    async findAllTags(): Promise<ProductTag[]> {
+        return this.tags.find({ order: { name: 'ASC' } });
+    }
+
+    async findTagById(id: string): Promise<ProductTag> {
+        const tag = await this.tags.findOne({ where: { id } });
+        if (!tag) throw new NotFoundException('Không tìm thấy tag sản phẩm');
+        return tag;
+    }
+
+    async createTag(dto: CreateProductTagDto): Promise<ProductTag> {
+        const name = dto.name.trim();
+        const slug = dto.slug?.trim() || generateSlug(name);
+        const existing = await this.tags.findOne({ where: [{ name }, { slug }] });
+        if (existing) throw new BadRequestException('Tên hoặc slug tag đã tồn tại');
+        return this.tags.save(this.tags.create({ name, slug }));
+    }
+
+    async updateTag(id: string, dto: UpdateProductTagDto): Promise<ProductTag> {
+        const tag = await this.findTagById(id);
+        const name = dto.name?.trim();
+        const slug = dto.slug?.trim() || (name ? generateSlug(name) : undefined);
+        if (name || slug) {
+            const existing = await this.tags.findOne({
+                where: [
+                    ...(name ? [{ name }] : []),
+                    ...(slug ? [{ slug }] : []),
+                ],
+            });
+            if (existing && existing.id !== id) {
+                throw new BadRequestException('Tên hoặc slug tag đã tồn tại');
+            }
+        }
+        Object.assign(tag, { ...(name ? { name } : {}), ...(slug ? { slug } : {}) });
+        return this.tags.save(tag);
+    }
+
+    async deleteTag(id: string): Promise<void> {
+        await this.tags.remove(await this.findTagById(id));
+    }
+
+    async findProductTags(productId: string): Promise<ProductTag[]> {
+        const product = await this.findProductById(productId);
+        return [...(product.tags || [])].sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+    }
+
+    async replaceProductTags(productId: string, dto: ReplaceProductTagsDto): Promise<ProductTag[]> {
+        await this.findProductById(productId);
+        const tags = dto.tagIds.length
+            ? await this.tags.createQueryBuilder('tag').where('tag.id IN (:...ids)', { ids: dto.tagIds }).getMany()
+            : [];
+        if (tags.length !== dto.tagIds.length) {
+            throw new BadRequestException('Một hoặc nhiều tag không tồn tại');
+        }
+        await this.products.createQueryBuilder().relation(Product, 'tags').of(productId).addAndRemove(dto.tagIds, await this.findProductTags(productId).then(items => items.map(item => item.id)));
+        return this.findProductTags(productId);
     }
 
     // ── Variants CRUD ────────────────────────────────────────────────────────

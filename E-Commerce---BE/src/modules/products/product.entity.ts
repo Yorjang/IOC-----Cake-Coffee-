@@ -1,7 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany, ManyToMany, JoinTable } from 'typeorm';
 import { Category } from './category.entity';
 import { ProductVariant } from './product-variant.entity';
 import { ProductTopping } from './product-topping.entity';
+import { ProductTag } from './product-tag.entity';
 
 export enum ProductType {
     CAKE = 'cake',
@@ -55,6 +56,14 @@ export class Product {
 
     @OneToMany(() => ProductTopping, (topping) => topping.product)
     toppings: ProductTopping[];
+
+    @ManyToMany(() => ProductTag, (tag) => tag.products)
+    @JoinTable({
+        name: 'product_tag_map',
+        joinColumn: { name: 'product_id', referencedColumnName: 'id' },
+        inverseJoinColumn: { name: 'tag_id', referencedColumnName: 'id' },
+    })
+    tags: ProductTag[];
 
     @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
     createdAt: Date;

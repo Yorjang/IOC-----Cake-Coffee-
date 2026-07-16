@@ -173,6 +173,16 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
   const [activeBanner, setActiveBanner] = useState(0);
   const [storeSearch, setStoreSearch] = useState("");
   const [selectedVoucher, setSelectedVoucher] = useState<any>(null);
+  const taggedSections = Array.from(
+    products.reduce((sections: Map<string, { tag: any; products: any[] }>, product: any) => {
+      for (const tag of product.raw?.tags || []) {
+        const section = sections.get(tag.id) || { tag, products: [] };
+        section.products.push(product);
+        sections.set(tag.id, section);
+      }
+      return sections;
+    }, new Map()).values(),
+  ) as Array<{ tag: any; products: any[] }>;
 
   const filteredStores = STORES.filter(s =>
     s.name.toLowerCase().includes(storeSearch.toLowerCase()) ||
@@ -314,6 +324,16 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
           </div>
         </div>
       </section>
+
+      {taggedSections.map(({ tag, products: taggedProducts }) => (
+        <Section key={tag.id} title={tag.name}>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {taggedProducts.slice(0, HOME_CONFIG.BEST_SELLERS_LIMIT).map(product => (
+              <ProductCard key={product.raw?.id || product[0]} p={product} onSelect={onSelectProduct} isWishlisted={wishlist.some((item: any) => item[0] === product[0])} onToggleWishlist={onToggleWishlist} onAddToCart={onAddToCart} />
+            ))}
+          </div>
+        </Section>
+      ))}
 
       {/* ── Best sellers ── */}
       <Section title={MESSAGES.SECTION_BESTSELLERS_TITLE} sub={MESSAGES.SECTION_BESTSELLERS_SUB} onViewAll={() => setView(VIEW_KEYS.SWEETS)}>
