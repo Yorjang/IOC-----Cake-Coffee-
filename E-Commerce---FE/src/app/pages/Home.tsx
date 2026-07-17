@@ -148,7 +148,7 @@ function VoucherDetailModal({ voucher, onClose }: any) {
             }}
             className="w-full bg-primary text-primary-foreground font-bold rounded-xl py-3 hover:bg-primary/90 transition"
           >
-            Lưu mã ngay
+            Đặt hàng ngay
           </button>
         </div>
       </div>
