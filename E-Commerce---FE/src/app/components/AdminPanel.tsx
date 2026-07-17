@@ -1391,6 +1391,7 @@ function AdminStoreMap() {
 
 function AdminInventory() {
   const [stocks, setStocks] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingStock, setEditingStock] = useState<any>(null);
   const [formQuantity, setFormQuantity] = useState("");
@@ -1417,8 +1418,24 @@ function AdminInventory() {
     }
   };
 
+  const loadBranches = async () => {
+    const token = localStorage.getItem("accessToken");
+    try {
+      const res = await fetch(`${env.API_URL}/branches`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBranches(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     loadInventory();
+    loadBranches();
   }, []);
 
   const handleEdit = (stock: any) => {
@@ -1471,11 +1488,7 @@ function AdminInventory() {
     return true;
   });
 
-  const uniqueBranchesMap = new Map();
-  stocks.forEach(s => {
-    if (s.branch) uniqueBranchesMap.set(s.branchId, s.branch.name);
-  });
-  const uniqueBranches = Array.from(uniqueBranchesMap.entries());
+
 
   const uniqueVariants = Array.from(new Set(stocks.map(s => s.variant?.variantName).filter(Boolean)));
 
@@ -1506,7 +1519,7 @@ function AdminInventory() {
             className="rounded-xl bg-sidebar px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
           >
             <option value="ALL">Tất cả chi nhánh</option>
-            {uniqueBranches.map(([id, name]) => <option key={id as string} value={id as string}>{name as string}</option>)}
+            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
 
           <select
@@ -3158,7 +3171,7 @@ export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUse
   };
 
   return (
-    <div className="dark min-h-screen bg-background text-foreground">
+    <div className="admin-theme min-h-screen bg-background text-foreground">
       {/* Admin top bar */}
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-sidebar-accent bg-background/95 px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-3">
