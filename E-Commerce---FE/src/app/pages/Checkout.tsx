@@ -22,12 +22,16 @@ export function Checkout({ cart, setView, onPlaceOrder, subtotal, discount, ship
   const [hasCustomerLocation, setHasCustomerLocation] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!cart || cart.length === 0) {
-      toast.error("Giỏ hàng trống! Không thể thực hiện thanh toán.");
-      setView(VIEW_KEYS.HOME);
-    }
-  }, [cart, setView]);
+  console.log("cart", cart);
+
+  console.log("cart111", cart.length !== 0);
+
+  // useEffect(() => {
+  //   if (!cart || cart.length === 0) {
+  //     toast.error("Giỏ hàng trống! Không thể thực hiện thanh toán.");
+  //     setView(VIEW_KEYS.HOME);
+  //   }
+  // }, [cart, setView]);
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -143,9 +147,8 @@ export function Checkout({ cart, setView, onPlaceOrder, subtotal, discount, ship
               <button
                 type="button"
                 onClick={() => setFulfillmentType("delivery")}
-                className={`flex flex-col items-center gap-2 rounded-xl border p-4 transition ${
-                  fulfillmentType === "delivery" ? "border-primary bg-primary/5 text-primary" : "hover:bg-muted text-muted-foreground"
-                }`}
+                className={`flex flex-col items-center gap-2 rounded-xl border p-4 transition ${fulfillmentType === "delivery" ? "border-primary bg-primary/5 text-primary" : "hover:bg-muted text-muted-foreground"
+                  }`}
               >
                 <Truck size={20} />
                 <span className="text-sm font-semibold">Giao hàng tận nơi</span>
@@ -153,9 +156,8 @@ export function Checkout({ cart, setView, onPlaceOrder, subtotal, discount, ship
               <button
                 type="button"
                 onClick={() => setFulfillmentType("pickup")}
-                className={`flex flex-col items-center gap-2 rounded-xl border p-4 transition ${
-                  fulfillmentType === "pickup" ? "border-primary bg-primary/5 text-primary" : "hover:bg-muted text-muted-foreground"
-                }`}
+                className={`flex flex-col items-center gap-2 rounded-xl border p-4 transition ${fulfillmentType === "pickup" ? "border-primary bg-primary/5 text-primary" : "hover:bg-muted text-muted-foreground"
+                  }`}
               >
                 <Store size={20} />
                 <span className="text-sm font-semibold">Nhận tại cửa hàng</span>
@@ -166,10 +168,10 @@ export function Checkout({ cart, setView, onPlaceOrder, subtotal, discount, ship
           {/* Recipient Details */}
           <section className="rounded-2xl border bg-card p-6 space-y-4">
             <h3 className="font-semibold flex items-center gap-2 text-base">
-              {fulfillmentType === "delivery" ? <Truck size={18} /> : <Store size={18} />} 
+              {fulfillmentType === "delivery" ? <Truck size={18} /> : <Store size={18} />}
               Thông tin người nhận
             </h3>
-            
+
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Họ và tên</label>
               <input required type="text" placeholder="Họ tên người nhận" value={name} onChange={e => setName(e.target.value)} className="w-full rounded-xl border bg-input px-4 py-2.5 outline-none focus:border-primary text-sm" />

@@ -12,6 +12,7 @@ import { BannersModule } from './modules/banners/banners.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { CartModule } from './modules/cart/cart.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { CombosModule } from './modules/combos/combos.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
     InventoryModule,
     CartModule,
     PaymentsModule,
+    CombosModule,
   ],
   controllers: [],
   providers: [],
