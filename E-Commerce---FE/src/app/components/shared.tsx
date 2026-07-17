@@ -1,8 +1,6 @@
 import { Heart, Star } from "lucide-react";
-import { useState } from "react";
 import { MESSAGES } from "../../constants/messages";
 import { env } from "../../config/env";
-import { VIEW_KEYS } from "../../config/appConfig";
 
 export function Btn({ children, variant = "primary", disabled = false, onClick, small = false }: any) {
   const cls = variant === "primary"
@@ -34,8 +32,9 @@ export function getDiscountedPrice(originalPrice: number, productOrId: any, coup
 
   coupons.forEach(c => {
     const isProductMatch = !c.productId || c.productId === productId;
+    const isCategoryMatch = !c.categoriesId || c.categoriesId === productCategoryId;
     const isSizeMatch = !c.targetSize || !size || c.targetSize === size;
-    if (isProductMatch && isSizeMatch) {
+    if (isProductMatch && isCategoryMatch && isSizeMatch) {
       let discount = 0;
       if (c.discountType === 'percent') {
         discount = originalPrice * (Number(c.discountValue) / 100);

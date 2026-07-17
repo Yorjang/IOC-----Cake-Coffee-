@@ -44,7 +44,7 @@ export function StoreSelectionModal({
 }: StoreSelectionModalProps) {
   const [manualLocation, setManualLocation] = useState("");
   const [openOnly, setOpenOnly] = useState(true);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   const storeRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const filteredStores = useMemo(() => {

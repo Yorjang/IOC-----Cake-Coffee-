@@ -1,33 +1,15 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { toast } from "sonner";
-import { Truck, Gift, RefreshCw, Coffee, Clock, AlertCircle, MapPin, Copy, Check, Tag } from "lucide-react";
+import { Truck, Gift, RefreshCw, Coffee, Clock, AlertCircle, Check, Tag } from "lucide-react";
 import { heroBanners } from "../../data/mockData";
 import { ProductCard, Section } from "../components/shared";
 import { MESSAGES } from "../../constants/messages";
 import { env } from "../../config/env";
 import { HOME_CONFIG, VIEW_KEYS } from "../../config/appConfig";
 
-const VALUE_PROPS = [
-  { icon: Truck, title: "Freeship nội thành", sub: "Đơn từ 200.000đ trong bán kính 8km" },
-  { icon: Gift, title: "Tặng thiệp miễn phí", sub: "Áp dụng cho bánh sinh nhật đặt trước" },
-  { icon: RefreshCw, title: "Đổi bánh trong ngày", sub: "Nếu giao sai mẫu hoặc hư hỏng khi nhận" },
-  { icon: Coffee, title: "Combo cafe + bánh", sub: "Giảm thêm khi mua kèm đồ uống" },
-];
 
-const VOUCHERS = [
-  { code: "CAKE10", title: "Giảm 10% bánh ngọt", sub: "Không yêu cầu đơn tối thiểu" },
-  { code: "COFFEE20", title: "Giảm 20% cafe", sub: "Khi mua kèm bánh bất kỳ" },
-  { code: "NEWUSER50", title: "Giảm 50.000đ", sub: "Cho khách hàng mới" },
-];
 
-const STORES = [
-  { name: "Sweet Bean Quận 1", addr: "123 Nguyễn Huệ, Q.1", hours: "07:00 – 22:00" },
-  { name: "Sweet Bean Quận 3", addr: "45 Võ Văn Tần, Q.3", hours: "07:00 – 21:30" },
-  { name: "Sweet Bean Bình Thạnh", addr: "88 Xô Viết Nghệ Tĩnh, BT", hours: "08:00 – 21:00" },
-];
-
-function VoucherDetailModal({ voucher, onClose }: any) {
+function VoucherDetailModal({ voucher, products, onSelectProduct, setView, onClose }: any) {
   if (!voucher) return null;
   const d = voucher.rawData;
   const scopeProduct = d?.product;
@@ -35,14 +17,14 @@ function VoucherDetailModal({ voucher, onClose }: any) {
   const scopeLabel = d?.productId && scopeProduct
     ? 'Sản phẩm'
     : d?.categoriesId && scopeCategory
-    ? 'Danh mục'
-    : null;
+      ? 'Danh mục'
+      : null;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose} style={{ animation: 'fadeIn .2s ease' }}>
       <div className="bg-card w-full max-w-md rounded-2xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} style={{ animation: 'slideUp .25s ease' }}>
         <button onClick={onClose} className="absolute right-4 top-4 text-muted-foreground hover:text-foreground z-10">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
         </button>
 
         {/* Header */}
@@ -143,12 +125,22 @@ function VoucherDetailModal({ voucher, onClose }: any) {
           <button
             onClick={() => {
               navigator.clipboard.writeText(voucher.code);
-              toast.success("Đã lưu mã giảm giá!");
+              if (d?.productId) {
+                const p = products.find((p: any) => p[0] === d.productId || p.raw?.id === d.productId);
+                if (p) {
+                  onSelectProduct?.(p);
+                } else {
+                  setView?.(VIEW_KEYS.SWEETS);
+                }
+              } else {
+                // If it's a category or global voucher, just go to shop
+                setView?.(VIEW_KEYS.SWEETS);
+              }
               onClose();
             }}
             className="w-full bg-primary text-primary-foreground font-bold rounded-xl py-3 hover:bg-primary/90 transition"
           >
-            Lưu mã ngay
+            Đặt hàng ngay
           </button>
         </div>
       </div>
@@ -171,7 +163,6 @@ function VoucherRow({ code, title, sub, onClick }: any) {
 
 export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggleWishlist, products = [], categories = [], publicCoupons = [] }: any) {
   const [activeBanner, setActiveBanner] = useState(0);
-  const [storeSearch, setStoreSearch] = useState("");
   const [selectedVoucher, setSelectedVoucher] = useState<any>(null);
   const taggedSections = Array.from(
     products.reduce((sections: Map<string, { tag: any; products: any[] }>, product: any) => {
@@ -184,19 +175,12 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
     }, new Map()).values(),
   ) as Array<{ tag: any; products: any[] }>;
 
-  const filteredStores = STORES.filter(s =>
-    s.name.toLowerCase().includes(storeSearch.toLowerCase()) ||
-    s.addr.toLowerCase().includes(storeSearch.toLowerCase())
-  );
-
-  const displayVouchers = publicCoupons.length > 0 
-    ? publicCoupons.slice(0, 3).map((c: any) => ({
-        code: c.code,
-        title: c.description || (c.minOrderValue > 0 ? `Đơn từ ${Number(c.minOrderValue).toLocaleString()}đ` : 'Không yêu cầu đơn tối thiểu'),
-        sub: c.name || `Giảm ${c.discountType === 'percent' ? Number(c.discountValue) + '%' : Number(c.discountValue).toLocaleString() + 'đ'}`,
-        rawData: c
-      }))
-    : VOUCHERS.map(v => ({ ...v, rawData: null }));
+  const displayVouchers = publicCoupons.slice(0, 3).map((c: any) => ({
+    code: c.code,
+    title: c.description || (c.minOrderValue > 0 ? `Đơn từ ${Number(c.minOrderValue).toLocaleString()}đ` : 'Không yêu cầu đơn tối thiểu'),
+    sub: c.name || `Giảm ${c.discountType === 'percent' ? Number(c.discountValue) + '%' : Number(c.discountValue).toLocaleString() + 'đ'}`,
+    rawData: c
+  }));
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -241,12 +225,22 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
       {/* ── Value propositions strip ── */}
       <div className="border-b bg-background">
         <div className="w-full grid grid-cols-2 gap-px px-2 sm:px-4 lg:grid-cols-4 lg:px-4">
-          {VALUE_PROPS.map(({ icon: Icon, title, sub }) => (
-            <div key={title} className="flex items-center gap-3 py-5 px-2">
-              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"><Icon size={20} /></span>
-              <div><p className="text-sm font-semibold">{title}</p><p className="text-xs text-muted-foreground">{sub}</p></div>
-            </div>
-          ))}
+          <div className="flex items-center gap-3 py-5 px-2">
+            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"><Truck size={20} /></span>
+            <div><p className="text-sm font-semibold">Freeship nội thành</p><p className="text-xs text-muted-foreground">Đơn từ 200.000đ trong bán kính 3km</p></div>
+          </div>
+          <div className="flex items-center gap-3 py-5 px-2">
+            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"><Gift size={20} /></span>
+            <div><p className="text-sm font-semibold">Tặng thiệp miễn phí</p><p className="text-xs text-muted-foreground">Áp dụng cho bánh sinh nhật đặt trước</p></div>
+          </div>
+          <div className="flex items-center gap-3 py-5 px-2">
+            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"><RefreshCw size={20} /></span>
+            <div><p className="text-sm font-semibold">Đổi bánh trong ngày</p><p className="text-xs text-muted-foreground">Nếu giao sai mẫu hoặc hư hỏng khi nhận</p></div>
+          </div>
+          <div className="flex items-center gap-3 py-5 px-2">
+            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"><Coffee size={20} /></span>
+            <div><p className="text-sm font-semibold">Combo cafe + bánh</p><p className="text-xs text-muted-foreground">Giảm thêm khi mua kèm đồ uống</p></div>
+          </div>
         </div>
       </div>
 
@@ -370,7 +364,13 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
 
 
 
-      <VoucherDetailModal voucher={selectedVoucher} onClose={() => setSelectedVoucher(null)} />
+      <VoucherDetailModal
+        voucher={selectedVoucher}
+        products={products}
+        onSelectProduct={onSelectProduct}
+        setView={setView}
+        onClose={() => setSelectedVoucher(null)}
+      />
     </>
   );
 }
