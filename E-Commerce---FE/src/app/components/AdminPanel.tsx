@@ -1396,6 +1396,9 @@ function AdminInventory() {
   const [formQuantity, setFormQuantity] = useState("");
   const [formMinQuantity, setFormMinQuantity] = useState("");
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [branchFilter, setBranchFilter] = useState("ALL");
+  const [variantFilter, setVariantFilter] = useState("ALL");
 
   const loadInventory = async () => {
     const token = localStorage.getItem("accessToken");
@@ -1462,10 +1465,23 @@ function AdminInventory() {
       </div>
     );
   }
+  const filteredStocks = stocks.filter(s => {
+    if (branchFilter !== "ALL" && s.branchId !== branchFilter) return false;
+    if (variantFilter !== "ALL" && s.variant?.variantName !== variantFilter) return false;
+    return true;
+  });
 
-  const totalSKU = stocks.length;
-  const lowStock = stocks.filter(s => s.quantity <= s.minQuantity && s.quantity > 0).length;
-  const outOfStock = stocks.filter(s => s.quantity === 0).length;
+  const uniqueBranchesMap = new Map();
+  stocks.forEach(s => {
+    if (s.branch) uniqueBranchesMap.set(s.branchId, s.branch.name);
+  });
+  const uniqueBranches = Array.from(uniqueBranchesMap.entries());
+
+  const uniqueVariants = Array.from(new Set(stocks.map(s => s.variant?.variantName).filter(Boolean)));
+
+  const totalSKU = filteredStocks.length;
+  const lowStock = filteredStocks.filter(s => s.quantity <= s.minQuantity && s.quantity > 0).length;
+  const outOfStock = filteredStocks.filter(s => s.quantity === 0).length;
 
   const getStatus = (qty: number, min: number) => {
     if (qty === 0) return "Hết hàng";
@@ -1473,6 +1489,9 @@ function AdminInventory() {
     return "Đủ hàng";
   };
 
+  const ITEMS_PER_PAGE = 20;
+  const totalPages = Math.ceil(filteredStocks.length / ITEMS_PER_PAGE) || 1;
+  const paginatedStocks = filteredStocks.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1480,11 +1499,30 @@ function AdminInventory() {
           <h2 className="text-2xl font-semibold text-foreground">Tồn kho theo chi nhánh</h2>
           <p className="mt-1 text-sm text-muted-foreground">Cảnh báo sắp hết, hết hàng và sản phẩm gần hạn để nhân viên xử lý kịp thời.</p>
         </div>
+        <div className="flex gap-2">
+          <select
+            value={branchFilter}
+            onChange={e => { setBranchFilter(e.target.value); setPage(1); }}
+            className="rounded-xl bg-sidebar px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
+          >
+            <option value="ALL">Tất cả chi nhánh</option>
+            {uniqueBranches.map(([id, name]) => <option key={id as string} value={id as string}>{name as string}</option>)}
+          </select>
+
+          <select
+            value={variantFilter}
+            onChange={e => { setVariantFilter(e.target.value); setPage(1); }}
+            className="rounded-xl bg-sidebar px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
+          >
+            <option value="ALL">Tất cả biến thể</option>
+            {uniqueVariants.map(v => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         {[
-          ["Tổng SKU", String(totalSKU), `${new Set(stocks.map(s => s.branchId)).size} chi nhánh`],
+          ["Tổng SKU", String(totalSKU), `${new Set(filteredStocks.map(s => s.branchId)).size} chi nhánh`],
           ["Sắp hết hàng", String(lowStock), "Cần nhập hàng sớm"],
           ["Hết hàng", String(outOfStock), "Ẩn khỏi menu bán hàng"],
         ].map(([label, value, sub], index) => (
@@ -1503,7 +1541,7 @@ function AdminInventory() {
         <table className="w-full text-sm">
           <TableHeader cols={["Chi nhánh", "Biến thể", "SKU", "Tồn", "Tối thiểu", "Trạng thái", "Thao tác"]} />
           <tbody>
-            {stocks.map(row => {
+            {paginatedStocks.map(row => {
               const status = getStatus(row.quantity, row.minQuantity);
               return (
                 <tr key={row.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
@@ -1519,7 +1557,7 @@ function AdminInventory() {
                 </tr>
               );
             })}
-            {stocks.length === 0 && (
+            {filteredStocks.length === 0 && (
               <tr>
                 <td colSpan={7} className="py-8 text-center text-muted-foreground">
                   Không có dữ liệu tồn kho.
@@ -1528,6 +1566,18 @@ function AdminInventory() {
             )}
           </tbody>
         </table>
+
+        {totalPages > 1 && (
+          <div className="mt-5 flex items-center justify-between border-t border-sidebar-accent pt-4">
+            <span className="text-xs text-muted-foreground">
+              Hiển thị {(page - 1) * ITEMS_PER_PAGE + 1} - {Math.min(page * ITEMS_PER_PAGE, filteredStocks.length)} trong {filteredStocks.length}
+            </span>
+            <div className="flex gap-2">
+              <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold hover:bg-secondary/80 disabled:opacity-50">Trước</button>
+              <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold hover:bg-secondary/80 disabled:opacity-50">Sau</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {editingStock && (
@@ -2752,7 +2802,7 @@ function AdminBanners() {
   const handleDelete = async (id: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa banner này không?")) return;
     const token = localStorage.getItem("accessToken");
-    const banner = banners.find((b: any) => b.id === id);
+    const banner = bannersList.find((b: any) => b.id === id);
     try {
       const res = await fetch(`${env.API_URL}/banners/${id}`, {
         method: "DELETE",
