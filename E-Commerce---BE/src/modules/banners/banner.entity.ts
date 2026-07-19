@@ -8,6 +8,9 @@ export class Banner {
   @Column({ length: 255 })
   title: string;
 
+  @Column({ type: 'text', nullable: true })
+  subtitle: string;
+
   @Column({ name: 'image_url', type: 'text' })
   imageUrl: string;
 

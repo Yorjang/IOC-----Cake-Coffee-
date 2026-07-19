@@ -15,8 +15,9 @@ export class BannersService {
     return this.banners.find({ order: { sortOrder: 'ASC', createdAt: 'DESC' } });
   }
 
+  async findPublicActive(): Promise<Banner[]> { return this.banners.find({ where: { isActive: true }, order: { sortOrder: 'ASC', createdAt: 'DESC' } }); }
   async create(dto: CreateBannerDto): Promise<Banner> {
-    const { title, imageUrl, linkUrl, sortOrder, isActive, startsAt, expiresAt } = dto;
+    const { title, subtitle, imageUrl, linkUrl, sortOrder, isActive, startsAt, expiresAt } = dto;
     const banner = this.banners.create({
       title: title || 'Banner mới',
       imageUrl,
@@ -25,6 +26,7 @@ export class BannersService {
       isActive: isActive ?? true,
       startsAt: startsAt ? new Date(startsAt) : null,
       expiresAt: expiresAt ? new Date(expiresAt) : null,
+      subtitle: subtitle?.trim() || null,
     });
     return this.banners.save(banner);
   }
@@ -37,6 +39,7 @@ export class BannersService {
     banner.isActive = isActive;
     return this.banners.save(banner);
   }
+  async update(id: string, dto: CreateBannerDto): Promise<Banner> { const banner = await this.banners.findOne({ where: { id } }); if (!banner) throw new BadRequestException('Banner not found.'); banner.title = dto.title?.trim() || banner.title; banner.subtitle = dto.subtitle?.trim() || null; banner.imageUrl = dto.imageUrl; banner.linkUrl = dto.linkUrl?.trim() || ''; banner.sortOrder = Number(dto.sortOrder ?? banner.sortOrder); banner.isActive = dto.isActive ?? banner.isActive; return this.banners.save(banner); }
 
   async delete(id: string): Promise<{ message: string }> {
     const banner = await this.banners.findOne({ where: { id } });

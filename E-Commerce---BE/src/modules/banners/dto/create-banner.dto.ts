@@ -6,6 +6,10 @@ export class CreateBannerDto {
   title?: string;
 
   @IsString()
+  @IsString()
+  @IsOptional()
+  subtitle?: string;
+
   @IsNotEmpty({ message: 'Vui lòng chọn hình ảnh banner.' })
   imageUrl: string;
 

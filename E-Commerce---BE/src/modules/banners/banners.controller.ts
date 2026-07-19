@@ -3,6 +3,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/constants/permissions';
+import { Public } from '../../common/decorators/public.decorator';
 import { BannersService } from './banners.service';
 import { CreateBannerDto } from './dto/create-banner.dto';
 
@@ -10,6 +11,12 @@ import { CreateBannerDto } from './dto/create-banner.dto';
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class BannersController {
   constructor(private readonly bannersService: BannersService) {}
+  @Get('public')
+  @Public()
+  findPublicActive() {
+    return this.bannersService.findPublicActive();
+  }
+
 
   @Get()
   @Permissions(Permission.VIEW_BRANCHES) // Staff, managers, admins
@@ -21,6 +28,11 @@ export class BannersController {
   @Permissions(Permission.MANAGE_BRANCHES) // Managers and admins only
   create(@Body() dto: CreateBannerDto) {
     return this.bannersService.create(dto);
+  }
+  @Patch(':id')
+  @Permissions(Permission.MANAGE_BRANCHES)
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: CreateBannerDto) {
+    return this.bannersService.update(id, dto);
   }
 
   @Patch(':id/active')

@@ -171,6 +171,7 @@ function VoucherRow({ code, title, sub, onClick }: any) {
 
 export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggleWishlist, products = [], categories = [], publicCoupons = [] }: any) {
   const [activeBanner, setActiveBanner] = useState(0);
+  const [banners, setBanners] = useState<Array<{ src: string; alt: string; title?: string; subtitle?: string; linkUrl?: string }>>(heroBanners);
   const [storeSearch, setStoreSearch] = useState("");
   const [selectedVoucher, setSelectedVoucher] = useState<any>(null);
   const taggedSections = Array.from(
@@ -198,19 +199,22 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
       }))
     : VOUCHERS.map(v => ({ ...v, rawData: null }));
 
+  useEffect(() => { let cancelled = false; fetch(`${env.API_URL}/banners/public`).then(response => response.ok ? response.json() : Promise.reject(response.status)).then(data => { const next = Array.isArray(data) ? data.filter((banner: any) => banner.imageUrl).map((banner: any) => ({ src: banner.imageUrl, alt: banner.title || "Sweet Bean promotion", title: banner.title, subtitle: banner.subtitle, linkUrl: banner.linkUrl })) : []; if (!cancelled && next.length) { setBanners(next); setActiveBanner(0); } }).catch(() => {}); return () => { cancelled = true; }; }, []);
+
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setActiveBanner((current) => (current + 1) % heroBanners.length);
+      setActiveBanner((current) => (current + 1) % banners.length);
     }, HOME_CONFIG.HERO_ROTATION_MS);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [banners.length]);
 
+  const currentBanner = banners[activeBanner];
   return (
     <>
       {/* ── Hero banner ── */}
       <section className="relative w-full overflow-hidden">
         <div className="relative h-[430px] w-full md:h-[520px]">
-          {heroBanners.map((banner, index) => (
+          {banners.map((banner, index) => (
             <img key={banner.src} src={banner.src} alt={banner.alt}
               className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${activeBanner === index ? "opacity-100" : "opacity-0"}`} />
           ))}
@@ -219,11 +223,15 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
         <div className="absolute inset-0 bg-black/20" />
         <div className="absolute inset-0 flex w-full flex-col justify-center px-2 sm:px-4 lg:px-4">
           <p className="font-mono text-xs uppercase tracking-[.3em] text-primary-foreground/85 drop-shadow">{env.APP_NAME}</p>
-          <h1 className="mt-4 max-w-2xl text-4xl leading-tight text-primary-foreground drop-shadow-[0_3px_14px_rgba(0,0,0,0.65)] md:text-6xl whitespace-pre-line">{MESSAGES.HERO_TITLE}</h1>
-          <p className="mt-4 max-w-lg text-base leading-7 text-primary-foreground/85 drop-shadow md:text-lg">{MESSAGES.HERO_SUBTITLE}</p>
+          <h1 className="mt-4 max-w-2xl text-4xl leading-tight text-primary-foreground drop-shadow-[0_3px_14px_rgba(0,0,0,0.65)] md:text-6xl whitespace-pre-line">{currentBanner?.title || MESSAGES.HERO_TITLE}</h1>
+          <p className="mt-4 max-w-lg text-base leading-7 text-primary-foreground/85 drop-shadow md:text-lg">{currentBanner?.subtitle || MESSAGES.HERO_SUBTITLE}</p>
           <div className="mt-7 flex flex-wrap gap-3">
             <button onClick={() => setView(VIEW_KEYS.SWEETS)} className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 shadow-lg">{MESSAGES.HERO_BUTTON_ORDER}</button>
-            <button onClick={() => setView(VIEW_KEYS.DRINKS)} className="rounded-full border border-primary-foreground/40 bg-primary-foreground/10 px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary-foreground/20 backdrop-blur">{MESSAGES.HERO_BUTTON_EXPLORE}</button>
+            {currentBanner?.linkUrl ? (
+              <a href={currentBanner.linkUrl} className="rounded-full border border-primary-foreground/40 bg-primary-foreground/10 px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary-foreground/20 backdrop-blur">{"Tham gia ch\u01B0\u01A1ng tr\u00ECnh"}</a>
+            ) : (
+              <button onClick={() => setView(VIEW_KEYS.DRINKS)} className="rounded-full border border-primary-foreground/40 bg-primary-foreground/10 px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary-foreground/20 backdrop-blur">{MESSAGES.HERO_BUTTON_EXPLORE}</button>
+            )}
           </div>
           <div className="mt-6 inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-primary-foreground/25 bg-sidebar/55 px-4 py-2 text-xs text-primary-foreground/90 shadow-lg backdrop-blur">
             <span className="size-2 rounded-full bg-green-400 animate-pulse" />
@@ -231,7 +239,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
           </div>
         </div>
         <div className="absolute bottom-5 left-1/2 z-10 flex w-full -translate-x-1/2 gap-2 px-2 sm:px-4 lg:px-4">
-          {heroBanners.map((banner, index) => (
+          {banners.map((banner, index) => (
             <button key={banner.alt} type="button" aria-label={`Chuyển sang banner ${index + 1}`} onClick={() => setActiveBanner(index)}
               className={`h-2.5 rounded-full transition-all ${activeBanner === index ? "w-8 bg-primary" : "w-2.5 bg-primary-foreground/60 hover:bg-primary-foreground"}`} />
           ))}
