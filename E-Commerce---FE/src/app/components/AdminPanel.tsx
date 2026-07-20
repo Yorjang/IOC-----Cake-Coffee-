@@ -2,9 +2,9 @@ import { useState } from "react";
 import {
   LayoutDashboard, Package, Tag, Settings, ShoppingBag, Users, Star,
   BarChart2, Image, Edit, Trash2, Eye, Plus, CheckCircle, XCircle,
-  TrendingUp, AlertCircle, Loader2, ToggleLeft, Search, Filter,
-  ArrowUpRight, DollarSign, Clock, ChevronDown, Store, MapPin, Boxes,
-  ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
+  TrendingUp, AlertCircle, Loader2, Search,
+  ArrowUpRight, DollarSign, Clock, Store, MapPin, Boxes,
+  UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
 } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
@@ -29,7 +29,7 @@ function ImageUploader({ label, value, onChange }: { label: string; value: strin
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `products/${fileName}`;
 
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from('cakeandcoffee')
         .upload(filePath, file, {
           cacheControl: '3600',

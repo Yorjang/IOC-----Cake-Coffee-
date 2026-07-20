@@ -66,7 +66,8 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
 
   const variantPrice = Number(selectedVariant?.price || 0);
   const unitPrice = Math.max(0, variantPrice + toppingsPrice);
-  const { discountedPrice, discountAmount, bestCoupon } = getDiscountedPrice(unitPrice, p.raw, publicCoupons, selectedVariant?.size || "");
+  const selectedSize = selectedVariant?.size || selectedVariant?.variantName || "";
+  const { discountedPrice, discountAmount, bestCoupon } = getDiscountedPrice(unitPrice, p.raw, publicCoupons, selectedSize);
   const totalPriceStr = formatPrice(discountedPrice * quantity);
 
   const toggleTopping = (name: string) => {

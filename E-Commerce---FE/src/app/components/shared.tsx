@@ -32,8 +32,11 @@ export function getDiscountedPrice(originalPrice: number, productOrId: any, coup
 
   coupons.forEach(c => {
     const isProductMatch = !c.productId || c.productId === productId;
-    const isCategoryMatch = !c.categoriesId || c.categoriesId === productCategoryId;
-    const isSizeMatch = !c.targetSize || !size || c.targetSize === size;
+    const isCategoryMatch = !c.categoriesId || (productCategoryId && c.categoriesId === productCategoryId);
+    const isSizeMatch = !c.targetSize || (size && (
+      size.toLowerCase().trim() === c.targetSize.toLowerCase().trim() ||
+      size.toLowerCase().trim().startsWith(c.targetSize.toLowerCase().trim())
+    ));
     if (isProductMatch && isCategoryMatch && isSizeMatch) {
       let discount = 0;
       if (c.discountType === 'percent') {

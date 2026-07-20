@@ -57,7 +57,7 @@ export function AdminLoginPage({ onSuccess, onBack }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-sidebar flex items-center justify-center p-4">
+    <div className="admin-theme min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 text-center">
@@ -77,7 +77,7 @@ export function AdminLoginPage({ onSuccess, onBack }: Props) {
         </div>
 
         {/* Form */}
-        <div className="rounded-2xl border bg-background p-8 shadow-xl">
+        <div className="rounded-2xl border bg-card p-8 shadow-xl">
           <h2 className="mb-6 text-xl font-semibold text-foreground">Đăng nhập quản trị</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">

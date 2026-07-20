@@ -243,7 +243,6 @@ export default function App() {
     return window.location.pathname === "/" && !localStorage.getItem(STORE_STORAGE_KEY);
   });
   const [manualLocationRequired, setManualLocationRequired] = useState(false);
-  const [orderCode, setOrderCode] = useState("");
   const [lastCreatedOrder, setLastCreatedOrder] = useState<any>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
@@ -652,7 +651,6 @@ export default function App() {
 
   // ── Cart / Wishlist handlers ─────────────────────────────────────────────
   const handleAddToCart = async (product: any, size = "Vừa", qty = 1, options?: any, price?: number, selectedVariantId?: string) => {
-    const token = getAccessToken();
     const rawProduct = product.raw;
     const productId = rawProduct?.id;
     
@@ -720,7 +718,6 @@ export default function App() {
   };
 
   const handleUpdateCartQty = async (index: number, newQty: number) => {
-    const token = getAccessToken();
     const item = cart[index];
     if (!item) return;
     const previousQty = item.quantity;
@@ -748,7 +745,6 @@ export default function App() {
   };
 
   const handleRemoveCartItem = async (index: number) => {
-    const token = getAccessToken();
     const item = cart[index];
     if (!item) return;
 
