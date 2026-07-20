@@ -64,7 +64,7 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
     }
     const found = publicCoupons.find((c: any) => c.code.toUpperCase().trim() === coupon.toUpperCase().trim());
     if (!found) {
-      toast.error("Mã giảm giá không hợp lệ hoặc đã hết hạn.");
+      toast.error("Mã giảm giá không hợp lệ, đã hết hạn hoặc bạn đã sử dụng rồi.");
       return;
     }
 
@@ -164,6 +164,10 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
         return prod.categoryId === c.categoriesId || prod.categoriesId === c.categoriesId || prod.category?.id === c.categoriesId;
       });
       if (!hasCategory) isApplicable = false;
+    }
+    if (isApplicable && c.targetSize) {
+      const hasSize = cart.some((item: any) => matchSize(item.size, c.targetSize));
+      if (!hasSize) isApplicable = false;
     }
     return { ...c, isApplicable };
   }).sort((a: any, b: any) => {

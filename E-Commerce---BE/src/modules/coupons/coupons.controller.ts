@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { Permissions } from '../../common/decorators/permissions.decorator';
@@ -15,9 +15,11 @@ export class CouponsController {
 
   @Get('public')
   @Public()
-  findPublicActive() {
-    return this.couponsService.findPublicActive();
+  findPublicActive(@Req() req: any, @Query('userId') userIdQuery?: string) {
+    const userId = req.user?.id || userIdQuery;
+    return this.couponsService.findPublicActive(userId);
   }
+
 
   @Get()
   @Permissions(Permission.VIEW_BRANCHES) // Staff, managers, admins

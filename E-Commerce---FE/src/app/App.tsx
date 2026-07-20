@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, Suspense, lazy, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { Toaster } from "./components/ui/sonner";
 
@@ -273,38 +273,57 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (appliedCoupon && cart.length > 0) {
-      const currentSubtotal = cart.reduce((s, i) => s + (i.price || parsePrice(i.product[1])) * i.quantity, 0);
-      const minOrderVal = Number(appliedCoupon.minOrderValue || 0);
-      if (currentSubtotal < minOrderVal) {
-        setAppliedCoupon(null);
-        toast.error("Voucher đã bị hủy do giỏ hàng không đủ điều kiện đơn hàng tối thiểu.");
-        return;
-      }
-      
-      if (appliedCoupon.productId) {
-        const hasProduct = cart.some((item: any) => (item.productId || item.product?.raw?.id) === appliedCoupon.productId);
-        if (!hasProduct) {
+    if (appliedCoupon) {
+      if (user && Array.isArray(publicCoupons) && publicCoupons.length >= 0) {
+        const isStillValid = publicCoupons.some(c => c.code?.toUpperCase()?.trim() === appliedCoupon.code?.toUpperCase()?.trim());
+        if (!isStillValid) {
           setAppliedCoupon(null);
-          toast.error("Voucher đã bị hủy do sản phẩm áp dụng không còn trong giỏ hàng.");
           return;
         }
       }
-      
-      if (appliedCoupon.categoriesId) {
-        const hasCategory = cart.some((item: any) => {
-          const prod = item.product?.raw;
-          if (!prod) return false;
-          return prod.categoryId === appliedCoupon.categoriesId || prod.categoriesId === appliedCoupon.categoriesId || prod.category?.id === appliedCoupon.categoriesId;
-        });
-        if (!hasCategory) {
+      if (cart.length > 0) {
+        const currentSubtotal = cart.reduce((s, i) => s + (i.price || parsePrice(i.product[1])) * i.quantity, 0);
+        const minOrderVal = Number(appliedCoupon.minOrderValue || 0);
+        if (currentSubtotal < minOrderVal) {
           setAppliedCoupon(null);
-          toast.error("Voucher đã bị hủy do không còn sản phẩm thuộc danh mục áp dụng trong giỏ hàng.");
+          toast.error("Voucher đã bị hủy do giỏ hàng không đủ điều kiện đơn hàng tối thiểu.");
           return;
+        }
+        
+        if (appliedCoupon.productId) {
+          const hasProduct = cart.some((item: any) => (item.productId || item.product?.raw?.id) === appliedCoupon.productId);
+          if (!hasProduct) {
+            setAppliedCoupon(null);
+            toast.error("Voucher đã bị hủy do sản phẩm áp dụng không còn trong giỏ hàng.");
+            return;
+          }
+        }
+        
+        if (appliedCoupon.categoriesId) {
+          const hasCategory = cart.some((item: any) => {
+            const prod = item.product?.raw;
+            if (!prod) return false;
+            return prod.categoryId === appliedCoupon.categoriesId || prod.categoriesId === appliedCoupon.categoriesId || prod.category?.id === appliedCoupon.categoriesId;
+          });
+          if (!hasCategory) {
+            setAppliedCoupon(null);
+            toast.error("Voucher đã bị hủy do không còn sản phẩm thuộc danh mục áp dụng trong giỏ hàng.");
+            return;
+          }
+        }
+        
+        if (appliedCoupon.targetSize) {
+          const hasSize = cart.some((item: any) => matchSize(item.size, appliedCoupon.targetSize));
+          if (!hasSize) {
+            setAppliedCoupon(null);
+            toast.error(`Voucher đã bị hủy do giỏ hàng không có sản phẩm size ${appliedCoupon.targetSize}.`);
+            return;
+          }
         }
       }
     }
-  }, [cart, appliedCoupon]);
+  }, [cart, appliedCoupon, publicCoupons, user]);
+
 
 
   const fetchCart = async (branchId: string, token = getAccessToken()) => {
@@ -336,37 +355,45 @@ export default function App() {
   const cartUrl = (path = "") =>
     `${env.API_URL}/cart${path}?branchId=${selectedStore.id}`;
 
-  useEffect(() => {
-    (async () => {
+  const loadPublicData = useCallback(async () => {
+    try {
+      let couponsList: any[] = [];
       try {
-        let couponsList: any[] = [];
-        try {
-          const couponRes = await fetch(`${env.API_URL}/coupons/public`);
-          if (couponRes.ok) {
-            couponsList = await couponRes.json();
-            setPublicCoupons(couponsList);
-          }
-        } catch (err) {
-          console.error("Lỗi khi tải vouchers:", err);
+        const token = getAccessToken();
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
         }
-
-        const [pRes, cRes] = await Promise.all([
-          fetch(`${env.API_URL}/products`),
-          fetch(`${env.API_URL}/products/categories`),
-        ]);
-        if (pRes.ok) {
-          const apiProducts = await pRes.json();
-          setProducts(apiProducts.map(p => apiProductToArray(p, couponsList)));
+        const couponRes = await fetch(`${env.API_URL}/coupons/public`, { headers });
+        if (couponRes.ok) {
+          couponsList = await couponRes.json();
+          setPublicCoupons(couponsList);
         }
-        if (cRes.ok) {
-          const apiCategories = await cRes.json();
-          setCategories(apiCategories.map(apiCategoryToLegacy));
-        }
-      } catch {
-        // Keep empty fallback data if the API is unavailable.
+      } catch (err) {
+        console.error("Lỗi khi tải vouchers:", err);
       }
-    })();
+
+      const [pRes, cRes] = await Promise.all([
+        fetch(`${env.API_URL}/products`),
+        fetch(`${env.API_URL}/products/categories`),
+      ]);
+      if (pRes.ok) {
+        const apiProducts = await pRes.json();
+        setProducts(apiProducts.map(p => apiProductToArray(p, couponsList)));
+      }
+      if (cRes.ok) {
+        const apiCategories = await cRes.json();
+        setCategories(apiCategories.map(apiCategoryToLegacy));
+      }
+    } catch {
+      // Keep empty fallback data if the API is unavailable.
+    }
   }, []);
+
+  useEffect(() => {
+    loadPublicData();
+  }, [user, loadPublicData]);
+
 
   useEffect(() => {
     if (!showStorePopup) return;
@@ -867,6 +894,7 @@ export default function App() {
       setCart([]);
       setAppliedCoupon(null);
       toast.success("Đặt hàng thành công!");
+      loadPublicData();
       setView(VIEW_KEYS.SUCCESS);
     } catch (err: any) {
       console.error(err);

@@ -44,20 +44,44 @@ export class CouponsService implements OnModuleInit {
     })) as any;
   }
 
-  async findPublicActive(): Promise<Coupon[]> {
+  async findPublicActive(userId?: string): Promise<Coupon[]> {
     const coupons = await this.coupons.find({
       where: { status: CouponStatus.ACTIVE },
       relations: { product: { category: true }, category: true },
       order: { createdAt: 'DESC' },
     });
     const now = new Date();
-    return coupons
-      .filter(c => new Date(c.expiresAt) > now)
-      .map(c => ({
-        ...c,
-        isActive: true,
-      })) as any;
+    let activeCoupons = coupons.filter(c => new Date(c.expiresAt) > now);
+
+    if (userId) {
+      try {
+        const userOrders = await this.coupons.query(
+          `SELECT coupon_code, COUNT(*) as count FROM orders WHERE user_id = $1 AND order_status != 'cancelled' AND coupon_code IS NOT NULL GROUP BY coupon_code`,
+          [userId]
+        );
+        const usedCountsMap = new Map<string, number>();
+        for (const row of userOrders) {
+          if (row.coupon_code) {
+            usedCountsMap.set(row.coupon_code.toUpperCase().trim(), Number(row.count || 0));
+          }
+        }
+
+        activeCoupons = activeCoupons.filter(c => {
+          const perLimit = Number(c.perCustomerLimit ?? 1);
+          const usedCount = usedCountsMap.get(c.code.toUpperCase().trim()) || 0;
+          return usedCount < perLimit;
+        });
+      } catch (err) {
+        console.error('Error filtering used coupons for user:', err);
+      }
+    }
+
+    return activeCoupons.map(c => ({
+      ...c,
+      isActive: true,
+    })) as any;
   }
+
 
 
   async create(dto: CreateCouponDto): Promise<Coupon> {
