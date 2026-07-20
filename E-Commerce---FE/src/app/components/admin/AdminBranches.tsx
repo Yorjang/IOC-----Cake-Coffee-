@@ -1,15 +1,8 @@
 import React, { useState, useEffect } from "react";
-import {
-  LayoutDashboard, Package, Tag, Settings, ShoppingBag, Users, Star,
-  BarChart2, Image, Edit, Trash2, Eye, Plus, CheckCircle, XCircle,
-  TrendingUp, AlertCircle, Loader2, ToggleLeft, Search, Filter,
-  ArrowUpRight, DollarSign, Clock, ChevronDown, Store, MapPin, Boxes,
-  ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
-} from "lucide-react";
+import { Plus, MapPin, Clock, Users, Edit, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { env } from "../../../config/env";
-import { supabase } from "../../../config/supabase";
-import { ImageUploader, StatusBadge, AdminBtn, TableHeader, WEEK_DAYS, defaultOpeningHours } from "./AdminShared";
+import { StatusBadge, AdminBtn, WEEK_DAYS, defaultOpeningHours } from "./AdminShared";
 
 export function AdminBranches({ adminUser }: { adminUser?: any }) {
   const [branchRows, setBranchRows] = useState<any[]>([]);

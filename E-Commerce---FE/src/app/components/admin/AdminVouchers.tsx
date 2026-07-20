@@ -1,16 +1,9 @@
 
 import React, { useState, useEffect } from "react";
-import {
-  LayoutDashboard, Package, Tag, Settings, ShoppingBag, Users, Star,
-  BarChart2, Image, Edit, Trash2, Eye, Plus, CheckCircle, XCircle,
-  TrendingUp, AlertCircle, Loader2, ToggleLeft, Search, Filter,
-  ArrowUpRight, DollarSign, Clock, ChevronDown, Store, MapPin, Boxes,
-  ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
-} from "lucide-react";
+import { Edit, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { env } from "../../../config/env";
-import { supabase } from "../../../config/supabase";
-import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
+import { StatusBadge, TableHeader } from "./AdminShared";
 
 export function AdminVouchers() {
   const [coupons, setCoupons] = useState<any[]>([]);
