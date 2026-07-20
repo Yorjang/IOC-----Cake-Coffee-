@@ -1,3 +1,4 @@
+import { parseRes } from '../../../../utils/api';
 import { useEffect, useState, useRef, useMemo } from "react";
 import { toast } from "sonner";
 import { navPages } from "../../../../data/mockData";
@@ -294,7 +295,7 @@ export function useAppInit() {
         headers,
       });
       if (res.ok) {
-        const dbCart = await res.json();
+        const dbCart = await parseRes(res);
         const legacyCart = mapDbCartToLegacy(dbCart.items || []);
         setCart(legacyCart);
       }
@@ -353,7 +354,7 @@ export function useAppInit() {
       try {
         const res = await fetch(`${env.API_URL}/branches/active`);
         if (!res.ok) return;
-        const branches = await res.json();
+        const branches = await parseRes(res);
         const statusById = new Map(
           branches.map((branch: any) => [branch.id, apiBranchToStore(branch)]),
         );
@@ -397,7 +398,7 @@ export function useAppInit() {
         const res = await fetch(`${env.API_URL}/branches/active`);
         if (!res.ok) throw new Error("Cannot load branches");
 
-        const apiBranches = await res.json();
+        const apiBranches = await parseRes(res);
         const stores = Array.isArray(apiBranches) ? apiBranches.map(apiBranchToStore) : [];
         if (cancelled || loadedNearbyBranches || stores.length === 0) return;
 
@@ -421,7 +422,7 @@ export function useAppInit() {
             const res = await fetch(`${env.API_URL}/branches/nearby?lat=${latitude}&lng=${longitude}`);
             if (!res.ok) return;
 
-            const nearbyBranches = await res.json();
+            const nearbyBranches = await parseRes(res);
             const storesWithDistance = Array.isArray(nearbyBranches)
               ? nearbyBranches.map(apiBranchToStore)
               : [apiBranchToStore(nearbyBranches)];
@@ -485,7 +486,7 @@ export function useAppInit() {
     (async () => {
       try {
         const res = await fetch(`${env.API_URL}/auth/verify-email?token=${token}`);
-        const data = await res.json();
+        const data = await parseRes(res);
         if (!res.ok) throw new Error(data.message || "Xác thực email thất bại");
         toast.success("Xác thực email thành công! Bạn có thể đăng nhập ngay.");
         setView(VIEW_KEYS.LOGIN);
@@ -596,7 +597,7 @@ export function useAppInit() {
           },
         });
         if (res.ok) {
-          const dbCart = await res.json();
+          const dbCart = await parseRes(res);
           setCart(mapDbCartToLegacy(dbCart.items || []));
         }
       } catch (err) {
@@ -684,7 +685,7 @@ export function useAppInit() {
           note: optionsKey,
         }),
       });
-      const result = await res.json();
+      const result = await parseRes(res);
       if (!res.ok) throw new Error(result.message || "Không thể cập nhật giỏ hàng");
       setCart(prev => prev.map(item =>
         matchesItem(item) ? { ...item, dbId: result.itemId } : item,
@@ -717,7 +718,7 @@ export function useAppInit() {
         headers: cartHeaders(true),
         body: JSON.stringify({ quantity: newQty }),
       });
-      const result = await res.json();
+      const result = await parseRes(res);
       if (!res.ok) throw new Error(result.message || "Không thể cập nhật số lượng");
     } catch (err: any) {
       setCart(prev => prev.map(current =>
@@ -741,7 +742,7 @@ export function useAppInit() {
         method: "DELETE",
         headers: cartHeaders(),
       });
-      const result = await res.json();
+      const result = await parseRes(res);
       if (!res.ok) throw new Error(result.message || "Không thể xóa sản phẩm");
     } catch (err: any) {
       setCart(prev => {
@@ -833,7 +834,7 @@ export function useAppInit() {
         body: JSON.stringify(payload),
       });
 
-      const resData = await res.json();
+      const resData = await parseRes(res);
       if (!res.ok) {
         throw new Error(resData.message || "Đặt hàng thất bại");
       }

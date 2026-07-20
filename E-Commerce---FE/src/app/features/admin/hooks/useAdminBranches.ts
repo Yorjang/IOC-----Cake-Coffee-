@@ -59,7 +59,7 @@ export function useAdminBranches({ adminUser }: { adminUser?: any }) {
       const res = await fetch(`${env.API_URL}/branches`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) throw new Error(data.message || "Không thể tải danh sách chi nhánh.");
       setBranchRows(data);
     } catch (err: any) {
@@ -112,7 +112,7 @@ export function useAdminBranches({ adminUser }: { adminUser?: any }) {
         },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) throw new Error(data.message || "Không thể lưu chi nhánh.");
 
       setBranchRows(prev => isEditing ? prev.map(branch => branch.id === data.id ? data : branch) : [data, ...prev]);
@@ -138,7 +138,7 @@ export function useAdminBranches({ adminUser }: { adminUser?: any }) {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) throw new Error(data.message || "Không thể xóa chi nhánh.");
       setBranchRows(prev => prev.filter(item => item.id !== branch.id));
       toast.success("Đã xóa chi nhánh.");
@@ -160,7 +160,7 @@ export function useAdminBranches({ adminUser }: { adminUser?: any }) {
     setLoadingHours(true);
     try {
       const res = await fetch(`${env.API_URL}/branches/${branch.id}/opening-hours`);
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) throw new Error(data.message || "Không thể tải giờ mở cửa.");
       const byDay = new Map(data.map((item: any) => [item.dayOfWeek, item]));
       setOpeningHours(defaultOpeningHours().map(item => {
@@ -202,7 +202,7 @@ export function useAdminBranches({ adminUser }: { adminUser?: any }) {
         },
         body: JSON.stringify({ openingHours }),
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) throw new Error(data.message || "Không thể lưu giờ mở cửa.");
       toast.success("Đã cập nhật giờ mở cửa.");
       setScheduleBranch(null);

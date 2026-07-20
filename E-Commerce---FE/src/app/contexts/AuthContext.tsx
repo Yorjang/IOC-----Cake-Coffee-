@@ -20,7 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Helper to standardise parsing responses from the new BE format
   const parseResponse = async (res: Response) => {
     if (res.status === 204) return null;
-    const data = await res.json();
+    const data = await parseRes(res);
     return data.data !== undefined ? data.data : data;
   };
 

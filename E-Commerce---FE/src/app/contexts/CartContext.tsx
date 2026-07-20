@@ -28,7 +28,7 @@ const getCartSessionId = () => {
 // Helper to standardise parsing responses from the new BE format
 const parseResponse = async (res: Response) => {
   if (res.status === 204) return null;
-  const data = await res.json();
+  const data = await parseRes(res);
   return data.data !== undefined ? data.data : data;
 };
 
@@ -116,7 +116,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         await refreshCart();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         throw new Error(errData.message || "Failed to add to cart");
       }
     } catch (err: any) {

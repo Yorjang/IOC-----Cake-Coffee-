@@ -1,3 +1,4 @@
+import { parseRes } from '../../../utils/api';
 
 import React, { useState, useEffect } from "react";
 import {
@@ -40,7 +41,7 @@ export function AdminVouchers() {
       const res = await fetch(`${env.API_URL}/coupons`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         setCoupons(data);
       }
@@ -63,7 +64,7 @@ export function AdminVouchers() {
   const loadCategoriesOnly = async () => {
     try {
       const res = await fetch(`${env.API_URL}/products/categories`);
-      if (res.ok) setCategories(await res.json());
+      if (res.ok) setCategories(await parseRes(res));
     } catch (err) {
       console.error(err);
     }
@@ -72,7 +73,7 @@ export function AdminVouchers() {
   const loadSizesOnly = async () => {
     try {
       const res = await fetch(`${env.API_URL}/products/sizes/distinct`);
-      if (res.ok) setAvailableSizes(await res.json());
+      if (res.ok) setAvailableSizes(await parseRes(res));
     } catch (err) {
       console.error(err);
     }
@@ -120,7 +121,7 @@ export function AdminVouchers() {
           isActive: true,
         }),
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         toast.success(isEditing ? "Cập nhật voucher thành công." : "Tạo voucher thành công.");
         // Clear form
@@ -198,7 +199,7 @@ export function AdminVouchers() {
         toast.success("Xóa voucher thành công.");
         loadCoupons();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi xóa.");
       }
     } catch (err) {
