@@ -10,6 +10,7 @@ import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import { User } from '../users/user.entity';
 import * as crypto from 'crypto';
+import { DataSource } from 'typeorm';
 
 @Injectable()
 export class AuthService {
@@ -20,7 +21,28 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly mailService: MailService,
     private readonly configService: ConfigService,
+    private readonly dataSource: DataSource,
   ) {}
+
+  async onModuleInit() {
+    // Create revoked_tokens table if not exists (for BUG-001)
+    await this.dataSource.query(`
+      CREATE TABLE IF NOT EXISTS revoked_tokens (
+        token TEXT PRIMARY KEY,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Load existing revoked tokens into memory for fast lookup
+    try {
+      const rows = await this.dataSource.query(`SELECT token FROM revoked_tokens`);
+      for (const row of rows) {
+        this.blacklistedTokens.add(row.token);
+      }
+    } catch (err) {
+      this.logger.error('Failed to load revoked tokens', err);
+    }
+  }
 
   private getJwtSecret(): string {
     return this.configService.get<string>('JWT_SECRET') || 'super_secret_jwt_key_123_cake_coffee';
@@ -225,6 +247,8 @@ export class AuthService {
     try {
       jwt.verify(refreshToken, this.getJwtSecret());
       this.blacklistedTokens.add(refreshToken);
+      this.dataSource.query(`INSERT INTO revoked_tokens (token) VALUES ($1) ON CONFLICT DO NOTHING`, [refreshToken])
+        .catch(err => this.logger.error('Failed to persist revoked token', err));
       return { message: 'Đăng xuất thành công.' };
     } catch (error) {
       if (error instanceof jwt.TokenExpiredError) {

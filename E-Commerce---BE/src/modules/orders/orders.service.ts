@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order, OrderStatus } from './order.entity';
 import { PaymentsService } from '../payments/payments.service';
+import { CartService } from '../cart/cart.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 
 @Injectable()
@@ -11,6 +12,7 @@ export class OrdersService implements OnModuleInit {
     @InjectRepository(Order)
     private readonly orders: Repository<Order>,
     private readonly paymentsService: PaymentsService,
+    private readonly cartService: CartService,
   ) {}
 
   async onModuleInit() {
@@ -138,98 +140,100 @@ export class OrdersService implements OnModuleInit {
   }
 
   async getDashboardStats(): Promise<any> {
-    const todayOrdersRev = await this.orders.query(`
-      SELECT COALESCE(SUM(total_amount), 0) as total FROM orders 
-      WHERE order_status = 'completed' AND created_at >= CURRENT_DATE
-    `);
-    const todayPosRev = await this.orders.query(`
-      SELECT COALESCE(SUM(total_amount), 0) as total FROM sales_invoices 
-      WHERE invoice_status = 'completed' AND created_at >= CURRENT_DATE
-    `);
+    const formatMoney = (val: number) => new Intl.NumberFormat('vi-VN').format(val) + 'đ';
+
+    // BUG-007 FIX: Run all independent queries in parallel (was serial — 6 round trips)
+    const [
+      todayOrdersRev,
+      todayPosRev,
+      todayOrdersCountRes,
+      todayPosCountRes,
+      productCountRes,
+      newCustomersRes,
+      weeklyChart,
+      recentOrdersDb,
+    ] = await Promise.all([
+      this.orders.query(`
+        SELECT COALESCE(SUM(total_amount), 0) as total FROM orders 
+        WHERE order_status = 'completed' AND created_at >= CURRENT_DATE
+      `),
+      this.orders.query(`
+        SELECT COALESCE(SUM(total_amount), 0) as total FROM sales_invoices 
+        WHERE invoice_status = 'completed' AND created_at >= CURRENT_DATE
+      `),
+      this.orders.query(`
+        SELECT COUNT(*) as count FROM orders WHERE created_at >= CURRENT_DATE
+      `),
+      this.orders.query(`
+        SELECT COUNT(*) as count FROM sales_invoices WHERE created_at >= CURRENT_DATE
+      `),
+      this.orders.query(`
+        SELECT COUNT(*) as count FROM products WHERE is_active = true
+      `),
+      this.orders.query(`
+        SELECT COUNT(*) as count FROM users 
+        WHERE role = 'customer' AND created_at >= CURRENT_DATE
+      `),
+      this.orders.query(`
+        WITH days AS (
+          SELECT generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day')::date as day_date
+        )
+        SELECT 
+          TO_CHAR(d.day_date, 'ID') as day_num,
+          COALESCE(SUM(o.total_amount), 0) + COALESCE(SUM(s.total_amount), 0) as revenue,
+          COUNT(o.id) + COUNT(s.id) as orders
+        FROM days d
+        LEFT JOIN orders o ON DATE(o.created_at) = d.day_date AND o.order_status = 'completed'
+        LEFT JOIN sales_invoices s ON DATE(s.created_at) = d.day_date AND s.invoice_status = 'completed'
+        GROUP BY d.day_date
+        ORDER BY d.day_date
+      `),
+      this.orders.find({
+        relations: { user: true, items: true },
+        order: { createdAt: 'DESC' },
+        take: 5,
+      }),
+    ]);
+
     const todayRevenueVal = Number(todayOrdersRev[0]?.total || 0) + Number(todayPosRev[0]?.total || 0);
-
-    const formatMoney = (val: number) => {
-      return new Intl.NumberFormat('vi-VN').format(val) + 'đ';
-    };
-
-    const todayRevenue = formatMoney(todayRevenueVal);
-
-    const todayOrdersCountRes = await this.orders.query(`
-      SELECT COUNT(*) as count FROM orders WHERE created_at >= CURRENT_DATE
-    `);
-    const todayPosCountRes = await this.orders.query(`
-      SELECT COUNT(*) as count FROM sales_invoices WHERE created_at >= CURRENT_DATE
-    `);
     const todayOrdersCount = Number(todayOrdersCountRes[0]?.count || 0) + Number(todayPosCountRes[0]?.count || 0);
-
-    const productCountRes = await this.orders.query(`
-      SELECT COUNT(*) as count FROM products WHERE is_active = true
-    `);
     const totalProducts = Number(productCountRes[0]?.count || 0);
-
-    const newCustomersRes = await this.orders.query(`
-      SELECT COUNT(*) as count FROM users 
-      WHERE role = 'customer' AND created_at >= CURRENT_DATE
-    `);
     const newCustomers = Number(newCustomersRes[0]?.count || 0);
 
     const stats = [
-      { label: "Doanh thu hôm nay", value: todayRevenue, delta: "+12%", icon: "DollarSign" },
+      { label: "Doanh thu hôm nay", value: formatMoney(todayRevenueVal), delta: "+12%", icon: "DollarSign" },
       { label: "Tổng đơn hàng", value: String(todayOrdersCount), delta: `+${todayOrdersCount} hôm nay`, icon: "ShoppingBag" },
       { label: "Sản phẩm hoạt động", value: String(totalProducts), delta: "3 sắp hết", icon: "Package" },
       { label: "Khách hàng mới", value: String(newCustomers), delta: `+${newCustomers} so hôm qua`, icon: "Users" },
     ];
 
-    const weeklyChart = await this.orders.query(`
-      WITH days AS (
-        SELECT generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day')::date as day_date
-      )
-      SELECT 
-        TO_CHAR(d.day_date, 'ID') as day_num,
-        COALESCE(SUM(o.total_amount), 0) + COALESCE(SUM(s.total_amount), 0) as revenue,
-        COUNT(o.id) + COUNT(s.id) as orders
-      FROM days d
-      LEFT JOIN orders o ON DATE(o.created_at) = d.day_date AND o.order_status = 'completed'
-      LEFT JOIN sales_invoices s ON DATE(s.created_at) = d.day_date AND s.invoice_status = 'completed'
-      GROUP BY d.day_date
-      ORDER BY d.day_date
-    `);
-
     const dayLabels: Record<string, string> = {
       '1': 'T2', '2': 'T3', '3': 'T4', '4': 'T5', '5': 'T6', '6': 'T7', '7': 'CN'
     };
 
-    const weekly = weeklyChart.map((row: any) => {
-      const label = dayLabels[row.day_num.trim()] || row.day_num;
-      return {
-        day: label,
-        revenue: Number(row.revenue),
-        orders: Number(row.orders)
-      };
-    });
+    const weekly = weeklyChart.map((row: any) => ({
+      day: dayLabels[row.day_num.trim()] || row.day_num,
+      revenue: Number(row.revenue),
+      orders: Number(row.orders),
+    }));
 
-    const recentOrdersDb = await this.orders.find({
-      relations: { user: true, items: true },
-      order: { createdAt: 'DESC' },
-      take: 5
-    });
-
-    const recentOrders = recentOrdersDb.map(o => ({
+    const recentOrders = recentOrdersDb.map((o: any) => ({
       id: o.orderCode,
       customer: o.user?.fullName || 'Khách hàng',
-      items: o.items.map(i => `${i.productName} (${i.variantName})`).join(', '),
+      items: o.items.map((i: any) => `${i.productName} (${i.variantName})`).join(', '),
       total: formatMoney(Number(o.totalAmount)),
       status: o.orderStatus === OrderStatus.PENDING ? 'Xác nhận' :
               o.orderStatus === OrderStatus.PREPARING ? 'Đang chuẩn bị' :
               o.orderStatus === OrderStatus.SHIPPING ? 'Đang giao' :
               o.orderStatus === OrderStatus.COMPLETED ? 'Hoàn thành' : 'Huỷ',
-      time: o.createdAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+      time: o.createdAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
     }));
 
     return { stats, weekly, recentOrders };
   }
 
-  async createOrder(userId: string | null, dto: CreateOrderDto): Promise<Order> {
+  async createOrder(userId: string | null, sessionId: string | null, dto: CreateOrderDto): Promise<Order> {
+
     const {
       branchId,
       subtotal,
@@ -376,66 +380,84 @@ export class OrdersService implements OnModuleInit {
         );
       } else {
         const availableQty = Number(stockRes[0].quantity);
+        // BUG-002 FIX: Re-enable stock validation
         if (availableQty < item.quantity) {
-          // throw new BadRequestException(`Sản phẩm ${item.productName} (${item.variantName}) không đủ số lượng tồn kho (Còn lại: ${availableQty}).`);
-          console.warn(`[Mock Stock] Sản phẩm ${item.productName} không đủ tồn kho (Còn ${availableQty} < ${item.quantity}). Vẫn cho phép.`);
+          throw new BadRequestException(`Sản phẩm ${item.productName} (${item.variantName}) không đủ số lượng tồn kho (Còn lại: ${availableQty}).`);
         }
       }
     }
 
-    // Update stocks
-    for (const item of items) {
-      await this.orders.query(
-        'UPDATE branch_variant_stocks SET quantity = quantity - $1 WHERE branch_id = $2 AND variant_id = $3',
-        [item.quantity, branchId, item.variantId]
-      );
-    }
+    // BUG-008: Update stocks in parallel (was serial N queries)
+    await Promise.all(
+      items.map((item: any) =>
+        this.orders.query(
+          'UPDATE branch_variant_stocks SET quantity = quantity - $1 WHERE branch_id = $2 AND variant_id = $3',
+          [item.quantity, branchId, item.variantId]
+        )
+      )
+    );
 
-    // 2. Generate unique order code
+    // BUG-006 FIX: Ensure unique constraint exists (safe migration)
+    try {
+      await this.orders.query(`ALTER TABLE orders ADD CONSTRAINT orders_order_code_key UNIQUE (order_code)`);
+    } catch { /* ignore if exists */ }
+
+    // 2 & 3. Atomic Order Insert with retry loop to prevent race condition on order_code
+    let orderId: string;
     let orderCode = '';
-    let isUnique = false;
-    while (!isUnique) {
+    let orderInsert: any[];
+    let retries = 0;
+    const maxRetries = 5;
+
+    while (retries < maxRetries) {
       const randDigits = Math.floor(100000 + Math.random() * 900000);
       orderCode = `SB${randDigits}`;
-      const codeCheck = await this.orders.query('SELECT id FROM orders WHERE order_code = $1', [orderCode]);
-      if (codeCheck.length === 0) {
-        isUnique = true;
+      
+      try {
+        orderInsert = await this.orders.query(`
+          INSERT INTO orders (
+            order_code, user_id, branch_id, subtotal, discount_amount, shipping_fee, total_amount, 
+            payment_method, payment_status, order_status, order_type, fulfillment_type, 
+            shipping_address_street, shipping_address_ward, shipping_address_district, shipping_address_province,
+            shipping_address_phone, shipping_recipient_name, note, coupon_code
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+          RETURNING id
+        `, [
+          orderCode, userId || null, branchId, finalSubtotal, finalDiscount, shippingFee, finalTotalAmount,
+          paymentMethod, 'pending', 'pending', 'online', fulfillmentType,
+          shippingAddressStreet, shippingAddressWard, shippingAddressDistrict, shippingAddressProvince,
+          shippingAddressPhone, shippingRecipientName, note,
+          couponCode ? couponCode.toUpperCase().trim() : null
+        ]);
+        
+        orderId = orderInsert[0].id;
+        break; // Success!
+      } catch (err: any) {
+        // Postgres unique constraint violation code is 23505
+        if (err.code === '23505' && err.constraint === 'orders_order_code_key') {
+          retries++;
+          if (retries >= maxRetries) {
+            throw new InternalServerErrorException('Không thể tạo mã đơn hàng duy nhất, vui lòng thử lại.');
+          }
+        } else {
+          throw err;
+        }
       }
     }
 
-    // Ensure coupon_code column exists (safe migration)
-    try {
-      await this.orders.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code VARCHAR(100)`);
-    } catch { /* ignore */ }
-
-    // 3. Save order
-    const orderInsert = await this.orders.query(`
-      INSERT INTO orders (
-        order_code, user_id, branch_id, subtotal, discount_amount, shipping_fee, total_amount, 
-        payment_method, payment_status, order_status, order_type, fulfillment_type, 
-        shipping_address_street, shipping_address_ward, shipping_address_district, shipping_address_province,
-        shipping_address_phone, shipping_recipient_name, note, coupon_code
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
-      RETURNING id
-    `, [
-      orderCode, userId || null, branchId, finalSubtotal, finalDiscount, shippingFee, finalTotalAmount,
-      paymentMethod, 'pending', 'pending', 'online', fulfillmentType,
-      shippingAddressStreet, shippingAddressWard, shippingAddressDistrict, shippingAddressProvince,
-      shippingAddressPhone, shippingRecipientName, note,
-      couponCode ? couponCode.toUpperCase().trim() : null
-    ]);
-
-    const orderId = orderInsert[0].id;
-
-    // 4. Save order items
-    for (const item of items) {
-      await this.orders.query(`
-        INSERT INTO order_items (
-          order_id, product_id, variant_id, product_name, variant_name, quantity, unit_price, discount_amount, total_price
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      `, [
-        orderId, item.productId, item.variantId, item.productName, item.variantName, item.quantity, item.unitPrice, 0, item.totalPrice
+    // 4. BUG-008 FIX: Bulk INSERT order items (was N serial queries)
+    if (items.length > 0) {
+      const valuePlaceholders = items.map((_: any, i: number) =>
+        `($${i * 9 + 1}, $${i * 9 + 2}, $${i * 9 + 3}, $${i * 9 + 4}, $${i * 9 + 5}, $${i * 9 + 6}, $${i * 9 + 7}, $${i * 9 + 8}, $${i * 9 + 9})`
+      ).join(', ');
+      const flatParams = items.flatMap((item: any) => [
+        orderId, item.productId, item.variantId, item.productName, item.variantName,
+        item.quantity, item.unitPrice, 0, item.totalPrice
       ]);
+      await this.orders.query(
+        `INSERT INTO order_items (order_id, product_id, variant_id, product_name, variant_name, quantity, unit_price, discount_amount, total_price) VALUES ${valuePlaceholders}`,
+        flatParams
+      );
     }
 
     // 5. Increment coupon usedCount
@@ -448,6 +470,10 @@ export class OrdersService implements OnModuleInit {
 
     // 6. Create payment log
     await this.paymentsService.createPayment(orderId, finalTotalAmount, paymentMethod);
+
+    // BUG-003 FIX: Clear cart after order creation
+    this.cartService.clearCart(userId || undefined, sessionId || undefined, branchId)
+      .catch(err => console.error('Failed to clear cart after order:', err));
 
       return this.orders.findOne({
         where: { id: orderId },
