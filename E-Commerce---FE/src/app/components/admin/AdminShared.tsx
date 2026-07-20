@@ -58,7 +58,6 @@ export const navItems = [
   allowedRoles: AdminRole[];
 }>;
 
->>>>>>> Stashed changes
 export function ImageUploader({ label, value, onChange }: { label: string; value: string; onChange: (url: string) => void }) {
   const [uploading, setUploading] = useState(false);
 
