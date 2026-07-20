@@ -9,7 +9,8 @@ import { Home } from "./pages/Home";
 import { ProductListing } from "./pages/ProductListing";
 import { ProductDetail } from "./pages/ProductDetail";
 import { Cart } from "./pages/Cart";
-import { Checkout, Success } from "./pages/Checkout";
+import { Checkout } from "./pages/Checkout";
+import { Success } from "./pages/Success";
 
 // Lazy Loaded Components
 const AdminPanel = lazy(() => import("./components/AdminPanel").then(m => ({ default: m.AdminPanel })));
