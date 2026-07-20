@@ -1,3 +1,4 @@
+import { parseRes } from '../../../utils/api';
 
 import React, { useState, useEffect } from "react";
 import {
@@ -8,6 +9,7 @@ import {
   ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
 } from "lucide-react";
 import { toast } from "sonner";
+import { getAccessToken } from "../authSession";
 import { env } from "../../../config/env";
 import { supabase } from "../../../config/supabase";
 import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
@@ -18,12 +20,12 @@ export function AdminStoreMap() {
   const [loading, setLoading] = useState(true);
 
   const loadBranches = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/branches`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         setBranchesList(data);
         if (data.length > 0) {
@@ -128,3 +130,5 @@ export function AdminStoreMap() {
     </div>
   );
 }
+
+

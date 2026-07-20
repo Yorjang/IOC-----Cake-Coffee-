@@ -1,3 +1,4 @@
+import { parseRes } from '../../../utils/api';
 
 import React, { useState, useEffect } from "react";
 import {
@@ -8,6 +9,7 @@ import {
   ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
 } from "lucide-react";
 import { toast } from "sonner";
+import { getAccessToken } from "../authSession";
 import { env } from "../../../config/env";
 import { supabase } from "../../../config/supabase";
 import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
@@ -19,13 +21,13 @@ export function AdminCategories() {
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({ name: "", description: "", imageUrl: "" });
 
-  const getToken = () => localStorage.getItem("accessToken");
+  const getToken = () => getAccessToken();
 
   const load = async () => {
     setLoading(true);
     try {
       const res = await fetch(`${env.API_URL}/products/categories`);
-      if (res.ok) setItems(await res.json());
+      if (res.ok) setItems(await parseRes(res));
     } catch { /* silent */ } finally { setLoading(false); }
   };
 
@@ -41,7 +43,7 @@ export function AdminCategories() {
     const method = editing ? "PATCH" : "POST";
     try {
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(form) });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      if (!res.ok) { const err = await parseRes(res); throw new Error(err.message); }
       setShowModal(false); load();
     } catch (err: any) { toast.error(err.message || "Lỗi khi lưu danh mục"); }
   };
@@ -53,7 +55,7 @@ export function AdminCategories() {
     const item = items.find(c => c.id === id);
     try {
       const res = await fetch(`${env.API_URL}/products/categories/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      if (!res.ok) { const err = await parseRes(res); throw new Error(err.message); }
       if (item?.imageUrl) {
         await deleteStorageImage(item.imageUrl);
       }
@@ -130,3 +132,5 @@ const defaultOpeningHours = () => WEEK_DAYS.map(day => ({
   closingTime: "22:00",
   isClosed: false,
 }));
+
+

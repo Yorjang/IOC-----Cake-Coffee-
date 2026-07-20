@@ -1,3 +1,4 @@
+import { parseRes } from '../../utils/api';
 import { useState, useRef, useEffect } from "react";
 import { LogOut, User, Lock, Phone, Upload, Image as ImageIcon, History, Save, ShieldAlert, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -63,7 +64,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = await parseRes(res);
         setOrders(data);
         setCurrentPage(1);
       }
@@ -134,7 +135,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
         }),
       });
 
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) {
         throw new Error(data.message || "Không thể cập nhật thông tin cá nhân");
       }
@@ -183,7 +184,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
         }),
       });
 
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) {
         throw new Error(data.message || "Đổi mật khẩu thất bại");
       }

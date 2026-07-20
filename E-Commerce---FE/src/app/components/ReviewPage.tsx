@@ -1,3 +1,4 @@
+import { parseRes } from '../../utils/api';
 import { useState, useEffect } from "react";
 import { Star, ThumbsUp, Camera, ArrowLeft } from "lucide-react";
 import { env } from "../../config/env";
@@ -65,7 +66,7 @@ export function ReviewPage({ product, onBack }: any) {
     try {
       const res = await fetch(`${env.API_URL}/reviews/product/${productId}`);
       if (res.ok) {
-        const data = await res.json();
+        const data = await parseRes(res);
         const mapped = data.map((r: any) => ({
           user: r.user?.fullName || "Khách hàng",
           avatar: (r.user?.fullName || "K").charAt(0).toUpperCase(),
@@ -127,7 +128,7 @@ export function ReviewPage({ product, onBack }: any) {
         })
       });
 
-      const resData = await res.json();
+      const resData = await parseRes(res);
       if (!res.ok) {
         throw new Error(resData.message || "Gửi đánh giá thất bại");
       }

@@ -1,3 +1,4 @@
+import { parseRes } from '../../../utils/api';
 
 import React, { useState, useEffect } from "react";
 import {
@@ -8,6 +9,7 @@ import {
   ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
 } from "lucide-react";
 import { toast } from "sonner";
+import { getAccessToken } from "../authSession";
 import { env } from "../../../config/env";
 import { supabase } from "../../../config/supabase";
 import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
@@ -21,12 +23,12 @@ export function AdminInventory() {
   const [saving, setSaving] = useState(false);
 
   const loadInventory = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/inventory`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         setStocks(data);
       }
@@ -48,7 +50,7 @@ export function AdminInventory() {
   };
 
   const handleSave = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     setSaving(true);
     try {
       const res = await fetch(`${env.API_URL}/inventory/${editingStock.id}`, {
@@ -62,7 +64,7 @@ export function AdminInventory() {
           minQuantity: Number(formMinQuantity),
         }),
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         toast.success("Cập nhật tồn kho thành công.");
         setEditingStock(null);
@@ -201,3 +203,5 @@ export function AdminInventory() {
     </div>
   );
 }
+
+

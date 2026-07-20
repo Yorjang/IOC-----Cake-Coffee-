@@ -230,7 +230,7 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
                             : "border-border hover:border-primary/50 text-foreground"
                         }`}
                       >
-                        {isSelected && <Check size={12} />}
+                        {isSelected ? <Check size={12} /> : null}
                         <span>{t.name} (+{formatPrice(Number(t.price || 0))})</span>
                       </button>
                     );

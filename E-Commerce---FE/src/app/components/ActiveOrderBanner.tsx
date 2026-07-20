@@ -1,3 +1,4 @@
+import { parseRes } from '../../utils/api';
 import { useState, useEffect } from "react";
 import { Package, X, ChevronRight } from "lucide-react";
 import { env } from "../../config/env";
@@ -26,7 +27,7 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, isHidden }: { las
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
-          const data = await res.json();
+          const data = await parseRes(res);
           // Find the most recent active order
           const active = data.find((o: any) => !['completed', 'cancelled'].includes(o.orderStatus));
           if (active) {
@@ -48,7 +49,7 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, isHidden }: { las
       try {
         const res = await fetch(`${env.API_URL}/orders/${activeOrder.id}`);
         if (res.ok) {
-          const updated = await res.json();
+          const updated = await parseRes(res);
           setActiveOrder(updated);
           if (['completed', 'cancelled'].includes(updated.orderStatus)) {
             // Auto dismiss after a few seconds when completed

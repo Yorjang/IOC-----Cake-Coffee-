@@ -1,3 +1,4 @@
+import { parseRes } from '../../../utils/api';
 
 import React, { useState, useEffect } from "react";
 import {
@@ -12,6 +13,8 @@ import { env } from "../../../config/env";
 import { supabase } from "../../../config/supabase";
 import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
 
+import { getAccessToken } from "../authSession";
+
 export function AdminOrders() {
   const [ordersList, setOrdersList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,12 +22,12 @@ export function AdminOrders() {
   const [search, setSearch] = useState("");
 
   const loadOrders = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/orders`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         setOrdersList(data);
       }
@@ -40,7 +43,7 @@ export function AdminOrders() {
   }, []);
 
   const updateStatus = async (id: string, newStatus: string) => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/orders/${id}/status`, {
         method: "PATCH",
@@ -54,7 +57,7 @@ export function AdminOrders() {
         toast.success("Cập nhật trạng thái đơn hàng thành công.");
         loadOrders();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi cập nhật.");
       }
     } catch (err) {

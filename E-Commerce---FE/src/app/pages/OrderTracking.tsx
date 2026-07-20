@@ -1,3 +1,4 @@
+import { parseRes } from '../../utils/api';
 import React, { useEffect, useState } from "react";
 import { ArrowLeft, Check, Phone, MapPin, Package, Clock, Loader2, Navigation } from "lucide-react";
 import { toast } from "sonner";
@@ -30,7 +31,10 @@ export function OrderTracking({ orderId, onBack }: OrderTrackingProps) {
   }, []);
 
   useEffect(() => {
-    if (!orderId) return;
+    if (!orderId) {
+      setLoading(false);
+      return;
+    }
 
     let intervalId: any;
 
@@ -42,7 +46,7 @@ export function OrderTracking({ orderId, onBack }: OrderTrackingProps) {
 
         const res = await fetch(`${env.API_URL}/orders/public/${orderId}`, { headers });
         if (res.ok) {
-          const data = await res.json();
+          const data = await parseRes(res);
           setOrder(data);
         } else {
           toast.error("Không thể tải thông tin đơn hàng");

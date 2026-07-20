@@ -1,3 +1,4 @@
+import { parseRes } from '../../../utils/api';
 
 import React, { useState, useEffect } from "react";
 import {
@@ -8,6 +9,7 @@ import {
   ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
 } from "lucide-react";
 import { toast } from "sonner";
+import { getAccessToken } from "../authSession";
 import { env } from "../../../config/env";
 import { supabase } from "../../../config/supabase";
 import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
@@ -25,12 +27,12 @@ export function AdminBanners() {
   const [showAddForm, setShowAddForm] = useState(false);
 
   const loadBanners = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/banners`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         setBannersList(data);
       }
@@ -46,7 +48,7 @@ export function AdminBanners() {
   }, []);
 
   const handleToggleActive = async (banner: any) => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/banners/${banner.id}/active`, {
         method: "PATCH",
@@ -60,7 +62,7 @@ export function AdminBanners() {
         toast.success("Cập nhật trạng thái banner thành công.");
         loadBanners();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi cập nhật.");
       }
     } catch (err) {
@@ -71,7 +73,7 @@ export function AdminBanners() {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa banner này không?")) return;
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     const banner = banners.find((b: any) => b.id === id);
     try {
       const res = await fetch(`${env.API_URL}/banners/${id}`, {
@@ -85,7 +87,7 @@ export function AdminBanners() {
         }
         loadBanners();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi xóa.");
       }
     } catch (err) {
@@ -100,7 +102,7 @@ export function AdminBanners() {
       toast.error("Vui lòng nhập tên và link ảnh banner.");
       return;
     }
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     setSaving(true);
     try {
       const res = await fetch(`${env.API_URL}/banners`, {
@@ -117,7 +119,7 @@ export function AdminBanners() {
           isActive: true,
         }),
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         toast.success("Tạo banner thành công.");
         setTitle("");
@@ -244,3 +246,5 @@ export function AdminBanners() {
     </div>
   );
 }
+
+

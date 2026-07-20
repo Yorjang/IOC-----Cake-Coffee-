@@ -1,3 +1,4 @@
+import { parseRes } from '../../../utils/api';
 
 import React, { useState, useEffect } from "react";
 import {
@@ -8,6 +9,7 @@ import {
   ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
 } from "lucide-react";
 import { toast } from "sonner";
+import { getAccessToken } from "../authSession";
 import { env } from "../../../config/env";
 import { supabase } from "../../../config/supabase";
 import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
@@ -20,28 +22,28 @@ export function AdminProductTags() {
   const [name, setName] = useState("");
   const load = async () => {
     setLoading(true);
-    try { const res = await fetch(`${env.API_URL}/products/tags`); if (res.ok) setItems(await res.json()); }
+    try { const res = await fetch(`${env.API_URL}/products/tags`); if (res.ok) setItems(await parseRes(res)); }
     finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
   const openForm = (tag?: any) => { setEditing(tag || null); setName(tag?.name || ""); setShowModal(true); };
   const save = async () => {
     if (!name.trim()) return toast.error("Vui lòng nhập tên tag.");
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     if (!token) return;
     try {
       const res = await fetch(`${env.API_URL}/products/tags${editing ? `/${editing.id}` : ""}`, { method: editing ? "PATCH" : "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ name: name.trim() }) });
-      if (!res.ok) { const error = await res.json(); throw new Error(error.message); }
+      if (!res.ok) { const error = await parseRes(res); throw new Error(error.message); }
       setShowModal(false); await load(); toast.success(editing ? "Đã cập nhật tag." : "Đã tạo tag.");
     } catch (error: any) { toast.error(error.message || "Không thể lưu tag."); }
   };
   const remove = async (tag: any) => {
     if (!confirm(`Xóa tag “${tag.name}”? Tag sẽ được gỡ khỏi các sản phẩm.`)) return;
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     if (!token) return;
     try {
       const res = await fetch(`${env.API_URL}/products/tags/${tag.id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) { const error = await res.json(); throw new Error(error.message); }
+      if (!res.ok) { const error = await parseRes(res); throw new Error(error.message); }
       await load(); toast.success("Đã xóa tag.");
     } catch (error: any) { toast.error(error.message || "Không thể xóa tag."); }
   };
@@ -68,4 +70,6 @@ const defaultOpeningHours = () => WEEK_DAYS.map(day => ({
   closingTime: "22:00",
   isClosed: false,
 }));
+
+
 

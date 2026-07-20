@@ -1,3 +1,4 @@
+import { parseRes } from '../../utils/api';
 import { useState, useEffect } from "react";
 import { Truck, CreditCard, PackageCheck, Store, MapPin, ClipboardList, Copy, Check, Loader2, ShieldAlert, Clock, Crosshair, CheckCircle2 } from "lucide-react";
 import { Btn } from "../components/shared";
@@ -61,7 +62,7 @@ export function Checkout({ cart, setView, onPlaceOrder, subtotal, discount, ship
         }
         if (!res.ok) throw new Error("Không thể tải danh sách chi nhánh");
 
-        const data = await res.json();
+        const data = await parseRes(res);
         const openBranches = (Array.isArray(data) ? data : [data]).filter(branch => branch.isOpenNow);
         setBranches(openBranches);
         setSelectedBranchId(openBranches[0]?.id || "");
@@ -342,7 +343,7 @@ export function Success({ setView, order }: any) {
       try {
         const res = await fetch(`${env.API_URL}/orders/public/${orderId}`);
         if (res.ok) {
-          const currentOrder = await res.json();
+          const currentOrder = await parseRes(res);
           if (currentOrder && currentOrder.paymentStatus === 'paid') {
             setIsPaid(true);
             toast.success("Thanh toán thành công qua SePay!");

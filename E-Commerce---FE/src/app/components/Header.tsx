@@ -44,7 +44,7 @@ export function Header({
           </button>
           <div className="absolute top-full left-0 pt-1 w-48 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
             <div className="rounded-xl bg-card border shadow-lg overflow-hidden py-1">
-              {navPages?.filter((v: string) => v !== "Trang chủ").map((v: string) => (
+              {navPages?.flatMap((v: string) => v === "Trang chủ" ? [] : [
                 <button
                   key={v}
                   onClick={() => setView(v)}
@@ -53,7 +53,7 @@ export function Header({
                 >
                   {v}
                 </button>
-              ))}
+              ])}
             </div>
           </div>
         </div>

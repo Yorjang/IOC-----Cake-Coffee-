@@ -1,3 +1,4 @@
+import { parseRes } from '../../utils/api';
 import { toast } from "sonner";
 import { env } from "../../config/env";
 import { saveAuthSession } from "./authSession";
@@ -77,7 +78,7 @@ export async function apiLogin(email: string, password: string, onSuccess: () =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
-  const data = await res.json();
+  const data = await parseRes(res);
 
   if (!res.ok) throw new Error(getAuthErrorMessage(data.message, "Đăng nhập thất bại"));
 
@@ -99,7 +100,7 @@ export async function apiRegister(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ fullName: fullName.trim().replace(/\s+/g, " "), email, phone, password }),
   });
-  const data = await res.json();
+  const data = await parseRes(res);
 
   if (!res.ok) {
     const err: AuthErrors = {};

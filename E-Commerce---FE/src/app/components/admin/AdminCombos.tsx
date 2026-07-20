@@ -1,3 +1,4 @@
+import { parseRes } from '../../../utils/api';
 
 import React, { useState, useEffect } from "react";
 import {
@@ -8,6 +9,7 @@ import {
   ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
 } from "lucide-react";
 import { toast } from "sonner";
+import { getAccessToken } from "../authSession";
 import { env } from "../../../config/env";
 import { supabase } from "../../../config/supabase";
 import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
@@ -23,7 +25,7 @@ export function AdminCombos() {
   const emptyForm = () => ({ categoryId: "", name: "", description: "", imageUrl: "", sku: `COMBO-${Date.now().toString().slice(-6)}`, price: "", isActive: true });
   const [form, setForm] = useState<any>(emptyForm());
   const [items, setItems] = useState<any[]>([]);
-  const token = () => localStorage.getItem("accessToken");
+  const token = () => getAccessToken();
 
   const load = async () => {
     setLoading(true);
@@ -33,9 +35,9 @@ export function AdminCombos() {
         fetch(`${env.API_URL}/combos/available-products`),
         fetch(`${env.API_URL}/products/categories`),
       ]);
-      if (comboRes.ok) setCombos(await comboRes.json());
-      if (productRes.ok) setProducts(await productRes.json());
-      if (categoryRes.ok) setCategories(await categoryRes.json());
+      if (comboRes.ok) setCombos(await parseRes(comboRes));
+      if (productRes.ok) setProducts(await parseRes(productRes));
+      if (categoryRes.ok) setCategories(await parseRes(categoryRes));
     } finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
@@ -67,7 +69,7 @@ export function AdminCombos() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ ...form, name: form.name.trim(), sku: form.sku.trim(), price: Number(form.price), items: items.map(item => ({ childProductId: item.childProductId, childVariantId: item.childVariantId || undefined, quantity: Number(item.quantity), isOptional: item.isOptional })) }),
       });
-      if (!res.ok) { const error = await res.json(); throw new Error(Array.isArray(error.message) ? error.message.join(", ") : error.message); }
+      if (!res.ok) { const error = await parseRes(res); throw new Error(Array.isArray(error.message) ? error.message.join(", ") : error.message); }
       setShowModal(false); await load(); toast.success(editing ? "Đã cập nhật combo." : "Đã tạo combo.");
     } catch (error: any) { toast.error(error.message || "Không thể lưu combo."); }
     finally { setSaving(false); }
@@ -78,7 +80,7 @@ export function AdminCombos() {
     if (!accessToken) return;
     try {
       const res = await fetch(`${env.API_URL}/combos/${combo.id}`, { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } });
-      if (!res.ok) { const error = await res.json(); throw new Error(error.message); }
+      if (!res.ok) { const error = await parseRes(res); throw new Error(error.message); }
       await load(); toast.success("Đã xóa combo.");
     } catch (error: any) { toast.error(error.message || "Không thể xóa combo."); }
   };
@@ -94,4 +96,6 @@ export function AdminCombos() {
     </div></div>}
   </div>;
 }
+
+
 
