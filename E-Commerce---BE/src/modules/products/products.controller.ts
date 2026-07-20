@@ -91,6 +91,11 @@ export class ProductsController {
         return this.productsService.findDistinctVariantSizes();
     }
 
+    @Get('options/drink')
+    getDrinkOptions() {
+        return this.productsService.getDrinkOptions();
+    }
+
     @Get(':id')
     findProductById(@Param('id', ParseUUIDPipe) id: string) {
 

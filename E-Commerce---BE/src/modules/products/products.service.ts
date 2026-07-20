@@ -95,6 +95,13 @@ export class ProductsService {
     }
 
     // ── Products CRUD ────────────────────────────────────────────────────────
+    getDrinkOptions() {
+        return {
+            sugar: ["100%", "70%", "50%", "30%"],
+            ice: ["100%", "70%", "50%", "Không đá"]
+        };
+    }
+
     async findAllProducts(tagSlug?: string): Promise<Product[]> {
         return this.products.find({
             where: tagSlug ? { tags: { slug: tagSlug } } : undefined,

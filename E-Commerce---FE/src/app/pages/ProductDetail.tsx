@@ -2,14 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Heart, Minus, Plus, Star, Check } from "lucide-react";
 import { Btn, ProductCard, getDiscountedPrice } from "../components/shared";
 import { CATEGORY_GROUPS, VIEW_KEYS } from "../../config/appConfig";
+import { env } from "../../config/env";
 import { toast } from "sonner";
 
 const formatPrice = (priceNum: number): string => {
   return priceNum.toLocaleString("vi-VN") + "đ";
 };
 
-const SUGAR_OPTIONS = ["100%", "70%", "50%", "30%"];
-const ICE_OPTIONS = ["100%", "70%", "50%", "Không đá"];
 
 export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggleWishlist, onSelectProduct, products = [], publicCoupons = [] }: any) {
   const p = product || products[0] || ["Sản phẩm", "0đ", "Khác", "", "5.0", ""];
@@ -36,6 +35,26 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
   const [customText, setCustomText] = useState("");
   const [needCandles, setNeedCandles] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [sugarOptions, setSugarOptions] = useState<string[]>(["100%", "70%", "50%", "30%"]);
+  const [iceOptions, setIceOptions] = useState<string[]>(["100%", "70%", "50%", "Không đá"]);
+
+  useEffect(() => {
+    if (isDrink) {
+      fetch(`${env.API_URL}/products/options/drink`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.sugar) {
+            setSugarOptions(data.sugar);
+            setSugar(data.sugar[0] || "100%");
+          }
+          if (data.ice) {
+            setIceOptions(data.ice);
+            setIce(data.ice[0] || "100%");
+          }
+        })
+        .catch(err => console.error("Lỗi tải options:", err));
+    }
+  }, [isDrink]);
 
   useEffect(() => {
     setSelectedVariantId(current =>
@@ -195,7 +214,7 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
                     onChange={(e) => setSugar(e.target.value)}
                     className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary text-foreground"
                   >
-                    {SUGAR_OPTIONS.map(opt => (
+                    {sugarOptions.map(opt => (
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </select>
@@ -207,7 +226,7 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
                     onChange={(e) => setIce(e.target.value)}
                     className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary text-foreground"
                   >
-                    {ICE_OPTIONS.map(opt => (
+                    {iceOptions.map(opt => (
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </select>
