@@ -6,12 +6,14 @@ import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
 import { UsersModule } from '../users/users.module';
 import { PaymentsModule } from '../payments/payments.module';
+import { CartModule } from '../cart/cart.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Order, OrderItem]),
     UsersModule,
     PaymentsModule,
+    CartModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

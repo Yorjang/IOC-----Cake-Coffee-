@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
@@ -49,7 +49,7 @@ export class MailService {
       this.logger.log(`Verification email sent successfully to ${to}`);
     } catch (error: any) {
       this.logger.error(`Failed to send verification email to ${to}: ${error.message}`);
-      throw new Error(`Email delivery failed: ${error.message}. Please check your SMTP configuration in .env.`);
+      throw new InternalServerErrorException(`Email delivery failed: ${error.message}. Please check your SMTP configuration in .env.`);
     }
   }
 
@@ -84,7 +84,7 @@ export class MailService {
       this.logger.log(`Password reset email sent successfully to ${to}`);
     } catch (error: any) {
       this.logger.error(`Failed to send password reset email to ${to}: ${error.message}`);
-      throw new Error(`Email delivery failed: ${error.message}. Please check your SMTP configuration in .env.`);
+      throw new InternalServerErrorException(`Email delivery failed: ${error.message}. Please check your SMTP configuration in .env.`);
     }
   }
 }

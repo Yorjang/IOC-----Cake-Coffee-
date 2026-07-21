@@ -1,3 +1,4 @@
+import { parseRes } from '../../utils/api';
 import { useState, useEffect, useRef } from "react";
 import { CakeSlice, Eye, EyeOff, Mail, Lock, User, Phone, X } from "lucide-react";
 import { toast } from "sonner";
@@ -64,7 +65,7 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", se
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken: response.credential, remember: rememberRef.current }),
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) throw new Error(getAuthErrorMessage(data.message, "Đăng nhập Google thất bại"));
 
       saveAuthSession(data, rememberRef.current);
@@ -104,7 +105,7 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", se
       if (mode === "login") {
         setLoading(true);
         const res = await fetch(`${env.API_URL}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password, remember }) });
-        const data = await res.json();
+        const data = await parseRes(res);
         if (!res.ok) throw new Error(getAuthErrorMessage(data.message, "Đăng nhập thất bại"));
         saveAuthSession(data, remember);
         toast.success("Đăng nhập thành công!"); onSuccess();
@@ -123,7 +124,7 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", se
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email }),
         });
-        const data = await res.json();
+        const data = await parseRes(res);
         if (!res.ok) throw new Error(data.message || "Yêu cầu đặt lại mật khẩu thất bại");
         toast.success(data.message || "Email đặt lại mật khẩu đã được gửi!");
         setDone(true);
@@ -138,7 +139,7 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", se
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ password }),
         });
-        const data = await res.json();
+        const data = await parseRes(res);
         if (!res.ok) throw new Error(data.message || "Đặt lại mật khẩu thất bại");
         toast.success(data.message || "Mật khẩu đã được đặt lại thành công!");
         setMode("login");

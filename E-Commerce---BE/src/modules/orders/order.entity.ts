@@ -26,6 +26,7 @@ export enum PaymentStatus {
   PAID = 'paid',
   FAILED = 'failed',
   REFUNDED = 'refunded',
+  REFUND_PENDING = 'refund_pending',
 }
 
 export enum OrderType {
@@ -48,6 +49,9 @@ export class Order {
 
   @Column({ name: 'user_id', type: 'uuid', nullable: true })
   userId: string;
+
+  @Column({ name: 'session_id', type: 'text', nullable: true })
+  sessionId: string;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'user_id' })
@@ -116,6 +120,9 @@ export class Order {
 
   @Column({ type: 'text', nullable: true })
   note: string;
+
+  @Column({ name: 'refund_info', type: 'jsonb', nullable: true })
+  refundInfo: any;
 
   @Column({ name: 'paid_at', type: 'timestamptz', nullable: true })
   paidAt: Date;

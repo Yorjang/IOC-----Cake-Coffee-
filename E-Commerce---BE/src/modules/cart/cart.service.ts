@@ -169,7 +169,7 @@ export class CartService {
       : { sessionId: owner.sessionId, branchId };
     let cart = await carts.findOne({
       where,
-      relations: withRelations ? { items: { product: { category: true }, variant: true } } : undefined,
+      relations: withRelations ? { items: { product: { category: true, variants: true, toppings: true }, variant: true } } : undefined,
     });
     if (!cart) {
       cart = await carts.save(carts.create({

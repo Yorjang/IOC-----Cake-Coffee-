@@ -1,3 +1,4 @@
+import { parseRes } from '../../utils/api';
 import { env } from "../../config/env";
 
 const AUTH_KEYS = ["accessToken", "refreshToken", "user"] as const;
@@ -51,7 +52,7 @@ export async function refreshAuthSession(): Promise<AuthSessionData | null> {
       body: JSON.stringify({ refreshToken }),
     });
     if (!res.ok) return null;
-    const data = await res.json();
+    const data = await parseRes(res);
     const session = {
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,

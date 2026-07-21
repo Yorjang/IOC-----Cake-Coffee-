@@ -1,13 +1,35 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Truck, Gift, RefreshCw, Coffee, Clock, AlertCircle, Check, Tag } from "lucide-react";
-import { heroBanners } from "../../data/mockData";
+import { toast } from "sonner";
+import { Truck, Gift, RefreshCw, Coffee, Clock, AlertCircle, MapPin, Copy, Check, Tag } from "lucide-react";
+const heroBanners = [
+  { src: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=1800&h=650&fit=crop&auto=format", alt: "Sweet Bean coffee and cakes" },
+  { src: "https://images.unsplash.com/photo-1517433367423-c7e5b0f35086?w=1800&h=650&fit=crop&auto=format", alt: "Fresh baked cookies and pastries" },
+  { src: "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=1800&h=650&fit=crop&auto=format", alt: "Dessert combo with coffee" }
+];
 import { ProductCard, Section } from "../components/shared";
 import { MESSAGES } from "../../constants/messages";
 import { env } from "../../config/env";
 import { HOME_CONFIG, VIEW_KEYS } from "../../config/appConfig";
 
+const VALUE_PROPS = [
+  { icon: Truck, title: "Freeship nội thành", sub: "Đơn từ 200.000đ trong bán kính 8km" },
+  { icon: Gift, title: "Tặng thiệp miễn phí", sub: "Áp dụng cho bánh sinh nhật đặt trước" },
+  { icon: RefreshCw, title: "Đổi bánh trong ngày", sub: "Nếu giao sai mẫu hoặc hư hỏng khi nhận" },
+  { icon: Coffee, title: "Combo cafe + bánh", sub: "Giảm thêm khi mua kèm đồ uống" },
+];
 
+const VOUCHERS = [
+  { code: "CAKE10", title: "Giảm 10% bánh ngọt", sub: "Không yêu cầu đơn tối thiểu" },
+  { code: "COFFEE20", title: "Giảm 20% cafe", sub: "Khi mua kèm bánh bất kỳ" },
+  { code: "NEWUSER50", title: "Giảm 50.000đ", sub: "Cho khách hàng mới" },
+];
+
+const STORES = [
+  { name: "Sweet Bean Quận 1", addr: "123 Nguyễn Huệ, Q.1", hours: "07:00 – 22:00" },
+  { name: "Sweet Bean Quận 3", addr: "45 Võ Văn Tần, Q.3", hours: "07:00 – 21:30" },
+  { name: "Sweet Bean Bình Thạnh", addr: "88 Xô Viết Nghệ Tĩnh, BT", hours: "08:00 – 21:00" },
+];
 
 function VoucherDetailModal({ voucher, products, onSelectProduct, setView, onClose }: any) {
   if (!voucher) return null;
@@ -17,14 +39,14 @@ function VoucherDetailModal({ voucher, products, onSelectProduct, setView, onClo
   const scopeLabel = d?.productId && scopeProduct
     ? 'Sản phẩm'
     : d?.categoriesId && scopeCategory
-      ? 'Danh mục'
-      : null;
+    ? 'Danh mục'
+    : null;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose} style={{ animation: 'fadeIn .2s ease' }}>
       <div className="bg-card w-full max-w-md rounded-2xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} style={{ animation: 'slideUp .25s ease' }}>
         <button onClick={onClose} className="absolute right-4 top-4 text-muted-foreground hover:text-foreground z-10">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
         </button>
 
         {/* Header */}
@@ -163,7 +185,6 @@ function VoucherRow({ code, title, sub, onClick }: any) {
 
 export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggleWishlist, products = [], categories = [], publicCoupons = [] }: any) {
   const [activeBanner, setActiveBanner] = useState(0);
-  const [banners, setBanners] = useState<Array<{ src: string; alt: string; title?: string; subtitle?: string; linkUrl?: string }>>(heroBanners);
   const [storeSearch, setStoreSearch] = useState("");
   const [selectedVoucher, setSelectedVoucher] = useState<any>(null);
   const taggedSections = Array.from(
@@ -177,6 +198,11 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
     }, new Map()).values(),
   ) as Array<{ tag: any; products: any[] }>;
 
+  const filteredStores = STORES.filter(s =>
+    s.name.toLowerCase().includes(storeSearch.toLowerCase()) ||
+    s.addr.toLowerCase().includes(storeSearch.toLowerCase())
+  );
+
   const displayVouchers = publicCoupons.slice(0, 3).map((c: any) => ({
     code: c.code,
     title: c.description || (c.minOrderValue > 0 ? `Đơn từ ${Number(c.minOrderValue).toLocaleString()}đ` : 'Không yêu cầu đơn tối thiểu'),
@@ -184,22 +210,19 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
     rawData: c
   }));
 
-  useEffect(() => { let cancelled = false; fetch(`${env.API_URL}/banners/public`).then(response => response.ok ? response.json() : Promise.reject(response.status)).then(data => { const next = Array.isArray(data) ? data.filter((banner: any) => banner.imageUrl).map((banner: any) => ({ src: banner.imageUrl, alt: banner.title || "Sweet Bean promotion", title: banner.title, subtitle: banner.subtitle, linkUrl: banner.linkUrl })) : []; if (!cancelled && next.length) { setBanners(next); setActiveBanner(0); } }).catch(() => {}); return () => { cancelled = true; }; }, []);
-
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setActiveBanner((current) => (current + 1) % banners.length);
+      setActiveBanner((current) => (current + 1) % heroBanners.length);
     }, HOME_CONFIG.HERO_ROTATION_MS);
     return () => window.clearInterval(timer);
-  }, [banners.length]);
+  }, []);
 
-  const currentBanner = banners[activeBanner];
   return (
     <>
       {/* ── Hero banner ── */}
       <section className="relative w-full overflow-hidden">
         <div className="relative h-[430px] w-full md:h-[520px]">
-          {banners.map((banner, index) => (
+          {heroBanners.map((banner, index) => (
             <img key={banner.src} src={banner.src} alt={banner.alt}
               className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${activeBanner === index ? "opacity-100" : "opacity-0"}`} />
           ))}
@@ -208,15 +231,11 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
         <div className="absolute inset-0 bg-black/20" />
         <div className="absolute inset-0 flex w-full flex-col justify-center px-2 sm:px-4 lg:px-4">
           <p className="font-mono text-xs uppercase tracking-[.3em] text-primary-foreground/85 drop-shadow">{env.APP_NAME}</p>
-          <h1 className="mt-4 max-w-2xl text-4xl leading-tight text-primary-foreground drop-shadow-[0_3px_14px_rgba(0,0,0,0.65)] md:text-6xl whitespace-pre-line">{currentBanner?.title || MESSAGES.HERO_TITLE}</h1>
-          <p className="mt-4 max-w-lg text-base leading-7 text-primary-foreground/85 drop-shadow md:text-lg">{currentBanner?.subtitle || MESSAGES.HERO_SUBTITLE}</p>
+          <h1 className="mt-4 max-w-2xl text-4xl leading-tight text-primary-foreground drop-shadow-[0_3px_14px_rgba(0,0,0,0.65)] md:text-6xl whitespace-pre-line">{MESSAGES.HERO_TITLE}</h1>
+          <p className="mt-4 max-w-lg text-base leading-7 text-primary-foreground/85 drop-shadow md:text-lg">{MESSAGES.HERO_SUBTITLE}</p>
           <div className="mt-7 flex flex-wrap gap-3">
             <button onClick={() => setView(VIEW_KEYS.SWEETS)} className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 shadow-lg">{MESSAGES.HERO_BUTTON_ORDER}</button>
-            {currentBanner?.linkUrl ? (
-              <a href={currentBanner.linkUrl} className="rounded-full border border-primary-foreground/40 bg-primary-foreground/10 px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary-foreground/20 backdrop-blur">{"Tham gia ch\u01B0\u01A1ng tr\u00ECnh"}</a>
-            ) : (
-              <button onClick={() => setView(VIEW_KEYS.DRINKS)} className="rounded-full border border-primary-foreground/40 bg-primary-foreground/10 px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary-foreground/20 backdrop-blur">{MESSAGES.HERO_BUTTON_EXPLORE}</button>
-            )}
+            <button onClick={() => setView(VIEW_KEYS.DRINKS)} className="rounded-full border border-primary-foreground/40 bg-primary-foreground/10 px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary-foreground/20 backdrop-blur">{MESSAGES.HERO_BUTTON_EXPLORE}</button>
           </div>
           <div className="mt-6 inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-primary-foreground/25 bg-sidebar/55 px-4 py-2 text-xs text-primary-foreground/90 shadow-lg backdrop-blur">
             <span className="size-2 rounded-full bg-green-400 animate-pulse" />
@@ -224,7 +243,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
           </div>
         </div>
         <div className="absolute bottom-5 left-1/2 z-10 flex w-full -translate-x-1/2 gap-2 px-2 sm:px-4 lg:px-4">
-          {banners.map((banner, index) => (
+          {heroBanners.map((banner, index) => (
             <button key={banner.alt} type="button" aria-label={`Chuyển sang banner ${index + 1}`} onClick={() => setActiveBanner(index)}
               className={`h-2.5 rounded-full transition-all ${activeBanner === index ? "w-8 bg-primary" : "w-2.5 bg-primary-foreground/60 hover:bg-primary-foreground"}`} />
           ))}

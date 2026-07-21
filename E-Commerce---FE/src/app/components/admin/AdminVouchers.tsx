@@ -1,9 +1,17 @@
+import { parseRes } from '../../../utils/api';
 
 import React, { useState, useEffect } from "react";
-import { Edit, Trash2, Loader2 } from "lucide-react";
+import {
+  LayoutDashboard, Package, Tag, Settings, ShoppingBag, Users, Star,
+  BarChart2, Image, Edit, Trash2, Eye, Plus, CheckCircle, XCircle,
+  TrendingUp, AlertCircle, Loader2, ToggleLeft, Search, Filter,
+  ArrowUpRight, DollarSign, Clock, ChevronDown, Store, MapPin, Boxes,
+  ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
+} from "lucide-react";
 import { toast } from "sonner";
 import { env } from "../../../config/env";
-import { StatusBadge, TableHeader } from "./AdminShared";
+import { supabase } from "../../../config/supabase";
+import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
 
 export function AdminVouchers() {
   const [coupons, setCoupons] = useState<any[]>([]);
@@ -26,7 +34,6 @@ export function AdminVouchers() {
   const [targetSize, setTargetSize] = useState("");
   const [description, setDescription] = useState("");
   const [availableSizes, setAvailableSizes] = useState<string[]>([]);
-  const [isActive, setIsActive] = useState(true);
 
   const loadCoupons = async () => {
     const token = localStorage.getItem("accessToken");
@@ -34,7 +41,7 @@ export function AdminVouchers() {
       const res = await fetch(`${env.API_URL}/coupons`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         setCoupons(data);
       }
@@ -48,7 +55,7 @@ export function AdminVouchers() {
   const loadProductsOnly = async () => {
     try {
       const pRes = await fetch(`${env.API_URL}/products`);
-      if (pRes.ok) setProducts(await pRes.json());
+      if (pRes.ok) setProducts((await parseRes(pRes)) || []);
     } catch (err) {
       console.error(err);
     }
@@ -57,7 +64,7 @@ export function AdminVouchers() {
   const loadCategoriesOnly = async () => {
     try {
       const res = await fetch(`${env.API_URL}/products/categories`);
-      if (res.ok) setCategories(await res.json());
+      if (res.ok) setCategories(await parseRes(res));
     } catch (err) {
       console.error(err);
     }
@@ -66,7 +73,7 @@ export function AdminVouchers() {
   const loadSizesOnly = async () => {
     try {
       const res = await fetch(`${env.API_URL}/products/sizes/distinct`);
-      if (res.ok) setAvailableSizes(await res.json());
+      if (res.ok) setAvailableSizes(await parseRes(res));
     } catch (err) {
       console.error(err);
     }
@@ -111,10 +118,10 @@ export function AdminVouchers() {
           categoriesId: categoriesId || null,
           targetSize: targetSize || null,
           description: description || "",
-          isActive: isActive,
+          isActive: true,
         }),
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         toast.success(isEditing ? "Cập nhật voucher thành công." : "Tạo voucher thành công.");
         // Clear form
@@ -128,7 +135,6 @@ export function AdminVouchers() {
         setCategoriesId("");
         setTargetSize("");
         setDescription("");
-        setIsActive(true);
         setEditingVoucher(null);
         loadCoupons();
       } else {
@@ -156,7 +162,6 @@ export function AdminVouchers() {
     setCategoriesId(v.categoriesId || "");
     setTargetSize(v.targetSize || "");
     setDescription(v.description || "");
-    setIsActive(v.isActive !== false);
   };
 
   const handleCancelEdit = () => {
@@ -172,7 +177,6 @@ export function AdminVouchers() {
     setCategoriesId("");
     setTargetSize("");
     setDescription("");
-    setIsActive(true);
   };
 
   const getFilteredSizes = () => {
@@ -195,7 +199,7 @@ export function AdminVouchers() {
         toast.success("Xóa voucher thành công.");
         loadCoupons();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi xóa.");
       }
     } catch (err) {
@@ -411,14 +415,6 @@ export function AdminVouchers() {
             {getFilteredSizes().map(sz => (
               <option key={sz} value={sz}>Size áp dụng: {sz}</option>
             ))}
-          </select>
-          <select
-            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
-            value={isActive ? "true" : "false"}
-            onChange={e => setIsActive(e.target.value === "true")}
-          >
-            <option value="true">Trạng thái: Hoạt động (Active)</option>
-            <option value="false">Trạng thái: Tạm khóa (Inactive)</option>
           </select>
           <input
             className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent sm:col-span-2 lg:col-span-3"

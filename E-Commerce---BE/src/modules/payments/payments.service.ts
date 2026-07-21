@@ -1,9 +1,10 @@
-import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, BadRequestException, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Payment, PaymentGateway, PaymentStatus } from './payment.entity';
 import { Order, OrderStatus } from '../orders/order.entity';
 import { SepayWebhookDto } from './dto/sepay-webhook.dto';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class PaymentsService {
@@ -12,6 +13,7 @@ export class PaymentsService {
     private readonly payments: Repository<Payment>,
     @InjectRepository(Order)
     private readonly orders: Repository<Order>,
+    private readonly configService: ConfigService,
   ) { }
 
   async createPayment(orderId: string, amount: number, gateway: string): Promise<Payment> {
@@ -74,7 +76,8 @@ export class PaymentsService {
   }
 
   async processSepayWebhook(authHeader: string, body: SepayWebhookDto) {
-    const expectedKey = process.env.SEPAY_API_KEY || 'sepay_secret_key_123';
+    const expectedKey = this.configService.get<string>('SEPAY_WEBHOOK_API_KEY') || this.configService.get<string>('SEPAY_API_KEY');
+    if (!expectedKey) throw new InternalServerErrorException('SEPAY_WEBHOOK_API_KEY is not configured!');
 
     // 1. Verify API Key (Case-insensitive for 'apikey')
     const authHeaderLower = authHeader?.toLowerCase() || '';
@@ -159,9 +162,12 @@ export class PaymentsService {
       throw new BadRequestException('Đơn hàng không tồn tại.');
     }
 
-    const bankId = process.env.BANK_ID || 'MB';
-    const bankAccount = process.env.BANK_ACCOUNT || '999988889999';
-    const bankAccountName = process.env.BANK_ACCOUNT_NAME || 'TIEM BANH CAKE COFFEE';
+    const bankId = this.configService.get<string>('BANK_ID');
+    const bankAccount = this.configService.get<string>('BANK_ACCOUNT');
+    const bankAccountName = this.configService.get<string>('BANK_ACCOUNT_NAME');
+    if (!bankId || !bankAccount || !bankAccountName) {
+      throw new InternalServerErrorException('Bank configuration (BANK_ID, BANK_ACCOUNT, BANK_ACCOUNT_NAME) is not set in .env!');
+    }
     const transferContent = `cakeandcoffee${order.orderCode}`;
 
     const qrUrl = `https://qr.sepay.vn/img?acc=${bankAccount}&bank=${bankId}&amount=${order.totalAmount}&des=${transferContent}`;
