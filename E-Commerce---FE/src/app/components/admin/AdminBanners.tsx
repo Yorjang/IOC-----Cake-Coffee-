@@ -1,11 +1,18 @@
+import { parseRes } from '../../../utils/api';
 
 import React, { useState, useEffect } from "react";
 import {
-  Edit, Trash2, Plus, CheckCircle, XCircle, Loader2
+  LayoutDashboard, Package, Tag, Settings, ShoppingBag, Users, Star,
+  BarChart2, Image, Edit, Trash2, Eye, Plus, CheckCircle, XCircle,
+  TrendingUp, AlertCircle, Loader2, ToggleLeft, Search, Filter,
+  ArrowUpRight, DollarSign, Clock, ChevronDown, Store, MapPin, Boxes,
+  ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
 } from "lucide-react";
 import { toast } from "sonner";
+import { getAccessToken } from "../authSession";
 import { env } from "../../../config/env";
-import { ImageUploader, StatusBadge, AdminBtn, deleteStorageImage } from "./AdminShared";
+import { supabase } from "../../../config/supabase";
+import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
 
 export function AdminBanners() {
   const [bannersList, setBannersList] = useState<any[]>([]);
@@ -22,12 +29,12 @@ export function AdminBanners() {
   const [showAddForm, setShowAddForm] = useState(false);
 
   const loadBanners = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/banners`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         setBannersList(data);
       }
@@ -39,12 +46,13 @@ export function AdminBanners() {
   };
 
   const handleEdit = (banner: any) => { setEditingBanner(banner); setTitle(banner.title || ""); setSubtitle(banner.subtitle || ""); setImageUrl(banner.imageUrl || ""); setLinkUrl(banner.linkUrl || ""); setSortOrder(String(banner.sortOrder ?? 0)); setShowAddForm(true); };
+  
   useEffect(() => {
     loadBanners();
   }, []);
 
   const handleToggleActive = async (banner: any) => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/banners/${banner.id}/active`, {
         method: "PATCH",
@@ -58,7 +66,7 @@ export function AdminBanners() {
         toast.success("Cập nhật trạng thái banner thành công.");
         loadBanners();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi cập nhật.");
       }
     } catch (err) {
@@ -78,12 +86,9 @@ export function AdminBanners() {
       });
       if (res.ok) {
         toast.success("Xóa banner thành công.");
-        if (banner?.imageUrl) {
-          await deleteStorageImage(banner.imageUrl);
-        }
         loadBanners();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi xóa.");
       }
     } catch (err) {
@@ -117,19 +122,20 @@ export function AdminBanners() {
           isActive: editingBanner?.isActive ?? true,
         }),
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
-        toast.success("Tạo banner thành công.");
+        toast.success("Lưu banner thành công.");
         setTitle("");
         setImageUrl("https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800");
         setSubtitle("");
         setLinkUrl("");
         setSortOrder("1");
         setShowAddForm(false);
+        setEditingBanner(null);
         loadBanners();
       } else {
         setEditingBanner(null);
-        toast.error(data.message || "Lỗi khi tạo banner.");
+        toast.error(data.message || "Lỗi khi lưu banner.");
       }
     } catch (err) {
       console.error(err);
@@ -248,3 +254,5 @@ export function AdminBanners() {
     </div>
   );
 }
+
+

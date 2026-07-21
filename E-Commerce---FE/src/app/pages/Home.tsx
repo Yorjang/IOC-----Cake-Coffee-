@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Truck, Gift, RefreshCw, Coffee, Clock, AlertCircle, Check, Tag } from "lucide-react";
-import { heroBanners } from "../../data/mockData";
+const heroBanners = [
+  { src: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=1800&h=650&fit=crop&auto=format", alt: "Sweet Bean coffee and cakes" },
+  { src: "https://images.unsplash.com/photo-1517433367423-c7e5b0f35086?w=1800&h=650&fit=crop&auto=format", alt: "Fresh baked cookies and pastries" },
+  { src: "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=1800&h=650&fit=crop&auto=format", alt: "Dessert combo with coffee" }
+];
 import { ProductCard, Section } from "../components/shared";
 import { MESSAGES } from "../../constants/messages";
 import { env } from "../../config/env";
 import { HOME_CONFIG, VIEW_KEYS } from "../../config/appConfig";
-
-
 
 function VoucherDetailModal({ voucher, products, onSelectProduct, setView, onClose }: any) {
   if (!voucher) return null;
@@ -17,14 +19,14 @@ function VoucherDetailModal({ voucher, products, onSelectProduct, setView, onClo
   const scopeLabel = d?.productId && scopeProduct
     ? 'Sản phẩm'
     : d?.categoriesId && scopeCategory
-      ? 'Danh mục'
-      : null;
+    ? 'Danh mục'
+    : null;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose} style={{ animation: 'fadeIn .2s ease' }}>
       <div className="bg-card w-full max-w-md rounded-2xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} style={{ animation: 'slideUp .25s ease' }}>
         <button onClick={onClose} className="absolute right-4 top-4 text-muted-foreground hover:text-foreground z-10">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
         </button>
 
         {/* Header */}

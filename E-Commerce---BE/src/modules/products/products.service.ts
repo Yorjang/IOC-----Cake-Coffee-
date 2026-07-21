@@ -12,20 +12,29 @@ import { CreateProductVariantDto, UpdateProductVariantDto } from './dto/product-
 import { ProductTag } from './product-tag.entity';
 import { CreateProductTagDto, ReplaceProductTagsDto, UpdateProductTagDto } from './dto/product-tag.dto';
 
+// BUG-016 FIX: Hoist RegExp to module level — prevents re-creation on every call (js-hoist-regexp)
+const SLUG_ACCENT_MAP: [RegExp, string][] = [
+    [/[áàảãạăắằẳẵặâấầẩẫậ]/g, 'a'],
+    [/[éèẻẽẹêếềểễệ]/g, 'e'],
+    [/[íìỉĩị]/g, 'i'],
+    [/[óòỏõọôốồổỗộơớờởỡợ]/g, 'o'],
+    [/[úùủũụưứừửữự]/g, 'u'],
+    [/[ýỳỷỹỵ]/g, 'y'],
+    [/đ/g, 'd'],
+    [/[^a-z0-9\s-]/g, ''],
+    [/\s+/g, '-'],
+    [/-+/g, '-'],
+];
+
 // Utility helper to generate slug
 function generateSlug(name: string): string {
     let s = name.toLowerCase();
-    s = s.replace(/[áàảãạăắằẳẵặâấầẩẫậ]/g, 'a');
-    s = s.replace(/[éèẻẽẹêếềểễệ]/g, 'e');
-    s = s.replace(/[íìỉĩị]/g, 'i');
-    s = s.replace(/[óòỏõọôốồổỗộơớờởỡợ]/g, 'o');
-    s = s.replace(/[úùủũụưứừửữự]/g, 'u');
-    s = s.replace(/[ýỳỷỹỵ]/g, 'y');
-    s = s.replace(/đ/g, 'd');
-    s = s.replace(/[^a-z0-9\s-]/g, '');
-    s = s.replace(/\s+/g, '-');
-    return s.trim().replace(/-+/g, '-');
+    for (const [pattern, replacement] of SLUG_ACCENT_MAP) {
+        s = s.replace(pattern, replacement);
+    }
+    return s.trim();
 }
+
 
 @Injectable()
 export class ProductsService {
@@ -130,13 +139,12 @@ export class ProductsService {
 
         // Add variants if provided, otherwise add default variant
         if (variants && variants.length > 0) {
-            for (const vDto of variants) {
-                const variant = this.variants.create({
-                    ...vDto,
-                    productId: savedProduct.id,
-                });
-                await this.variants.save(variant);
-            }
+        // BUG-012 FIX: Save all variants in a single batch call (was serial N saves)
+        const variantEntities = variants.map((vDto: any) =>
+            this.variants.create({ ...vDto, productId: savedProduct.id } as any)
+        );
+        await Promise.all(variantEntities.map(v => this.variants.save(v)));
+
         } else {
             // Default variant creation
             const size = dto.productType === ProductType.COFFEE || dto.productType === ProductType.DRINK ? 'Vừa' : 'Mặc định';

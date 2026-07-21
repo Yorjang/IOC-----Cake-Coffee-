@@ -1,3 +1,4 @@
+import { parseRes } from '../../utils/api';
 import { useState, useEffect } from "react";
 import { Package, X, ChevronRight } from "lucide-react";
 import { env } from "../../config/env";
@@ -10,8 +11,16 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, isHidden }: { las
   // Sync with lastCreatedOrder
   useEffect(() => {
     if (lastCreatedOrder) {
-      setActiveOrder(lastCreatedOrder);
-      setDismissed(false);
+      if (lastCreatedOrder.orderStatus === 'cancelled') {
+        // Don't show banner for cancelled orders
+        setActiveOrder(null);
+        setDismissed(true);
+      } else {
+        setActiveOrder(lastCreatedOrder);
+        setDismissed(false);
+      }
+    } else {
+      setActiveOrder(null);
     }
   }, [lastCreatedOrder]);
 
@@ -26,7 +35,7 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, isHidden }: { las
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
-          const data = await res.json();
+          const data = await parseRes(res);
           // Find the most recent active order
           const active = data.find((o: any) => !['completed', 'cancelled'].includes(o.orderStatus));
           if (active) {
@@ -48,9 +57,12 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, isHidden }: { las
       try {
         const res = await fetch(`${env.API_URL}/orders/public/${activeOrder.id}`);
         if (res.ok) {
-          const updated = await res.json();
+          const updated = await parseRes(res);
           setActiveOrder(updated);
-          if (['completed', 'cancelled'].includes(updated.orderStatus)) {
+          if (updated.orderStatus === 'cancelled') {
+            // Hide immediately when order is cancelled
+            setDismissed(true);
+          } else if (updated.orderStatus === 'completed') {
             // Auto dismiss after a few seconds when completed
             setTimeout(() => setDismissed(true), 5000);
           }
@@ -64,7 +76,7 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, isHidden }: { las
   }, [activeOrder?.id, activeOrder?.orderStatus, dismissed]);
 
   if (!activeOrder || dismissed || isHidden) return null;
-  if (['completed', 'cancelled'].includes(activeOrder.orderStatus) && dismissed) return null;
+  if (activeOrder.orderStatus === 'cancelled') return null;
 
   const getStatusInfo = (status: string) => {
     const map: Record<string, { label: string, color: string, pulse: string }> = {

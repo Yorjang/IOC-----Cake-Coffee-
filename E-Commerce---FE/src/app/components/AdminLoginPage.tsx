@@ -1,3 +1,4 @@
+import { parseRes } from '../../utils/api';
 import { useState } from "react";
 import { Lock, Mail, CakeSlice, Eye, EyeOff, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
@@ -26,7 +27,7 @@ export function AdminLoginPage({ onSuccess, onBack }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) throw new Error(data.message || "Đăng nhập thất bại");
 
       const role = data.user?.role;

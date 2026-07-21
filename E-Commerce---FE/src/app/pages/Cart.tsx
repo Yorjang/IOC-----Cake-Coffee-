@@ -371,7 +371,7 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
 
                         <div className="pl-4 shrink-0 flex flex-col items-center gap-1 justify-center relative w-12">
                            <div className={`size-5 rounded-full border flex flex-col items-center justify-center transition-colors ${isSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/30 bg-background"}`}>
-                             {isSelected && <Check size={12} strokeWidth={3} />}
+                             {isSelected ? <Check size={12} strokeWidth={3} /> : null}
                            </div>
                            
                            {/* Cutout shapes */}

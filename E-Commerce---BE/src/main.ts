@@ -1,13 +1,22 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
   // Tạo một instance của ứng dụng NestJS, nạp 'trái tim' AppModule vào
     const app = await NestFactory.create(AppModule);
 
   // Kích hoạt CORS để Frontend có thể gọi API
-    app.enableCors();
+    app.enableCors({
+    origin: '*',
+    credentials: true,
+  });
+  
+  // Áp dụng Global Interceptor & Filter (Fix for IOC)
+  app.useGlobalInterceptors(new TransformInterceptor());
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   // Bật ValidationPipe để tự động kiểm tra dữ liệu gửi lên (DTO)
     app.useGlobalPipes(new ValidationPipe({
