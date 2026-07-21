@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface WishlistContextType {
   wishlist: any[];
@@ -8,7 +8,7 @@ interface WishlistContextType {
 
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
-export function WishlistProvider({ children }: { children: React.ReactNode }) {
+export function WishlistProvider({ children }: { children: ReactNode }) {
   const [wishlist, setWishlist] = useState<any[]>(() => {
     try {
       const stored = localStorage.getItem("sb_wishlist");

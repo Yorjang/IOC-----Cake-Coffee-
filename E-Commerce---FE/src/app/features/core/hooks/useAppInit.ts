@@ -849,6 +849,7 @@ export function useAppInit() {
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
       }
+      headers["X-Session-Id"] = cartSessionId;
 
 
 
