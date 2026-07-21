@@ -269,18 +269,13 @@ export class OrdersService {
         [branchId, item.variantId]
       );
       if (stockRes.length === 0) {
-        // Tạm thời vô hiệu hóa lỗi để cho phép đặt hàng khi dữ liệu kho chưa được seed
-        console.warn(`[Mock Stock] Sản phẩm ${item.productName} chưa có dữ liệu kho tại chi nhánh này. Đang tạo tự động...`);
-        await this.orders.query(
-          'INSERT INTO branch_variant_stocks (branch_id, variant_id, quantity) VALUES ($1, $2, $3)',
-          [branchId, item.variantId, 999]
-        );
-      } else {
-        const availableQty = Number(stockRes[0].quantity);
-        // BUG-002 FIX: Re-enable stock validation
-        if (availableQty < item.quantity) {
-          throw new BadRequestException(`Sản phẩm ${item.productName} (${item.variantName}) không đủ số lượng tồn kho (Còn lại: ${availableQty}).`);
-        }
+        throw new BadRequestException(`Sản phẩm ${item.productName} hiện không khả dụng tại chi nhánh này (Chưa có dữ liệu kho).`);
+      }
+      
+      const availableQty = Number(stockRes[0].quantity);
+      // BUG-002 FIX: Re-enable stock validation
+      if (availableQty < item.quantity) {
+        throw new BadRequestException(`Sản phẩm ${item.productName} (${item.variantName}) không đủ số lượng tồn kho (Còn lại: ${availableQty}).`);
       }
     }
 
@@ -316,15 +311,15 @@ export class OrdersService {
             order_code, user_id, branch_id, subtotal, discount_amount, shipping_fee, total_amount, 
             payment_method, payment_status, order_status, order_type, fulfillment_type, 
             shipping_address_street, shipping_address_ward, shipping_address_district, shipping_address_province,
-            shipping_address_phone, shipping_recipient_name, note, coupon_code
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+            shipping_address_phone, shipping_recipient_name, note, coupon_code, session_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
           RETURNING id
         `, [
           orderCode, userId || null, branchId, finalSubtotal, finalDiscount, shippingFee, finalTotalAmount,
           paymentMethod, 'pending', 'pending', 'online', fulfillmentType,
           shippingAddressStreet, shippingAddressWard, shippingAddressDistrict, shippingAddressProvince,
           shippingAddressPhone, shippingRecipientName, note,
-          couponCode ? couponCode.toUpperCase().trim() : null
+          couponCode ? couponCode.toUpperCase().trim() : null, sessionId || null
         ]);
         
         orderId = orderInsert[0].id;
@@ -401,5 +396,52 @@ export class OrdersService {
       throw new BadRequestException('Order not found');
     }
     return order;
+  }
+
+  async cancelMyOrder(id: string, userId: string | null, sessionId: string | null, refundInfo?: any): Promise<Order> {
+    const order = await this.orders.findOne({ where: { id } });
+    if (!order) {
+      throw new BadRequestException('Order not found');
+    }
+
+    if (userId) {
+      if (order.userId !== userId) {
+        throw new BadRequestException('Không có quyền hủy đơn hàng này');
+      }
+    } else if (sessionId) {
+      if (order.sessionId !== sessionId) {
+        throw new BadRequestException('Không có quyền hủy đơn hàng này (sai session)');
+      }
+    } else {
+      throw new BadRequestException('Không có quyền hủy đơn hàng này');
+    }
+
+    if (order.orderStatus !== OrderStatus.PENDING) {
+      throw new BadRequestException('Chỉ có thể hủy đơn hàng đang ở trạng thái chờ xác nhận');
+    }
+
+    if (order.paymentStatus === 'paid' as any) {
+      if (!refundInfo || !refundInfo.bankName || !refundInfo.accountNumber || !refundInfo.accountName) {
+        throw new BadRequestException('Vui lòng cung cấp đầy đủ thông tin ngân hàng để nhận hoàn tiền.');
+      }
+      order.paymentStatus = 'refund_pending' as any;
+      order.refundInfo = refundInfo;
+    }
+
+    order.orderStatus = OrderStatus.CANCELLED;
+    return this.orders.save(order);
+  }
+
+  async processRefund(id: string): Promise<Order> {
+    const order = await this.orders.findOne({ where: { id } });
+    if (!order) {
+      throw new BadRequestException('Order not found');
+    }
+    if (order.paymentStatus !== 'refund_pending' as any) {
+      throw new BadRequestException('Đơn hàng không ở trạng thái chờ hoàn tiền');
+    }
+    
+    order.paymentStatus = 'refunded' as any;
+    return this.orders.save(order);
   }
 }

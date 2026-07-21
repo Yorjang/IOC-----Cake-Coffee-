@@ -66,6 +66,26 @@ export function AdminOrders() {
     }
   };
 
+  const processRefund = async (id: string) => {
+    if (!window.confirm("Bạn xác nhận đã chuyển khoản hoàn tiền cho khách hàng này?")) return;
+    const token = getAccessToken();
+    try {
+      const res = await fetch(`${env.API_URL}/orders/${id}/refund`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        toast.success("Đã đánh dấu hoàn tiền thành công.");
+        loadOrders();
+      } else {
+        const errData = await res.json();
+        toast.error(errData.message || "Lỗi khi xử lý hoàn tiền.");
+      }
+    } catch (err) {
+      toast.error("Lỗi kết nối.");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center bg-sidebar rounded-2xl">
@@ -74,7 +94,9 @@ export function AdminOrders() {
     );
   }
 
-  const mapDbToUiStatus = (status: string) => {
+  const mapDbToUiStatus = (order: any) => {
+    if (order.paymentStatus === 'refund_pending') return 'Chờ hoàn tiền';
+    const status = order.orderStatus;
     if (status === 'pending' || status === 'confirmed') return 'Xác nhận';
     if (status === 'preparing') return 'Đang chuẩn bị';
     if (status === 'shipping') return 'Đang giao';
@@ -83,10 +105,10 @@ export function AdminOrders() {
     return status;
   };
 
-  const tabs = ["Tất cả", "Xác nhận", "Đang chuẩn bị", "Đang giao", "Hoàn thành", "Huỷ"];
+  const tabs = ["Tất cả", "Xác nhận", "Đang chuẩn bị", "Đang giao", "Hoàn thành", "Huỷ", "Chờ hoàn tiền"];
 
   const filtered = ordersList.filter(o => {
-    const statusMatch = filter === "Tất cả" || mapDbToUiStatus(o.orderStatus) === filter;
+    const statusMatch = filter === "Tất cả" || mapDbToUiStatus(o) === filter;
     const searchMatch = !search ||
       o.orderCode.toLowerCase().includes(search.toLowerCase()) ||
       (o.user?.fullName || "").toLowerCase().includes(search.toLowerCase());
@@ -138,24 +160,45 @@ export function AdminOrders() {
                   {new Date(o.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                 </td>
                 <td className="py-3">
-                  <select
-                    value={o.orderStatus}
-                    onChange={(e) => updateStatus(o.id, e.target.value)}
-                    className="rounded bg-sidebar-accent px-2 py-1 text-xs text-foreground outline-none border border-sidebar-accent"
-                  >
-                    <option value="pending">Chờ xác nhận</option>
-                    <option value="confirmed">Xác nhận</option>
-                    <option value="preparing">Đang chuẩn bị</option>
-                    <option value="shipping">Đang giao</option>
-                    <option value="completed">Hoàn thành</option>
-                    <option value="cancelled">Huỷ</option>
-                  </select>
+                  {o.paymentStatus === 'refund_pending' ? (
+                    <span className="rounded bg-orange-500/20 px-2 py-1 text-xs font-medium text-orange-500">
+                      Chờ hoàn tiền
+                    </span>
+                  ) : (
+                    <select
+                      value={o.orderStatus}
+                      onChange={(e) => updateStatus(o.id, e.target.value)}
+                      className="rounded bg-sidebar-accent px-2 py-1 text-xs text-foreground outline-none border border-sidebar-accent"
+                    >
+                      <option value="pending">Chờ xác nhận</option>
+                      <option value="confirmed">Xác nhận</option>
+                      <option value="preparing">Đang chuẩn bị</option>
+                      <option value="shipping">Đang giao</option>
+                      <option value="completed">Hoàn thành</option>
+                      <option value="cancelled">Huỷ</option>
+                    </select>
+                  )}
                 </td>
                 <td className="py-3">
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
                     <AdminBtn variant="ghost" onClick={() => {
                       toast.info(`Hình thức: ${o.fulfillmentType === 'delivery' ? 'Giao hàng' : 'Nhận tại quầy'} · SĐT: ${o.user?.phone || 'N/A'}`);
                     }}><Eye size={14} /></AdminBtn>
+                    
+                    {o.paymentStatus === 'refund_pending' && o.refundInfo && (
+                      <button 
+                        title="Đánh dấu đã hoàn tiền"
+                        onClick={() => {
+                          const msg = `Ngân hàng: ${o.refundInfo.bankName}\nSố TK: ${o.refundInfo.accountNumber}\nChủ TK: ${o.refundInfo.accountName}\n\nĐã chuyển khoản xong?`;
+                          if(window.confirm(msg)) {
+                            processRefund(o.id);
+                          }
+                        }}
+                        className="rounded bg-orange-600 px-2 py-1 text-xs text-white hover:bg-orange-700"
+                      >
+                        Đã hoàn tiền
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

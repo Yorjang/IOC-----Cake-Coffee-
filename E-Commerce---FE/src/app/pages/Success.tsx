@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
-import { ClipboardList, Check, Loader2 } from "lucide-react";
+import { ClipboardList, Check, Loader2, Copy, PackageCheck } from "lucide-react";
 import { toast } from "sonner";
 import { parseRes } from "../../utils/api";
 import { env } from "../../config/env";
 import { getAccessToken } from "../components/authSession";
 import { Btn } from "../components/shared";
+import { VIEW_KEYS } from "../../config/appConfig";
+
+const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
 export function Success({ setView, order }: any) {
   const [qrData, setQrData] = useState<any>(null);
@@ -13,6 +16,15 @@ export function Success({ setView, order }: any) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const orderId = order?.id;
+
+  useEffect(() => {
+    if (!order) {
+      setView(VIEW_KEYS.HOME);
+    }
+  }, [order, setView]);
+
+  if (!order) return null;
+
   const orderCode = order?.orderCode || "SB9999";
   const isBankTransfer = order?.paymentMethod === 'bank_transfer';
 
@@ -32,7 +44,7 @@ export function Success({ setView, order }: any) {
     fetch(`${env.API_URL}/payments/qr/${orderId}`, {
       headers
     })
-      .then(res => res.json())
+      .then(parseRes)
       .then(data => {
         setQrData(data);
         setLoadingQr(false);
@@ -147,9 +159,9 @@ export function Success({ setView, order }: any) {
                 <div className="flex items-center justify-between p-3">
                   <span className="text-muted-foreground">Nội dung chuyển khoản</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-semibold text-primary uppercase">{qrData.paymentContent}</span>
+                    <span className="font-mono font-semibold text-primary uppercase">{qrData.transferContent}</span>
                     <button
-                      onClick={() => handleCopy(qrData.paymentContent, 'content')}
+                      onClick={() => handleCopy(qrData.transferContent, 'content')}
                       className="text-primary hover:text-primary/80"
                     >
                       {copiedField === 'content' ? <Check size={16} /> : <Copy size={16} />}

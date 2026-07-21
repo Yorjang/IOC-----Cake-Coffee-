@@ -5,12 +5,6 @@ import { toast } from "sonner";
 import { env } from "../../config/env";
 import { getAccessToken } from "../components/authSession";
 
-const MOCK_ORDERS = [
-  { id: "SB98124", date: "05/07/2026", items: "1x Cafe Latte, 1x Bánh Tiramisu", total: "100.000đ", status: "Đã hoàn thành" },
-  { id: "SB97512", date: "28/06/2026", items: "1x Bánh sinh nhật socola", total: "350.000đ", status: "Đã hoàn thành" },
-  { id: "SB99401", date: "07/07/2026", items: "2x Matcha Latte, 1x Bánh mousse xoài", total: "178.000đ", status: "Đang giao" },
-];
-
 const PRESET_AVATARS = [
   { name: "Coffee", url: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=150&auto=format&fit=crop&q=60" },
   { name: "Cupcake", url: "https://images.unsplash.com/photo-1587314168485-3236d6710814?w=150&auto=format&fit=crop&q=60" },
@@ -19,15 +13,8 @@ const PRESET_AVATARS = [
   { name: "Tiramisu", url: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=150&auto=format&fit=crop&q=60" },
 ];
 
-const FALLBACK_USER = {
-  fullName: "Nguyễn Minh Anh",
-  email: "minhanh@email.com",
-  phone: "0987654321",
-  avatar: "",
-};
-
 export function Profile({ user, setUser, setView, onLogout }: any) {
-  const displayUser = user || FALLBACK_USER;
+  const displayUser = user || { fullName: "", email: "", phone: "", avatar: "" };
 
   // Tabs: 'info' | 'password' | 'orders'
   const [activeTab, setActiveTab] = useState<"info" | "password" | "orders">("info");

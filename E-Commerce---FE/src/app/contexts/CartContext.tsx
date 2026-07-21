@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { env } from '../../config/env';
 import { getAccessToken } from '../components/authSession';
 
@@ -28,11 +28,10 @@ const getCartSessionId = () => {
 // Helper to standardise parsing responses from the new BE format
 const parseResponse = async (res: Response) => {
   if (res.status === 204) return null;
-  const data = await parseRes(res);
-  return data.data !== undefined ? data.data : data;
+  return await parseRes(res);
 };
 
-export function CartProvider({ children }: { children: ReactNode }) {
+export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<any[]>([]);
   const [cartSessionId] = useState(getCartSessionId);
 

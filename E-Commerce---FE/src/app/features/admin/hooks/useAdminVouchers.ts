@@ -42,7 +42,7 @@ export function useAdminVouchers() {
   const loadProductsOnly = async () => {
     try {
       const pRes = await fetch(`${env.API_URL}/products`);
-      if (pRes.ok) setProducts(await pRes.json());
+      if (pRes.ok) setProducts(await parseRes(pRes) || []);
     } catch (err) {
       console.error(err);
     }
@@ -230,7 +230,7 @@ export function useAdminVouchers() {
   const loadProductsOnly = async () => {
     try {
       const pRes = await fetch(`${env.API_URL}/products`);
-      if (pRes.ok) setProducts(await pRes.json());
+      if (pRes.ok) setProducts(await parseRes(pRes) || []);
     } catch (err) {
       console.error(err);
     }

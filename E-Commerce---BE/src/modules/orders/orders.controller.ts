@@ -26,6 +26,23 @@ export class OrdersController {
     return this.ordersService.findPublicOrder(id);
   }
 
+  @Patch('public/:id/cancel')
+  @Public()
+  cancelPublic(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('refundInfo') refundInfo: any,
+    @CurrentUser() user: any,
+    @Headers('x-session-id') sessionId: string
+  ) {
+    return this.ordersService.cancelMyOrder(id, user?.id || null, sessionId || null, refundInfo);
+  }
+
+  @Patch(':id/refund')
+  @Permissions(Permission.UPDATE_ORDER)
+  processRefund(@Param('id', ParseUUIDPipe) id: string) {
+    return this.ordersService.processRefund(id);
+  }
+
   @Get('my')
   findMy(@CurrentUser() user: any) {
     return this.ordersService.findMyOrders(user.id);

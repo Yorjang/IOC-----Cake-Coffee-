@@ -19,10 +19,6 @@ export function useCheckout({ cart, setView, onPlaceOrder, user }: any) {
   const [hasCustomerLocation, setHasCustomerLocation] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
-  console.log("cart", cart);
-
-  console.log("cart111", cart.length !== 0);
-
   // useEffect(() => {
   //   if (!cart || cart.length === 0) {
   //     toast.error("Giỏ hàng trống! Không thể thực hiện thanh toán.");

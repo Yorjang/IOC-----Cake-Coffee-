@@ -13,6 +13,8 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, isHidden }: { las
     if (lastCreatedOrder) {
       setActiveOrder(lastCreatedOrder);
       setDismissed(false);
+    } else {
+      setActiveOrder(null);
     }
   }, [lastCreatedOrder]);
 
@@ -47,7 +49,7 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, isHidden }: { las
     
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`${env.API_URL}/orders/${activeOrder.id}`);
+        const res = await fetch(`${env.API_URL}/orders/public/${activeOrder.id}`);
         if (res.ok) {
           const updated = await parseRes(res);
           setActiveOrder(updated);

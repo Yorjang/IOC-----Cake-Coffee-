@@ -11,7 +11,7 @@ const SUGAR_OPTIONS = ["100%", "70%", "50%", "30%"];
 const ICE_OPTIONS = ["100%", "70%", "50%", "Không đá"];
 
 export function ProductDetail(props: any) {
-  const { setView, onToggleWishlist, onSelectProduct } = props;
+  const { setView, onToggleWishlist, onSelectProduct, wishlist, onAddToCart } = props;
   const {
     p, isDrink, isBirthdayCake,
     availableVariants, toppingOptions,

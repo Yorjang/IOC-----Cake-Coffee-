@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CakeSlice, ChevronDown, Heart, LogIn, LogOut, MapPin, Menu, Search, Settings, ShoppingBag, User } from "lucide-react";
+import { CakeSlice, ChevronDown, Heart, LogIn, LogOut, MapPin, Menu, Search, Settings, ShoppingBag, User, Package } from "lucide-react";
 import { MESSAGES } from "../../constants/messages";
 import { VIEW_KEYS } from "../../config/appConfig";
 
@@ -18,6 +18,7 @@ export function Header({
   selectedStore,
   onChooseStore,
   onLogout,
+  lastCreatedOrder,
 }: any) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -135,6 +136,17 @@ export function Header({
           </button>
         </div>
 
+        {(isLoggedIn || lastCreatedOrder) && (
+          <button
+            type="button"
+            onClick={() => setView(VIEW_KEYS.TRACKING)}
+            className={`relative rounded-full p-2 transition ${view === VIEW_KEYS.TRACKING ? "bg-primary text-primary-foreground" : "hover:bg-secondary"
+              }`}
+            title="Theo dõi đơn hàng"
+          >
+            <Package size={20} />
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setView(VIEW_KEYS.CART)}

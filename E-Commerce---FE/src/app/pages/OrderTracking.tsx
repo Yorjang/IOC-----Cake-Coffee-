@@ -20,15 +20,10 @@ export function OrderTracking({ orderId, onBack }: OrderTrackingProps) {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // Mock data for shipper and distance
-  const [shipperPhone, setShipperPhone] = useState("");
-  const [distance, setDistance] = useState("");
-  
-  useEffect(() => {
-    // Generate random mock data once when component mounts
-    setShipperPhone(`09${Math.floor(Math.random() * 90000000 + 10000000)}`);
-    setDistance(`${(Math.random() * 5 + 0.5).toFixed(1)} km`);
-  }, []);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundInfo, setRefundInfo] = useState({ bankName: "", accountNumber: "", accountName: "" });
+
+
 
   useEffect(() => {
     if (!orderId) {
@@ -63,6 +58,44 @@ export function OrderTracking({ orderId, onBack }: OrderTrackingProps) {
 
     return () => clearInterval(intervalId);
   }, [orderId]);
+
+  const handleCancelOrder = async () => {
+    if (order.paymentStatus === 'paid') {
+      setShowRefundModal(true);
+      return;
+    }
+    await processCancellation();
+  };
+
+  const processCancellation = async (refundData?: any) => {
+    if (!refundData && !window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này không?")) return;
+    try {
+      const token = localStorage.getItem("accessToken");
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const sessionId = localStorage.getItem("sb_cart_session_id");
+      if (sessionId) headers["x-session-id"] = sessionId;
+
+      const body: any = {};
+      if (refundData) body.refundInfo = refundData;
+
+      const res = await fetch(`${env.API_URL}/orders/public/${orderId}/cancel`, {
+        method: "PATCH",
+        headers,
+        body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
+      });
+      if (res.ok) {
+        toast.success("Đã hủy đơn hàng thành công");
+        setOrder({ ...order, orderStatus: "cancelled", paymentStatus: refundData ? "refund_pending" : order.paymentStatus });
+        setShowRefundModal(false);
+      } else {
+        const data = await res.json();
+        toast.error(data.message || "Không thể hủy đơn hàng");
+      }
+    } catch (err) {
+      toast.error("Đã xảy ra lỗi khi hủy đơn hàng");
+    }
+  };
 
   if (loading) {
     return (
@@ -136,8 +169,21 @@ export function OrderTracking({ orderId, onBack }: OrderTrackingProps) {
       <div className="flex flex-col gap-8 w-full">
         {/* Top Section: Full-width Stepper */}
         <div className="w-full">
-          <div className="rounded-3xl border border-border bg-card p-6 shadow-sm overflow-x-auto">
-            <div className="relative flex items-start justify-between min-w-[700px] px-8 py-2">
+          {order.orderStatus === 'cancelled' ? (
+            <div className="rounded-3xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20 p-8 flex flex-col items-center justify-center text-red-500">
+              <Package size={48} className="mb-4 opacity-50" />
+              <h2 className="text-2xl font-bold">Đơn hàng đã bị hủy</h2>
+              <p className="mt-2 text-red-600/70 text-center">Rất tiếc vì sự cố này. Bạn có thể đặt món lại trên trang chủ.</p>
+              {order.paymentStatus === 'refund_pending' && (
+                <div className="mt-6 w-full max-w-sm rounded-xl border border-orange-200 bg-orange-50 p-4 text-orange-700 dark:border-orange-900/50 dark:bg-orange-950/20">
+                  <p className="font-semibold flex items-center justify-center gap-2"><Clock size={18} /> Đang chờ hoàn tiền</p>
+                  <p className="text-sm mt-2 text-center opacity-90">Yêu cầu hoàn tiền của bạn đang được xử lý. Tiền sẽ về tài khoản trong 1-2 ngày làm việc.</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-border bg-card p-6 shadow-sm overflow-x-auto">
+              <div className="relative flex items-start justify-between min-w-[700px] px-8 py-2">
               {/* Connecting Line */}
               <div className="absolute left-[80px] right-[80px] top-[32px] -translate-y-1/2 h-1 bg-muted/60 rounded-full z-0"></div>
               
@@ -174,6 +220,7 @@ export function OrderTracking({ orderId, onBack }: OrderTrackingProps) {
               })}
             </div>
           </div>
+          )}
         </div>
 
         {/* Bottom Section: Order Details & Shipping Info */}
@@ -213,25 +260,7 @@ export function OrderTracking({ orderId, onBack }: OrderTrackingProps) {
                 <Package size={20} /> Thông tin giao hàng
               </h3>
               <div className="space-y-6">
-                <div className="flex items-center gap-4">
-                  <div className="flex size-10 items-center justify-center rounded-full bg-card shadow-sm border border-border/50 text-foreground">
-                    <Phone size={18} />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">SĐT Shipper (Cửa hàng)</p>
-                    <p className="font-mono text-base font-semibold">{shipperPhone}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-4">
-                  <div className="flex size-10 items-center justify-center rounded-full bg-card shadow-sm border border-border/50 text-foreground">
-                    <Navigation size={18} />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Khoảng cách đến bạn</p>
-                    <p className="text-base font-semibold">{distance}</p>
-                  </div>
-                </div>
+
               
                 <div className="mt-8 flex items-start gap-3 rounded-xl bg-card/80 border border-border/50 p-4 text-sm">
                   <MapPin size={20} className="mt-0.5 text-primary shrink-0" />
@@ -240,11 +269,90 @@ export function OrderTracking({ orderId, onBack }: OrderTrackingProps) {
                     {order.shippingAddressStreet}, {order.shippingAddressWard}, {order.shippingAddressDistrict}, {order.shippingAddressProvince}
                   </p>
                 </div>
+
+                {order.orderStatus === 'pending' && (
+                  <div className="pt-4 border-t border-border/50">
+                    <button
+                      type="button"
+                      onClick={handleCancelOrder}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100 hover:text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:hover:bg-red-900/40"
+                    >
+                      Hủy đơn hàng
+                    </button>
+                    <p className="text-center text-xs text-muted-foreground mt-2">Chỉ có thể hủy khi đơn hàng chưa được xác nhận/thanh toán</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Refund Modal */}
+      {showRefundModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-xl">
+            <h3 className="text-xl font-bold text-foreground">Yêu cầu hoàn tiền</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Đơn hàng của bạn đã được thanh toán. Vui lòng cung cấp thông tin tài khoản ngân hàng để chúng tôi tiến hành hoàn tiền.
+            </p>
+            
+            <div className="mt-6 space-y-4">
+              <div>
+                <label className="text-sm font-medium text-foreground">Ngân hàng thụ hưởng</label>
+                <input 
+                  type="text" 
+                  value={refundInfo.bankName}
+                  onChange={(e) => setRefundInfo({...refundInfo, bankName: e.target.value})}
+                  placeholder="VD: Vietcombank, Techcombank..." 
+                  className="mt-1 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">Số tài khoản</label>
+                <input 
+                  type="text" 
+                  value={refundInfo.accountNumber}
+                  onChange={(e) => setRefundInfo({...refundInfo, accountNumber: e.target.value})}
+                  placeholder="Nhập số tài khoản" 
+                  className="mt-1 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">Tên chủ tài khoản</label>
+                <input 
+                  type="text" 
+                  value={refundInfo.accountName}
+                  onChange={(e) => setRefundInfo({...refundInfo, accountName: e.target.value})}
+                  placeholder="NGUYEN VAN A" 
+                  className="mt-1 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm uppercase focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
+
+            <div className="mt-8 flex gap-3">
+              <button 
+                onClick={() => setShowRefundModal(false)}
+                className="flex-1 rounded-xl border border-border bg-card px-4 py-3 text-sm font-semibold hover:bg-muted"
+              >
+                Hủy bỏ
+              </button>
+              <button 
+                onClick={() => {
+                  if (!refundInfo.bankName || !refundInfo.accountNumber || !refundInfo.accountName) {
+                    toast.error("Vui lòng điền đầy đủ thông tin");
+                    return;
+                  }
+                  processCancellation(refundInfo);
+                }}
+                className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white hover:bg-red-700"
+              >
+                Xác nhận Hủy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

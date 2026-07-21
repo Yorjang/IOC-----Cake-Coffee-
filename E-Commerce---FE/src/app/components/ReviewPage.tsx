@@ -5,12 +5,6 @@ import { env } from "../../config/env";
 import { getAccessToken } from "./authSession";
 import { toast } from "sonner";
 
-const mockProducts = [
-  ["Bánh Tiramisu", "45.000đ", "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=120&h=120&fit=crop&auto=format"],
-  ["Cafe Latte", "55.000đ", "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=120&h=120&fit=crop&auto=format"],
-  ["Bánh mousse xoài", "60.000đ", "https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?w=120&h=120&fit=crop&auto=format"],
-];
-
 const initialReviews = [
   { user: "Nguyễn Minh Anh", avatar: "N", rating: 5, date: "20/06/2025", comment: "Bánh ngon tuyệt, cream mịn, không ngọt quá. Giao hàng nhanh!", likes: 12, verified: true, images: ["https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=80&h=80&fit=crop&auto=format"] },
   { user: "Trần Thị Bình", avatar: "T", rating: 5, date: "18/06/2025", comment: "Mình đặt bánh sinh nhật cho con, cả nhà khen ngon. Hộp đóng gói đẹp, không bị méo. Sẽ mua lại!", likes: 8, verified: true, images: [] },
@@ -54,9 +48,22 @@ export function ReviewPage({ product, onBack }: any) {
   const [reviewsList, setReviewsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const displayProductName = product ? product[0] : mockProducts[0][0];
-  const displayProductPrice = product ? product[1] : mockProducts[0][1];
-  const displayProductImage = product ? product[3] : mockProducts[0][2];
+  if (!product) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6">
+        <div className="mb-4 text-muted-foreground"><Camera size={48} /></div>
+        <h2 className="text-xl font-semibold mb-2">Không tìm thấy sản phẩm</h2>
+        <p className="text-muted-foreground mb-6">Có vẻ như sản phẩm này không tồn tại hoặc đã bị xóa.</p>
+        <button onClick={onBack} className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-primary-foreground transition hover:bg-primary/90 font-medium">
+          <ArrowLeft size={18} /> Quay lại
+        </button>
+      </div>
+    );
+  }
+
+  const displayProductName = product[0];
+  const displayProductPrice = product[1];
+  const displayProductImage = product[3];
 
   const productId = product?.raw?.id;
 

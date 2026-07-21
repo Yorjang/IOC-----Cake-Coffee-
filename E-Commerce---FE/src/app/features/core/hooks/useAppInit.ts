@@ -1,7 +1,7 @@
 import { parseRes } from '../../../../utils/api';
 import { useEffect, useState, useRef, useMemo } from "react";
 import { toast } from "sonner";
-import { navPages } from "../../../../data/mockData";
+
 import { storeLocations as fallbackStoreLocations, type StoreLocation } from "../../../../data/storeLocations";
 import { env } from "../../../../config/env";
 import { VIEW_KEYS } from "../../../../config/appConfig";
@@ -78,7 +78,7 @@ const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.TRACKING]: "/theo-doi",
 };
 
-export const getPathFromView = (view: string, product?: any, VIEW_PATH_MAP?: any) => {
+export const getPathFromView = (view: string, product?: any) => {
   if (view === VIEW_KEYS.DETAIL && product) {
     return `/chi-tiet/${encodeURIComponent(product[0].toLowerCase().replace(/\s+/g, "-"))}`;
   }
@@ -203,6 +203,10 @@ const apiBranchToStore = (branch: any): StoreLocation => {
 };
 
 export function useAppInit() {
+  // ── Fetch real products & categories from API ───────────────────────
+  const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+
   const [view, setViewInternal] = useState<any>(() => getViewFromPath(window.location.pathname, categories));
   const [isLoading, setIsLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(() => getProductFromPath(window.location.pathname, products));
@@ -223,11 +227,24 @@ export function useAppInit() {
   const [manualLocationRequired, setManualLocationRequired] = useState(false);
   const [orderCode, setOrderCode] = useState("");
   const [lastCreatedOrder, setLastCreatedOrder] = useState<any>(null);
+
+  useEffect(() => {
+    const savedOrderId = localStorage.getItem("sb_active_order");
+    if (savedOrderId && !lastCreatedOrder) {
+      fetch(`${env.API_URL}/orders/public/${savedOrderId}`)
+        .then(res => res.ok ? parseRes(res) : null)
+        .then(data => {
+          if (data && !['completed', 'cancelled'].includes(data.orderStatus)) {
+            setLastCreatedOrder(data);
+          } else {
+            localStorage.removeItem("sb_active_order");
+          }
+        })
+        .catch(console.error);
+    }
+  }, []);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
-  // ── Fetch real products & categories from API ───────────────────────
-  const [products, setProducts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
   const [publicCoupons, setPublicCoupons] = useState<any[]>([]);
   const [appliedCoupon, setAppliedCouponState] = useState<any | null>(() => {
     try {
@@ -322,7 +339,8 @@ export function useAppInit() {
         try {
           const couponRes = await fetch(`${env.API_URL}/coupons/public`);
           if (couponRes.ok) {
-            couponsList = await couponRes.json();
+            const apiCoupons = await couponRes.json();
+            couponsList = Array.isArray(apiCoupons.data) ? apiCoupons.data : (Array.isArray(apiCoupons) ? apiCoupons : []);
             setPublicCoupons(couponsList);
           }
         } catch (err) {
@@ -335,14 +353,16 @@ export function useAppInit() {
         ]);
         if (pRes.ok) {
           const apiProducts = await pRes.json();
-          setProducts(apiProducts.map((p: any) => apiProductToArray(p, couponsList)));
+          const productsData = Array.isArray(apiProducts.data) ? apiProducts.data : (Array.isArray(apiProducts) ? apiProducts : []);
+          setProducts(productsData.map((p: any) => apiProductToArray(p, couponsList)));
         }
         if (cRes.ok) {
           const apiCategories = await cRes.json();
-          setCategories(apiCategories.map(apiCategoryToLegacy));
+          const categoriesData = Array.isArray(apiCategories.data) ? apiCategories.data : (Array.isArray(apiCategories) ? apiCategories : []);
+          setCategories(categoriesData.map(apiCategoryToLegacy));
         }
-      } catch {
-        // Keep empty fallback data if the API is unavailable.
+      } catch (err) {
+        console.error("Lỗi khi fetch products/categories:", err);
       }
     })();
   }, []);
@@ -621,6 +641,10 @@ export function useAppInit() {
     setUser(null);
     setAppliedCoupon(null);
     setCart([]);
+    setWishlist([]);
+    setLastCreatedOrder(null);
+    localStorage.removeItem("sb_active_order");
+    setSelectedOrderId(null);
     setView(VIEW_KEYS.HOME);
   };
 
@@ -774,9 +798,9 @@ export function useAppInit() {
 
     const items = cart.map(item => {
       let rawProd = item.product.raw;
-      if (!rawProd) {
+      if (!rawProd || !rawProd.variants || rawProd.variants.length === 0) {
         const fullProd = products.find(p => p[0] === item.product[0]);
-        rawProd = fullProd?.raw;
+        rawProd = fullProd?.raw || rawProd;
       }
       if (!rawProd || !rawProd.variants) {
         throw new Error(`Món "${item.product[0]}" không còn tồn tại trên hệ thống. Vui lòng xóa món này khỏi Giỏ hàng của bạn!`);
@@ -849,6 +873,9 @@ export function useAppInit() {
       }
 
       setLastCreatedOrder(resData);
+      if (resData?.id) {
+        localStorage.setItem("sb_active_order", resData.id);
+      }
       setCart([]);
       setAppliedCoupon(null);
       toast.success("Đặt hàng thành công!");

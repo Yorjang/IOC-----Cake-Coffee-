@@ -25,6 +25,7 @@ const PolicyPage = lazy(() => import("./pages/PolicyPage").then(m => ({ default:
 const OrderTracking = lazy(() => import("./pages/OrderTracking").then(m => ({ default: m.OrderTracking })));
 
 import { useAppInit, matchSize, getPathFromView } from "./features/core/hooks/useAppInit";
+const navPages = ["Trang chủ", "Bánh ngọt", "Cafe/Đồ uống", "Combo", "Hệ thống cửa hàng"];
 
 export { matchSize, getPathFromView };
 
@@ -51,7 +52,7 @@ export default function App() {
 
 
   if (view === VIEW_KEYS.ADMIN_LOGIN) {
-    return <><Toaster richColors position="top-center" /><AdminLoginPage onSuccess={handleAdminLoginSuccess} onBack={() => setView(VIEW_KEYS.HOME)} /></>;
+    return <><Toaster richColors position="top-center" /><Suspense fallback={<LoadingScreen isLoading={true} />}><AdminLoginPage onSuccess={handleAdminLoginSuccess} onBack={() => setView(VIEW_KEYS.HOME)} /></Suspense></>;
   }
 
   if (view === VIEW_KEYS.ADMIN) {
@@ -64,7 +65,7 @@ export default function App() {
       setTimeout(() => setView(VIEW_KEYS.HOME), 0);
       return <><Toaster richColors position="top-center" /></>;
     }
-    return <><Toaster richColors position="top-center" /><AdminPanel onExit={handleAdminLogout} adminUser={user} /></>;
+    return <><Toaster richColors position="top-center" /><Suspense fallback={<LoadingScreen isLoading={true} />}><AdminPanel onExit={handleAdminLogout} adminUser={user} /></Suspense></>;
   }
 
   if (view === VIEW_KEYS.STAFF) {
@@ -77,15 +78,15 @@ export default function App() {
       setTimeout(() => setView(VIEW_KEYS.HOME), 0);
       return <><Toaster richColors position="top-center" /></>;
     }
-    return <><Toaster richColors position="top-center" /><StaffPanel onExit={handleAdminLogout} staffUser={user} products={products} /></>;
+    return <><Toaster richColors position="top-center" /><Suspense fallback={<LoadingScreen isLoading={true} />}><StaffPanel onExit={handleAdminLogout} staffUser={user} products={products} /></Suspense></>;
   }
 
-  if (view === VIEW_KEYS.LOGIN) return <><Toaster richColors position="top-center" /><AuthPage onSuccess={handleLoginSuccess} setView={setView} /></>;
+  if (view === VIEW_KEYS.LOGIN) return <><Toaster richColors position="top-center" /><Suspense fallback={<LoadingScreen isLoading={true} />}><AuthPage onSuccess={handleLoginSuccess} setView={setView} /></Suspense></>;
   if (view === VIEW_KEYS.RESET_PASSWORD) {
     const token = new URLSearchParams(window.location.search).get("token") || "";
-    return <><Toaster richColors position="top-center" /><AuthPage onSuccess={handleLoginSuccess} initialMode="reset" resetToken={token} /></>;
+    return <><Toaster richColors position="top-center" /><Suspense fallback={<LoadingScreen isLoading={true} />}><AuthPage onSuccess={handleLoginSuccess} initialMode="reset" resetToken={token} /></Suspense></>;
   }
-  if (view === VIEW_KEYS.REVIEW) return <><Toaster richColors position="top-center" /><ReviewPage product={selectedProduct} onBack={() => setView(VIEW_KEYS.DETAIL)} /></>;
+  if (view === VIEW_KEYS.REVIEW) return <><Toaster richColors position="top-center" /><Suspense fallback={<LoadingScreen isLoading={true} />}><ReviewPage product={selectedProduct} onBack={() => setView(VIEW_KEYS.DETAIL)} /></Suspense></>;
 
   return (
     <>
@@ -107,10 +108,12 @@ export default function App() {
           selectedStore={selectedStore}
           onChooseStore={() => setShowStorePopup(true)}
           onLogout={handleLogout}
+          lastCreatedOrder={lastCreatedOrder}
         />
         <main className="min-h-[calc(100vh-400px)]">
           <div className="animate-page-change" key={view}>
-            {view === VIEW_KEYS.HOME && <Home setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} products={products} categories={categories} publicCoupons={publicCoupons} />}
+            <Suspense fallback={<LoadingScreen isLoading={true} />}>
+              {view === VIEW_KEYS.HOME && <Home setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} products={products} categories={categories} publicCoupons={publicCoupons} />}
             {view === VIEW_KEYS.CART && <Cart cart={cart} onUpdateQty={handleUpdateCartQty} onRemoveItem={handleRemoveCartItem} setView={setView} publicCoupons={publicCoupons} appliedCoupon={appliedCoupon} setAppliedCoupon={setAppliedCoupon} user={user} />}
             {view === VIEW_KEYS.CHECKOUT && <Checkout cart={cart} setView={setView} onPlaceOrder={handlePlaceOrder} subtotal={subtotal} discount={discount} shipping={shipping} grandTotal={grandTotal} user={user} />}
             {view === VIEW_KEYS.SUCCESS && <Success setView={setView} order={lastCreatedOrder} />}
@@ -123,9 +126,9 @@ export default function App() {
             {view === VIEW_KEYS.TERMS && <PolicyPage type="terms" setView={setView} />}
             {view === VIEW_KEYS.RETURN_POLICY && <PolicyPage type="return" setView={setView} />}
             {view === VIEW_KEYS.ORDER_GUIDE && <PolicyPage type="guide" setView={setView} />}
-            {LISTABLE.includes(view) && <ProductListing category={view} setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} searchQuery={searchQuery} products={products} />}
+              {LISTABLE.includes(view) && <ProductListing category={view} setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} searchQuery={searchQuery} products={products} />}
+            </Suspense>
           </div>
-
         </main>
         <Footer setView={setView} />
         <ActiveOrderBanner 

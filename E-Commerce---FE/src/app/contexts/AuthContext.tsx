@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { env } from '../../config/env';
 import { clearAuthSession, getAccessToken, refreshAuthSession, getStoredUser } from '../components/authSession';
 
@@ -13,15 +13,18 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   // Helper to standardise parsing responses from the new BE format
   const parseResponse = async (res: Response) => {
     if (res.status === 204) return null;
-    const data = await parseRes(res);
-    return data.data !== undefined ? data.data : data;
+    const data = await res.json();
+    if (data && typeof data === 'object' && 'statusCode' in data && 'message' in data) {
+      return (data.data !== undefined && data.data !== null) ? data.data : data;
+    }
+    return data;
   };
 
   const logout = () => {

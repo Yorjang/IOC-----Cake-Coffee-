@@ -22,6 +22,7 @@ const defaultOpeningHours = () => WEEK_DAYS.map(day => ({
 
 export function useAdminBranches({ adminUser }: { adminUser?: any }) {
   const [loading, setLoading] = useState(false);
+  const [branchRows, setBranchRows] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [branchForm, setBranchForm] = useState<any>(null);
   const [scheduleBranch, setScheduleBranch] = useState<any>(null);

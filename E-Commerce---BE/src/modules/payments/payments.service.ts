@@ -76,8 +76,8 @@ export class PaymentsService {
   }
 
   async processSepayWebhook(authHeader: string, body: SepayWebhookDto) {
-    const expectedKey = this.configService.get<string>('SEPAY_API_KEY');
-    if (!expectedKey) throw new InternalServerErrorException('SEPAY_API_KEY is not configured!');
+    const expectedKey = this.configService.get<string>('SEPAY_WEBHOOK_API_KEY') || this.configService.get<string>('SEPAY_API_KEY');
+    if (!expectedKey) throw new InternalServerErrorException('SEPAY_WEBHOOK_API_KEY is not configured!');
 
     // 1. Verify API Key (Case-insensitive for 'apikey')
     const authHeaderLower = authHeader?.toLowerCase() || '';
