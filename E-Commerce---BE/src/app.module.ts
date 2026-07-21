@@ -13,6 +13,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { CartModule } from './modules/cart/cart.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { CombosModule } from './modules/combos/combos.module';
+import { SeederService } from './database/seeder.service';
 
 @Module({
   imports: [
@@ -46,7 +47,7 @@ import { CombosModule } from './modules/combos/combos.module';
     CombosModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [SeederService],
 })
 export class AppModule {}
 

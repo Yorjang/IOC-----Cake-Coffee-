@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger, InternalServerErrorException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -45,7 +45,9 @@ export class AuthService {
   }
 
   private getJwtSecret(): string {
-    return this.configService.get<string>('JWT_SECRET') || 'super_secret_jwt_key_123_cake_coffee';
+    const secret = this.configService.get<string>('JWT_SECRET');
+    if (!secret) throw new InternalServerErrorException('JWT_SECRET environment variable is not configured!');
+    return secret;
   }
 
   async register(registerDto: RegisterDto) {
