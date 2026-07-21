@@ -11,8 +11,14 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, isHidden }: { las
   // Sync with lastCreatedOrder
   useEffect(() => {
     if (lastCreatedOrder) {
-      setActiveOrder(lastCreatedOrder);
-      setDismissed(false);
+      if (lastCreatedOrder.orderStatus === 'cancelled') {
+        // Don't show banner for cancelled orders
+        setActiveOrder(null);
+        setDismissed(true);
+      } else {
+        setActiveOrder(lastCreatedOrder);
+        setDismissed(false);
+      }
     } else {
       setActiveOrder(null);
     }
@@ -53,7 +59,10 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, isHidden }: { las
         if (res.ok) {
           const updated = await parseRes(res);
           setActiveOrder(updated);
-          if (['completed', 'cancelled'].includes(updated.orderStatus)) {
+          if (updated.orderStatus === 'cancelled') {
+            // Hide immediately when order is cancelled
+            setDismissed(true);
+          } else if (updated.orderStatus === 'completed') {
             // Auto dismiss after a few seconds when completed
             setTimeout(() => setDismissed(true), 5000);
           }
@@ -67,7 +76,7 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, isHidden }: { las
   }, [activeOrder?.id, activeOrder?.orderStatus, dismissed]);
 
   if (!activeOrder || dismissed || isHidden) return null;
-  if (['completed', 'cancelled'].includes(activeOrder.orderStatus) && dismissed) return null;
+  if (activeOrder.orderStatus === 'cancelled') return null;
 
   const getStatusInfo = (status: string) => {
     const map: Record<string, { label: string, color: string, pulse: string }> = {
