@@ -413,7 +413,7 @@ function AdminProducts() {
       toast.error("Mỗi biến thể cần có SKU, tên biến thể và giá hợp lệ.");
       return;
     }
-    const usesToppings = form.productType === "coffee" || form.productType === "drink";
+    const usesToppings = form.productType === "coffee" || form.productType === "drink" || form.productType === "combo";
     if (usesToppings && toppingForms.some(topping => !topping.name.trim() || topping.price === "" || Number(topping.price) < 0)) {
       toast.error("Mỗi topping cần có tên và giá hợp lệ.");
       return;
@@ -674,12 +674,16 @@ function AdminProducts() {
                   ))}
                 </div>
               </div>
-              {(form.productType === "coffee" || form.productType === "drink") && (
+              {(form.productType === "coffee" || form.productType === "drink" || form.productType === "combo") && (
                 <div className="rounded-2xl border border-sidebar-accent p-4">
                   <div className="mb-4 flex items-center justify-between gap-3">
                     <div>
                       <h4 className="font-semibold text-foreground">Topping của sản phẩm</h4>
-                      <p className="mt-1 text-xs text-muted-foreground">Khách hàng sẽ nhìn thấy tên và giá topping đang bật ở trang chi tiết.</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {form.productType === "combo"
+                          ? "Áp dụng cho phần đồ uống trong combo — khách sẽ thấy các topping này ở trang chi tiết."
+                          : "Khách hàng sẽ nhìn thấy tên và giá topping đang bật ở trang chi tiết."}
+                      </p>
                     </div>
                     <AdminBtn variant="ghost" onClick={() => setToppingForms(current => [...current, emptyTopping()])}>
                       <span className="flex items-center gap-1"><Plus size={14} />Thêm topping</span>

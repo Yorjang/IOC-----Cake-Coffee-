@@ -82,6 +82,7 @@ const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.SWEETS]: "/banh-ngot",
   [VIEW_KEYS.DRINKS]: "/do-uong",
   [VIEW_KEYS.COMBO]: "/combo",
+  [VIEW_KEYS.ALL_PRODUCTS]: "/tat-ca-san-pham",
   [VIEW_KEYS.CART]: "/gio-hang",
   [VIEW_KEYS.CHECKOUT]: "/thanh-toan",
   [VIEW_KEYS.SUCCESS]: "/thanh-cong",
@@ -128,7 +129,7 @@ const getProductFromPath = (path: string, prods: any[] = []) => {
 const parsePrice = (s: string) => parseInt(s.replace(/[^0-9]/g, ""), 10);
 
 const LISTABLE = [
-  VIEW_KEYS.SWEETS, VIEW_KEYS.DRINKS, VIEW_KEYS.COMBO,
+  VIEW_KEYS.SWEETS, VIEW_KEYS.DRINKS, VIEW_KEYS.COMBO, VIEW_KEYS.ALL_PRODUCTS,
   "Bánh sinh nhật", "Bánh mousse", "Bánh tart", "Bánh quy",
   "Cafe", "Trà", "Đồ uống khác", "Tìm kiếm",
 ];
@@ -523,6 +524,17 @@ export default function App() {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, [categories, products]);
+
+  // Re-resolve a deep-linked URL (e.g. hard reload on /chi-tiet/:slug) once products/categories
+  // finish loading from the API — the initial state above can't know them yet.
+  const initialDeepLinkResolved = useRef(false);
+  useEffect(() => {
+    if (initialDeepLinkResolved.current) return;
+    if (products.length === 0 && categories.length === 0) return;
+    initialDeepLinkResolved.current = true;
+    setViewInternal(getViewFromPath(window.location.pathname, categories));
+    setSelectedProduct(getProductFromPath(window.location.pathname, products));
+  }, [products, categories]);
 
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("token");

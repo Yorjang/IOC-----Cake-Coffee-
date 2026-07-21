@@ -15,6 +15,7 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
   const p = product || products[0] || ["Sản phẩm", "0đ", "Khác", "", "5.0", ""];
   const isDrink = CATEGORY_GROUPS.DRINKS.includes(p[2] as any);
   const isBirthdayCake = p[2] === "Bánh sinh nhật";
+  const isCombo = p[2] === VIEW_KEYS.COMBO;
   const availableVariants = useMemo(() => {
     const variants = Array.isArray(p.raw?.variants) ? p.raw.variants : [];
     return variants
@@ -82,9 +83,9 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
       return;
     }
     const options = {
-      sugar: isDrink ? sugar : undefined,
-      ice: isDrink ? ice : undefined,
-      toppings: isDrink && selectedToppings.length > 0 ? selectedToppings : undefined,
+      sugar: (isDrink || isCombo) ? sugar : undefined,
+      ice: (isDrink || isCombo) ? ice : undefined,
+      toppings: (isDrink || isCombo) && selectedToppings.length > 0 ? selectedToppings : undefined,
       customText: isBirthdayCake && customText.trim() ? customText : undefined,
       needCandles: isBirthdayCake && needCandles ? true : undefined,
     };
@@ -154,7 +155,7 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
               <p className="mt-4 text-3xl font-bold text-primary">{formatPrice(unitPrice)}</p>
             )}
             <p className="mt-3 text-muted-foreground text-sm leading-relaxed">
-              Sản phẩm được chế biến từ những nguyên liệu chất lượng cao, được lựa chọn kỹ lưỡng mỗi ngày. Đảm bảo mang lại hương vị trọn vẹn và trải nghiệm ẩm thực tuyệt vời nhất cho quý khách.
+              {p.raw?.description?.trim() || "Sản phẩm được chế biến từ những nguyên liệu chất lượng cao, được lựa chọn kỹ lưỡng mỗi ngày. Đảm bảo mang lại hương vị trọn vẹn và trải nghiệm ẩm thực tuyệt vời nhất cho quý khách."}
             </p>
           </div>
 
@@ -185,8 +186,11 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
           </div>
 
           {/* Drinks specific options */}
-          {isDrink && (
+          {(isDrink || isCombo) && (
             <div className="space-y-5 pt-1">
+              {isCombo && (
+                <p className="text-xs text-muted-foreground">Áp dụng cho phần đồ uống trong combo</p>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="block font-semibold text-sm text-foreground">Chọn mức đường</label>

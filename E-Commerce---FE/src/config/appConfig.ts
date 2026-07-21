@@ -3,6 +3,7 @@ export const VIEW_KEYS = {
   SWEETS: "Bánh ngọt",
   DRINKS: "Cafe/Đồ uống",
   COMBO: "Combo",
+  ALL_PRODUCTS: "Tất cả sản phẩm",
   CART: "Giỏ hàng",
   CHECKOUT: "Thanh toán",
   SUCCESS: "Thành công",
@@ -29,9 +30,10 @@ export const CATEGORY_GROUPS = {
 
 export const HOME_CONFIG = {
   HERO_ROTATION_MS: 4000,
+  DEAL_ROTATION_MS: 5000,
+  DEAL_ITEMS_LIMIT: 4,
   BEST_SELLERS_LIMIT: 8,
-  NEW_COMBOS_START: 8,
-  NEW_COMBOS_END: 14,
+  NEW_COMBOS_LIMIT: 6,
   FEATURE_ITEMS: [
     { title: "Giao hàng hỏa tốc 45p", sub: "TP.HCM", icon: "Clock" },
     { title: "Nướng mới", sub: "Mỗi ngày", icon: "Coffee" },
