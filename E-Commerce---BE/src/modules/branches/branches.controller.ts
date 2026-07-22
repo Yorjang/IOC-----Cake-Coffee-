@@ -23,7 +23,7 @@ import { RolesGuard } from "../../common/guards/roles.guard";
 import { User, UserRole } from "../users/user.entity";
 import { UpdateOpeningHoursDto } from "./dto/upsert-opening-hour.dto";
 
-@Controller("branches")
+@Controller(["admin/branches", "branches"])
 export class BranchesController {
   constructor(private readonly branchesService: BranchesService) {}
 

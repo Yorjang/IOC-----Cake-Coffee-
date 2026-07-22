@@ -10,7 +10,7 @@ import { CreateProductVariantDto, UpdateProductVariantDto } from './dto/product-
 import { ReplaceProductToppingsDto } from './dto/product-topping.dto';
 import { CreateProductTagDto, ReplaceProductTagsDto, UpdateProductTagDto } from './dto/product-tag.dto';
 
-@Controller('products')
+@Controller(['admin/products', 'products'])
 export class ProductsController {
     constructor(private readonly productsService: ProductsService) {}
 

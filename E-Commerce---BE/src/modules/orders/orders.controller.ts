@@ -10,7 +10,7 @@ import { Public } from '../../common/decorators/public.decorator';
 import { User } from '../users/user.entity';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
-@Controller('orders')
+@Controller(['admin/orders', 'orders'])
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
