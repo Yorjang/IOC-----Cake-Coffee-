@@ -26,7 +26,7 @@ import { AdminVouchers } from "./AdminVouchers";
 import { AdminBanners } from "./AdminBanners";
 import { AdminRevenue } from "./AdminRevenue";
 import { AdminSettings } from "./AdminSettings";
-import { AdminCombos } from "./AdminCombos";
+
 import { AdminProductTags } from "./AdminProductTags";
 export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUser?: any }) {
   const role = (adminUser?.role ?? "admin") as AdminRole;
@@ -49,7 +49,7 @@ export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUse
     branches: <AdminBranches adminUser={adminUser} />,
     storeMap: <AdminStoreMap />,
     products: <AdminProducts />,
-    combos: <AdminCombos />,
+
     categories: <AdminCategories />,
     productTags: <AdminProductTags />,
     inventory: <AdminInventory />,
