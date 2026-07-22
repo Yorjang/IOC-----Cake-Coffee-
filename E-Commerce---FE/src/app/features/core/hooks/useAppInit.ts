@@ -597,13 +597,16 @@ export function useAppInit() {
     };
   }, [user?.id]);
   const setView = (newView: any, productData?: any) => {
+    if (newView === VIEW_KEYS.HOME) {
+      if (window.location.pathname !== "/") {
+        window.location.href = "/";
+        return;
+      }
+    }
+
     const target = productData || (newView === VIEW_KEYS.DETAIL ? selectedProduct : null);
     let newPath = getPathFromView(newView, target);
-    if (newView === VIEW_KEYS.HOME) {
-      newPath = "/";
-    } else if (!newPath) {
-      newPath = "/danh-muc/unknown";
-    }
+    if (!newPath) newPath = "/danh-muc/unknown";
 
     try {
       window.history.pushState(null, "", newPath);
