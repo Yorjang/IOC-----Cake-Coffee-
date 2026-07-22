@@ -23,6 +23,7 @@ export const VIEW_KEYS = {
   ORDER_GUIDE: "Hướng dẫn đặt bánh",
   TRACKING: "Theo dõi",
   PAYMENT: "Thanh toán đơn hàng",
+  ADMIN_INVENTORY: "Quản lý kho",
 } as const;
 
 export const CATEGORY_GROUPS = {

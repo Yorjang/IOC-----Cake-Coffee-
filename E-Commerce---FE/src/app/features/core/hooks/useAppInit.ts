@@ -67,6 +67,7 @@ const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.DETAIL]: "/chi-tiet",
   [VIEW_KEYS.ADMIN]: "/admin",
   [VIEW_KEYS.ADMIN_LOGIN]: "/admin/login",
+  [VIEW_KEYS.ADMIN_INVENTORY]: "/admin/inventory",
   [VIEW_KEYS.STAFF]: "/nhan-vien",
   [VIEW_KEYS.LOGIN]: "/dang-nhap",
   [VIEW_KEYS.REVIEW]: "/danh-gia",
