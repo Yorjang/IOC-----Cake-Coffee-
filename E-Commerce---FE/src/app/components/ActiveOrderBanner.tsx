@@ -78,19 +78,31 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, isHidden }: { las
   if (!activeOrder || dismissed || isHidden) return null;
   if (activeOrder.orderStatus === 'cancelled') return null;
 
-  const getStatusInfo = (status: string) => {
+  const getStatusInfo = (order: any) => {
+    const { orderStatus, paymentStatus, paymentMethod } = order;
+
+    // Nếu đơn đang chờ xác nhận mà chưa thanh toán (không phải COD)
+    const needsPayment =
+      orderStatus === 'pending' &&
+      paymentStatus === 'pending' &&
+      !['cod', 'cash'].includes(paymentMethod);
+
+    if (needsPayment) {
+      return { label: 'Chờ thanh toán', color: 'text-orange-500', pulse: 'bg-orange-500' };
+    }
+
     const map: Record<string, { label: string, color: string, pulse: string }> = {
-      'pending': { label: 'Chờ xác nhận', color: 'text-amber-500', pulse: 'bg-amber-500' },
-      'confirmed': { label: 'Đã xác nhận', color: 'text-blue-500', pulse: 'bg-blue-500' },
-      'preparing': { label: 'Đang chuẩn bị', color: 'text-yellow-500', pulse: 'bg-yellow-500' },
-      'shipping': { label: 'Đang giao hàng', color: 'text-indigo-500', pulse: 'bg-indigo-500' },
-      'completed': { label: 'Đã hoàn thành', color: 'text-emerald-500', pulse: 'bg-emerald-500' },
-      'cancelled': { label: 'Đã huỷ', color: 'text-red-500', pulse: 'bg-red-500' }
+      'pending':   { label: 'Chờ xác nhận',   color: 'text-amber-500',   pulse: 'bg-amber-500'   },
+      'confirmed': { label: 'Đã xác nhận',    color: 'text-blue-500',    pulse: 'bg-blue-500'    },
+      'preparing': { label: 'Đang chuẩn bị',  color: 'text-yellow-500',  pulse: 'bg-yellow-500'  },
+      'shipping':  { label: 'Đang giao hàng', color: 'text-indigo-500',  pulse: 'bg-indigo-500'  },
+      'completed': { label: 'Đã hoàn thành',  color: 'text-emerald-500', pulse: 'bg-emerald-500' },
+      'cancelled': { label: 'Đã huỷ',         color: 'text-red-500',     pulse: 'bg-red-500'     },
     };
-    return map[status] || { label: 'Đang xử lý', color: 'text-primary', pulse: 'bg-primary' };
+    return map[orderStatus] || { label: 'Đang xử lý', color: 'text-primary', pulse: 'bg-primary' };
   };
 
-  const info = getStatusInfo(activeOrder.orderStatus);
+  const info = getStatusInfo(activeOrder);
 
   return (
     <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-sm animate-in slide-in-from-top-5 fade-in duration-300">
