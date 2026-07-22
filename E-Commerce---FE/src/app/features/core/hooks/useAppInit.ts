@@ -598,7 +598,9 @@ export function useAppInit() {
   }, [user?.id]);
   const setView = (newView: any, productData?: any) => {
     const target = productData || (newView === VIEW_KEYS.DETAIL ? selectedProduct : null);
-    const newPath = getPathFromView(newView, target);
+    let newPath = getPathFromView(newView, target);
+    if (!newPath) newPath = newView === VIEW_KEYS.HOME ? "/" : "/danh-muc/unknown";
+
     if (decodeURIComponent(window.location.pathname) !== decodeURIComponent(newPath)) {
       window.history.pushState(null, "", newPath);
     }
@@ -607,6 +609,9 @@ export function useAppInit() {
     setTimeout(() => {
       window.scrollTo({ top: 0, left: 0, behavior: "instant" });
       setViewInternal(newView);
+      if (decodeURIComponent(window.location.pathname) !== decodeURIComponent(newPath)) {
+        window.history.pushState(null, "", newPath);
+      }
       if (newView === VIEW_KEYS.TRACKING || newView === VIEW_KEYS.PAYMENT) {
         setSelectedOrderId(productData || null);
       } else {
