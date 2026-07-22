@@ -4,7 +4,7 @@ export const MESSAGES = {
   HERO_BUTTON_ORDER: "Đặt bánh ngay",
   HERO_BUTTON_EXPLORE: "Khám phá cafe",
   FLASH_SALE_TEXT: "Flash sale 14:00 hôm nay — Giảm 20% cafe khi mua cùng bánh. Dùng mã ",
-  SECTION_CATEGORIES_TITLE: "Danh mục nổi bật",
+  SECTION_CATEGORIES_TITLE: "Danh mục sản phẩm",
   SECTION_CATEGORIES_SUB: "Chọn món yêu thích của bạn",
   SECTION_BESTSELLERS_TITLE: "Bán chạy hôm nay",
   SECTION_BESTSELLERS_SUB: "Được yêu thích nhất tuần này",

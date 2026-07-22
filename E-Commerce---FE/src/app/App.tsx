@@ -11,6 +11,8 @@ import { LoadingScreen } from "./components/LoadingScreen";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { StoreSelectionModal } from "./components/StoreSelectionModal";
+import { FloatingContact } from "./components/FloatingContact";
+import { SalesNotification } from "./components/SalesNotification";
 
 import { Home } from "./pages/Home";
 import { ProductListing } from "./pages/ProductListing";
@@ -33,10 +35,10 @@ import { clearAuthSession, getAccessToken, getAccessTokenExpiry, getStoredUser, 
 export const matchSize = (itemSize: string, targetSize: string): boolean => {
   if (!targetSize) return true;
   if (!itemSize) return false;
-  
+
   const cleanItem = itemSize.toLowerCase().trim();
   const cleanTarget = targetSize.toLowerCase().trim();
-  
+
   return cleanItem === cleanTarget || cleanItem.startsWith(cleanTarget);
 };
 
@@ -144,7 +146,7 @@ const mapDbCartToLegacy = (dbItems: any[]): any[] => {
     const imageUrl = p.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=600&h=520&fit=crop&auto=format";
     const rating = "4.8";
     const badge = p.productType === "combo" ? "Combo" : (p.variants?.length > 1 ? "S/M/L" : "Còn hàng");
-    
+
     const legacyProduct = [
       p.name,
       formattedPrice,
@@ -154,7 +156,7 @@ const mapDbCartToLegacy = (dbItems: any[]): any[] => {
       badge
     ];
     (legacyProduct as any).raw = p;
-    
+
     let options = {};
     try {
       options = item.note ? JSON.parse(item.note) : {};
@@ -281,7 +283,7 @@ export default function App() {
         toast.error("Voucher đã bị hủy do giỏ hàng không đủ điều kiện đơn hàng tối thiểu.");
         return;
       }
-      
+
       if (appliedCoupon.productId) {
         const hasProduct = cart.some((item: any) => (item.productId || item.product?.raw?.id) === appliedCoupon.productId);
         if (!hasProduct) {
@@ -290,7 +292,7 @@ export default function App() {
           return;
         }
       }
-      
+
       if (appliedCoupon.categoriesId) {
         const hasCategory = cart.some((item: any) => {
           const prod = item.product?.raw;
@@ -586,7 +588,7 @@ export default function App() {
     const target = productData || (newView === VIEW_KEYS.DETAIL ? selectedProduct : null);
     const newPath = getPathFromView(newView, target);
     if (window.location.pathname !== newPath) window.history.pushState(null, "", newPath);
-    
+
     setIsLoading(true);
     setTimeout(() => {
       window.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -653,7 +655,7 @@ export default function App() {
   const handleAddToCart = async (product: any, size = "Vừa", qty = 1, options?: any, price?: number, selectedVariantId?: string) => {
     const rawProduct = product.raw;
     const productId = rawProduct?.id;
-    
+
     let variantId = "";
     let selectedVariant: any = null;
     if (rawProduct && rawProduct.variants) {
@@ -870,7 +872,7 @@ export default function App() {
       setView(VIEW_KEYS.SUCCESS);
     } catch (err: any) {
       console.error(err);
-      
+
 
 
       toast.error(err.message || "Lỗi khi gửi đơn hàng lên máy chủ.");
@@ -989,6 +991,8 @@ export default function App() {
           </div>
 
         </main>
+        <FloatingContact />
+        {view === VIEW_KEYS.HOME && <SalesNotification products={products} onSelectProduct={handleSelectProduct} />}
         <Footer setView={setView} />
         {showStorePopup && (
           <StoreSelectionModal
