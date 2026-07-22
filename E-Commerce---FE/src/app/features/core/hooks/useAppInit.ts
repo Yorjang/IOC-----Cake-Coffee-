@@ -653,14 +653,8 @@ export function useAppInit() {
 
   const handleLogout = () => {
     clearAuthSession();
-    setUser(null);
-    setAppliedCoupon(null);
-    setCart([]);
-    setWishlist([]);
-    setLastCreatedOrder(null);
     localStorage.removeItem("sb_active_order");
-    setSelectedOrderId(null);
-    setView(VIEW_KEYS.HOME);
+    window.location.href = "/";
   };
 
   const handleAdminLogout = () => {
