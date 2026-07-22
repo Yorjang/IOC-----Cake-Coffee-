@@ -18,13 +18,11 @@ export function AdminBanners() {
   const [bannersList, setBannersList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [subtitle, setSubtitle] = useState("");
   // Form states
   const [title, setTitle] = useState("");
   const [imageUrl, setImageUrl] = useState("https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800");
   const [linkUrl, setLinkUrl] = useState("");
   const [sortOrder, setSortOrder] = useState("1");
-  const [editingBanner, setEditingBanner] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -45,8 +43,6 @@ export function AdminBanners() {
     }
   };
 
-  const handleEdit = (banner: any) => { setEditingBanner(banner); setTitle(banner.title || ""); setSubtitle(banner.subtitle || ""); setImageUrl(banner.imageUrl || ""); setLinkUrl(banner.linkUrl || ""); setSortOrder(String(banner.sortOrder ?? 0)); setShowAddForm(true); };
-  
   useEffect(() => {
     loadBanners();
   }, []);
@@ -77,8 +73,8 @@ export function AdminBanners() {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa banner này không?")) return;
-    const token = localStorage.getItem("accessToken");
-    const banner = bannersList.find((b: any) => b.id === id);
+    const token = getAccessToken();
+    const banner = banners.find((b: any) => b.id === id);
     try {
       const res = await fetch(`${env.API_URL}/banners/${id}`, {
         method: "DELETE",
@@ -86,6 +82,9 @@ export function AdminBanners() {
       });
       if (res.ok) {
         toast.success("Xóa banner thành công.");
+        if (banner?.imageUrl) {
+          await deleteStorageImage(banner.imageUrl);
+        }
         loadBanners();
       } else {
         const errData = await parseRes(res);
@@ -103,39 +102,34 @@ export function AdminBanners() {
       toast.error("Vui lòng nhập tên và link ảnh banner.");
       return;
     }
-    const token = localStorage.getItem("accessToken");
-    const isEditing = Boolean(editingBanner);
+    const token = getAccessToken();
     setSaving(true);
     try {
-      const res = await fetch(`${env.API_URL}/banners${isEditing ? `/${editingBanner.id}` : ""}`, {
-        method: isEditing ? "PATCH" : "POST",
+      const res = await fetch(`${env.API_URL}/banners`, {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          subtitle,
           title,
           imageUrl,
           linkUrl,
           sortOrder: Number(sortOrder),
-          isActive: editingBanner?.isActive ?? true,
+          isActive: true,
         }),
       });
       const data = await parseRes(res);
       if (res.ok) {
-        toast.success("Lưu banner thành công.");
+        toast.success("Tạo banner thành công.");
         setTitle("");
         setImageUrl("https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800");
-        setSubtitle("");
         setLinkUrl("");
         setSortOrder("1");
         setShowAddForm(false);
-        setEditingBanner(null);
         loadBanners();
       } else {
-        setEditingBanner(null);
-        toast.error(data.message || "Lỗi khi lưu banner.");
+        toast.error(data.message || "Lỗi khi tạo banner.");
       }
     } catch (err) {
       console.error(err);
@@ -176,7 +170,6 @@ export function AdminBanners() {
               value={title}
               onChange={e => setTitle(e.target.value)}
             />
-            <textarea className="sm:col-span-2 min-h-20 rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent" placeholder={"M\u00f4 t\u1ea3 ng\u1eafn hi\u1ec3n th\u1ecb d\u01b0\u1edbi ti\u00eau \u0111\u1ec1"} value={subtitle} onChange={e => setSubtitle(e.target.value)} />
             <div className="sm:col-span-2">
               <ImageUploader
                 label="Hình ảnh banner"
@@ -224,7 +217,6 @@ export function AdminBanners() {
                 <StatusBadge status={b.isActive ? "Hiển thị" : "Ẩn"} />
               </div>
               <div className="mt-4 flex gap-2 justify-end">
-                <button title="Edit banner" type="button" onClick={() => handleEdit(b)} className="inline-flex size-8 items-center justify-center rounded-lg bg-blue-950/40 text-blue-400 hover:bg-blue-900/40 transition"><Edit size={14} /></button>
                 <button
                   title="Bật/Tắt hiển thị"
                   type="button"

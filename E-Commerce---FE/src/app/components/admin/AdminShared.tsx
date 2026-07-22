@@ -1,8 +1,7 @@
 import React, { useState } from "react";
-import { UploadCloud, Loader2 } from "lucide-react";
+import { Loader2, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../../config/supabase";
-
 
 import {
   LayoutDashboard, Package, Tag, Settings, ShoppingBag, Users, Star,
@@ -17,23 +16,6 @@ export const ROLE_LABEL: Record<AdminRole, string> = {
   staff: "Nhân viên",
   cashier: "Thu ngân",
 };
-
-export const WEEK_DAYS = [
-  { value: "monday", label: "Thứ Hai" },
-  { value: "tuesday", label: "Thứ Ba" },
-  { value: "wednesday", label: "Thứ Tư" },
-  { value: "thursday", label: "Thứ Năm" },
-  { value: "friday", label: "Thứ Sáu" },
-  { value: "saturday", label: "Thứ Bảy" },
-  { value: "sunday", label: "Chủ Nhật" },
-];
-
-export const defaultOpeningHours = () => WEEK_DAYS.map(day => ({
-  dayOfWeek: day.value,
-  openingTime: "07:00",
-  closingTime: "22:00",
-  isClosed: false,
-}));
 
 export const navItems = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, allowedRoles: ["admin", "store_manager", "staff", "cashier"] },
@@ -76,7 +58,7 @@ export function ImageUploader({ label, value, onChange }: { label: string; value
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `products/${fileName}`;
 
-      const { error } = await supabase.storage
+      const { data, error } = await supabase.storage
         .from('cakeandcoffee')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -145,6 +127,7 @@ export function ImageUploader({ label, value, onChange }: { label: string; value
   );
 }
 
+
 export async function deleteStorageImage(imageUrl: string) {
   if (!imageUrl) return;
   if (imageUrl.includes("supabase.co/storage/v1/object/public/cakeandcoffee/")) {
@@ -160,6 +143,7 @@ export async function deleteStorageImage(imageUrl: string) {
     }
   }
 }
+
 
 export const statusColor: Record<string, string> = {
   "Đang giao": "bg-blue-100 text-blue-700",
@@ -184,9 +168,11 @@ export const statusColor: Record<string, string> = {
   "Sắp hết": "bg-yellow-100 text-yellow-700",
 };
 
+
 export function StatusBadge({ status }: { status: string }) {
   return <span className={`inline-block rounded-full px-3 py-0.5 text-xs font-semibold ${statusColor[status] ?? "bg-gray-100 text-gray-600"}`}>{status}</span>;
 }
+
 
 export function AdminBtn({ children, variant = "primary", onClick, disabled = false }: any) {
   const cls = variant === "primary"
@@ -196,6 +182,7 @@ export function AdminBtn({ children, variant = "primary", onClick, disabled = fa
       : "border border-primary/30 bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary-foreground";
   return <button type="button" onClick={onClick} disabled={disabled} className={`inline-flex min-h-8 min-w-10 items-center justify-center rounded-lg px-3 py-1.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${cls}`}>{children}</button>;
 }
+
 
 export function TableHeader({ cols }: { cols: string[] }) {
   return <thead><tr className="border-b border-sidebar-accent">{cols.map(c => <th key={c} className="pb-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{c}</th>)}</tr></thead>;

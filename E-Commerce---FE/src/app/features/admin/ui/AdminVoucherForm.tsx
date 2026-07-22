@@ -14,7 +14,6 @@ export function AdminVoucherForm({
   categoriesId, setCategoriesId,
   targetSize, setTargetSize,
   description, setDescription,
-  isActive, setIsActive,
   products,
   categories,
   getFilteredSizes,
@@ -126,14 +125,6 @@ export function AdminVoucherForm({
           {getFilteredSizes().map((sz: any) => (
             <option key={sz} value={sz}>Size áp dụng: {sz}</option>
           ))}
-        </select>
-        <select
-          className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
-          value={isActive ? "true" : "false"}
-          onChange={e => setIsActive(e.target.value === "true")}
-        >
-          <option value="true">Trạng thái: Hoạt động (Active)</option>
-          <option value="false">Trạng thái: Tạm khóa (Inactive)</option>
         </select>
         <input
           className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent sm:col-span-2 lg:col-span-3"
