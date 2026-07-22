@@ -605,7 +605,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
                               if (needsPayment) {
                                 return (
                                   <button
-                                    onClick={() => setView("Theo dõi", o.id)}
+                                    onClick={() => setView("Thanh toán đơn hàng", o.id)}
                                     className="mt-2 text-xs font-semibold text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-1"
                                   >
                                     <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>

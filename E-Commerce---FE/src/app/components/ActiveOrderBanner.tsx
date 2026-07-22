@@ -4,7 +4,7 @@ import { Package, X, ChevronRight } from "lucide-react";
 import { env } from "../../config/env";
 import { getAccessToken } from "./authSession";
 
-export function ActiveOrderBanner({ lastCreatedOrder, onClick, isHidden }: { lastCreatedOrder?: any, onClick: (orderId: string) => void, isHidden?: boolean }) {
+export function ActiveOrderBanner({ lastCreatedOrder, onClick, onPayment, isHidden }: { lastCreatedOrder?: any, onClick: (orderId: string) => void, onPayment?: (orderId: string) => void, isHidden?: boolean }) {
   const [activeOrder, setActiveOrder] = useState<any>(null);
   const [dismissed, setDismissed] = useState(false);
 
@@ -104,11 +104,24 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, isHidden }: { las
 
   const info = getStatusInfo(activeOrder);
 
+  const needsPayment =
+    activeOrder.orderStatus === 'pending' &&
+    activeOrder.paymentStatus === 'pending' &&
+    !['cod', 'cash'].includes(activeOrder.paymentMethod);
+
+  const handleMainClick = () => {
+    if (needsPayment && onPayment) {
+      onPayment(activeOrder.id);
+    } else {
+      onClick(activeOrder.id);
+    }
+  };
+
   return (
     <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-sm animate-in slide-in-from-top-5 fade-in duration-300">
       <div 
         className="flex items-center gap-3 rounded-2xl border border-border/50 bg-background/80 backdrop-blur-xl p-3 pl-4 pr-2 shadow-lg shadow-black/5 cursor-pointer hover:bg-muted/50 transition-colors"
-        onClick={() => onClick(activeOrder.id)}
+        onClick={handleMainClick}
       >
         <div className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
            <Package size={20} className={info.color} />
@@ -130,7 +143,7 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, isHidden }: { las
             className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             onClick={(e) => {
               e.stopPropagation();
-              onClick(activeOrder.id);
+              handleMainClick();
             }}
           >
             <ChevronRight size={18} />
