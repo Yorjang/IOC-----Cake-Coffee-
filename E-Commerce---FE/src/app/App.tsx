@@ -13,7 +13,7 @@ import { Checkout } from "./pages/Checkout";
 import { Success } from "./pages/Success";
 
 // Lazy Loaded Components
-const AdminPanel = lazy(() => import("./components/AdminPanel").then(m => ({ default: m.AdminPanel })));
+const AdminPanel = lazy(() => import("./components/admin/AdminPanelMain").then(m => ({ default: m.AdminPanel })));
 const AdminLoginPage = lazy(() => import("./components/AdminLoginPage").then(m => ({ default: m.AdminLoginPage })));
 const StaffPanel = lazy(() => import("./components/StaffPanel").then(m => ({ default: m.StaffPanel })));
 const AuthPage = lazy(() => import("./components/AuthPage").then(m => ({ default: m.AuthPage })));
