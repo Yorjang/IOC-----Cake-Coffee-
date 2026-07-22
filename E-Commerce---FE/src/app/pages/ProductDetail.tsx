@@ -34,7 +34,7 @@ export function ProductDetail(props: any) {
     <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6 lg:px-10">
       {/* Breadcrumb */}
       <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
-        <button onClick={() => setView(VIEW_KEYS.HOME)} className="hover:text-primary transition">Trang chủ</button>
+        <a href="/" className="hover:text-primary transition">Trang chủ</a>
         <span>/</span>
         <button onClick={() => setView(p[2])} className="hover:text-primary transition">{p[2]}</button>
         <span>/</span>

@@ -60,12 +60,12 @@ export function Header({
         </div>
 
         {/* Logo */}
-        <button type="button" onClick={() => setView(VIEW_KEYS.HOME)} className="flex shrink-0 items-center gap-2">
+        <a href="/" className="flex shrink-0 items-center gap-2">
           <span className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground">
             <CakeSlice size={18} />
           </span>
           <span className="hidden font-serif text-xl font-bold sm:block">Sweet Bean</span>
-        </button>
+        </a>
 
         {/* Search (Moved to left) */}
         {(() => {
