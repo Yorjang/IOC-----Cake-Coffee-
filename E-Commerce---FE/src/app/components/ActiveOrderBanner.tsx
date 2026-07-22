@@ -66,6 +66,9 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, onPayment, isHidd
             // Auto dismiss after a few seconds when completed
             setTimeout(() => setDismissed(true), 5000);
           }
+        } else if (res.status === 404 || res.status === 400) {
+          // Đơn hàng đã bị xóa khỏi database hoặc không hợp lệ
+          setDismissed(true);
         }
       } catch (err) {
         // ignore
