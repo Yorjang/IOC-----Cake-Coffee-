@@ -27,7 +27,7 @@ const apiProductToArray = (p: any, coupons: any[] = []): any[] => {
   const price = originalPrice ? `${originalPrice.toLocaleString("vi-VN")}đ` : "0đ";
   const categoryName = p.category?.name ?? "Khác";
   const imageUrl = p.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=600&h=520&fit=crop&auto=format";
-  const rating = "4.8";
+  const rating = p.rating ? Number(p.rating).toFixed(1) : "0.0";
   const badge = p.productType === "combo"
     ? "Combo"
     : activeVariants.length > 1
