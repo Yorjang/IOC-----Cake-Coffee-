@@ -599,7 +599,9 @@ export function useAppInit() {
   const setView = (newView: any, productData?: any) => {
     const target = productData || (newView === VIEW_KEYS.DETAIL ? selectedProduct : null);
     const newPath = getPathFromView(newView, target);
-    if (window.location.pathname !== newPath) window.history.pushState(null, "", newPath);
+    if (decodeURIComponent(window.location.pathname) !== decodeURIComponent(newPath)) {
+      window.history.pushState(null, "", newPath);
+    }
     
     setIsLoading(true);
     setTimeout(() => {
