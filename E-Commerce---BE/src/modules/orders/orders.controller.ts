@@ -5,9 +5,10 @@ import { Permissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/constants/permissions';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { OrdersService } from './orders.service';
-import { OrderStatus } from './order.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Public } from '../../common/decorators/public.decorator';
+import { User } from '../users/user.entity';
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -64,8 +65,9 @@ export class OrdersController {
   @Permissions(Permission.UPDATE_ORDER)
   updateStatus(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body('status') status: OrderStatus,
+    @Body() dto: UpdateOrderStatusDto,
+    @CurrentUser() user: User,
   ) {
-    return this.ordersService.updateStatus(id, status);
+    return this.ordersService.updateStatus(id, dto.status, user);
   }
 }

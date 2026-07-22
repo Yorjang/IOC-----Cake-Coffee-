@@ -120,7 +120,7 @@ export default function App() {
             {view === VIEW_KEYS.DETAIL && <ProductDetail product={selectedProduct} setView={setView} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onSelectProduct={handleSelectProduct} products={products} publicCoupons={publicCoupons} />}
             {view === VIEW_KEYS.FAVORITES && <Favorites wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onAddToCart={handleAddToCart} onSelectProduct={handleSelectProduct} setView={setView} />}
             {view === VIEW_KEYS.PROFILE && <Profile user={user} setUser={setUser} setView={setView} onLogout={handleLogout} />}
-            {view === VIEW_KEYS.TRACKING && <OrderTracking orderId={selectedOrderId || lastCreatedOrder?.id} onBack={() => setView(VIEW_KEYS.HOME)} />}
+            {view === VIEW_KEYS.TRACKING && <OrderTracking orderId={selectedOrderId} onBack={() => setView(VIEW_KEYS.HOME)} />}
             {view === VIEW_KEYS.STORES && <StoreMap branches={availableStores} activeStoreId={selectedStore?.id} onSelectStore={(store: any) => { handleSelectStore(store); setView(VIEW_KEYS.HOME); }} />}
             {view === VIEW_KEYS.PRIVACY && <PolicyPage type="privacy" setView={setView} />}
             {view === VIEW_KEYS.TERMS && <PolicyPage type="terms" setView={setView} />}

@@ -7,6 +7,7 @@ import { env } from "../../../../config/env";
 import { VIEW_KEYS } from "../../../../config/appConfig";
 import { getDiscountedPrice } from "../../../components/shared";
 import { clearAuthSession, getAccessToken, getAccessTokenExpiry, getStoredUser, refreshAuthSession } from "../../../components/authSession";
+import { rememberTrackingOrder } from "../../order-tracking/services/orderTrackingService";
 
 export const matchSize = (itemSize: string, targetSize: string): boolean => {
   if (!targetSize) return true;
@@ -887,7 +888,7 @@ export function useAppInit() {
 
       setLastCreatedOrder(resData);
       if (resData?.id) {
-        localStorage.setItem("sb_active_order", resData.id);
+        rememberTrackingOrder(resData.id);
       }
       setCart([]);
       setAppliedCoupon(null);

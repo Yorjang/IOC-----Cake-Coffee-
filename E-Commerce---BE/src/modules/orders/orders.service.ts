@@ -1,10 +1,25 @@
-import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Order, OrderStatus } from './order.entity';
+import { DataSource, Repository } from 'typeorm';
+import { FulfillmentType, Order, OrderStatus, PaymentStatus } from './order.entity';
 import { PaymentsService } from '../payments/payments.service';
 import { CartService } from '../cart/cart.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { User, UserRole } from '../users/user.entity';
+import { OrderStatusHistory } from './order-status-history.entity';
+
+const PICKUP_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
+  [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+  [OrderStatus.CONFIRMED]: [OrderStatus.PREPARING, OrderStatus.CANCELLED],
+  [OrderStatus.PREPARING]: [OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+};
+
+const DELIVERY_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
+  [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+  [OrderStatus.CONFIRMED]: [OrderStatus.PREPARING, OrderStatus.CANCELLED],
+  [OrderStatus.PREPARING]: [OrderStatus.SHIPPING, OrderStatus.CANCELLED],
+  [OrderStatus.SHIPPING]: [OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+};
 
 @Injectable()
 export class OrdersService {
@@ -13,6 +28,7 @@ export class OrdersService {
     private readonly orders: Repository<Order>,
     private readonly paymentsService: PaymentsService,
     private readonly cartService: CartService,
+    private readonly dataSource: DataSource,
   ) {}
 
 
@@ -23,17 +39,69 @@ export class OrdersService {
     });
   }
 
-  async updateStatus(id: string, status: OrderStatus): Promise<Order> {
-    const order = await this.orders.findOne({ where: { id } });
-    if (!order) {
-      throw new BadRequestException('Order not found');
+  async updateStatus(id: string, status: OrderStatus, user: User): Promise<Order> {
+    return this.dataSource.transaction(async (manager) => {
+      const orderRepository = manager.getRepository(Order);
+      const order = await orderRepository.findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!order) {
+        throw new BadRequestException('Order not found');
+      }
+
+      this.assertCanUpdateOrder(user, order);
+      this.assertValidTransition(order, status);
+
+      const previousStatus = order.orderStatus;
+      order.orderStatus = status;
+      if (status === OrderStatus.COMPLETED) {
+        order.paymentStatus = PaymentStatus.PAID;
+        order.paidAt = new Date();
+      }
+
+      const savedOrder = await orderRepository.save(order);
+      await manager.getRepository(OrderStatusHistory).save({
+        orderId: order.id,
+        fromStatus: previousStatus,
+        toStatus: status,
+        changedBy: user.id,
+        note: null,
+      });
+      return savedOrder;
+    });
+  }
+
+  private assertCanUpdateOrder(user: User, order: Order): void {
+    if (user.role === UserRole.ADMIN) return;
+
+    if (!user.branchId || user.branchId !== order.branchId) {
+      throw new ForbiddenException('You can only update orders in your assigned branch');
     }
-    order.orderStatus = status;
-    if (status === OrderStatus.COMPLETED) {
-      order.paymentStatus = 'paid' as any;
-      order.paidAt = new Date();
+
+    if (user.role === UserRole.STORE_MANAGER || user.role === UserRole.CASHIER) return;
+
+    if (
+      user.role === UserRole.STAFF &&
+      [OrderStatus.CONFIRMED, OrderStatus.PREPARING].includes(order.orderStatus)
+    ) {
+      return;
     }
-    return this.orders.save(order);
+
+    throw new ForbiddenException('Staff can only update orders that are being processed');
+  }
+
+  private assertValidTransition(order: Order, nextStatus: OrderStatus): void {
+    const transitions = order.fulfillmentType === FulfillmentType.PICKUP
+      ? PICKUP_TRANSITIONS
+      : DELIVERY_TRANSITIONS;
+    const allowedStatuses = transitions[order.orderStatus] ?? [];
+
+    if (!allowedStatuses.includes(nextStatus)) {
+      throw new BadRequestException(
+        `Invalid ${order.fulfillmentType} order status transition: ${order.orderStatus} -> ${nextStatus}`,
+      );
+    }
   }
 
   async getDashboardStats(): Promise<any> {

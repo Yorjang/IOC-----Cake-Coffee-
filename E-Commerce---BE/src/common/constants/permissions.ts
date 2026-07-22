@@ -44,6 +44,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.VIEW_BRANCHES,
     Permission.VIEW_INVENTORY,
     Permission.VIEW_ORDER,
+    Permission.UPDATE_ORDER,
   ],
   [UserRole.CASHIER]: [
     Permission.VIEW_BRANCHES,
