@@ -61,9 +61,7 @@ export function Header({
 
         {/* Logo */}
         <a href="/" className="flex shrink-0 items-center gap-2">
-          <span className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground">
-            <CakeSlice size={18} />
-          </span>
+          <img src="/logo.png" alt="Sweet Bean Logo" className="size-9 rounded-full object-cover shadow-sm" />
           <span className="hidden font-serif text-xl font-bold sm:block">Sweet Bean</span>
         </a>
 
