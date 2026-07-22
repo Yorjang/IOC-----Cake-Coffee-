@@ -108,6 +108,8 @@ const getPathFromView = (view: string, product?: any) => {
 };
 
 const getViewFromPath = (path: string, cats: any[] = []) => {
+  if (path === "/admin/login") return VIEW_KEYS.ADMIN_LOGIN;
+  if (path === "/admin" || path.startsWith("/admin/")) return VIEW_KEYS.ADMIN;
   for (const [key, value] of Object.entries(VIEW_PATH_MAP)) {
     if (value === path) return key;
   }
@@ -609,10 +611,16 @@ export default function App() {
       if (timer) window.clearTimeout(timer);
     };
   }, [user?.id]);
-  const setView = (newView: any, productData?: any) => {
+  const setView = (newView: any, productData?: any, replace = false) => {
     const target = productData || (newView === VIEW_KEYS.DETAIL ? selectedProduct : null);
     const newPath = getPathFromView(newView, target);
-    if (window.location.pathname !== newPath) window.history.pushState(null, "", newPath);
+    if (window.location.pathname !== newPath) {
+      if (replace) {
+        window.history.replaceState(null, "", newPath);
+      } else {
+        window.history.pushState(null, "", newPath);
+      }
+    }
     
     setIsLoading(true);
     setTimeout(() => {
@@ -651,14 +659,15 @@ export default function App() {
     }
     setUser(currentUser);
 
-    if (isAdminUser(currentUser)) setView(VIEW_KEYS.ADMIN);
-    else if (isStaffUser(currentUser)) setView(VIEW_KEYS.STAFF);
+    if (isAdminUser(currentUser)) setView(VIEW_KEYS.ADMIN, undefined, true);
+    else if (isStaffUser(currentUser)) setView(VIEW_KEYS.STAFF, undefined, true);
     else setView(VIEW_KEYS.HOME);
   };
 
   const handleAdminLoginSuccess = (adminUser: any) => {
     setUser(adminUser);
-    setView(isStaffUser(adminUser) ? VIEW_KEYS.STAFF : VIEW_KEYS.ADMIN);
+    const targetView = isStaffUser(adminUser) ? VIEW_KEYS.STAFF : VIEW_KEYS.ADMIN;
+    setView(targetView, undefined, true);
   };
 
   const handleLogout = () => {
@@ -666,14 +675,14 @@ export default function App() {
     setUser(null);
     setAppliedCoupon(null);
     setCart([]);
-    setView(VIEW_KEYS.HOME);
+    setView(VIEW_KEYS.HOME, undefined, true);
   };
 
   const handleAdminLogout = () => {
     clearAuthSession();
     setUser(null);
     setCart([]);
-    setView(VIEW_KEYS.HOME);
+    setView(VIEW_KEYS.HOME, undefined, true);
   };
 
   // ── Cart / Wishlist handlers ─────────────────────────────────────────────
@@ -941,6 +950,11 @@ export default function App() {
 
 
   if (view === VIEW_KEYS.ADMIN_LOGIN) {
+    if (user && (isAdminUser(user) || isStaffUser(user))) {
+      const targetView = isStaffUser(user) ? VIEW_KEYS.STAFF : VIEW_KEYS.ADMIN;
+      setTimeout(() => setView(targetView, undefined, true), 0);
+      return <><Toaster richColors position="top-center" /></>;
+    }
     return <><Toaster richColors position="top-center" /><AdminLoginPage onSuccess={handleAdminLoginSuccess} onBack={() => setView(VIEW_KEYS.HOME)} /></>;
   }
 

@@ -7,7 +7,7 @@ import { Public } from '../../common/decorators/public.decorator';
 import { BannersService } from './banners.service';
 import { CreateBannerDto } from './dto/create-banner.dto';
 
-@Controller('banners')
+@Controller(['admin/banners', 'banners'])
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class BannersController {
   constructor(private readonly bannersService: BannersService) {}

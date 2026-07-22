@@ -8,7 +8,7 @@ import { CouponsService } from './coupons.service';
 import { CreateCouponDto } from './dto/create-coupon.dto';
 import { UpdateCouponDto } from './dto/update-coupon.dto';
 
-@Controller('coupons')
+@Controller(['admin/vouchers', 'admin/coupons', 'coupons', 'vouchers'])
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class CouponsController {
   constructor(private readonly couponsService: CouponsService) {}

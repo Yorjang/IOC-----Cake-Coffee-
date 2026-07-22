@@ -9,7 +9,7 @@ import { OrderStatus } from './order.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Public } from '../../common/decorators/public.decorator';
 
-@Controller('orders')
+@Controller(['admin/orders', 'orders'])
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}

@@ -13,6 +13,13 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { CartModule } from './modules/cart/cart.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 
+import { CategoriesModule } from './modules/categories/categories.module';
+import { TagsModule } from './modules/tags/tags.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { MapModule } from './modules/map/map.module';
+import { StatisticsModule } from './modules/statistics/statistics.module';
+import { SettingsModule } from './modules/settings/settings.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -35,6 +42,8 @@ import { PaymentsModule } from './modules/payments/payments.module';
     UsersModule,
     BranchesModule,
     ProductsModule,
+    CategoriesModule,
+    TagsModule,
     OrdersModule,
     CouponsModule,
     ReviewsModule,
@@ -42,6 +51,10 @@ import { PaymentsModule } from './modules/payments/payments.module';
     InventoryModule,
     CartModule,
     PaymentsModule,
+    DashboardModule,
+    MapModule,
+    StatisticsModule,
+    SettingsModule,
   ],
   controllers: [],
   providers: [],

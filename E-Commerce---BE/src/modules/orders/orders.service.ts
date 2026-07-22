@@ -138,15 +138,29 @@ export class OrdersService implements OnModuleInit {
   }
 
   async getDashboardStats(): Promise<any> {
+    let todayPosRevVal = 0;
+    let todayPosCountVal = 0;
+    try {
+      const todayPosRev = await this.orders.query(`
+        SELECT COALESCE(SUM(total_amount), 0) as total FROM sales_invoices 
+        WHERE invoice_status = 'completed' AND created_at >= CURRENT_DATE
+      `);
+      todayPosRevVal = Number(todayPosRev[0]?.total || 0);
+
+      const todayPosCountRes = await this.orders.query(`
+        SELECT COUNT(*) as count FROM sales_invoices WHERE created_at >= CURRENT_DATE
+      `);
+      todayPosCountVal = Number(todayPosCountRes[0]?.count || 0);
+    } catch {
+      todayPosRevVal = 0;
+      todayPosCountVal = 0;
+    }
+
     const todayOrdersRev = await this.orders.query(`
       SELECT COALESCE(SUM(total_amount), 0) as total FROM orders 
       WHERE order_status = 'completed' AND created_at >= CURRENT_DATE
     `);
-    const todayPosRev = await this.orders.query(`
-      SELECT COALESCE(SUM(total_amount), 0) as total FROM sales_invoices 
-      WHERE invoice_status = 'completed' AND created_at >= CURRENT_DATE
-    `);
-    const todayRevenueVal = Number(todayOrdersRev[0]?.total || 0) + Number(todayPosRev[0]?.total || 0);
+    const todayRevenueVal = Number(todayOrdersRev[0]?.total || 0) + todayPosRevVal;
 
     const formatMoney = (val: number) => {
       return new Intl.NumberFormat('vi-VN').format(val) + 'đ';
@@ -157,10 +171,7 @@ export class OrdersService implements OnModuleInit {
     const todayOrdersCountRes = await this.orders.query(`
       SELECT COUNT(*) as count FROM orders WHERE created_at >= CURRENT_DATE
     `);
-    const todayPosCountRes = await this.orders.query(`
-      SELECT COUNT(*) as count FROM sales_invoices WHERE created_at >= CURRENT_DATE
-    `);
-    const todayOrdersCount = Number(todayOrdersCountRes[0]?.count || 0) + Number(todayPosCountRes[0]?.count || 0);
+    const todayOrdersCount = Number(todayOrdersCountRes[0]?.count || 0) + todayPosCountVal;
 
     const productCountRes = await this.orders.query(`
       SELECT COUNT(*) as count FROM products WHERE is_active = true
@@ -180,26 +191,30 @@ export class OrdersService implements OnModuleInit {
       { label: "Khách hàng mới", value: String(newCustomers), delta: `+${newCustomers} so hôm qua`, icon: "Users" },
     ];
 
-    const weeklyChart = await this.orders.query(`
-      WITH days AS (
-        SELECT generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day')::date as day_date
-      )
-      SELECT 
-        TO_CHAR(d.day_date, 'ID') as day_num,
-        COALESCE(SUM(o.total_amount), 0) + COALESCE(SUM(s.total_amount), 0) as revenue,
-        COUNT(o.id) + COUNT(s.id) as orders
-      FROM days d
-      LEFT JOIN orders o ON DATE(o.created_at) = d.day_date AND o.order_status = 'completed'
-      LEFT JOIN sales_invoices s ON DATE(s.created_at) = d.day_date AND s.invoice_status = 'completed'
-      GROUP BY d.day_date
-      ORDER BY d.day_date
-    `);
+    let weeklyChart: any[] = [];
+    try {
+      weeklyChart = await this.orders.query(`
+        WITH days AS (
+          SELECT generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day')::date as day_date
+        )
+        SELECT 
+          TO_CHAR(d.day_date, 'ID') as day_num,
+          COALESCE(SUM(o.total_amount), 0) as revenue,
+          COUNT(o.id) as orders
+        FROM days d
+        LEFT JOIN orders o ON DATE(o.created_at) = d.day_date AND o.order_status = 'completed'
+        GROUP BY d.day_date
+        ORDER BY d.day_date
+      `);
+    } catch {
+      weeklyChart = [];
+    }
 
     const dayLabels: Record<string, string> = {
       '1': 'T2', '2': 'T3', '3': 'T4', '4': 'T5', '5': 'T6', '6': 'T7', '7': 'CN'
     };
 
-    const weekly = weeklyChart.map((row: any) => {
+    const weekly = (weeklyChart || []).map((row: any) => {
       const label = dayLabels[row.day_num.trim()] || row.day_num;
       return {
         day: label,
@@ -217,13 +232,13 @@ export class OrdersService implements OnModuleInit {
     const recentOrders = recentOrdersDb.map(o => ({
       id: o.orderCode,
       customer: o.user?.fullName || 'Khách hàng',
-      items: o.items.map(i => `${i.productName} (${i.variantName})`).join(', '),
+      items: (o.items || []).map(i => `${i.productName} (${i.variantName})`).join(', '),
       total: formatMoney(Number(o.totalAmount)),
       status: o.orderStatus === OrderStatus.PENDING ? 'Xác nhận' :
               o.orderStatus === OrderStatus.PREPARING ? 'Đang chuẩn bị' :
               o.orderStatus === OrderStatus.SHIPPING ? 'Đang giao' :
               o.orderStatus === OrderStatus.COMPLETED ? 'Hoàn thành' : 'Huỷ',
-      time: o.createdAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+      time: o.createdAt ? o.createdAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : ''
     }));
 
     return { stats, weekly, recentOrders };
