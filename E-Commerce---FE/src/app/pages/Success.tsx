@@ -30,11 +30,7 @@ export function Success({ setView, order, orderId: orderIdProp }: any) {
     }
   }, [order, orderIdProp]);
 
-  useEffect(() => {
-    if (!resolvedOrder && !orderIdProp) {
-      setView(VIEW_KEYS.HOME);
-    }
-  }, [resolvedOrder, orderIdProp, setView]);
+  // Bỏ tự động redirect sang HOME để tránh lỗi chớp tắt state khi React chưa cập nhật kịp order
 
   if (!resolvedOrder && !orderIdProp) return null;
 

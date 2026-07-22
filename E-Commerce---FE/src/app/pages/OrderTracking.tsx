@@ -7,6 +7,7 @@ import { env } from "../../config/env";
 interface OrderTrackingProps {
   orderId: string;
   onBack: () => void;
+  onPayment?: (orderId: string) => void;
 }
 
 const STEPS = [
@@ -16,7 +17,7 @@ const STEPS = [
   { key: "completed", label: "Hoàn Thành" },
 ];
 
-export function OrderTracking({ orderId, onBack }: OrderTrackingProps) {
+export function OrderTracking({ orderId, onBack, onPayment }: OrderTrackingProps) {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -111,6 +112,35 @@ export function OrderTracking({ orderId, onBack }: OrderTrackingProps) {
         <p className="text-muted-foreground">Không tìm thấy đơn hàng.</p>
         <button onClick={onBack} className="mt-4 rounded-xl bg-primary px-6 py-2 text-primary-foreground font-semibold">
           Quay lại
+        </button>
+      </div>
+    );
+  }
+
+  if (order.status === 'pending_payment' || order.orderStatus === 'pending_payment') {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 bg-background min-h-[60vh] text-center">
+        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+          <Clock size={32} className="text-primary" />
+        </div>
+        <h2 className="text-2xl font-serif font-bold mb-3 text-primary">Chờ thanh toán</h2>
+        <p className="mb-8 max-w-md text-muted-foreground text-lg">
+          Đơn hàng <span className="font-semibold text-foreground">#{order.orderCode}</span> của bạn đang chờ được thanh toán. 
+          Vui lòng hoàn tất quá trình thanh toán để chúng tôi bắt đầu chuẩn bị món cho bạn nhé!
+        </p>
+        <button 
+          onClick={() => {
+            if (onPayment) onPayment(orderId);
+          }} 
+          className="rounded-full bg-primary px-8 py-3 text-primary-foreground font-semibold shadow-sm hover:opacity-90 transition-opacity text-lg"
+        >
+          Thanh toán ngay (Quét QR)
+        </button>
+        <button 
+          onClick={onBack} 
+          className="mt-6 text-muted-foreground hover:text-foreground font-medium underline-offset-4 hover:underline"
+        >
+          Quay lại trang chủ
         </button>
       </div>
     );

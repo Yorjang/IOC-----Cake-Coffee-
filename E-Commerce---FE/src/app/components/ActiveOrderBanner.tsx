@@ -4,7 +4,7 @@ import { Package, X, ChevronRight } from "lucide-react";
 import { env } from "../../config/env";
 import { getAccessToken } from "./authSession";
 
-export function ActiveOrderBanner({ lastCreatedOrder, onClick, onPayment, isHidden }: { lastCreatedOrder?: any, onClick: (orderId: string) => void, onPayment?: (orderId: string) => void, isHidden?: boolean }) {
+export function ActiveOrderBanner({ lastCreatedOrder, onClick, onPayment, isHidden }: { lastCreatedOrder?: any, onClick: (order: any) => void, onPayment?: (orderId: string) => void, isHidden?: boolean }) {
   const [activeOrder, setActiveOrder] = useState<any>(null);
   const [dismissed, setDismissed] = useState(false);
 
@@ -116,7 +116,7 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, onPayment, isHidd
     if (needsPayment && onPayment) {
       onPayment(activeOrder.id);
     } else {
-      onClick(activeOrder.id);
+      onClick(activeOrder);
     }
   };
 
