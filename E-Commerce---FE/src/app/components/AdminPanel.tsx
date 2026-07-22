@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { env } from "../../config/env";
 import { supabase } from "../../config/supabase";
 import { parseRes } from "../../utils/api";
+import { AdminCombos } from "./admin/AdminCombos";
 
 function ImageUploader({ label, value, onChange }: { label: string; value: string; onChange: (url: string) => void }) {
   const [uploading, setUploading] = useState(false);
@@ -3147,6 +3148,7 @@ const navItems = [
   { key: "branches", label: "Chi nhánh", icon: Store, allowedRoles: ["admin", "store_manager"] },
   { key: "storeMap", label: "Bản đồ", icon: MapPin, allowedRoles: ["admin", "store_manager"] },
   { key: "products", label: "Sản phẩm", icon: Package, allowedRoles: ["admin", "store_manager", "staff"] },
+  { key: "combos", label: "Combo", icon: Boxes, allowedRoles: ["admin", "store_manager"] },
   { key: "categories", label: "Danh mục", icon: Tag, allowedRoles: ["admin", "store_manager", "staff"] },
   { key: "productTags", label: "Tag sản phẩm", icon: Tag, allowedRoles: ["admin", "store_manager", "staff"] },
   { key: "inventory", label: "Tồn kho", icon: Boxes, allowedRoles: ["admin", "store_manager", "staff"] },
@@ -3249,6 +3251,7 @@ export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUse
     branches: <AdminBranches adminUser={adminUser} />,
     storeMap: <AdminStoreMap />,
     products: <AdminProducts />,
+    combos: <AdminCombos />,
     categories: <AdminCategories />,
     productTags: <AdminProductTags />,
     inventory: <AdminInventory />,
