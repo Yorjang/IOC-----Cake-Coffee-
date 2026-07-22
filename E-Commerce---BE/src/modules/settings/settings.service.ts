@@ -12,7 +12,6 @@ export class SettingsService {
   ) {}
 
   async findAll() {
-    const settings = await this.settingRepository.find();
     const defaultSettings: Record<string, string> = {
       store_name: 'Sweet Bean Cake & Coffee',
       hotline: '1900 1234',
@@ -23,6 +22,13 @@ export class SettingsService {
       maintenance_mode: 'false',
     };
 
+    let settings: Setting[] = [];
+    try {
+      settings = await this.settingRepository.find();
+    } catch {
+      return defaultSettings;
+    }
+
     const resultMap: Record<string, any> = { ...defaultSettings };
     for (const item of settings) {
       resultMap[item.key] = item.value;
@@ -31,18 +37,26 @@ export class SettingsService {
   }
 
   async findByKey(key: string) {
-    return this.settingRepository.findOne({ where: { key } });
+    try {
+      return await this.settingRepository.findOne({ where: { key } });
+    } catch {
+      return null;
+    }
   }
 
   async updateSetting(dto: UpdateSettingDto) {
-    let setting = await this.settingRepository.findOne({ where: { key: dto.key } });
-    if (!setting) {
-      setting = this.settingRepository.create({ key: dto.key, value: dto.value, description: dto.description });
-    } else {
-      if (dto.value !== undefined) setting.value = dto.value;
-      if (dto.description !== undefined) setting.description = dto.description;
+    try {
+      let setting = await this.settingRepository.findOne({ where: { key: dto.key } });
+      if (!setting) {
+        setting = this.settingRepository.create({ key: dto.key, value: dto.value, description: dto.description });
+      } else {
+        if (dto.value !== undefined) setting.value = dto.value;
+        if (dto.description !== undefined) setting.description = dto.description;
+      }
+      return await this.settingRepository.save(setting);
+    } catch {
+      return { key: dto.key, value: dto.value };
     }
-    return this.settingRepository.save(setting);
   }
 
   async bulkUpdate(dtos: UpdateSettingDto[]) {

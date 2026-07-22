@@ -24,7 +24,7 @@ export function AdminOrders() {
   const loadOrders = async () => {
     const token = getAccessToken();
     try {
-      const res = await fetch(`${env.API_URL}/orders`, {
+      const res = await fetch(`${env.API_URL}/admin/orders`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await parseRes(res);
@@ -45,7 +45,7 @@ export function AdminOrders() {
   const updateStatus = async (id: string, newStatus: string) => {
     const token = getAccessToken();
     try {
-      const res = await fetch(`${env.API_URL}/orders/${id}/status`, {
+      const res = await fetch(`${env.API_URL}/admin/orders/${id}/status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -70,7 +70,7 @@ export function AdminOrders() {
     if (!window.confirm("Bạn xác nhận đã chuyển khoản hoàn tiền cho khách hàng này?")) return;
     const token = getAccessToken();
     try {
-      const res = await fetch(`${env.API_URL}/orders/${id}/refund`, {
+      const res = await fetch(`${env.API_URL}/admin/orders/${id}/refund`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` }
       });

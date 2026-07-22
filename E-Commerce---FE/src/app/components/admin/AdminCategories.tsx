@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { getAccessToken } from "../authSession";
 import { env } from "../../../config/env";
 import { supabase } from "../../../config/supabase";
-import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
+import { ImageUploader, StatusBadge, AdminBtn, TableHeader, deleteStorageImage } from "./AdminShared";
 
 export function AdminCategories() {
   const [items, setItems] = useState<any[]>([]);
@@ -26,7 +26,7 @@ export function AdminCategories() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${env.API_URL}/products/categories`);
+      const res = await fetch(`${env.API_URL}/admin/categories`);
       if (res.ok) setItems(await parseRes(res));
     } catch { /* silent */ } finally { setLoading(false); }
   };
@@ -39,7 +39,7 @@ export function AdminCategories() {
   const save = async () => {
     const token = getToken();
     if (!token) return;
-    const url = editing ? `${env.API_URL}/products/categories/${editing.id}` : `${env.API_URL}/products/categories`;
+    const url = editing ? `${env.API_URL}/admin/categories/${editing.id}` : `${env.API_URL}/admin/categories`;
     const method = editing ? "PATCH" : "POST";
     try {
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(form) });
@@ -54,7 +54,7 @@ export function AdminCategories() {
     if (!confirm("Xóa danh mục này?")) return;
     const item = items.find(c => c.id === id);
     try {
-      const res = await fetch(`${env.API_URL}/products/categories/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${env.API_URL}/admin/categories/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) { const err = await parseRes(res); throw new Error(err.message); }
       if (item?.imageUrl) {
         await deleteStorageImage(item.imageUrl);

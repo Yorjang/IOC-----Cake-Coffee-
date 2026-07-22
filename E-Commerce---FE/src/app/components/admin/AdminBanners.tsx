@@ -31,7 +31,7 @@ export function AdminBanners() {
   const loadBanners = async () => {
     const token = getAccessToken();
     try {
-      const res = await fetch(`${env.API_URL}/banners`, {
+      const res = await fetch(`${env.API_URL}/admin/banners`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await parseRes(res);
@@ -54,7 +54,7 @@ export function AdminBanners() {
   const handleToggleActive = async (banner: any) => {
     const token = getAccessToken();
     try {
-      const res = await fetch(`${env.API_URL}/banners/${banner.id}/active`, {
+      const res = await fetch(`${env.API_URL}/admin/banners/${banner.id}/active`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -80,7 +80,7 @@ export function AdminBanners() {
     const token = localStorage.getItem("accessToken");
     const banner = bannersList.find((b: any) => b.id === id);
     try {
-      const res = await fetch(`${env.API_URL}/banners/${id}`, {
+      const res = await fetch(`${env.API_URL}/admin/banners/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -107,7 +107,7 @@ export function AdminBanners() {
     const isEditing = Boolean(editingBanner);
     setSaving(true);
     try {
-      const res = await fetch(`${env.API_URL}/banners${isEditing ? `/${editingBanner.id}` : ""}`, {
+      const res = await fetch(`${env.API_URL}/admin/banners${isEditing ? `/${editingBanner.id}` : ""}`, {
         method: isEditing ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",

@@ -56,13 +56,11 @@ export default function App() {
   }
 
   if (view === VIEW_KEYS.ADMIN) {
-    if (!user) {
-      setTimeout(() => setView(VIEW_KEYS.ADMIN_LOGIN), 0);
-      return <><Toaster richColors position="top-center" /></>;
-    }
-    if (!isAdminUser(user)) {
-      toast.error("Bạn không có quyền truy cập trang quản trị.");
-      setTimeout(() => setView(VIEW_KEYS.HOME), 0);
+    if (!user || !isAdminUser(user)) {
+      if (user && !isAdminUser(user)) {
+        toast.error("Tài khoản hiện tại không có quyền Admin. Vui lòng đăng nhập tài khoản Quản trị.");
+      }
+      setTimeout(() => setView(VIEW_KEYS.ADMIN_LOGIN, undefined, true), 0);
       return <><Toaster richColors position="top-center" /></>;
     }
     return <><Toaster richColors position="top-center" /><Suspense fallback={<LoadingScreen isLoading={true} />}><AdminPanel onExit={handleAdminLogout} adminUser={user} /></Suspense></>;

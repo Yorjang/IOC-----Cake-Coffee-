@@ -21,7 +21,7 @@ export function AdminReviews() {
   const loadReviews = async () => {
     const token = getAccessToken();
     try {
-      const res = await fetch(`${env.API_URL}/reviews`, {
+      const res = await fetch(`${env.API_URL}/admin/reviews`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await parseRes(res);
@@ -42,7 +42,7 @@ export function AdminReviews() {
   const updateVisibility = async (id: string, isVisible: boolean) => {
     const token = getAccessToken();
     try {
-      const res = await fetch(`${env.API_URL}/reviews/${id}/visibility`, {
+      const res = await fetch(`${env.API_URL}/admin/reviews/${id}/visibility`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -67,7 +67,7 @@ export function AdminReviews() {
     if (!window.confirm("Bạn có chắc chắn muốn xóa đánh giá này không?")) return;
     const token = getAccessToken();
     try {
-      const res = await fetch(`${env.API_URL}/reviews/${id}`, {
+      const res = await fetch(`${env.API_URL}/admin/reviews/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

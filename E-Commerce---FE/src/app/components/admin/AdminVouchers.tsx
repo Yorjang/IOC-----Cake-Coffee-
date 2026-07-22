@@ -38,7 +38,7 @@ export function AdminVouchers() {
   const loadCoupons = async () => {
     const token = localStorage.getItem("accessToken");
     try {
-      const res = await fetch(`${env.API_URL}/coupons`, {
+      const res = await fetch(`${env.API_URL}/admin/vouchers`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await parseRes(res);
@@ -96,7 +96,7 @@ export function AdminVouchers() {
     setSaving(true);
     try {
       const isEditing = !!editingVoucher;
-      const url = isEditing ? `${env.API_URL}/coupons/${editingVoucher.id}` : `${env.API_URL}/coupons`;
+      const url = isEditing ? `${env.API_URL}/admin/vouchers/${editingVoucher.id}` : `${env.API_URL}/admin/vouchers`;
       const method = isEditing ? "PATCH" : "POST";
 
       const res = await fetch(url, {
@@ -191,7 +191,7 @@ export function AdminVouchers() {
     if (!window.confirm("Bạn có chắc chắn muốn xóa voucher này không?")) return;
     const token = localStorage.getItem("accessToken");
     try {
-      const res = await fetch(`${env.API_URL}/coupons/${id}`, {
+      const res = await fetch(`${env.API_URL}/admin/vouchers/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
