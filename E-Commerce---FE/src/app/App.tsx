@@ -117,6 +117,7 @@ export default function App() {
             {view === VIEW_KEYS.CART && <Cart cart={cart} onUpdateQty={handleUpdateCartQty} onRemoveItem={handleRemoveCartItem} setView={setView} publicCoupons={publicCoupons} appliedCoupon={appliedCoupon} setAppliedCoupon={setAppliedCoupon} user={user} />}
             {view === VIEW_KEYS.CHECKOUT && <Checkout cart={cart} setView={setView} onPlaceOrder={handlePlaceOrder} subtotal={subtotal} discount={discount} shipping={shipping} grandTotal={grandTotal} user={user} />}
             {view === VIEW_KEYS.SUCCESS && <Success setView={setView} order={lastCreatedOrder} />}
+            {view === VIEW_KEYS.PAYMENT && <Success setView={setView} order={null} orderId={selectedOrderId} />}
             {view === VIEW_KEYS.DETAIL && <ProductDetail product={selectedProduct} setView={setView} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onSelectProduct={handleSelectProduct} products={products} publicCoupons={publicCoupons} />}
             {view === VIEW_KEYS.FAVORITES && <Favorites wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onAddToCart={handleAddToCart} onSelectProduct={handleSelectProduct} setView={setView} />}
             {view === VIEW_KEYS.PROFILE && <Profile user={user} setUser={setUser} setView={setView} onLogout={handleLogout} />}
@@ -133,8 +134,9 @@ export default function App() {
         <Footer setView={setView} />
         <ActiveOrderBanner 
           lastCreatedOrder={lastCreatedOrder} 
-          isHidden={view === VIEW_KEYS.TRACKING}
+          isHidden={view === VIEW_KEYS.TRACKING || view === VIEW_KEYS.PAYMENT}
           onClick={(id) => { setSelectedOrderId(id); setView(VIEW_KEYS.TRACKING); }} 
+          onPayment={(id) => setView(VIEW_KEYS.PAYMENT, id)}
         />
         {showStorePopup && (
           <StoreSelectionModal

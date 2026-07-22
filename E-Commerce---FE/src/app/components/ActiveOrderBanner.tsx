@@ -4,7 +4,7 @@ import { Package, X, ChevronRight } from "lucide-react";
 import { env } from "../../config/env";
 import { getAccessToken } from "./authSession";
 
-export function ActiveOrderBanner({ lastCreatedOrder, onClick, isHidden }: { lastCreatedOrder?: any, onClick: (orderId: string) => void, isHidden?: boolean }) {
+export function ActiveOrderBanner({ lastCreatedOrder, onClick, onPayment, isHidden }: { lastCreatedOrder?: any, onClick: (orderId: string) => void, onPayment?: (orderId: string) => void, isHidden?: boolean }) {
   const [activeOrder, setActiveOrder] = useState<any>(null);
   const [dismissed, setDismissed] = useState(false);
 
@@ -78,25 +78,50 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, isHidden }: { las
   if (!activeOrder || dismissed || isHidden) return null;
   if (activeOrder.orderStatus === 'cancelled') return null;
 
-  const getStatusInfo = (status: string) => {
+  const getStatusInfo = (order: any) => {
+    const { orderStatus, paymentStatus, paymentMethod } = order;
+
+    // Nếu đơn đang chờ xác nhận mà chưa thanh toán (không phải COD)
+    const needsPayment =
+      orderStatus === 'pending' &&
+      paymentStatus === 'pending' &&
+      !['cod', 'cash'].includes(paymentMethod);
+
+    if (needsPayment) {
+      return { label: 'Chờ thanh toán', color: 'text-orange-500', pulse: 'bg-orange-500' };
+    }
+
     const map: Record<string, { label: string, color: string, pulse: string }> = {
-      'pending': { label: 'Chờ xác nhận', color: 'text-amber-500', pulse: 'bg-amber-500' },
-      'confirmed': { label: 'Đã xác nhận', color: 'text-blue-500', pulse: 'bg-blue-500' },
-      'preparing': { label: 'Đang chuẩn bị', color: 'text-yellow-500', pulse: 'bg-yellow-500' },
-      'shipping': { label: 'Đang giao hàng', color: 'text-indigo-500', pulse: 'bg-indigo-500' },
-      'completed': { label: 'Đã hoàn thành', color: 'text-emerald-500', pulse: 'bg-emerald-500' },
-      'cancelled': { label: 'Đã huỷ', color: 'text-red-500', pulse: 'bg-red-500' }
+      'pending':   { label: 'Chờ xác nhận',   color: 'text-amber-500',   pulse: 'bg-amber-500'   },
+      'confirmed': { label: 'Đã xác nhận',    color: 'text-blue-500',    pulse: 'bg-blue-500'    },
+      'preparing': { label: 'Đang chuẩn bị',  color: 'text-yellow-500',  pulse: 'bg-yellow-500'  },
+      'shipping':  { label: 'Đang giao hàng', color: 'text-indigo-500',  pulse: 'bg-indigo-500'  },
+      'completed': { label: 'Đã hoàn thành',  color: 'text-emerald-500', pulse: 'bg-emerald-500' },
+      'cancelled': { label: 'Đã huỷ',         color: 'text-red-500',     pulse: 'bg-red-500'     },
     };
-    return map[status] || { label: 'Đang xử lý', color: 'text-primary', pulse: 'bg-primary' };
+    return map[orderStatus] || { label: 'Đang xử lý', color: 'text-primary', pulse: 'bg-primary' };
   };
 
-  const info = getStatusInfo(activeOrder.orderStatus);
+  const info = getStatusInfo(activeOrder);
+
+  const needsPayment =
+    activeOrder.orderStatus === 'pending' &&
+    activeOrder.paymentStatus === 'pending' &&
+    !['cod', 'cash'].includes(activeOrder.paymentMethod);
+
+  const handleMainClick = () => {
+    if (needsPayment && onPayment) {
+      onPayment(activeOrder.id);
+    } else {
+      onClick(activeOrder.id);
+    }
+  };
 
   return (
     <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-sm animate-in slide-in-from-top-5 fade-in duration-300">
       <div 
         className="flex items-center gap-3 rounded-2xl border border-border/50 bg-background/80 backdrop-blur-xl p-3 pl-4 pr-2 shadow-lg shadow-black/5 cursor-pointer hover:bg-muted/50 transition-colors"
-        onClick={() => onClick(activeOrder.id)}
+        onClick={handleMainClick}
       >
         <div className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
            <Package size={20} className={info.color} />
@@ -118,7 +143,7 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, isHidden }: { las
             className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             onClick={(e) => {
               e.stopPropagation();
-              onClick(activeOrder.id);
+              handleMainClick();
             }}
           >
             <ChevronRight size={18} />

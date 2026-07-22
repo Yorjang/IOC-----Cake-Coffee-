@@ -22,6 +22,7 @@ export const VIEW_KEYS = {
   RETURN_POLICY: "Chính sách đổi trả",
   ORDER_GUIDE: "Hướng dẫn đặt bánh",
   TRACKING: "Theo dõi",
+  PAYMENT: "Thanh toán đơn hàng",
 } as const;
 
 export const CATEGORY_GROUPS = {

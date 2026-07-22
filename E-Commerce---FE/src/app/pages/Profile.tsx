@@ -597,14 +597,32 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
                             >
                               {getStatusLabel(o.orderStatus)}
                             </span>
-                            {o.orderStatus !== 'cancelled' && (
-                              <button 
-                                onClick={() => setView("Theo dõi", o.id)}
-                                className="mt-2 text-xs font-semibold text-primary hover:underline"
-                              >
-                                Theo dõi đơn
-                              </button>
-                            )}
+                            {o.orderStatus !== 'cancelled' && (() => {
+                              const needsPayment = 
+                                o.paymentStatus === 'pending' && 
+                                !['cod', 'cash'].includes(o.paymentMethod);
+                              
+                              if (needsPayment) {
+                                return (
+                                  <button
+                                    onClick={() => setView("Thanh toán đơn hàng", o.id)}
+                                    className="mt-2 text-xs font-semibold text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-1"
+                                  >
+                                    <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                                    Thanh toán đơn hàng
+                                  </button>
+                                );
+                              }
+                              return (
+                                <button
+                                  onClick={() => setView("Theo dõi", o.id)}
+                                  className="mt-2 text-xs font-semibold text-primary hover:underline"
+                                >
+                                  Theo dõi đơn
+                                </button>
+                              );
+                            })()}
+
                           </div>
                         </div>
                       );

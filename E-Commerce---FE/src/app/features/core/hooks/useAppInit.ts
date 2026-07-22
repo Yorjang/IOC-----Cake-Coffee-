@@ -606,7 +606,7 @@ export function useAppInit() {
     setTimeout(() => {
       window.scrollTo({ top: 0, left: 0, behavior: "instant" });
       setViewInternal(newView);
-      if (newView === VIEW_KEYS.TRACKING) {
+      if (newView === VIEW_KEYS.TRACKING || newView === VIEW_KEYS.PAYMENT) {
         setSelectedOrderId(productData || null);
       } else {
         if (productData) setSelectedProduct(productData);
@@ -615,6 +615,7 @@ export function useAppInit() {
       setTimeout(() => setIsLoading(false), 100);
     }, 400);
   };
+
 
   // ── Auth handlers ────────────────────────────────────────────────────────
   const handleLoginSuccess = async () => {

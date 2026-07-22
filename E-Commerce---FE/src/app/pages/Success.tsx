@@ -9,30 +9,41 @@ import { VIEW_KEYS } from "../../config/appConfig";
 
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
-export function Success({ setView, order }: any) {
+export function Success({ setView, order, orderId: orderIdProp }: any) {
   const [qrData, setQrData] = useState<any>(null);
   const [loadingQr, setLoadingQr] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [fetchedOrder, setFetchedOrder] = useState<any>(null);
 
-  const orderId = order?.id;
+  // Dùng order từ prop nếu có, nếu không thì fetch theo orderId
+  const resolvedOrder = order || fetchedOrder;
+  const orderId = resolvedOrder?.id || orderIdProp;
 
   useEffect(() => {
-    if (!order) {
+    if (!order && orderIdProp) {
+      // Fetch order từ orderId khi vào từ Profile/Banner
+      fetch(`${env.API_URL}/orders/public/${orderIdProp}`)
+        .then(parseRes)
+        .then(data => setFetchedOrder(data))
+        .catch(console.error);
+    }
+  }, [order, orderIdProp]);
+
+  useEffect(() => {
+    if (!resolvedOrder && !orderIdProp) {
       setView(VIEW_KEYS.HOME);
     }
-  }, [order, setView]);
+  }, [resolvedOrder, orderIdProp, setView]);
 
-  if (!order) return null;
+  if (!resolvedOrder && !orderIdProp) return null;
 
-  const orderCode = order?.orderCode || "SB9999";
-  const isBankTransfer = order?.paymentMethod === 'bank_transfer';
+  const orderCode = resolvedOrder?.orderCode || "...";
+  const isBankTransfer = resolvedOrder?.paymentMethod === 'bank_transfer';
 
   // 1. Fetch QR Details
   useEffect(() => {
     if (!isBankTransfer || !orderId) return;
-
-
 
     const token = getAccessToken();
     const headers: Record<string, string> = {};
@@ -54,6 +65,7 @@ export function Success({ setView, order }: any) {
         setLoadingQr(false);
       });
   }, [orderId, isBankTransfer]);
+
 
   // 2. Poll Order paymentStatus
   useEffect(() => {
