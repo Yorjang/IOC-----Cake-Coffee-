@@ -6,6 +6,7 @@ import { ProductVariant, VariantStatus } from '../products/product-variant.entit
 import { Product, ProductType } from '../products/product.entity';
 import { ComboItem } from './combo-item.entity';
 import { ComboItemDto, CreateComboDto, UpdateComboDto } from './dto/combo.dto';
+import { User, UserRole } from '../users/user.entity';
 
 function createSlug(name: string): string {
   return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -19,13 +20,18 @@ export class CombosService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async findAll(): Promise<Product[]> {
+  async findAll(user?: User, isAdminPath?: boolean): Promise<Product[]> {
+    const where: any = { productType: ProductType.COMBO };
+    if (isAdminPath && user?.role === UserRole.STORE_MANAGER && user.branchId) {
+      where.branchId = user.branchId;
+    }
     return this.products.find({
-      where: { productType: ProductType.COMBO },
+      where,
       relations: {
         category: true,
         variants: true,
         items: { childProduct: true, childVariant: true },
+        branch: true,
       },
       order: { createdAt: 'DESC' },
     });
@@ -39,21 +45,39 @@ export class CombosService {
     });
   }
 
-  async create(dto: CreateComboDto): Promise<Product> {
+  async create(dto: CreateComboDto, user: User): Promise<Product> {
+    const branchId = user.role === UserRole.STORE_MANAGER ? user.branchId : dto.branchId;
     const comboId = await this.dataSource.transaction(async (manager) => {
+      let categoryId = dto.categoryId;
+      if (!categoryId) {
+        let category = await manager.getRepository(Category).findOne({
+          where: [
+            { slug: 'combo' },
+            { name: 'Combo' }
+          ]
+        });
+        if (!category) {
+          category = await manager.getRepository(Category).save({
+            name: 'Combo',
+            slug: 'combo',
+          });
+        }
+        categoryId = category.id;
+      }
+
       await this.validateReferences(
         manager.getRepository(Category),
         manager.getRepository(Product),
         manager.getRepository(ProductVariant),
         dto.items,
         undefined,
-        dto.categoryId,
+        categoryId,
       );
       const slug = createSlug(dto.name);
       await this.assertUnique(manager.getRepository(Product), manager.getRepository(ProductVariant), slug, dto.sku);
 
       const product = await manager.getRepository(Product).save({
-        categoryId: dto.categoryId,
+        categoryId,
         name: dto.name.trim(),
         slug,
         description: dto.description?.trim() || null,
@@ -61,6 +85,7 @@ export class CombosService {
         productType: ProductType.COMBO,
         requiresNote: false,
         isActive: dto.isActive ?? true,
+        branchId,
       });
       await manager.getRepository(ProductVariant).save({
         productId: product.id,
@@ -77,7 +102,7 @@ export class CombosService {
     return this.findOne(comboId);
   }
 
-  async update(id: string, dto: UpdateComboDto): Promise<Product> {
+  async update(id: string, dto: UpdateComboDto, user: User): Promise<Product> {
     await this.dataSource.transaction(async (manager) => {
       const productRepository = manager.getRepository(Product);
       const variantRepository = manager.getRepository(ProductVariant);
@@ -88,17 +113,41 @@ export class CombosService {
       });
       if (!combo) throw new NotFoundException('Không tìm thấy combo');
 
-      await this.validateReferences(manager.getRepository(Category), productRepository, variantRepository, dto.items, id, dto.categoryId);
+      if (user.role === UserRole.STORE_MANAGER && combo.branchId !== user.branchId) {
+        throw new BadRequestException('Bạn không có quyền chỉnh sửa combo của chi nhánh khác');
+      }
+
+      let categoryId = dto.categoryId;
+      if (!categoryId) {
+        let category = await manager.getRepository(Category).findOne({
+          where: [
+            { slug: 'combo' },
+            { name: 'Combo' }
+          ]
+        });
+        if (!category) {
+          category = await manager.getRepository(Category).save({
+            name: 'Combo',
+            slug: 'combo',
+          });
+        }
+        categoryId = category.id;
+      }
+
+      await this.validateReferences(manager.getRepository(Category), productRepository, variantRepository, dto.items, id, categoryId);
       const slug = createSlug(dto.name);
       await this.assertUnique(productRepository, variantRepository, slug, dto.sku, id, combo.variants[0]?.id);
 
+      const branchId = user.role === UserRole.ADMIN ? (dto.branchId !== undefined ? dto.branchId : combo.branchId) : combo.branchId;
+
       Object.assign(combo, {
-        categoryId: dto.categoryId,
+        categoryId,
         name: dto.name.trim(),
         slug,
         description: dto.description?.trim() || null,
         imageUrl: dto.imageUrl?.trim() || null,
         isActive: dto.isActive ?? true,
+        branchId,
       });
       await productRepository.save(combo);
 
@@ -119,9 +168,12 @@ export class CombosService {
     return this.findOne(id);
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, user: User): Promise<void> {
     const combo = await this.products.findOne({ where: { id, productType: ProductType.COMBO } });
     if (!combo) throw new NotFoundException('Không tìm thấy combo');
+    if (user.role === UserRole.STORE_MANAGER && combo.branchId !== user.branchId) {
+      throw new BadRequestException('Bạn không có quyền xóa combo của chi nhánh khác');
+    }
     await this.products.remove(combo);
   }
 

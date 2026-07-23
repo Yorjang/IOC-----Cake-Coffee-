@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Category } from './category.entity';
@@ -11,6 +11,7 @@ import { CreateProductDto, UpdateProductDto } from './dto/create-product.dto';
 import { CreateProductVariantDto, UpdateProductVariantDto } from './dto/product-variant.dto';
 import { ProductTag } from './product-tag.entity';
 import { CreateProductTagDto, ReplaceProductTagsDto, UpdateProductTagDto } from './dto/product-tag.dto';
+import { User, UserRole } from '../users/user.entity';
 
 // BUG-016 FIX: Hoist RegExp to module level — prevents re-creation on every call (js-hoist-regexp)
 const SLUG_ACCENT_MAP: [RegExp, string][] = [
@@ -37,7 +38,7 @@ function generateSlug(name: string): string {
 
 
 @Injectable()
-export class ProductsService {
+export class ProductsService implements OnModuleInit {
     constructor(
         @InjectRepository(Category)
         private readonly categories: Repository<Category>,
@@ -54,6 +55,21 @@ export class ProductsService {
         @InjectRepository(ProductTag)
         private readonly tags: Repository<ProductTag>,
     ) {}
+
+    async onModuleInit() {
+        try {
+            await this.products.query('ALTER TABLE products ADD COLUMN IF NOT EXISTS branch_id UUID');
+        } catch (err) {
+            console.error('Error adding branch_id to products:', err);
+        }
+        try {
+            await this.products.query(
+                'ALTER TABLE products ADD CONSTRAINT fk_products_branch FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL'
+            );
+        } catch (err) {
+            // Ignore if constraint already exists
+        }
+    }
 
     // ── Categories CRUD ──────────────────────────────────────────────────────
     async findAllCategories(): Promise<Category[]> {
@@ -104,10 +120,17 @@ export class ProductsService {
     }
 
     // ── Products CRUD ────────────────────────────────────────────────────────
-    async findAllProducts(tagSlug?: string): Promise<Product[]> {
+    async findAllProducts(tagSlug?: string, user?: User, isAdminPath?: boolean): Promise<Product[]> {
+        const where: any = {};
+        if (tagSlug) {
+            where.tags = { slug: tagSlug };
+        }
+        if (isAdminPath && user?.role === UserRole.STORE_MANAGER && user.branchId) {
+            where.branchId = user.branchId;
+        }
         return this.products.find({
-            where: tagSlug ? { tags: { slug: tagSlug } } : undefined,
-            relations: { category: true, variants: true, toppings: true, tags: true },
+            where: Object.keys(where).length > 0 ? where : undefined,
+            relations: { category: true, variants: true, toppings: true, tags: true, branch: true },
             order: { name: 'ASC' },
         });
     }
@@ -115,13 +138,13 @@ export class ProductsService {
     async findProductById(id: string): Promise<Product> {
         const prod = await this.products.findOne({
             where: { id },
-            relations: { category: true, variants: true, toppings: true, tags: true },
+            relations: { category: true, variants: true, toppings: true, tags: true, branch: true },
         });
         if (!prod) throw new NotFoundException('Không tìm thấy sản phẩm');
         return prod;
     }
 
-    async createProduct(dto: CreateProductDto): Promise<Product> {
+    async createProduct(dto: CreateProductDto, user: User): Promise<Product> {
         // Validate Category
         await this.findCategoryById(dto.categoryId);
 
@@ -129,9 +152,12 @@ export class ProductsService {
         const existing = await this.products.findOne({ where: { slug } });
         if (existing) throw new BadRequestException('Sản phẩm với tên hoặc đường dẫn này đã tồn tại');
 
+        const branchId = user.role === UserRole.STORE_MANAGER ? user.branchId : dto.branchId;
+
         const { variants, ...prodData } = dto;
         const product = this.products.create({
             ...prodData,
+            branchId,
             slug,
         });
 
@@ -162,8 +188,11 @@ export class ProductsService {
         return this.findProductById(savedProduct.id);
     }
 
-    async updateProduct(id: string, dto: UpdateProductDto): Promise<Product> {
+    async updateProduct(id: string, dto: UpdateProductDto, user: User): Promise<Product> {
         const prod = await this.findProductById(id);
+        if (user.role === UserRole.STORE_MANAGER && prod.branchId !== user.branchId) {
+            throw new BadRequestException('Bạn không có quyền chỉnh sửa sản phẩm của chi nhánh khác');
+        }
         
         if (dto.categoryId && dto.categoryId !== prod.categoryId) {
             await this.findCategoryById(dto.categoryId);
@@ -178,13 +207,21 @@ export class ProductsService {
             prod.slug = slug;
         }
 
-        Object.assign(prod, dto);
+        const { branchId, ...updateData } = dto;
+        if (user.role === UserRole.ADMIN) {
+            prod.branchId = branchId !== undefined ? branchId : prod.branchId;
+        }
+
+        Object.assign(prod, updateData);
         await this.products.save(prod);
         return this.findProductById(id);
     }
 
-    async deleteProduct(id: string): Promise<void> {
+    async deleteProduct(id: string, user: User): Promise<void> {
         const prod = await this.findProductById(id);
+        if (user.role === UserRole.STORE_MANAGER && prod.branchId !== user.branchId) {
+            throw new BadRequestException('Bạn không có quyền xóa sản phẩm của chi nhánh khác');
+        }
         await this.products.remove(prod);
     }
 

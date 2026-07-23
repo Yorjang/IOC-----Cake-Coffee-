@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Patch, Delete, Param, Body, UseGuards, ParseUUIDPipe, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Param, Body, UseGuards, ParseUUIDPipe, Query, Req } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -9,6 +9,9 @@ import { CreateProductDto, UpdateProductDto } from './dto/create-product.dto';
 import { CreateProductVariantDto, UpdateProductVariantDto } from './dto/product-variant.dto';
 import { ReplaceProductToppingsDto } from './dto/product-topping.dto';
 import { CreateProductTagDto, ReplaceProductTagsDto, UpdateProductTagDto } from './dto/product-tag.dto';
+import { User } from '../users/user.entity';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 
 @Controller(['admin/products', 'products'])
 export class ProductsController {
@@ -82,8 +85,15 @@ export class ProductsController {
 
     // ── Products Routes ──────────────────────────────────────────────────────
     @Get()
-    findAllProducts(@Query('tag') tag?: string) {
-        return this.productsService.findAllProducts(tag);
+    @UseGuards(JwtAuthGuard)
+    @Public()
+    findAllProducts(
+        @Req() req: any,
+        @Query('tag') tag?: string,
+        @CurrentUser() user?: User,
+    ) {
+        const isAdminPath = req.originalUrl?.includes('/admin/');
+        return this.productsService.findAllProducts(tag, user, isAdminPath);
     }
 
     @Get('sizes/distinct')
@@ -100,8 +110,8 @@ export class ProductsController {
     @Post()
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Permissions(Permission.CREATE_PRODUCT)
-    createProduct(@Body() dto: CreateProductDto) {
-        return this.productsService.createProduct(dto);
+    createProduct(@Body() dto: CreateProductDto, @CurrentUser() user: User) {
+        return this.productsService.createProduct(dto, user);
     }
 
     @Patch(':id')
@@ -110,15 +120,16 @@ export class ProductsController {
     updateProduct(
         @Param('id', ParseUUIDPipe) id: string,
         @Body() dto: UpdateProductDto,
+        @CurrentUser() user: User,
     ) {
-        return this.productsService.updateProduct(id, dto);
+        return this.productsService.updateProduct(id, dto, user);
     }
 
     @Delete(':id')
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Permissions(Permission.DELETE_PRODUCT)
-    deleteProduct(@Param('id', ParseUUIDPipe) id: string) {
-        return this.productsService.deleteProduct(id);
+    deleteProduct(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+        return this.productsService.deleteProduct(id, user);
     }
 
     @Get(':productId/toppings')

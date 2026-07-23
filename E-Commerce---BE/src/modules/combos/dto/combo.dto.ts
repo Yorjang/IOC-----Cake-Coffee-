@@ -20,7 +20,8 @@ export class ComboItemDto {
 
 export class CreateComboDto {
   @IsUUID('4')
-  categoryId: string;
+  @IsOptional()
+  categoryId?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -45,6 +46,10 @@ export class CreateComboDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsUUID('4')
+  @IsOptional()
+  branchId?: string;
 
   @IsArray()
   @ArrayMinSize(1)

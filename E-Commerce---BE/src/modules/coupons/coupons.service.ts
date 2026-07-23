@@ -5,6 +5,8 @@ import { Coupon, CouponStatus, DiscountType, CouponScope } from './coupon.entity
 import { CreateCouponDto } from './dto/create-coupon.dto';
 import { UpdateCouponDto } from './dto/update-coupon.dto';
 
+import { User, UserRole } from '../users/user.entity';
+
 @Injectable()
 export class CouponsService implements OnModuleInit {
   constructor(
@@ -30,12 +32,29 @@ export class CouponsService implements OnModuleInit {
     } catch (err) {
       console.error('Error adding target_size to coupons:', err);
     }
+    try {
+      await this.coupons.query('ALTER TABLE coupons ADD COLUMN IF NOT EXISTS branch_id UUID');
+    } catch (err) {
+      console.error('Error adding branch_id to coupons:', err);
+    }
+    try {
+      await this.coupons.query(
+        'ALTER TABLE coupons ADD CONSTRAINT fk_coupons_branch FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL'
+      );
+    } catch (err) {
+      // Ignore if constraint already exists
+    }
 
   }
 
-  async findAll(): Promise<Coupon[]> {
+  async findAll(user: User): Promise<Coupon[]> {
+    const where: any = {};
+    if (user.role === UserRole.STORE_MANAGER && user.branchId) {
+      where.branchId = user.branchId;
+    }
     const list = await this.coupons.find({
-      relations: { product: { category: true }, category: true },
+      where: Object.keys(where).length > 0 ? where : undefined,
+      relations: { product: { category: true }, category: true, branch: true },
       order: { createdAt: 'DESC' },
     });
     return list.map(c => ({
@@ -44,14 +63,18 @@ export class CouponsService implements OnModuleInit {
     })) as any;
   }
 
-  async findPublicActive(userId?: string): Promise<Coupon[]> {
+  async findPublicActive(userId?: string, branchId?: string): Promise<Coupon[]> {
     const coupons = await this.coupons.find({
       where: { status: CouponStatus.ACTIVE },
-      relations: { product: { category: true }, category: true },
+      relations: { product: { category: true }, category: true, branch: true },
       order: { createdAt: 'DESC' },
     });
     const now = new Date();
     let activeCoupons = coupons.filter(c => new Date(c.expiresAt) > now);
+
+    if (branchId) {
+      activeCoupons = activeCoupons.filter(c => !c.branchId || c.branchId === branchId);
+    }
 
     if (userId) {
       try {
@@ -84,11 +107,13 @@ export class CouponsService implements OnModuleInit {
 
 
 
-  async create(dto: CreateCouponDto): Promise<Coupon> {
+  async create(dto: CreateCouponDto, user: User): Promise<Coupon> {
     const existing = await this.coupons.findOne({ where: { code: dto.code.toUpperCase().trim() } });
     if (existing) {
       throw new BadRequestException('Mã voucher này đã tồn tại.');
     }
+
+    const branchId = user.role === UserRole.STORE_MANAGER ? user.branchId : dto.branchId;
 
     const coupon = this.coupons.create({
       code: dto.code.toUpperCase().trim(),
@@ -104,15 +129,17 @@ export class CouponsService implements OnModuleInit {
       productId: dto.productId || null,
       categoriesId: dto.categoriesId || null,
       targetSize: dto.targetSize || null,
+      branchId: branchId || null,
       couponScope: dto.targetSize
         ? CouponScope.VARIANT
         : dto.productId
           ? CouponScope.PRODUCT
           : dto.categoriesId
             ? CouponScope.CATEGORY
-            : CouponScope.ORDER,
+            : branchId
+              ? CouponScope.BRANCH
+              : CouponScope.ORDER,
       maxDiscount: dto.maxDiscount !== undefined && dto.maxDiscount !== null ? Number(dto.maxDiscount) : null,
-
     });
 
     const saved = await this.coupons.save(coupon);
@@ -122,10 +149,14 @@ export class CouponsService implements OnModuleInit {
     } as any;
   }
 
-  async update(id: string, dto: UpdateCouponDto): Promise<Coupon> {
+  async update(id: string, dto: UpdateCouponDto, user: User): Promise<Coupon> {
     const coupon = await this.coupons.findOne({ where: { id } });
     if (!coupon) {
       throw new BadRequestException('Voucher không tồn tại.');
+    }
+
+    if (user.role === UserRole.STORE_MANAGER && coupon.branchId !== user.branchId) {
+      throw new BadRequestException('Bạn không có quyền chỉnh sửa voucher của chi nhánh khác');
     }
 
     if (dto.code) {
@@ -156,18 +187,25 @@ export class CouponsService implements OnModuleInit {
     if (dto.targetSize !== undefined) {
       coupon.targetSize = dto.targetSize || null;
     }
-    // Recompute couponScope based on latest productId / categoriesId / targetSize
-    if (dto.productId !== undefined || dto.categoriesId !== undefined || dto.targetSize !== undefined) {
+
+    const branchId = user.role === UserRole.ADMIN ? (dto.branchId !== undefined ? dto.branchId : coupon.branchId) : coupon.branchId;
+    coupon.branchId = branchId || null;
+
+    // Recompute couponScope based on latest productId / categoriesId / targetSize / branchId
+    if (dto.productId !== undefined || dto.categoriesId !== undefined || dto.targetSize !== undefined || dto.branchId !== undefined) {
       const effectiveProductId = dto.productId !== undefined ? dto.productId : coupon.productId;
       const effectiveCategoriesId = dto.categoriesId !== undefined ? dto.categoriesId : coupon.categoriesId;
       const effectiveTargetSize = dto.targetSize !== undefined ? dto.targetSize : coupon.targetSize;
+      const effectiveBranchId = coupon.branchId;
       coupon.couponScope = effectiveTargetSize
         ? CouponScope.VARIANT
         : effectiveProductId
           ? CouponScope.PRODUCT
           : effectiveCategoriesId
             ? CouponScope.CATEGORY
-            : CouponScope.ORDER;
+            : effectiveBranchId
+              ? CouponScope.BRANCH
+              : CouponScope.ORDER;
     }
 
     if (dto.maxDiscount !== undefined) coupon.maxDiscount = dto.maxDiscount !== null ? Number(dto.maxDiscount) : null;
@@ -182,10 +220,13 @@ export class CouponsService implements OnModuleInit {
     } as any;
   }
 
-  async delete(id: string): Promise<{ message: string }> {
+  async delete(id: string, user: User): Promise<{ message: string }> {
     const coupon = await this.coupons.findOne({ where: { id } });
     if (!coupon) {
       throw new BadRequestException('Voucher không tồn tại.');
+    }
+    if (user.role === UserRole.STORE_MANAGER && coupon.branchId !== user.branchId) {
+      throw new BadRequestException('Bạn không có quyền xóa voucher của chi nhánh khác');
     }
     await this.coupons.delete(id);
     return { message: 'Xóa voucher thành công' };

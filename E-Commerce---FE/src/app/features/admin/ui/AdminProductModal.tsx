@@ -18,7 +18,10 @@ export function AdminProductModal({
   setToppingForms,
   emptyTopping,
   save,
-  saving
+  saving,
+  branches,
+  isAdmin,
+  isManager
 }: any) {
   if (!showModal) return null;
 
@@ -32,6 +35,12 @@ export function AdminProductModal({
             <option value="">-- Chọn danh mục --</option>
             {cats.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
+          {isAdmin && (
+            <select className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" value={form.branchId} onChange={e => setForm({ ...form, branchId: e.target.value })}>
+              <option value="">Chi nhánh áp dụng: Toàn hệ thống</option>
+              {branches.map((b: any) => <option key={b.id} value={b.id}>🏬 {b.name}</option>)}
+            </select>
+          )}
           <select className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" value={form.productType} onChange={e => setForm({ ...form, productType: e.target.value })}>
             <option value="cake">Bánh (cake)</option><option value="coffee">Cafe (coffee)</option><option value="drink">Đồ uống (drink)</option><option value="combo">Combo</option>
           </select>

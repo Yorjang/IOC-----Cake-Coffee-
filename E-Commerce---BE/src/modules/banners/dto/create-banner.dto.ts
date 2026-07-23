@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsBoolean, IsDateString } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsBoolean, IsDateString, IsUUID } from 'class-validator';
 
 export class CreateBannerDto {
   @IsString()
@@ -24,6 +24,10 @@ export class CreateBannerDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsUUID('4')
+  @IsOptional()
+  branchId?: string;
 
   @IsDateString()
   @IsOptional()

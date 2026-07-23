@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { User } from '../users/user.entity';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -9,6 +9,7 @@ import { Public } from '../../common/decorators/public.decorator';
 import { CouponsService } from './coupons.service';
 import { CreateCouponDto } from './dto/create-coupon.dto';
 import { UpdateCouponDto } from './dto/update-coupon.dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @Controller(['admin/vouchers', 'admin/coupons', 'coupons', 'vouchers'])
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -17,34 +18,39 @@ export class CouponsController {
 
   @Get('public')
   @Public()
-  findPublicActive(@Req() req: Request & { user?: User }) {
-    return this.couponsService.findPublicActive(req.user?.id);
+  findPublicActive(@Req() req: any, @Query('userId') userIdQuery?: string, @Query('branchId') branchId?: string) {
+    const userId = req.user?.id || userIdQuery;
+    return this.couponsService.findPublicActive(userId, branchId);
   }
 
 
   @Get()
   @Permissions(Permission.VIEW_BRANCHES) // Staff, managers, admins
-  findAll() {
-    return this.couponsService.findAll();
+  findAll(@CurrentUser() user: User) {
+    return this.couponsService.findAll(user);
   }
 
 
   @Post()
   @Permissions(Permission.MANAGE_BRANCHES) // Managers and admins only
-  create(@Body() dto: CreateCouponDto) {
-    return this.couponsService.create(dto);
+  create(@Body() dto: CreateCouponDto, @CurrentUser() user: User) {
+    return this.couponsService.create(dto, user);
   }
 
   @Patch(':id')
   @Permissions(Permission.MANAGE_BRANCHES) // Managers and admins only
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateCouponDto) {
-    return this.couponsService.update(id, dto);
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCouponDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.couponsService.update(id, dto, user);
   }
 
   @Delete(':id')
   @Permissions(Permission.MANAGE_BRANCHES) // Managers and admins only
-  delete(@Param('id', ParseUUIDPipe) id: string) {
-    return this.couponsService.delete(id);
+  delete(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+    return this.couponsService.delete(id, user);
   }
 }
 

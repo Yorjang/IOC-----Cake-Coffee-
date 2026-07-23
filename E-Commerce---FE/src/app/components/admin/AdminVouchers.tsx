@@ -10,10 +10,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { env } from "../../../config/env";
+import { getAccessToken, getStoredUser } from "../authSession";
 import { supabase } from "../../../config/supabase";
 import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
 
 export function AdminVouchers() {
+  const user = getStoredUser();
+  const isManager = user?.role === "store_manager";
+  const isAdmin = user?.role === "admin";
+
   const [coupons, setCoupons] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -35,6 +40,8 @@ export function AdminVouchers() {
   const [description, setDescription] = useState("");
   const [availableSizes, setAvailableSizes] = useState<string[]>([]);
   const [isActive, setIsActive] = useState(true);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [branchId, setBranchId] = useState(isManager ? user?.branchId || "" : "");
 
   const loadCoupons = async () => {
     const token = localStorage.getItem("accessToken");
@@ -80,11 +87,21 @@ export function AdminVouchers() {
     }
   };
 
+  const loadBranchesOnly = async () => {
+    try {
+      const res = await fetch(`${env.API_URL}/branches/active`);
+      if (res.ok) setBranches(await parseRes(res));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     loadCoupons();
     loadProductsOnly();
     loadCategoriesOnly();
     loadSizesOnly();
+    loadBranchesOnly();
   }, []);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -118,6 +135,7 @@ export function AdminVouchers() {
           productId: productId || null,
           categoriesId: categoriesId || null,
           targetSize: targetSize || null,
+          branchId: branchId || null,
           description: description || "",
           isActive: isActive,
         }),
@@ -135,6 +153,7 @@ export function AdminVouchers() {
         setProductId("");
         setCategoriesId("");
         setTargetSize("");
+        setBranchId(isManager ? user?.branchId || "" : "");
         setDescription("");
         setIsActive(true);
         setEditingVoucher(null);
@@ -163,6 +182,7 @@ export function AdminVouchers() {
     setProductId(v.productId || "");
     setCategoriesId(v.categoriesId || "");
     setTargetSize(v.targetSize || "");
+    setBranchId(v.branchId || "");
     setDescription(v.description || "");
     setIsActive(v.isActive !== false);
   };
@@ -179,6 +199,7 @@ export function AdminVouchers() {
     setProductId("");
     setCategoriesId("");
     setTargetSize("");
+    setBranchId(isManager ? user?.branchId || "" : "");
     setDescription("");
     setIsActive(true);
   };
@@ -231,7 +252,7 @@ export function AdminVouchers() {
       </div>
       <div className="overflow-auto rounded-2xl bg-sidebar p-5">
         <table className="w-full text-sm">
-          <TableHeader cols={["Mã", "Sản phẩm", "Kiểu", "Giá trị", "Giảm tối đa", "Đơn tối thiểu", "Đã dùng / Giới hạn", "Hết hạn", "Trạng thái", "Thao tác"]} />
+          <TableHeader cols={["Mã", "Sản phẩm", "Giá trị", "Giảm tối đa", "Đơn tối thiểu", "Đã dùng / Giới hạn", "Hết hạn", "Trạng thái", "Thao tác"]} />
           <tbody>
             {coupons.map(v => {
               const hasLimit = v.usageLimit !== null;
@@ -259,9 +280,11 @@ export function AdminVouchers() {
                         📐 Size: {v.targetSize}
                       </span>
                     )}
-                  </td>
-                  <td className="py-3 text-muted-foreground">
-                    {v.discountType === "percent" ? "Phần trăm" : "Cố định"}
+                    {v.branchId && v.branch && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2.5 py-1 text-xs text-green-600 font-semibold ml-1">
+                        🏬 {v.branch.name}
+                      </span>
+                    )}
                   </td>
                   <td className="py-3 font-semibold text-foreground">
                     {v.discountType === "percent" ? `${Math.round(Number(v.discountValue))}%` : formatMoney(Number(v.discountValue))}
@@ -410,6 +433,20 @@ export function AdminVouchers() {
               </option>
             ))}
           </select>
+          {isAdmin && (
+            <select
+              className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
+              value={branchId}
+              onChange={e => setBranchId(e.target.value)}
+            >
+              <option value="">Chi nhánh áp dụng: Tất cả</option>
+              {branches.map(b => (
+                <option key={b.id} value={b.id}>
+                  🏬 {b.name}
+                </option>
+              ))}
+            </select>
+          )}
           <select
             className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
             value={targetSize}

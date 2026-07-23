@@ -279,38 +279,45 @@ export function useAppInit() {
   };
 
   useEffect(() => {
-    if (appliedCoupon && cart.length > 0) {
-      const currentSubtotal = cart.reduce((s, i) => s + (i.price || parsePrice(i.product[1])) * i.quantity, 0);
-      const minOrderVal = Number(appliedCoupon.minOrderValue || 0);
-      if (currentSubtotal < minOrderVal) {
+    if (appliedCoupon) {
+      if (appliedCoupon.branchId && appliedCoupon.branchId !== selectedStore.id) {
         setAppliedCoupon(null);
-        toast.error("Voucher đã bị hủy do giỏ hàng không đủ điều kiện đơn hàng tối thiểu.");
+        toast.error("Voucher không khả dụng cho chi nhánh này.");
         return;
       }
-      
-      if (appliedCoupon.productId) {
-        const hasProduct = cart.some((item: any) => (item.productId || item.product?.raw?.id) === appliedCoupon.productId);
-        if (!hasProduct) {
+      if (cart.length > 0) {
+        const currentSubtotal = cart.reduce((s, i) => s + (i.price || parsePrice(i.product[1])) * i.quantity, 0);
+        const minOrderVal = Number(appliedCoupon.minOrderValue || 0);
+        if (currentSubtotal < minOrderVal) {
           setAppliedCoupon(null);
-          toast.error("Voucher đã bị hủy do sản phẩm áp dụng không còn trong giỏ hàng.");
+          toast.error("Voucher đã bị hủy do giỏ hàng không đủ điều kiện đơn hàng tối thiểu.");
           return;
         }
-      }
-      
-      if (appliedCoupon.categoriesId) {
-        const hasCategory = cart.some((item: any) => {
-          const prod = item.product?.raw;
-          if (!prod) return false;
-          return prod.categoryId === appliedCoupon.categoriesId || prod.categoriesId === appliedCoupon.categoriesId || prod.category?.id === appliedCoupon.categoriesId;
-        });
-        if (!hasCategory) {
-          setAppliedCoupon(null);
-          toast.error("Voucher đã bị hủy do không còn sản phẩm thuộc danh mục áp dụng trong giỏ hàng.");
-          return;
+        
+        if (appliedCoupon.productId) {
+          const hasProduct = cart.some((item: any) => (item.productId || item.product?.raw?.id) === appliedCoupon.productId);
+          if (!hasProduct) {
+            setAppliedCoupon(null);
+            toast.error("Voucher đã bị hủy do sản phẩm áp dụng không còn trong giỏ hàng.");
+            return;
+          }
+        }
+        
+        if (appliedCoupon.categoriesId) {
+          const hasCategory = cart.some((item: any) => {
+            const prod = item.product?.raw;
+            if (!prod) return false;
+            return prod.categoryId === appliedCoupon.categoriesId || prod.categoriesId === appliedCoupon.categoriesId || prod.category?.id === appliedCoupon.categoriesId;
+          });
+          if (!hasCategory) {
+            setAppliedCoupon(null);
+            toast.error("Voucher đã bị hủy do không còn sản phẩm thuộc danh mục áp dụng trong giỏ hàng.");
+            return;
+          }
         }
       }
     }
-  }, [cart, appliedCoupon]);
+  }, [cart, appliedCoupon, selectedStore?.id]);
 
 
   const fetchCart = async (branchId: string, token = getAccessToken()) => {
@@ -347,8 +354,21 @@ export function useAppInit() {
       try {
         let couponsList: any[] = [];
         try {
-          couponsList = await getAvailableCoupons();
-          setPublicCoupons(couponsList);
+          const headers: Record<string, string> = {};
+          const token = getAccessToken();
+          if (token) headers.Authorization = `Bearer ${token}`;
+
+          let url = `${env.API_URL}/coupons/public`;
+          if (selectedStore?.id) {
+            url += `?branchId=${selectedStore.id}`;
+          }
+
+          const couponRes = await fetch(url, { headers });
+          if (couponRes.ok) {
+            const apiCoupons = await couponRes.json();
+            couponsList = Array.isArray(apiCoupons.data) ? apiCoupons.data : (Array.isArray(apiCoupons) ? apiCoupons : []);
+            setPublicCoupons(couponsList);
+          }
         } catch (err) {
           console.error("Lỗi khi tải vouchers:", err);
         }
@@ -371,7 +391,7 @@ export function useAppInit() {
         console.error("Lỗi khi fetch products/categories:", err);
       }
     })();
-  }, [user?.id]);
+  }, [selectedStore?.id, user?.id]);
 
   useEffect(() => {
     if (!showStorePopup) return;

@@ -43,7 +43,7 @@ export const navItems = [
   { key: "products", label: "Sản phẩm", icon: Package, allowedRoles: ["admin", "store_manager", "staff"] },
   { key: "combos", label: "Combo", icon: Boxes, allowedRoles: ["admin", "store_manager"] },
   { key: "categories", label: "Danh mục", icon: Tag, allowedRoles: ["admin", "store_manager", "staff"] },
-  { key: "productTags", label: "Tag sản phẩm", icon: Tag, allowedRoles: ["admin", "store_manager", "staff"] },
+  { key: "productTags", label: "Tag sản phẩm", icon: Tag, allowedRoles: ["admin", "staff"] },
   { key: "inventory", label: "Tồn kho", icon: Boxes, allowedRoles: ["admin", "store_manager", "staff"] },
   { key: "users", label: "Người dùng", icon: Users, allowedRoles: ["admin"] },
   { key: "reviews", label: "Đánh giá", icon: Star, allowedRoles: ["admin", "store_manager", "staff"] },

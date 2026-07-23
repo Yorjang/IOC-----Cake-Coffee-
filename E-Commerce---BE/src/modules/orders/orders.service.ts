@@ -231,7 +231,7 @@ export class OrdersService {
     let couponId: string | null = null;
     if (couponCode && userId) {
       const couponRes = await this.orders.query(
-        `SELECT id, status, expires_at, usage_limit, used_count, per_customer_limit, product_id, categories_id FROM coupons WHERE code = $1`,
+        `SELECT id, status, expires_at, usage_limit, used_count, per_customer_limit, product_id, categories_id, branch_id FROM coupons WHERE code = $1`,
         [couponCode.toUpperCase().trim()]
       );
       if (couponRes.length === 0) {
@@ -243,6 +243,9 @@ export class OrdersService {
       }
       if (new Date(coupon.expires_at) < new Date()) {
         throw new BadRequestException(`Mã giảm giá "${couponCode}" đã hết hạn.`);
+      }
+      if (coupon.branch_id && coupon.branch_id !== branchId) {
+        throw new BadRequestException(`Mã giảm giá "${couponCode}" không áp dụng cho chi nhánh này.`);
       }
       if (coupon.usage_limit !== null && Number(coupon.used_count) >= Number(coupon.usage_limit)) {
         throw new BadRequestException(`Mã giảm giá "${couponCode}" đã đạt giới hạn sử dụng.`);
