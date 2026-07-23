@@ -17,11 +17,7 @@ export function Footer({ setView }: { setView?: (view: string) => void }) {
     let cancelled = false;
     const fetchFooterImage = async () => {
       try {
-        // First try /banners (includes hidden/inactive banners), fallback to /banners/public
-        let res = await fetch(`${env.API_URL}/banners`);
-        if (!res.ok) {
-          res = await fetch(`${env.API_URL}/banners/public`);
-        }
+        const res = await fetch(`${env.API_URL}/banners/public`);
         if (!res.ok) return;
         const data = await res.json();
         if (!cancelled && Array.isArray(data)) {
