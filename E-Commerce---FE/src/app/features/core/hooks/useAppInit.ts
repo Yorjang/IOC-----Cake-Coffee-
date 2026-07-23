@@ -9,6 +9,7 @@ import { getDiscountedPrice } from "../../../components/shared";
 import { clearAuthSession, getAccessToken, getAccessTokenExpiry, getStoredUser, refreshAuthSession } from "../../../components/authSession";
 import { rememberTrackingOrder } from "../../order-tracking/services/orderTrackingService";
 import { getAvailableCoupons } from "../../coupons/services/couponService";
+import { getCatalogProducts } from "../services/catalogService";
 
 export const matchSize = (itemSize: string, targetSize: string): boolean => {
   if (!targetSize) return true;
@@ -225,9 +226,7 @@ export function useAppInit() {
     return savedStore ?? fallbackStoreLocations[0];
   });
   const [availableStores, setAvailableStores] = useState<StoreLocation[]>(fallbackStoreLocations);
-  const [showStorePopup, setShowStorePopup] = useState(() => {
-    return window.location.pathname === "/" && !localStorage.getItem(STORE_STORAGE_KEY);
-  });
+  const [showStorePopup, setShowStorePopup] = useState(false);
   const [manualLocationRequired, setManualLocationRequired] = useState(false);
   const [orderCode, setOrderCode] = useState("");
   const [lastCreatedOrder, setLastCreatedOrder] = useState<any>(null);
@@ -339,35 +338,39 @@ export function useAppInit() {
     `${env.API_URL}/cart${path}?branchId=${selectedStore.id}`;
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         let couponsList: any[] = [];
         try {
           couponsList = await getAvailableCoupons();
-          setPublicCoupons(couponsList);
+          if (!cancelled) setPublicCoupons(couponsList);
         } catch (err) {
           console.error("Lỗi khi tải vouchers:", err);
         }
 
-        const [pRes, cRes] = await Promise.all([
-          fetch(`${env.API_URL}/products`),
+        const [productsData, cRes] = await Promise.all([
+          getCatalogProducts(
+            UUID_PATTERN.test(selectedStore?.id || "") ? selectedStore.id : undefined,
+          ),
           fetch(`${env.API_URL}/products/categories`),
         ]);
-        if (pRes.ok) {
-          const apiProducts = await pRes.json();
-          const productsData = Array.isArray(apiProducts.data) ? apiProducts.data : (Array.isArray(apiProducts) ? apiProducts : []);
+        if (!cancelled) {
           setProducts(productsData.map((p: any) => apiProductToArray(p, couponsList)));
         }
         if (cRes.ok) {
           const apiCategories = await cRes.json();
           const categoriesData = Array.isArray(apiCategories.data) ? apiCategories.data : (Array.isArray(apiCategories) ? apiCategories : []);
-          setCategories(categoriesData.map(apiCategoryToLegacy));
+          if (!cancelled) setCategories(categoriesData.map(apiCategoryToLegacy));
         }
       } catch (err) {
-        console.error("Lỗi khi fetch products/categories:", err);
+        if (!cancelled) console.error("Lỗi khi fetch products/categories:", err);
       }
     })();
-  }, [user?.id]);
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, selectedStore?.id]);
 
   useEffect(() => {
     if (!showStorePopup) return;
@@ -427,7 +430,10 @@ export function useAppInit() {
         setAvailableStores(stores);
         const savedId = localStorage.getItem(STORE_STORAGE_KEY);
         const savedStore = savedId ? stores.find((store: any) => store.id === savedId) : null;
-        setSelectedStore(savedStore ?? stores[0]);
+        const fallbackOpenStore = stores.find(store => store.isOpenNow) ?? stores[0];
+        const initialStore = savedStore?.isOpenNow ? savedStore : fallbackOpenStore;
+        setSelectedStore(initialStore);
+        localStorage.setItem(STORE_STORAGE_KEY, initialStore.id);
       } catch {
         if (!cancelled) setAvailableStores(fallbackStoreLocations);
       }
@@ -458,6 +464,7 @@ export function useAppInit() {
 
             if (nearest) {
               setSelectedStore(nearest);
+              localStorage.setItem(STORE_STORAGE_KEY, nearest.id);
             }
           } catch {
             // Keep the regular active branch list if location lookup fails.
@@ -465,9 +472,6 @@ export function useAppInit() {
         },
         () => {
           setManualLocationRequired(true);
-          if (!localStorage.getItem(STORE_STORAGE_KEY) && window.location.pathname === "/") {
-            setShowStorePopup(true);
-          }
         },
         { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 },
       );
