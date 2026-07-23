@@ -5,14 +5,6 @@ import { env } from "../../config/env";
 import { getAccessToken } from "./authSession";
 import { toast } from "sonner";
 
-const initialReviews = [
-  { user: "Nguyễn Minh Anh", avatar: "N", rating: 5, date: "20/06/2025", comment: "Bánh ngon tuyệt, cream mịn, không ngọt quá. Giao hàng nhanh!", likes: 12, verified: true, images: ["https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=80&h=80&fit=crop&auto=format"] },
-  { user: "Trần Thị Bình", avatar: "T", rating: 5, date: "18/06/2025", comment: "Mình đặt bánh sinh nhật cho con, cả nhà khen ngon. Hộp đóng gói đẹp, không bị méo. Sẽ mua lại!", likes: 8, verified: true, images: [] },
-  { user: "Lê Văn Cường", avatar: "L", rating: 4, date: "15/06/2025", comment: "Tiramisu đúng vị Ý, cà phê đậm đà. Chỉ tiếc là lần này giao hơi muộn 15 phút.", likes: 5, verified: false, images: [] },
-  { user: "Phạm Thu Hà", avatar: "P", rating: 5, date: "10/06/2025", comment: "Lần thứ 5 mình order rồi, chất lượng ổn định, nhân viên nhiệt tình. Tuyệt vời!", likes: 20, verified: true, images: ["https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=80&h=80&fit=crop&auto=format", "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=80&h=80&fit=crop&auto=format"] },
-  { user: "Vũ Đức Minh", avatar: "V", rating: 3, date: "05/06/2025", comment: "Vị okay nhưng giá hơi cao so với phần ăn. Phù hợp làm quà hơn là ăn thường ngày.", likes: 2, verified: false, images: [] },
-];
-
 function StarPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const [hover, setHover] = useState(0);
   return (

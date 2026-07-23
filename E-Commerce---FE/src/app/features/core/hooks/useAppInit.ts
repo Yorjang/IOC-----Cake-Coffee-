@@ -66,10 +66,12 @@ const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.CHECKOUT]: "/thanh-toan",
   [VIEW_KEYS.SUCCESS]: "/thanh-cong",
   [VIEW_KEYS.DETAIL]: "/chi-tiet",
-  [VIEW_KEYS.ADMIN]: "/admin",
+  [VIEW_KEYS.ADMIN]: "/admin/dashboard",
   [VIEW_KEYS.ADMIN_LOGIN]: "/admin/login",
   [VIEW_KEYS.STAFF]: "/nhan-vien",
   [VIEW_KEYS.LOGIN]: "/dang-nhap",
+  [VIEW_KEYS.REGISTER]: "/dang-ky",
+  [VIEW_KEYS.FORGOT_PASSWORD]: "/quen-mat-khau",
   [VIEW_KEYS.REVIEW]: "/danh-gia",
   [VIEW_KEYS.FAVORITES]: "/yeu-thich",
   [VIEW_KEYS.PROFILE]: "/ho-so",
@@ -88,6 +90,8 @@ export const getPathFromView = (view: string, product?: any) => {
 };
 
 const getViewFromPath = (path: string, cats: any[] = []) => {
+  if (path === "/admin/login") return VIEW_KEYS.ADMIN_LOGIN;
+  if (path === "/admin" || path.startsWith("/admin/")) return VIEW_KEYS.ADMIN;
   for (const [key, value] of Object.entries(VIEW_PATH_MAP)) {
     if (value === path) return key;
   }
@@ -666,7 +670,7 @@ export function useAppInit() {
     clearAuthSession();
     setUser(null);
     setCart([]);
-    setView(VIEW_KEYS.HOME);
+    setView(VIEW_KEYS.ADMIN_LOGIN);
   };
 
   // ── Cart / Wishlist handlers ─────────────────────────────────────────────
@@ -942,7 +946,7 @@ export function useAppInit() {
 
 
   return {
-    view, setView: setViewInternal,
+    view, setView,
     isLoading, setIsLoading,
     selectedProduct, handleSelectProduct,
     searchQuery, setSearchQuery,

@@ -34,6 +34,7 @@ export function AdminVouchers() {
   const [targetSize, setTargetSize] = useState("");
   const [description, setDescription] = useState("");
   const [availableSizes, setAvailableSizes] = useState<string[]>([]);
+  const [isActive, setIsActive] = useState(true);
 
   const loadCoupons = async () => {
     const token = localStorage.getItem("accessToken");
@@ -118,7 +119,7 @@ export function AdminVouchers() {
           categoriesId: categoriesId || null,
           targetSize: targetSize || null,
           description: description || "",
-          isActive: true,
+          isActive: isActive,
         }),
       });
       const data = await parseRes(res);
@@ -135,6 +136,7 @@ export function AdminVouchers() {
         setCategoriesId("");
         setTargetSize("");
         setDescription("");
+        setIsActive(true);
         setEditingVoucher(null);
         loadCoupons();
       } else {
@@ -162,6 +164,7 @@ export function AdminVouchers() {
     setCategoriesId(v.categoriesId || "");
     setTargetSize(v.targetSize || "");
     setDescription(v.description || "");
+    setIsActive(v.isActive !== false);
   };
 
   const handleCancelEdit = () => {
@@ -177,6 +180,7 @@ export function AdminVouchers() {
     setCategoriesId("");
     setTargetSize("");
     setDescription("");
+    setIsActive(true);
   };
 
   const getFilteredSizes = () => {
@@ -415,6 +419,14 @@ export function AdminVouchers() {
             {getFilteredSizes().map(sz => (
               <option key={sz} value={sz}>Size áp dụng: {sz}</option>
             ))}
+          </select>
+          <select
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
+            value={isActive ? "true" : "false"}
+            onChange={e => setIsActive(e.target.value === "true")}
+          >
+            <option value="true">Trạng thái: Hoạt động (Active)</option>
+            <option value="false">Trạng thái: Tạm khóa (Inactive)</option>
           </select>
           <input
             className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent sm:col-span-2 lg:col-span-3"

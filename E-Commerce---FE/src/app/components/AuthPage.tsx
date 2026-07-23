@@ -6,8 +6,8 @@ import { AUTH_CONTENT } from "../../constants/authContent";
 import { env } from "../../config/env";
 import { policyContentMap } from "../pages/PolicyPage";
 import type { AuthMode, AuthErrors } from "./authUtils";
-import { validateRegisterFields, apiRegister, getAuthErrorMessage } from "./authUtils";
-import { saveAuthSession } from "./authSession";
+import { validateRegisterFields, apiRegister, apiLogin, apiForgotPassword, apiResetPassword, apiGoogleLogin } from "./authUtils";
+import { VIEW_KEYS } from "../../config/appConfig";
 
 declare global {
   interface Window {
@@ -52,26 +52,24 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", se
   const rememberRef = useRef(false);
   const [errors, setErrors] = useState<AuthErrors>({});
 
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
+
   const switchMode = (m: AuthMode) => {
     setMode(m); setEmail(m === "login" ? "" : "");
     setPassword(""); setPhone(""); setFullName(""); setErrors({});
+    if (setView) {
+      if (m === "login") setView(VIEW_KEYS.LOGIN);
+      else if (m === "register") setView(VIEW_KEYS.REGISTER);
+      else if (m === "forgot") setView(VIEW_KEYS.FORGOT_PASSWORD);
+    }
   };
 
   const handleGoogleCallback = async (response: any) => {
     setLoading(true);
     try {
-      const res = await fetch(`${env.API_URL}/auth/google-login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken: response.credential, remember: rememberRef.current }),
-      });
-      const data = await parseRes(res);
-      if (!res.ok) throw new Error(getAuthErrorMessage(data.message, "Đăng nhập Google thất bại"));
-
-      saveAuthSession(data, rememberRef.current);
-
-      toast.success("Đăng nhập bằng Google thành công!");
-      onSuccess();
+      await apiGoogleLogin(response.credential, rememberRef.current, onSuccess);
     } catch (e: any) {
       toast.error(e.message || "Đã xảy ra lỗi khi đăng nhập bằng Google.");
     } finally {
@@ -104,47 +102,23 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", se
     try {
       if (mode === "login") {
         setLoading(true);
-        const res = await fetch(`${env.API_URL}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password, remember }) });
-        const data = await parseRes(res);
-        if (!res.ok) throw new Error(getAuthErrorMessage(data.message, "Đăng nhập thất bại"));
-        saveAuthSession(data, remember);
-        toast.success("Đăng nhập thành công!"); onSuccess();
+        await apiLogin(email, password, remember, onSuccess);
       } else if (mode === "register") {
         const err = validateRegisterFields(fullName, email, phone, password);
         if (Object.keys(err).length) { setErrors(err); toast.error("Vui lòng kiểm tra lại thông tin!"); }
         else {
           setLoading(true);
-          const registerErr = await apiRegister(fullName, email, phone || undefined, password, onSuccess, setMode);
+          const registerErr = await apiRegister(fullName, email, phone || undefined, password, onSuccess, (m) => switchMode(m));
           if (registerErr) setErrors(registerErr);
         }
       } else if (mode === "forgot") {
         setLoading(true);
-        const res = await fetch(`${env.API_URL}/auth/forgot-password`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
-        });
-        const data = await parseRes(res);
-        if (!res.ok) throw new Error(data.message || "Yêu cầu đặt lại mật khẩu thất bại");
-        toast.success(data.message || "Email đặt lại mật khẩu đã được gửi!");
+        await apiForgotPassword(email);
         setDone(true);
       } else if (mode === "reset") {
-        if (password.length < 6) {
-          toast.error("Mật khẩu mới phải có tối thiểu 6 ký tự!");
-          return;
-        }
         setLoading(true);
-        const res = await fetch(`${env.API_URL}/auth/reset-password?token=${resetToken}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ password }),
-        });
-        const data = await parseRes(res);
-        if (!res.ok) throw new Error(data.message || "Đặt lại mật khẩu thất bại");
-        toast.success(data.message || "Mật khẩu đã được đặt lại thành công!");
-        setMode("login");
-        setEmail("");
-        setPassword("");
+        await apiResetPassword(resetToken, password);
+        switchMode("login");
       }
     } catch (e: any) { toast.error(e.message || "Đã xảy ra lỗi, vui lòng thử lại."); }
     finally { setLoading(false); }
@@ -169,7 +143,7 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", se
           )}
           {mode === "forgot" && (
             <div>
-              <button onClick={() => { setMode("login"); setDone(false); }} className="mb-6 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">← Quay lại đăng nhập</button>
+              <button onClick={() => { switchMode("login"); setDone(false); }} className="mb-6 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">← Quay lại đăng nhập</button>
               <h2 className="text-3xl">Quên mật khẩu</h2>
               <p className="mt-2 text-sm text-muted-foreground">Nhập email - chúng tôi sẽ gửi link đặt lại mật khẩu.</p>
               {done ? (
@@ -191,7 +165,7 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", se
                 <div className="relative"><Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><input type={showPass ? "text" : "password"} required placeholder="Mật khẩu" value={password} onChange={e => setPassword(e.target.value)} className="w-full rounded-xl border bg-input-background py-3 pl-10 pr-10 text-sm outline-none focus:border-primary" /><button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">{showPass ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
                 <div className="flex items-center justify-between text-sm">
                   <label className="flex cursor-pointer items-center gap-2 text-muted-foreground"><input type="checkbox" checked={remember} onChange={e => { setRemember(e.target.checked); rememberRef.current = e.target.checked; }} className="rounded accent-primary" /> Ghi nhớ đăng nhập</label>
-                  <button type="button" onClick={() => setMode("forgot")} className="text-primary hover:underline">Quên mật khẩu?</button>
+                  <button type="button" onClick={() => switchMode("forgot")} className="text-primary hover:underline">Quên mật khẩu?</button>
                 </div>
                 <button type="submit" disabled={loading} className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 disabled:opacity-50">{loading ? "Đang đăng nhập..." : "Đăng nhập"}</button>
               </form>

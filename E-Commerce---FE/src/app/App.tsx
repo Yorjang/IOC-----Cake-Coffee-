@@ -60,16 +60,18 @@ export default function App() {
       if (user && !isAdminUser(user)) {
         toast.error("Tài khoản hiện tại không có quyền Admin. Vui lòng đăng nhập tài khoản Quản trị.");
       }
-      setTimeout(() => setView(VIEW_KEYS.ADMIN_LOGIN, undefined, true), 0);
-      return <><Toaster richColors position="top-center" /></>;
+      window.history.replaceState(null, "", "/admin/login");
+      setTimeout(() => setView(VIEW_KEYS.ADMIN_LOGIN), 0);
+      return <><Toaster richColors position="top-center" /><Suspense fallback={<LoadingScreen isLoading={true} />}><AdminLoginPage onSuccess={handleAdminLoginSuccess} onBack={() => setView(VIEW_KEYS.HOME)} /></Suspense></>;
     }
     return <><Toaster richColors position="top-center" /><Suspense fallback={<LoadingScreen isLoading={true} />}><AdminPanel onExit={handleAdminLogout} adminUser={user} /></Suspense></>;
   }
 
   if (view === VIEW_KEYS.STAFF) {
     if (!user) {
+      window.history.replaceState(null, "", "/admin/login");
       setTimeout(() => setView(VIEW_KEYS.ADMIN_LOGIN), 0);
-      return <><Toaster richColors position="top-center" /></>;
+      return <><Toaster richColors position="top-center" /><Suspense fallback={<LoadingScreen isLoading={true} />}><AdminLoginPage onSuccess={handleAdminLoginSuccess} onBack={() => setView(VIEW_KEYS.HOME)} /></Suspense></>;
     }
     if (!isStaffUser(user) && !isAdminUser(user)) {
       toast.error("Bạn không có quyền truy cập trang nhân viên.");
@@ -79,10 +81,12 @@ export default function App() {
     return <><Toaster richColors position="top-center" /><Suspense fallback={<LoadingScreen isLoading={true} />}><StaffPanel onExit={handleAdminLogout} staffUser={user} products={products} /></Suspense></>;
   }
 
-  if (view === VIEW_KEYS.LOGIN) return <><Toaster richColors position="top-center" /><Suspense fallback={<LoadingScreen isLoading={true} />}><AuthPage onSuccess={handleLoginSuccess} setView={setView} /></Suspense></>;
+  if (view === VIEW_KEYS.LOGIN) return <><Toaster richColors position="top-center" /><Suspense fallback={<LoadingScreen isLoading={true} />}><AuthPage onSuccess={handleLoginSuccess} initialMode="login" setView={setView} /></Suspense></>;
+  if (view === VIEW_KEYS.REGISTER) return <><Toaster richColors position="top-center" /><Suspense fallback={<LoadingScreen isLoading={true} />}><AuthPage onSuccess={handleLoginSuccess} initialMode="register" setView={setView} /></Suspense></>;
+  if (view === VIEW_KEYS.FORGOT_PASSWORD) return <><Toaster richColors position="top-center" /><Suspense fallback={<LoadingScreen isLoading={true} />}><AuthPage onSuccess={handleLoginSuccess} initialMode="forgot" setView={setView} /></Suspense></>;
   if (view === VIEW_KEYS.RESET_PASSWORD) {
     const token = new URLSearchParams(window.location.search).get("token") || "";
-    return <><Toaster richColors position="top-center" /><Suspense fallback={<LoadingScreen isLoading={true} />}><AuthPage onSuccess={handleLoginSuccess} initialMode="reset" resetToken={token} /></Suspense></>;
+    return <><Toaster richColors position="top-center" /><Suspense fallback={<LoadingScreen isLoading={true} />}><AuthPage onSuccess={handleLoginSuccess} initialMode="reset" resetToken={token} setView={setView} /></Suspense></>;
   }
   if (view === VIEW_KEYS.REVIEW) return <><Toaster richColors position="top-center" /><Suspense fallback={<LoadingScreen isLoading={true} />}><ReviewPage product={selectedProduct} onBack={() => setView(VIEW_KEYS.DETAIL)} /></Suspense></>;
 
@@ -113,7 +117,7 @@ export default function App() {
             <Suspense fallback={<LoadingScreen isLoading={true} />}>
               {view === VIEW_KEYS.HOME && <Home setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} products={products} categories={categories} publicCoupons={publicCoupons} />}
             {view === VIEW_KEYS.CART && <Cart cart={cart} onUpdateQty={handleUpdateCartQty} onRemoveItem={handleRemoveCartItem} setView={setView} publicCoupons={publicCoupons} appliedCoupon={appliedCoupon} setAppliedCoupon={setAppliedCoupon} user={user} />}
-            {view === VIEW_KEYS.CHECKOUT && <Checkout cart={cart} setView={setView} onPlaceOrder={handlePlaceOrder} subtotal={subtotal} discount={discount} shipping={shipping} grandTotal={grandTotal} user={user} />}
+            {view === VIEW_KEYS.CHECKOUT && <Checkout cart={cart} setView={setView} onPlaceOrder={handlePlaceOrder} subtotal={subtotal} discount={discount} shipping={shipping} grandTotal={grandTotal} user={user} setUser={setUser} />}
             {view === VIEW_KEYS.SUCCESS && <Success setView={setView} order={lastCreatedOrder} />}
             {view === VIEW_KEYS.PAYMENT && <Success setView={setView} order={null} orderId={selectedOrderId} />}
             {view === VIEW_KEYS.DETAIL && <ProductDetail product={selectedProduct} setView={setView} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onSelectProduct={handleSelectProduct} products={products} publicCoupons={publicCoupons} />}
