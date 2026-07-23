@@ -295,25 +295,25 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
 
       {/* Coupon Selection Modal */}
       {isCouponModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-card border rounded-2xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-4 border-b shrink-0">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-background/80 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="flex h-[100dvh] w-full flex-col overflow-hidden border bg-card shadow-xl animate-in fade-in zoom-in-95 duration-200 sm:h-auto sm:max-h-[min(90dvh,48rem)] sm:max-w-xl sm:rounded-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b px-4 py-3 sm:p-4">
               <h3 className="font-bold text-lg">Khuyến mãi</h3>
               <button onClick={() => setIsCouponModalOpen(false)} className="p-2 -mr-2 rounded-full hover:bg-secondary transition text-muted-foreground hover:text-foreground">
                 <X size={20} />
               </button>
             </div>
 
-            <div className="p-4 border-b bg-secondary/30 shrink-0">
-              <div className="flex gap-2">
-                <div className="relative flex-1">
+            <div className="shrink-0 border-b bg-secondary/30 p-3 sm:p-4">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                <div className="relative min-w-0">
                   <Ticket className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                   <input
                     type="text"
                     placeholder="Nhập mã khuyến mãi..."
                     value={coupon}
                     onChange={e => setCoupon(e.target.value)}
-                    className="w-full rounded-xl border bg-background pl-9 pr-3 py-2.5 text-sm outline-none focus:border-primary uppercase"
+                    className="w-full min-w-0 rounded-xl border bg-background py-2.5 pl-9 pr-2 text-xs uppercase outline-none focus:border-primary sm:pr-3 sm:text-sm"
                   />
                 </div>
                 <button 
@@ -323,14 +323,14 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
                        setIsCouponModalOpen(false);
                     }
                   }} 
-                  className="rounded-xl bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:bg-primary/80 transition"
+                  className="whitespace-nowrap rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition hover:bg-primary/80 sm:px-5 sm:text-sm"
                 >
                   Áp dụng
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full">
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-3 sm:space-y-3 sm:p-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20">
               {sortedCoupons.length === 0 ? (
                 <p className="text-center text-muted-foreground py-10 text-sm">Không có ưu đãi nào phù hợp với đơn hàng của bạn.</p>
               ) : (
@@ -348,7 +348,7 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
                           toast.success(`Đã áp dụng mã ${c.code}!`);
                           setIsCouponModalOpen(false);
                         }}
-                        className={`relative flex items-center p-3 rounded-xl border-2 transition ${
+                        className={`relative grid min-w-0 grid-cols-[3.25rem_minmax(0,1fr)_2.25rem] items-center rounded-xl border-2 p-2.5 transition sm:grid-cols-[4.5rem_minmax(0,1fr)_3rem] sm:p-3 ${
                           !c.isApplicable
                             ? "border-transparent bg-secondary/50 opacity-50 grayscale cursor-not-allowed"
                             : isSelected 
@@ -356,20 +356,20 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
                               : "border-transparent bg-secondary hover:bg-secondary/80 hover:border-border cursor-pointer"
                         }`}
                       >
-                        <div className="text-primary flex flex-col items-center justify-center shrink-0 w-[70px] mr-3">
+                        <div className="flex min-w-0 flex-col items-center justify-center text-primary sm:pr-3">
                           <span className="text-[10px] font-semibold uppercase leading-none">Giảm</span>
                           <span className="font-bold leading-none mt-1 text-base">
                             {c.discountType === 'percent' ? `${Number(c.discountValue)}%` : (Number(c.discountValue) / 1000) + 'k'}
                           </span>
                         </div>
                         
-                        <div className="flex-1 min-w-0 pr-4 border-r border-dashed border-border/60">
+                        <div className="min-w-0 border-r border-dashed border-border/60 px-2 sm:px-3">
                           <h4 className="font-bold text-sm text-foreground line-clamp-1">{c.code}</h4>
                           <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{c.description || `Đơn tối thiểu ${formatPrice(Number(c.minOrderValue || 0))}`}</p>
                           {c.maxDiscount > 0 && <p className="text-[11px] text-muted-foreground">Tối đa {formatPrice(Number(c.maxDiscount))}</p>}
                         </div>
 
-                        <div className="pl-4 shrink-0 flex flex-col items-center gap-1 justify-center relative w-12">
+                        <div className="relative flex min-w-0 flex-col items-center justify-center gap-1 pl-2 sm:pl-4">
                            <div className={`size-5 rounded-full border flex flex-col items-center justify-center transition-colors ${isSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/30 bg-background"}`}>
                              {isSelected ? <Check size={12} strokeWidth={3} /> : null}
                            </div>
@@ -385,7 +385,7 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
               )}
             </div>
 
-            <div className="p-4 border-t bg-card shrink-0">
+            <div className="shrink-0 border-t bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
                <button 
                 onClick={() => {
                   setAppliedCoupon(null);

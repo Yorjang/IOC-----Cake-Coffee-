@@ -58,7 +58,7 @@ export const CART_CONFIG = {
 
 export const CHECKOUT_CONFIG = {
   SHIPPING_FIELDS: ["Họ tên", "Số điện thoại", "Địa chỉ giao hàng"],
-  PAYMENT_METHODS: ["Thanh toán khi nhận hàng (COD)", "Chuyển khoản ngân hàng", "Ví Momo"],
+  PAYMENT_METHODS: ["Thanh toán khi nhận hàng (COD)", "Chuyển khoản ngân hàng", "VNPay"],
   ORDER_TOTALS: [
     { label: "Tạm tính", value: "360.000đ" },
     { label: "Phí giao hàng", value: "15.000đ" },

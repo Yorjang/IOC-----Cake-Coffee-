@@ -6,6 +6,7 @@ import { env } from "../../config/env";
 import { getAccessToken } from "../components/authSession";
 import { Btn } from "../components/shared";
 import { VIEW_KEYS } from "../../config/appConfig";
+import { VnpayPayment } from "../features/checkout/ui/VnpayPayment";
 
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
@@ -40,6 +41,7 @@ export function Success({ setView, order, orderId: orderIdProp }: any) {
 
   const orderCode = resolvedOrder?.orderCode || "...";
   const isBankTransfer = resolvedOrder?.paymentMethod === 'bank_transfer';
+  const isVnpay = resolvedOrder?.paymentMethod === 'vnpay';
 
   // 1. Fetch QR Details
   useEffect(() => {
@@ -96,6 +98,10 @@ export function Success({ setView, order, orderId: orderIdProp }: any) {
     toast.success(`Đã sao chép: ${text}`);
     setTimeout(() => setCopiedField(null), 2000);
   };
+
+  if (isVnpay && orderId) {
+    return <VnpayPayment orderId={orderId} orderCode={orderCode} setView={setView} />;
+  }
 
   if (isBankTransfer) {
     return (

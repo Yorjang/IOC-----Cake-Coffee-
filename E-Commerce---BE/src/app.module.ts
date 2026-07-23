@@ -12,6 +12,7 @@ import { BannersModule } from './modules/banners/banners.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { CartModule } from './modules/cart/cart.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { CombosModule } from './modules/combos/combos.module';
 
 import { CategoriesModule } from './modules/categories/categories.module';
 import { TagsModule } from './modules/tags/tags.module';
@@ -51,6 +52,7 @@ import { SettingsModule } from './modules/settings/settings.module';
     InventoryModule,
     CartModule,
     PaymentsModule,
+    CombosModule,
     DashboardModule,
     MapModule,
     StatisticsModule,

@@ -1,12 +1,45 @@
-import { Controller, Get, Post, Param, Body, ParseUUIDPipe, UseGuards, Headers } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, ParseUUIDPipe, UseGuards, Headers, Ip, Query, Res } from '@nestjs/common';
+import { Response } from 'express';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { SepayWebhookDto } from './dto/sepay-webhook.dto';
 import { Public } from '../../common/decorators/public.decorator';
+import { CreateVnpayPaymentDto } from './dto/create-vnpay-payment.dto';
 
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
+
+  @Post('vnpay/:orderId/create')
+  @Public()
+  createVnpayPayment(
+    @Param('orderId', ParseUUIDPipe) orderId: string,
+    @Body() dto: CreateVnpayPaymentDto,
+    @Ip() ipAddress: string,
+  ) {
+    return this.paymentsService.createVnpayPaymentUrl(orderId, ipAddress, dto);
+  }
+
+  @Get('vnpay/ipn')
+  @Public()
+  async handleVnpayIpn(
+    @Query() query: Record<string, string | string[]>,
+    @Res() response: Response,
+  ): Promise<void> {
+    response.json(await this.paymentsService.processVnpayIpn(query));
+  }
+
+  @Get('vnpay/return')
+  @Public()
+  async handleVnpayReturn(
+    @Query() query: Record<string, string | string[]>,
+    @Res() response: Response,
+  ): Promise<void> {
+    // ReturnUrl is also reconciled for local development where VNPay cannot reach
+    // a localhost IPN. Signature, amount and transaction reference are still verified.
+    await this.paymentsService.processVnpayIpn(query);
+    response.redirect(this.paymentsService.createVnpayReturnRedirect(query));
+  }
 
   // Public/mock callback webhook for payment gateways (e.g. Momo, VNPay, ZaloPay, Bank Transfer)
   @Post('callback/:gateway')
