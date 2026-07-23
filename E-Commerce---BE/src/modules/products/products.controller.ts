@@ -12,6 +12,7 @@ import { CreateProductTagDto, ReplaceProductTagsDto, UpdateProductTagDto } from 
 import { User } from '../users/user.entity';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { FindProductsQueryDto } from './dto/find-products-query.dto';
 
 @Controller(['admin/products', 'products'])
 export class ProductsController {
@@ -89,11 +90,11 @@ export class ProductsController {
     @Public()
     findAllProducts(
         @Req() req: any,
-        @Query('tag') tag?: string,
+        @Query() query: FindProductsQueryDto,
         @CurrentUser() user?: User,
     ) {
         const isAdminPath = req.originalUrl?.includes('/admin/');
-        return this.productsService.findAllProducts(tag, user, isAdminPath);
+        return this.productsService.findAllProducts(query.tag, user, isAdminPath, query.branchId);
     }
 
     @Get('sizes/distinct')

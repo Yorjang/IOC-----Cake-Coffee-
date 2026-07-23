@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, IsNull, Repository } from 'typeorm';
 import { Category } from './category.entity';
 import { Product, ProductType } from './product.entity';
 import { ProductVariant, VariantStatus } from './product-variant.entity';
@@ -120,16 +120,23 @@ export class ProductsService implements OnModuleInit {
     }
 
     // ── Products CRUD ────────────────────────────────────────────────────────
-    async findAllProducts(tagSlug?: string, user?: User, isAdminPath?: boolean): Promise<Product[]> {
-        const where: any = {};
+    async findAllProducts(tagSlug?: string, user?: User, isAdminPath?: boolean, branchId?: string): Promise<Product[]> {
+        const baseWhere: FindOptionsWhere<Product> = {};
         if (tagSlug) {
-            where.tags = { slug: tagSlug };
+            baseWhere.tags = { slug: tagSlug };
         }
         if (isAdminPath && user?.role === UserRole.STORE_MANAGER && user.branchId) {
-            where.branchId = user.branchId;
+            baseWhere.branchId = user.branchId;
         }
+        const where: FindOptionsWhere<Product> | FindOptionsWhere<Product>[] | undefined =
+            !isAdminPath && branchId
+                ? [
+                    { ...baseWhere, branchId },
+                    { ...baseWhere, branchId: IsNull() },
+                ]
+                : Object.keys(baseWhere).length > 0 ? baseWhere : undefined;
         return this.products.find({
-            where: Object.keys(where).length > 0 ? where : undefined,
+            where,
             relations: { category: true, variants: true, toppings: true, tags: true, branch: true },
             order: { name: 'ASC' },
         });

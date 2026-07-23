@@ -19,10 +19,6 @@ export class ComboItemDto {
 }
 
 export class CreateComboDto {
-  @IsUUID('4')
-  @IsOptional()
-  categoryId?: string;
-
   @IsString()
   @IsNotEmpty()
   name: string;
@@ -34,10 +30,6 @@ export class CreateComboDto {
   @IsString()
   @IsOptional()
   imageUrl?: string;
-
-  @IsString()
-  @IsNotEmpty()
-  sku: string;
 
   @IsNumber()
   @Min(0)

@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Not, Repository } from 'typeorm';
+import { DataSource, FindOptionsWhere, IsNull, Not, Repository } from 'typeorm';
 import { Category } from '../products/category.entity';
 import { ProductVariant, VariantStatus } from '../products/product-variant.entity';
 import { Product, ProductType } from '../products/product.entity';
@@ -13,6 +13,14 @@ function createSlug(name: string): string {
     .replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
+export function createComboSku(name: string): string {
+  const normalizedName = createSlug(name).toUpperCase();
+  const nameWithoutPrefix = normalizedName.startsWith('COMBO-')
+    ? normalizedName.slice('COMBO-'.length)
+    : normalizedName;
+  return `COMBO-${nameWithoutPrefix}`;
+}
+
 @Injectable()
 export class CombosService {
   constructor(
@@ -20,10 +28,16 @@ export class CombosService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async findAll(user?: User, isAdminPath?: boolean): Promise<Product[]> {
-    const where: any = { productType: ProductType.COMBO };
-    if (isAdminPath && user?.role === UserRole.STORE_MANAGER && user.branchId) {
-      where.branchId = user.branchId;
+  async findAll(user?: User, isAdminPath?: boolean, branchId?: string): Promise<Product[]> {
+    const baseWhere: FindOptionsWhere<Product> = { productType: ProductType.COMBO };
+    let where: FindOptionsWhere<Product> | FindOptionsWhere<Product>[] = baseWhere;
+    if (user?.role === UserRole.STORE_MANAGER && user.branchId) {
+      where = { ...baseWhere, branchId: user.branchId };
+    } else if (!isAdminPath && branchId) {
+      where = [
+        { ...baseWhere, branchId },
+        { ...baseWhere, branchId: IsNull() },
+      ];
     }
     return this.products.find({
       where,
@@ -48,25 +62,11 @@ export class CombosService {
   async create(dto: CreateComboDto, user: User): Promise<Product> {
     const branchId = user.role === UserRole.STORE_MANAGER ? user.branchId : dto.branchId;
     const comboId = await this.dataSource.transaction(async (manager) => {
-      let categoryId = dto.categoryId;
-      if (!categoryId) {
-        let category = await manager.getRepository(Category).findOne({
-          where: [
-            { slug: 'combo' },
-            { name: 'Combo' }
-          ]
-        });
-        if (!category) {
-          category = await manager.getRepository(Category).save({
-            name: 'Combo',
-            slug: 'combo',
-          });
-        }
-        categoryId = category.id;
-      }
+      const categoryRepository = manager.getRepository(Category);
+      const categoryId = await this.getComboCategoryId(categoryRepository);
 
       await this.validateReferences(
-        manager.getRepository(Category),
+        categoryRepository,
         manager.getRepository(Product),
         manager.getRepository(ProductVariant),
         dto.items,
@@ -74,7 +74,8 @@ export class CombosService {
         categoryId,
       );
       const slug = createSlug(dto.name);
-      await this.assertUnique(manager.getRepository(Product), manager.getRepository(ProductVariant), slug, dto.sku);
+      const sku = createComboSku(dto.name);
+      await this.assertUnique(manager.getRepository(Product), manager.getRepository(ProductVariant), slug, sku);
 
       const product = await manager.getRepository(Product).save({
         categoryId,
@@ -89,7 +90,7 @@ export class CombosService {
       });
       await manager.getRepository(ProductVariant).save({
         productId: product.id,
-        sku: dto.sku.trim(),
+        sku,
         variantName: `${dto.name.trim()} - Combo`,
         size: 'Combo',
         price: dto.price,
@@ -108,35 +109,26 @@ export class CombosService {
       const variantRepository = manager.getRepository(ProductVariant);
       const combo = await productRepository.findOne({
         where: { id, productType: ProductType.COMBO },
-        relations: { variants: true },
         lock: { mode: 'pessimistic_write' },
       });
       if (!combo) throw new NotFoundException('Không tìm thấy combo');
+
+      combo.variants = await variantRepository.find({
+        where: { productId: combo.id },
+        order: { createdAt: 'ASC' },
+      });
 
       if (user.role === UserRole.STORE_MANAGER && combo.branchId !== user.branchId) {
         throw new BadRequestException('Bạn không có quyền chỉnh sửa combo của chi nhánh khác');
       }
 
-      let categoryId = dto.categoryId;
-      if (!categoryId) {
-        let category = await manager.getRepository(Category).findOne({
-          where: [
-            { slug: 'combo' },
-            { name: 'Combo' }
-          ]
-        });
-        if (!category) {
-          category = await manager.getRepository(Category).save({
-            name: 'Combo',
-            slug: 'combo',
-          });
-        }
-        categoryId = category.id;
-      }
+      const categoryRepository = manager.getRepository(Category);
+      const categoryId = await this.getComboCategoryId(categoryRepository);
 
-      await this.validateReferences(manager.getRepository(Category), productRepository, variantRepository, dto.items, id, categoryId);
+      await this.validateReferences(categoryRepository, productRepository, variantRepository, dto.items, id, categoryId);
       const slug = createSlug(dto.name);
-      await this.assertUnique(productRepository, variantRepository, slug, dto.sku, id, combo.variants[0]?.id);
+      const sku = createComboSku(dto.name);
+      await this.assertUnique(productRepository, variantRepository, slug, sku, id, combo.variants[0]?.id);
 
       const branchId = user.role === UserRole.ADMIN ? (dto.branchId !== undefined ? dto.branchId : combo.branchId) : combo.branchId;
 
@@ -154,7 +146,7 @@ export class CombosService {
       const variant = combo.variants[0];
       if (!variant) throw new BadRequestException('Combo chưa có biến thể giá bán');
       Object.assign(variant, {
-        sku: dto.sku.trim(),
+        sku,
         variantName: `${dto.name.trim()} - Combo`,
         price: dto.price,
         status: dto.isActive === false ? VariantStatus.INACTIVE : VariantStatus.ACTIVE,
@@ -196,6 +188,22 @@ export class CombosService {
       isOptional: item.isOptional ?? false,
       sortOrder: index,
     }));
+  }
+
+  private async getComboCategoryId(categories: Repository<Category>): Promise<string> {
+    let category = await categories.findOne({
+      where: [
+        { slug: 'combo' },
+        { name: 'Combo' },
+      ],
+    });
+    if (!category) {
+      category = await categories.save({
+        name: 'Combo',
+        slug: 'combo',
+      });
+    }
+    return category.id;
   }
 
   private async validateReferences(

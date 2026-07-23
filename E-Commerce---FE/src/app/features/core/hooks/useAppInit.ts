@@ -9,6 +9,7 @@ import { getDiscountedPrice } from "../../../components/shared";
 import { clearAuthSession, getAccessToken, getAccessTokenExpiry, getStoredUser, refreshAuthSession } from "../../../components/authSession";
 import { rememberTrackingOrder } from "../../order-tracking/services/orderTrackingService";
 import { getAvailableCoupons } from "../../coupons/services/couponService";
+import { getCatalogProducts } from "../services/catalogService";
 
 export const matchSize = (itemSize: string, targetSize: string): boolean => {
   if (!targetSize) return true;
@@ -373,15 +374,12 @@ export function useAppInit() {
           console.error("Lỗi khi tải vouchers:", err);
         }
 
-        const [pRes, cRes] = await Promise.all([
-          fetch(`${env.API_URL}/products`),
+        const selectedBranchId = UUID_PATTERN.test(selectedStore?.id || '') ? selectedStore.id : undefined;
+        const [productsData, cRes] = await Promise.all([
+          getCatalogProducts(selectedBranchId),
           fetch(`${env.API_URL}/products/categories`),
         ]);
-        if (pRes.ok) {
-          const apiProducts = await pRes.json();
-          const productsData = Array.isArray(apiProducts.data) ? apiProducts.data : (Array.isArray(apiProducts) ? apiProducts : []);
-          setProducts(productsData.map((p: any) => apiProductToArray(p, couponsList)));
-        }
+        setProducts(productsData.map((p: any) => apiProductToArray(p, couponsList)));
         if (cRes.ok) {
           const apiCategories = await cRes.json();
           const categoriesData = Array.isArray(apiCategories.data) ? apiCategories.data : (Array.isArray(apiCategories) ? apiCategories : []);

@@ -14,6 +14,20 @@ import { env } from "../../../config/env";
 import { supabase } from "../../../config/supabase";
 import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
 
+function createComboSku(name: string): string {
+  const normalizedName = name.normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .toUpperCase();
+  const nameWithoutPrefix = normalizedName.startsWith("COMBO-")
+    ? normalizedName.slice("COMBO-".length)
+    : normalizedName;
+  return nameWithoutPrefix ? `COMBO-${nameWithoutPrefix}` : "SKU sẽ tự tạo theo tên combo";
+}
+
 export function AdminCombos() {
   const user = getStoredUser();
   const isManager = user?.role === "store_manager";
@@ -21,18 +35,15 @@ export function AdminCombos() {
 
   const [combos, setCombos] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const emptyForm = () => ({ 
-    categoryId: "", 
     name: "", 
     description: "", 
     imageUrl: "", 
-    sku: `COMBO-${Date.now().toString().slice(-6)}`, 
     price: "", 
     isActive: true,
     branchId: isManager ? user?.branchId || "" : ""
@@ -48,15 +59,13 @@ export function AdminCombos() {
       const headers: any = {};
       if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
-      const [comboRes, productRes, categoryRes, branchRes] = await Promise.all([
+      const [comboRes, productRes, branchRes] = await Promise.all([
         fetch(`${env.API_URL}/combos`, { headers }),
         fetch(`${env.API_URL}/combos/available-products`, { headers }),
-        fetch(`${env.API_URL}/products/categories`),
         fetch(`${env.API_URL}/branches/active`),
       ]);
       if (comboRes.ok) setCombos(await parseRes(comboRes));
       if (productRes.ok) setProducts(await parseRes(productRes));
-      if (categoryRes.ok) setCategories(await parseRes(categoryRes));
       if (branchRes.ok) setBranches(await parseRes(branchRes));
     } finally { setLoading(false); }
   };
@@ -66,7 +75,7 @@ export function AdminCombos() {
   const updateItem = (index: number, changes: any) => setItems(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...changes } : item));
   const openAdd = () => {
     setEditing(null);
-    setForm({ ...emptyForm(), categoryId: categories[0]?.id || "" });
+    setForm(emptyForm());
     setItems([{ childProductId: "", childVariantId: "", quantity: 1, isOptional: false }]);
     setShowModal(true);
   };
@@ -74,11 +83,9 @@ export function AdminCombos() {
     const variant = combo.variants?.[0];
     setEditing(combo);
     setForm({ 
-      categoryId: combo.categoryId, 
       name: combo.name, 
       description: combo.description || "", 
       imageUrl: combo.imageUrl || "", 
-      sku: variant?.sku || "", 
       price: String(variant?.price ?? ""), 
       isActive: combo.isActive,
       branchId: combo.branchId || (isManager ? user?.branchId || "" : "")
@@ -87,7 +94,7 @@ export function AdminCombos() {
     setShowModal(true);
   };
   const save = async () => {
-    if (!form.name.trim() || !form.sku.trim() || form.price === "") return toast.error("Vui lòng nhập đủ tên, SKU và giá combo.");
+    if (!form.name.trim() || form.price === "") return toast.error("Vui lòng nhập đủ tên và giá combo.");
     if (!items.length || items.some(item => !item.childProductId || Number(item.quantity) < 1)) return toast.error("Combo cần ít nhất một sản phẩm thành phần hợp lệ.");
     const accessToken = token();
     if (!accessToken) return;
@@ -99,7 +106,6 @@ export function AdminCombos() {
         body: JSON.stringify({ 
           ...form, 
           name: form.name.trim(), 
-          sku: form.sku.trim(), 
           price: Number(form.price), 
           branchId: form.branchId || null,
           items: items.map(item => ({ childProductId: item.childProductId, childVariantId: item.childVariantId || undefined, quantity: Number(item.quantity), isOptional: item.isOptional })) 
@@ -128,7 +134,10 @@ export function AdminCombos() {
       <h3 className="mb-4 text-lg font-semibold text-foreground">{editing ? "Sửa combo" : "Thêm combo mới"}</h3>
       <div className="grid gap-3 sm:grid-cols-2">
         <input className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm outline-none" placeholder="Tên combo" value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} />
-        <input className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm outline-none" placeholder="SKU combo" value={form.sku} onChange={event => setForm({ ...form, sku: event.target.value })} />
+        <div className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm">
+          <span className="block text-xs text-muted-foreground">SKU tự động</span>
+          <span className="font-mono text-foreground">{createComboSku(form.name)}</span>
+        </div>
         <input type="number" min="0" step="1000" className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm font-semibold text-primary outline-none" placeholder="Giá combo" value={form.price} onChange={event => setForm({ ...form, price: event.target.value })} />
         {isAdmin && (
           <select

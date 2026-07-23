@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { Permission } from '../../common/constants/permissions';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -8,6 +8,7 @@ import { CreateComboDto, UpdateComboDto } from './dto/combo.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '../users/user.entity';
 import { Public } from '../../common/decorators/public.decorator';
+import { FindCombosQueryDto } from './dto/find-combos-query.dto';
 
 @Controller('combos')
 export class CombosController {
@@ -16,9 +17,9 @@ export class CombosController {
   @Get()
   @UseGuards(JwtAuthGuard)
   @Public()
-  findAll(@Req() req: any, @CurrentUser() user?: User) {
+  findAll(@Req() req: any, @Query() query: FindCombosQueryDto, @CurrentUser() user?: User) {
     const isAdminPath = req.originalUrl?.includes('/admin/');
-    return this.combosService.findAll(user, isAdminPath);
+    return this.combosService.findAll(user, isAdminPath, query.branchId);
   }
 
   @Get('available-products')
