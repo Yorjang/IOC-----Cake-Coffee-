@@ -3,23 +3,26 @@ import { CakeSlice, ChevronDown, Heart, LogIn, LogOut, MapPin, Menu, Search, Set
 import { MESSAGES } from "../../constants/messages";
 import { VIEW_KEYS } from "../../config/appConfig";
 
-export function Header({
-  view,
-  setView,
-  navPages,
-  wishlistCount = 0,
-  cartCount = 0,
-  searchQuery = "",
-  onSearchChange,
-  onSearchSubmit,
-  isLoggedIn = false,
-  user,
-  products = [],
-  selectedStore,
-  onChooseStore,
-  onLogout,
-  lastCreatedOrder,
-}: any) {
+import { useAppStore } from '../store/useAppStore';
+import { useAuthStore } from '../store/useAuthStore';
+import { useCartStore } from '../store/useCartStore';
+import { useProductStore } from '../store/useProductStore';
+import { useLocationStore } from '../store/useLocationStore';
+import { useOrderStore } from '../store/useOrderStore';
+
+export function Header({ navPages }: any) {
+  const { view, setView } = useAppStore();
+  const { user, logout: onLogout } = useAuthStore();
+  const { cart } = useCartStore();
+  const { wishlist, products, searchQuery, setSearchQuery: onSearchChange } = useProductStore();
+  const { selectedStore, setShowStorePopup } = useLocationStore();
+  const { lastCreatedOrder } = useOrderStore();
+  
+  const isLoggedIn = !!user;
+  const wishlistCount = wishlist.length;
+  const cartCount = cart.reduce((s: number, i: any) => s + i.quantity, 0);
+  const onSearchSubmit = () => setView("Tìm kiếm");
+  const onChooseStore = () => setShowStorePopup(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);

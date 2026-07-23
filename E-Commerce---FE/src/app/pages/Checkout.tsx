@@ -5,7 +5,20 @@ import { CHECKOUT_CONFIG } from "../../config/appConfig";
 import { useCheckout } from "../features/checkout/hooks/useCheckout";
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
+import { useCartStore, useCartComputed } from '../store/useCartStore';
+import { useAuthStore } from '../store/useAuthStore';
+import { useOrderStore } from '../store/useOrderStore';
+import { useAppStore } from '../store/useAppStore';
+
 export function Checkout(props: any) {
+  const { cart } = useCartStore();
+  const { subtotal, discount, shipping, grandTotal } = useCartComputed();
+  const { setView } = useAppStore();
+  const { user } = useAuthStore();
+  const { handlePlaceOrder } = useOrderStore();
+  
+  const mergedProps = { cart, subtotal, discount, shipping, grandTotal, setView, user, onPlaceOrder: handlePlaceOrder };
+  
   const {
     fulfillmentType, setFulfillmentType,
     name, setName,
@@ -19,9 +32,7 @@ export function Checkout(props: any) {
     hasCustomerLocation,
     checkoutError, setCheckoutError,
     handleCheckout
-  } = useCheckout(props);
-
-  const { cart, subtotal, discount, shipping, grandTotal } = props;
+  } = useCheckout(mergedProps);
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-8 sm:px-6 lg:px-10">

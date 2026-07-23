@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   // Tạo một instance của ứng dụng NestJS, nạp 'trái tim' AppModule vào
@@ -24,6 +25,16 @@ async function bootstrap() {
       forbidNonWhitelisted: false, // Không báo lỗi nếu gửi lên trường dư thừa (phù hợp cho Webhook)
       transform: true, // Tự động chuyển đổi kiểu dữ liệu
     }));
+
+  // Cấu hình Swagger API Documentation
+  const config = new DocumentBuilder()
+    .setTitle('Cake & Coffee E-Commerce API')
+    .setDescription('Tài liệu API cho dự án tiệm bánh và cafe')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
 
   // Lắng nghe ở cổng 3000 (bạn có thể đổi thành 8080 tùy ý)
     await app.listen(3000);

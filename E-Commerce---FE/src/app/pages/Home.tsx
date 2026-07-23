@@ -165,7 +165,13 @@ function VoucherRow({ code, title, sub, onClick }: any) {
   );
 }
 
-export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggleWishlist, products = [], categories = [], publicCoupons = [] }: any) {
+import { useProductStore } from "../store/useProductStore";
+import { useAppStore } from "../store/useAppStore";
+
+export function Home({ onSelectProduct, onAddToCart, onToggleWishlist }: any) {
+  const { setView } = useAppStore();
+  const { wishlist, products, categories, publicCoupons } = useProductStore();
+
   const [activeBanner, setActiveBanner] = useState(0);
   const [banners, setBanners] = useState<Array<{ src: string; alt: string; title?: string; subtitle?: string; linkUrl?: string }>>(heroBanners);
   const [storeSearch, setStoreSearch] = useState("");

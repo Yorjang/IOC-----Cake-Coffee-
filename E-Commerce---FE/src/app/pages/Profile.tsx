@@ -13,7 +13,13 @@ const PRESET_AVATARS = [
   { name: "Tiramisu", url: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=150&auto=format&fit=crop&q=60" },
 ];
 
-export function Profile({ user, setUser, setView, onLogout }: any) {
+import { useAuthStore } from "../store/useAuthStore";
+import { useAppStore } from "../store/useAppStore";
+
+export function Profile({ onLogout }: any) {
+  const { user, setUser } = useAuthStore();
+  const { setView } = useAppStore();
+
   const displayUser = user || { fullName: "", email: "", phone: "", avatar: "" };
 
   // Tabs: 'info' | 'password' | 'orders'

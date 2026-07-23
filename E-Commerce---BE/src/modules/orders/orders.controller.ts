@@ -54,6 +54,12 @@ export class OrdersController {
     return this.ordersService.getDashboardStats();
   }
 
+  @Get('dashboard/revenue')
+  @Permissions(Permission.VIEW_ORDER)
+  getRevenueStats() {
+    return this.ordersService.getRevenueStats();
+  }
+
   @Get()
   @Permissions(Permission.VIEW_ORDER)
   findAll() {

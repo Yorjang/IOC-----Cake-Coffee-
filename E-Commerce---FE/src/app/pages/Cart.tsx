@@ -3,12 +3,22 @@ import { Minus, Plus, Trash2, Ticket, X, ChevronRight, Check } from "lucide-reac
 import { Btn } from "../components/shared";
 import { VIEW_KEYS } from "../../config/appConfig";
 import { toast } from "sonner";
-import { matchSize } from "../App";
+
 
 const parsePrice = (priceStr: string) => parseInt(priceStr.replace(/[^0-9]/g, ""), 10);
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
-export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons = [], appliedCoupon, setAppliedCoupon, user }: any) {
+import { useCartStore } from "../store/useCartStore";
+import { useProductStore } from "../store/useProductStore";
+import { useAuthStore } from "../store/useAuthStore";
+import { useAppStore } from "../store/useAppStore";
+
+export function Cart({ onUpdateQty, onRemoveItem }: any) {
+  const { cart, appliedCoupon, setAppliedCoupon } = useCartStore();
+  const { setView } = useAppStore();
+  const { publicCoupons } = useProductStore();
+  const { user } = useAuthStore();
+
   const [coupon, setCoupon] = useState("");
   const [isCouponModalOpen, setIsCouponModalOpen] = useState(false);
 
@@ -35,7 +45,7 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
         item.product?.raw?.categoriesId === appliedCoupon.categoriesId ||
         item.product?.raw?.category?.id === appliedCoupon.categoriesId
       );
-      const isSizeMatch = !appliedCoupon.targetSize || matchSize(item.size, appliedCoupon.targetSize);
+      const isSizeMatch = !appliedCoupon.targetSize || (!appliedCoupon.targetSize || item.size?.toLowerCase().startsWith(appliedCoupon.targetSize?.toLowerCase()));
       return isProductMatch && isCategoryMatch && isSizeMatch;
     });
 
@@ -94,7 +104,7 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
     }
 
     if (found.targetSize) {
-      const hasSize = cart.some((item: any) => matchSize(item.size, found.targetSize));
+      const hasSize = cart.some((item: any) => (!found.targetSize || item.size?.toLowerCase().startsWith(found.targetSize?.toLowerCase())));
       if (!hasSize) {
         toast.error(`Mã này chỉ áp dụng cho sản phẩm size ${found.targetSize}.`);
         return;
@@ -126,7 +136,7 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
           item.product?.raw?.categoriesId === c.categoriesId ||
           item.product?.raw?.category?.id === c.categoriesId
         );
-        const isSizeMatch = !c.targetSize || matchSize(item.size, c.targetSize);
+        const isSizeMatch = !c.targetSize || (!c.targetSize || item.size?.toLowerCase().startsWith(c.targetSize?.toLowerCase()));
         return isProductMatch && isCategoryMatch && isSizeMatch;
       });
 
@@ -166,7 +176,7 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
       if (!hasCategory) isApplicable = false;
     }
     if (isApplicable && c.targetSize) {
-      const hasSize = cart.some((item: any) => matchSize(item.size, c.targetSize));
+      const hasSize = cart.some((item: any) => (!c.targetSize || item.size?.toLowerCase().startsWith(c.targetSize?.toLowerCase())));
       if (!hasSize) isApplicable = false;
     }
     return { ...c, isApplicable };

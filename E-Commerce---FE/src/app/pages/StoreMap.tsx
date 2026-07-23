@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import { ArrowUpRight, MapPin, Search, Clock, Phone, Navigation } from "lucide-react";
 
+
+
 export function StoreMap({ branches, activeStoreId, onSelectStore }: any) {
+
+
   const [activeBranchId, setActiveBranchId] = useState<string | null>(activeStoreId || null);
   const [searchQuery, setSearchQuery] = useState("");
 

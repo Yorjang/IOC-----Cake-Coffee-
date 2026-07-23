@@ -9,7 +9,13 @@ const parsePrice = (priceStr: string): number => {
   return parseInt(priceStr.replace(/[^0-9]/g, ""), 10);
 };
 
-export function ProductListing({ category, setView, onSelectProduct, onAddToCart, wishlist, onToggleWishlist, searchQuery, products = [] }: any) {
+import { useProductStore } from "../store/useProductStore";
+import { useAppStore } from "../store/useAppStore";
+
+export function ProductListing({ category, onSelectProduct, onAddToCart, onToggleWishlist }: any) {
+  const { setView } = useAppStore();
+  const { wishlist, searchQuery, products } = useProductStore();
+
   // Filter States
   const [selectedSubCat, setSelectedSubCat] = useState<string>("Tất cả");
   const [selectedPriceRange, setSelectedPriceRange] = useState<string>("Tất cả");

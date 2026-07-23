@@ -9,7 +9,11 @@ import { VIEW_KEYS } from "../../config/appConfig";
 
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
-export function Success({ setView, order, orderId: orderIdProp }: any) {
+import { useAppStore } from "../store/useAppStore";
+
+export function Success({ order, orderId: orderIdProp }: any) {
+  const { setView } = useAppStore();
+
   const [qrData, setQrData] = useState<any>(null);
   const [loadingQr, setLoadingQr] = useState(false);
   const [isPaid, setIsPaid] = useState(false);

@@ -1,7 +1,13 @@
 import { ProductCard } from "../components/shared";
 import { VIEW_KEYS } from "../../config/appConfig";
 
-export function Favorites({ wishlist, onToggleWishlist, onAddToCart, onSelectProduct, setView }: any) {
+import { useProductStore } from "../store/useProductStore";
+import { useAppStore } from "../store/useAppStore";
+
+export function Favorites({ onToggleWishlist, onAddToCart, onSelectProduct }: any) {
+  const { wishlist } = useProductStore();
+  const { setView } = useAppStore();
+
   return (
     <div className="w-full px-2 py-8 sm:px-4 lg:px-4">
       <h2 className="mb-6 text-2xl md:text-3xl font-bold font-serif">Sản phẩm yêu thích</h2>

@@ -1,42 +1,81 @@
-
 import React, { useState, useEffect } from "react";
-import {
-  LayoutDashboard, Package, Tag, Settings, ShoppingBag, Users, Star,
-  BarChart2, Image, Edit, Trash2, Eye, Plus, CheckCircle, XCircle,
-  TrendingUp, AlertCircle, Loader2, ToggleLeft, Search, Filter,
-  ArrowUpRight, DollarSign, Clock, ChevronDown, Store, MapPin, Boxes,
-  ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
-} from "lucide-react";
-import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import { env } from "../../../config/env";
-import { supabase } from "../../../config/supabase";
-import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
+import { getAccessToken } from "../authSession";
+import { parseRes } from "../../../utils/api";
 
 export function AdminRevenue() {
-  const monthly = [
-    { month: "T1", revenue: 42000000, orders: 310 },
-    { month: "T2", revenue: 38000000, orders: 280 },
-    { month: "T3", revenue: 55000000, orders: 420 },
-    { month: "T4", revenue: 61000000, orders: 470 },
-    { month: "T5", revenue: 72000000, orders: 560 },
-    { month: "T6", revenue: 48000000, orders: 380 },
-  ];
-  const max = Math.max(...monthly.map(m => m.revenue));
-  const topProducts = [
-    { name: "Combo Tiramisu + Latte", revenue: "8.900.000đ", units: 100 },
-    { name: "Bánh sinh nhật socola", revenue: "7.000.000đ", units: 20 },
-    { name: "Cafe Latte", revenue: "6.600.000đ", units: 120 },
-    { name: "Matcha Latte", revenue: "4.720.000đ", units: 80 },
-    { name: "Combo sinh nhật mini", revenue: "3.990.000đ", units: 10 },
-  ];
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadStats = async () => {
+    setLoading(true);
+    setError(null);
+    const token = getAccessToken();
+    if (!token) {
+      setError("Thiếu mã xác thực (Token). Vui lòng đăng nhập lại.");
+      setLoading(false);
+      return;
+    }
+    try {
+      const res = await fetch(`${env.API_URL}/orders/dashboard/revenue`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const resData = await parseRes(res);
+      if (res.ok) {
+        setData(resData);
+      } else {
+        setError(resData.message || "Lỗi khi tải dữ liệu thống kê từ server.");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Không thể kết nối tới máy chủ (Server).");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center bg-sidebar rounded-2xl">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center bg-sidebar rounded-2xl p-6 text-center">
+        <p className="text-red-500 mb-4">{error}</p>
+        <button onClick={loadStats} className="rounded-xl bg-primary px-4 py-2 text-primary-foreground font-medium transition hover:opacity-90">
+          Thử lại
+        </button>
+      </div>
+    );
+  }
+
+  const monthly = data?.monthly || [];
+  const topProducts = data?.topProducts || [];
+  const summary = data?.summary || [];
+
+  const max = Math.max(...monthly.map((m: any) => m.revenue), 1);
+  const maxUnits = Math.max(...topProducts.map((p: any) => p.units), 1);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-foreground">Thống kê doanh thu</h2>
-        <select className="rounded-xl bg-sidebar px-3 py-2 text-sm text-foreground outline-none"><option>6 tháng gần nhất</option><option>12 tháng</option><option>Năm 2025</option></select>
+        <select className="rounded-xl bg-sidebar px-3 py-2 text-sm text-foreground outline-none">
+          <option>6 tháng gần nhất</option>
+        </select>
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
-        {[["Tổng doanh thu", "316.000.000đ", "+18% so tháng trước"], ["Tổng đơn hàng", "2.420", "+24 đơn hôm nay"], ["Giá trị trung bình", "130.578đ", "mỗi đơn hàng"]].map(([l, v, s]) => (
+        {summary.map(([l, v, s]: any) => (
           <div key={l} className="rounded-2xl bg-sidebar p-5">
             <p className="text-sm text-muted-foreground">{l}</p>
             <h3 className="mt-2 text-2xl font-bold text-foreground">{v}</h3>
@@ -46,35 +85,43 @@ export function AdminRevenue() {
       </div>
       <div className="rounded-2xl bg-sidebar p-5">
         <h3 className="mb-5 font-semibold text-foreground">Doanh thu theo tháng</h3>
-        <div className="flex items-end gap-4 h-48">
-          {monthly.map(d => (
-            <div key={d.month} className="flex flex-1 flex-col items-center gap-2">
-              <span className="text-xs text-muted-foreground">{(d.revenue / 1000000).toFixed(0)}M</span>
-              <div className="w-full rounded-t-xl bg-primary transition hover:opacity-90" style={{ height: `${(d.revenue / max) * 100}%` }} />
-              <span className="text-xs text-muted-foreground">{d.month}</span>
-            </div>
-          ))}
-        </div>
+        {monthly.length > 0 ? (
+          <div className="flex items-end gap-4 h-48">
+            {monthly.map((d: any) => (
+              <div key={d.month} className="flex flex-1 flex-col items-center gap-2 h-full justify-end">
+                <span className="text-xs text-muted-foreground">{(d.revenue / 1000000).toFixed(0)}M</span>
+                <div className="w-full rounded-t-xl bg-primary transition hover:opacity-90" style={{ height: `${(d.revenue / max) * 100}%`, minHeight: '4px' }} />
+                <span className="text-xs text-muted-foreground">{d.month}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex h-48 items-center justify-center text-muted-foreground">Chưa có dữ liệu doanh thu</div>
+        )}
       </div>
       <div className="rounded-2xl bg-sidebar p-5">
         <h3 className="mb-4 font-semibold text-foreground">Top sản phẩm bán chạy</h3>
-        <div className="space-y-3">
-          {topProducts.map((p, i) => (
-            <div key={p.name} className="flex items-center gap-3">
-              <span className="w-5 text-center text-xs font-bold text-muted-foreground">#{i + 1}</span>
-              <div className="flex-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-foreground">{p.name}</span>
-                  <span className="font-semibold text-primary">{p.revenue}</span>
+        {topProducts.length > 0 ? (
+          <div className="space-y-3">
+            {topProducts.map((p: any, i: number) => (
+              <div key={p.name} className="flex items-center gap-3">
+                <span className="w-5 text-center text-xs font-bold text-muted-foreground">#{i + 1}</span>
+                <div className="flex-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-foreground">{p.name}</span>
+                    <span className="font-semibold text-primary">{p.revenue}</span>
+                  </div>
+                  <div className="mt-1 h-1.5 rounded-full bg-sidebar-accent">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${(p.units / maxUnits) * 100}%` }} />
+                  </div>
                 </div>
-                <div className="mt-1 h-1.5 rounded-full bg-sidebar-accent">
-                  <div className="h-full rounded-full bg-primary" style={{ width: `${(p.units / 120) * 100}%` }} />
-                </div>
+                <span className="text-xs text-muted-foreground">{p.units} sp</span>
               </div>
-              <span className="text-xs text-muted-foreground">{p.units} sp</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-muted-foreground">Chưa có dữ liệu sản phẩm</div>
+        )}
       </div>
     </div>
   );

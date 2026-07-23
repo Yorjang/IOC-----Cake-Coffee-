@@ -444,4 +444,68 @@ export class OrdersService {
     order.paymentStatus = 'refunded' as any;
     return this.orders.save(order);
   }
+
+  async getRevenueStats(range: string = '6_months'): Promise<any> {
+    const formatMoney = (val: number) => new Intl.NumberFormat('vi-VN').format(val) + 'đ';
+
+    // 1. Monthly revenue
+    const monthlyChart = await this.orders.query(`
+      SELECT to_char(created_at, 'MM') as month_num,
+             to_char(created_at, 'YYYY-MM') as month_key,
+             SUM(total_amount) as revenue,
+             COUNT(*) as orders
+      FROM "orders"
+      WHERE created_at >= date_trunc('month', CURRENT_DATE - INTERVAL '5 months')
+        AND order_status != 'cancelled'
+      GROUP BY month_num, month_key
+      ORDER BY month_key ASC
+    `);
+
+    const monthly = monthlyChart.map((row: any) => ({
+      month: 'T' + Number(row.month_num),
+      revenue: Number(row.revenue),
+      orders: Number(row.orders),
+    }));
+
+    // 2. Top products
+    const topProductsDb = await this.orders.query(`
+      SELECT p.name as name,
+             SUM(oi.price * oi.quantity) as revenue,
+             SUM(oi.quantity) as units
+      FROM "order_items" oi
+      JOIN "orders" o ON o.id = oi.order_id
+      JOIN "products" p ON p.id = oi.product_id
+      WHERE o.order_status != 'cancelled'
+      GROUP BY p.name
+      ORDER BY revenue DESC
+      LIMIT 5
+    `);
+
+    const topProducts = topProductsDb.map((p: any) => ({
+      name: p.name,
+      revenue: formatMoney(Number(p.revenue)),
+      units: Number(p.units),
+    }));
+
+    // 3. Summary
+    const summaryDb = await this.orders.query(`
+      SELECT SUM(total_amount) as total_revenue,
+             COUNT(*) as total_orders,
+             AVG(total_amount) as avg_order_value
+      FROM "orders"
+      WHERE order_status != 'cancelled'
+    `);
+    const s = summaryDb[0];
+    const totalRev = Number(s.total_revenue || 0);
+    const totalOrd = Number(s.total_orders || 0);
+    const avgRev = Number(s.avg_order_value || 0);
+
+    const summary = [
+      ["Tổng doanh thu", formatMoney(totalRev), "Dữ liệu thực tế"],
+      ["Tổng đơn hàng", String(totalOrd), "Dữ liệu thực tế"],
+      ["Giá trị trung bình", formatMoney(avgRev), "mỗi đơn hàng"],
+    ];
+
+    return { monthly, topProducts, summary };
+  }
 }
