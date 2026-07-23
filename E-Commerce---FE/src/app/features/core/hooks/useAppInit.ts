@@ -8,6 +8,7 @@ import { VIEW_KEYS } from "../../../../config/appConfig";
 import { getDiscountedPrice } from "../../../components/shared";
 import { clearAuthSession, getAccessToken, getAccessTokenExpiry, getStoredUser, refreshAuthSession } from "../../../components/authSession";
 import { rememberTrackingOrder } from "../../order-tracking/services/orderTrackingService";
+import { getAvailableCoupons } from "../../coupons/services/couponService";
 
 export const matchSize = (itemSize: string, targetSize: string): boolean => {
   if (!targetSize) return true;
@@ -78,6 +79,7 @@ const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.PRIVACY]: "/chinh-sach-bao-mat",
   [VIEW_KEYS.TERMS]: "/dieu-khoan-dich-vu",
   [VIEW_KEYS.TRACKING]: "/theo-doi",
+  [VIEW_KEYS.PAYMENT]: "/thanh-toan-vnpay",
 };
 
 export const getPathFromView = (view: string, product?: any) => {
@@ -245,7 +247,9 @@ export function useAppInit() {
         .catch(console.error);
     }
   }, []);
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(() => {
+    return new URLSearchParams(window.location.search).get('orderId');
+  });
 
   const [publicCoupons, setPublicCoupons] = useState<any[]>([]);
   const [appliedCoupon, setAppliedCouponState] = useState<any | null>(() => {
@@ -339,12 +343,8 @@ export function useAppInit() {
       try {
         let couponsList: any[] = [];
         try {
-          const couponRes = await fetch(`${env.API_URL}/coupons/public`);
-          if (couponRes.ok) {
-            const apiCoupons = await couponRes.json();
-            couponsList = Array.isArray(apiCoupons.data) ? apiCoupons.data : (Array.isArray(apiCoupons) ? apiCoupons : []);
-            setPublicCoupons(couponsList);
-          }
+          couponsList = await getAvailableCoupons();
+          setPublicCoupons(couponsList);
         } catch (err) {
           console.error("Lỗi khi tải vouchers:", err);
         }
@@ -367,7 +367,7 @@ export function useAppInit() {
         console.error("Lỗi khi fetch products/categories:", err);
       }
     })();
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!showStorePopup) return;
@@ -892,6 +892,11 @@ export function useAppInit() {
         rememberTrackingOrder(resData.id);
       }
       setCart([]);
+      try {
+        setPublicCoupons(await getAvailableCoupons());
+      } catch (couponError) {
+        console.error("Lỗi khi làm mới vouchers sau checkout:", couponError);
+      }
       setAppliedCoupon(null);
       toast.success("Đặt hàng thành công!");
       setView(VIEW_KEYS.SUCCESS);

@@ -5,6 +5,8 @@ import { Payment, PaymentGateway, PaymentStatus } from './payment.entity';
 import { Order, OrderStatus } from '../orders/order.entity';
 import { SepayWebhookDto } from './dto/sepay-webhook.dto';
 import { ConfigService } from '@nestjs/config';
+import { CreateVnpayPaymentDto } from './dto/create-vnpay-payment.dto';
+import { buildVnpayQuery, signVnpay, verifyVnpaySignature, VnpayParameters } from './vnpay-signature';
 
 @Injectable()
 export class PaymentsService {
@@ -36,6 +38,167 @@ export class PaymentsService {
     });
 
     return this.payments.save(payment);
+  }
+
+  async createVnpayPaymentUrl(orderId: string, ipAddress: string, dto: CreateVnpayPaymentDto) {
+    const order = await this.orders.findOne({ where: { id: orderId } });
+    if (!order || order.paymentMethod !== ('vnpay' as typeof order.paymentMethod)) {
+      throw new BadRequestException('Đơn hàng không sử dụng phương thức thanh toán VNPay.');
+    }
+    if (order.paymentStatus === ('paid' as typeof order.paymentStatus)) {
+      throw new BadRequestException('Đơn hàng đã được thanh toán.');
+    }
+
+    const payment = await this.payments.findOne({
+      where: { orderId, gateway: PaymentGateway.VNPAY },
+      order: { createdAt: 'DESC' },
+    });
+    if (!payment) throw new BadRequestException('Không tìm thấy giao dịch VNPay của đơn hàng.');
+
+    const previousAttempt = payment.gatewayResponse as { paymentUrl?: string; expiresAt?: string } | null;
+    if (
+      payment.status === PaymentStatus.PENDING
+      && previousAttempt?.paymentUrl
+      && previousAttempt.expiresAt
+      && new Date(previousAttempt.expiresAt).getTime() > Date.now()
+    ) {
+      return previousAttempt;
+    }
+
+    const { tmnCode, hashSecret, paymentUrl, returnUrl } = this.getVnpayConfig();
+    const now = new Date();
+    const transactionReference = `${orderId.replace(/-/g, '')}${Date.now()}`;
+    const parameters: VnpayParameters = {
+      vnp_Version: '2.1.0',
+      vnp_Command: 'pay',
+      vnp_TmnCode: tmnCode,
+      vnp_Amount: String(Math.round(Number(order.totalAmount) * 100)),
+      vnp_CreateDate: this.formatVnpayDate(now),
+      vnp_CurrCode: 'VND',
+      vnp_IpAddr: this.normalizeIpAddress(ipAddress),
+      vnp_Locale: dto.locale ?? 'vn',
+      vnp_OrderInfo: `Thanh toan don hang ${order.orderCode}`,
+      vnp_OrderType: 'other',
+      vnp_ReturnUrl: returnUrl,
+      vnp_TxnRef: transactionReference,
+      vnp_ExpireDate: this.formatVnpayDate(new Date(now.getTime() + 15 * 60 * 1000)),
+    };
+    if (dto.bankCode) parameters.vnp_BankCode = dto.bankCode;
+
+    payment.transactionId = transactionReference;
+    payment.status = PaymentStatus.PENDING;
+    const secureHash = signVnpay(parameters, hashSecret);
+    const result = {
+      paymentUrl: `${paymentUrl}?${buildVnpayQuery(parameters)}&vnp_SecureHash=${secureHash}`,
+      expiresAt: new Date(now.getTime() + 15 * 60 * 1000).toISOString(),
+    };
+    payment.gatewayResponse = { ...result, initiatedAt: now.toISOString() };
+    await this.payments.save(payment);
+    return result;
+  }
+
+  async processVnpayIpn(rawQuery: Record<string, string | string[]>) {
+    try {
+      const query = this.normalizeVnpayQuery(rawQuery);
+      const { hashSecret } = this.getVnpayConfig();
+      if (!verifyVnpaySignature(query, hashSecret)) return { RspCode: '97', Message: 'Invalid signature' };
+
+      const orderId = this.orderIdFromVnpayReference(query.vnp_TxnRef);
+      if (!orderId) return { RspCode: '01', Message: 'Order not found' };
+
+      return this.payments.manager.transaction(async (manager) => {
+        const orderRepository = manager.getRepository(Order);
+        const paymentRepository = manager.getRepository(Payment);
+        const order = await orderRepository.findOne({ where: { id: orderId } });
+        const payment = await paymentRepository.findOne({
+          where: { orderId, gateway: PaymentGateway.VNPAY },
+          order: { createdAt: 'DESC' },
+        });
+
+        if (!order || !payment) {
+          return { RspCode: '01', Message: 'Order not found' };
+        }
+        if (Number(query.vnp_Amount) !== Math.round(Number(order.totalAmount) * 100)) {
+          return { RspCode: '04', Message: 'Invalid amount' };
+        }
+        if (payment.status === PaymentStatus.PAID) {
+          return { RspCode: '02', Message: 'Order already confirmed' };
+        }
+        if (payment.transactionId !== query.vnp_TxnRef) {
+          return { RspCode: '01', Message: 'Order not found' };
+        }
+
+        const successful = query.vnp_ResponseCode === '00' && query.vnp_TransactionStatus === '00';
+        payment.status = successful ? PaymentStatus.PAID : PaymentStatus.FAILED;
+        payment.paidAt = successful ? new Date() : null;
+        payment.gatewayResponse = query;
+        if (successful) payment.transactionId = `VNPAY-${query.vnp_TransactionNo}`;
+
+        order.paymentStatus = successful ? ('paid' as typeof order.paymentStatus) : ('failed' as typeof order.paymentStatus);
+        if (successful) order.orderStatus = OrderStatus.CONFIRMED;
+        await paymentRepository.save(payment);
+        await orderRepository.save(order);
+        return { RspCode: '00', Message: 'Confirm success' };
+      });
+    } catch {
+      return { RspCode: '99', Message: 'Unknown error' };
+    }
+  }
+
+  createVnpayReturnRedirect(rawQuery: Record<string, string | string[]>): string {
+    const query = this.normalizeVnpayQuery(rawQuery);
+    const { hashSecret, frontendReturnUrl } = this.getVnpayConfig();
+    const orderId = this.orderIdFromVnpayReference(query.vnp_TxnRef);
+    const valid = verifyVnpaySignature(query, hashSecret);
+    const successful = valid && query.vnp_ResponseCode === '00' && query.vnp_TransactionStatus === '00';
+    const redirectUrl = new URL(frontendReturnUrl);
+    redirectUrl.searchParams.set('vnpayReturn', '1');
+    if (orderId) redirectUrl.searchParams.set('orderId', orderId);
+    redirectUrl.searchParams.set('status', successful ? 'success' : 'failed');
+    redirectUrl.searchParams.set('responseCode', query.vnp_ResponseCode ?? 'invalid');
+    return redirectUrl.toString();
+  }
+
+  private getVnpayConfig() {
+    const tmnCode = this.configService.get<string>('VNPAY_TMN_CODE');
+    const hashSecret = this.configService.get<string>('VNPAY_HASH_SECRET');
+    const paymentUrl = this.configService.get<string>('VNPAY_PAYMENT_URL')
+      ?? 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
+    const returnUrl = this.configService.get<string>('VNPAY_RETURN_URL');
+    const frontendReturnUrl = this.configService.get<string>('VNPAY_FRONTEND_RETURN_URL')
+      ?? 'http://localhost:5173/thanh-toan-vnpay';
+    if (!tmnCode || !hashSecret || !returnUrl) {
+      throw new InternalServerErrorException('Thiếu cấu hình VNPAY_TMN_CODE, VNPAY_HASH_SECRET hoặc VNPAY_RETURN_URL.');
+    }
+    return { tmnCode, hashSecret, paymentUrl, returnUrl, frontendReturnUrl };
+  }
+
+  private normalizeVnpayQuery(query: Record<string, string | string[]>): VnpayParameters {
+    return Object.fromEntries(
+      Object.entries(query)
+        .filter(([key]) => key.startsWith('vnp_'))
+        .map(([key, value]) => [key, Array.isArray(value) ? value[0] : String(value)]),
+    );
+  }
+
+  private orderIdFromVnpayReference(reference = ''): string | null {
+    const compactUuid = reference.slice(0, 32);
+    if (!/^[a-fA-F0-9]{32}$/.test(compactUuid)) return null;
+    return `${compactUuid.slice(0, 8)}-${compactUuid.slice(8, 12)}-${compactUuid.slice(12, 16)}-${compactUuid.slice(16, 20)}-${compactUuid.slice(20)}`;
+  }
+
+  private normalizeIpAddress(ipAddress: string): string {
+    if (!ipAddress || ipAddress === '::1') return '127.0.0.1';
+    return ipAddress.replace(/^::ffff:/, '');
+  }
+
+  private formatVnpayDate(date: Date): string {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+    }).formatToParts(date);
+    const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '';
+    return `${value('year')}${value('month')}${value('day')}${value('hour')}${value('minute')}${value('second')}`;
   }
 
   async processCallback(

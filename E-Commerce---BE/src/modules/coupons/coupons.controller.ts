@@ -1,4 +1,6 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Request } from 'express';
+import { User } from '../users/user.entity';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { Permissions } from '../../common/decorators/permissions.decorator';
@@ -15,9 +17,8 @@ export class CouponsController {
 
   @Get('public')
   @Public()
-  findPublicActive(@Req() req: any, @Query('userId') userIdQuery?: string) {
-    const userId = req.user?.id || userIdQuery;
-    return this.couponsService.findPublicActive(userId);
+  findPublicActive(@Req() req: Request & { user?: User }) {
+    return this.couponsService.findPublicActive(req.user?.id);
   }
 
 
