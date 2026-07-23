@@ -41,7 +41,7 @@ export class Payment {
   status: PaymentStatus;
 
   @Column({ name: 'gateway_response', type: 'jsonb', nullable: true })
-  gatewayResponse: any;
+  gatewayResponse: unknown;
 
   @Column({ name: 'paid_at', type: 'timestamptz', nullable: true })
   paidAt: Date;

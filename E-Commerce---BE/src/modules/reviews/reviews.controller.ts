@@ -7,7 +7,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 
-@Controller('reviews')
+@Controller(['admin/reviews', 'reviews'])
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 

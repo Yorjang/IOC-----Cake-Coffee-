@@ -136,7 +136,6 @@ export function Header({
           </button>
         </div>
 
-        {(isLoggedIn || lastCreatedOrder) && (
           <button
             type="button"
             onClick={() => setView(VIEW_KEYS.TRACKING)}
@@ -146,7 +145,6 @@ export function Header({
           >
             <Package size={20} />
           </button>
-        )}
         <button
           type="button"
           onClick={() => setView(VIEW_KEYS.CART)}

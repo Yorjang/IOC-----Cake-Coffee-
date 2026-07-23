@@ -1,4 +1,6 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Request } from 'express';
+import { User } from '../users/user.entity';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { Permissions } from '../../common/decorators/permissions.decorator';
@@ -8,16 +10,15 @@ import { CouponsService } from './coupons.service';
 import { CreateCouponDto } from './dto/create-coupon.dto';
 import { UpdateCouponDto } from './dto/update-coupon.dto';
 
-@Controller('coupons')
+@Controller(['admin/vouchers', 'admin/coupons', 'coupons', 'vouchers'])
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class CouponsController {
   constructor(private readonly couponsService: CouponsService) {}
 
   @Get('public')
   @Public()
-  findPublicActive(@Req() req: any, @Query('userId') userIdQuery?: string) {
-    const userId = req.user?.id || userIdQuery;
-    return this.couponsService.findPublicActive(userId);
+  findPublicActive(@Req() req: Request & { user?: User }) {
+    return this.couponsService.findPublicActive(req.user?.id);
   }
 
 

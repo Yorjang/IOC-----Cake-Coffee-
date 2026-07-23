@@ -98,8 +98,8 @@ export function useCheckout({ cart, setView, onPlaceOrder, user }: any) {
     let paymentMethod = "cod";
     if (paymentMethodText === "Chuyển khoản ngân hàng") {
       paymentMethod = "bank_transfer";
-    } else if (paymentMethodText === "Ví Momo") {
-      paymentMethod = "momo";
+    } else if (paymentMethodText === "VNPay") {
+      paymentMethod = "vnpay";
     }
 
     const finalBranchId = selectedBranchId;

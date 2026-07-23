@@ -3,6 +3,7 @@ import { Category } from './category.entity';
 import { ProductVariant } from './product-variant.entity';
 import { ProductTopping } from './product-topping.entity';
 import { ProductTag } from './product-tag.entity';
+import { ComboItem } from '../combos/combo-item.entity';
 
 export enum ProductType {
     CAKE = 'cake',
@@ -64,6 +65,9 @@ export class Product {
         inverseJoinColumn: { name: 'tag_id', referencedColumnName: 'id' },
     })
     tags: ProductTag[];
+
+    @OneToMany(() => ComboItem, (item) => item.comboProduct)
+    items: ComboItem[];
 
     @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
     createdAt: Date;

@@ -23,6 +23,8 @@ import { CreateBranchIngredientStockDto, UpdateBranchIngredientStockDto } from '
 import { CreateVariantIngredientDto, BulkSetVariantIngredientsDto } from './dto/variant-ingredient.dto';
 import { CreateStockBatchDto, UpdateStockBatchDto } from './dto/stock-batch.dto';
 import { CreateInventoryTransactionDto } from './dto/create-inventory-transaction.dto';
+import { CreatePurchaseOrderDto, QueryPurchaseOrderDto } from './dto/create-purchase-order.dto';
+import { ConfirmInboundDto } from './dto/confirm-inbound.dto';
 import {
   QueryVariantStockDto,
   QueryIngredientStockDto,
@@ -32,7 +34,7 @@ import {
   QueryLowStockDto,
 } from './dto/query-inventory.dto';
 
-@Controller('inventory')
+@Controller(['admin/inventory', 'inventory'])
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
@@ -240,5 +242,47 @@ export class InventoryController {
   @Permissions(Permission.VIEW_INVENTORY)
   getExpiringBatches(@Query() query: QueryExpiryWarningDto) {
     return this.inventoryService.getExpiringBatches(query);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Inbound Workflow & Purchase Orders (Scan Barcode & FEFO Confirmation)
+  // ───────────────────────────────────────────────────────────────────────────
+  @Post('purchase-orders')
+  @Permissions(Permission.MANAGE_INVENTORY)
+  createPurchaseOrder(
+    @Body() dto: CreatePurchaseOrderDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.inventoryService.createPurchaseOrder(dto, user?.id);
+  }
+
+  @Get('purchase-orders')
+  @Permissions(Permission.VIEW_INVENTORY)
+  findPurchaseOrders(@Query() query: QueryPurchaseOrderDto) {
+    return this.inventoryService.findPurchaseOrders(query);
+  }
+
+  @Get('purchase-orders/:id')
+  @Permissions(Permission.VIEW_INVENTORY)
+  findPurchaseOrderById(@Param('id', ParseUUIDPipe) id: string) {
+    return this.inventoryService.findPurchaseOrderById(id);
+  }
+
+  @Get('inbound/scan')
+  @Permissions(Permission.MANAGE_INVENTORY)
+  scanInboundBarcode(
+    @Query('po_code') poCode: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.inventoryService.scanInboundBarcode(poCode, user);
+  }
+
+  @Post('inbound/confirm')
+  @Permissions(Permission.MANAGE_INVENTORY)
+  confirmInbound(
+    @Body() dto: ConfirmInboundDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.inventoryService.confirmInbound(dto, user);
   }
 }

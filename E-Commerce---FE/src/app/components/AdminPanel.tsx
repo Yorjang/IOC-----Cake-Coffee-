@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { env } from "../../config/env";
 import { supabase } from "../../config/supabase";
 import { parseRes } from "../../utils/api";
+import { AdminCombos } from "./admin/AdminCombos";
 
 function ImageUploader({ label, value, onChange }: { label: string; value: string; onChange: (url: string) => void }) {
   const [uploading, setUploading] = useState(false);
@@ -171,7 +172,7 @@ function Dashboard() {
       return;
     }
     try {
-      const res = await fetch(`${env.API_URL}/orders/dashboard/stats`, {
+      const res = await fetch(`${env.API_URL}/admin/dashboard`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const resData = await parseRes(res);
@@ -1408,16 +1409,24 @@ function AdminInventory() {
 
   const loadInventory = async () => {
     const token = localStorage.getItem("accessToken");
+    if (!token) {
+      toast.error("Thiếu mã xác thực (AccessToken). Vui lòng đăng nhập lại.");
+      setLoading(false);
+      return;
+    }
     try {
-      const res = await fetch(`${env.API_URL}/inventory`, {
+      const res = await fetch(`${env.API_URL}/admin/inventory`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await parseRes(res);
       if (res.ok) {
         setStocks(data);
+      } else {
+        toast.error(data.message || `Lỗi tải tồn kho (${res.status}): Vui lòng kiểm tra quyền truy cập.`);
       }
     } catch (err) {
       console.error(err);
+      toast.error("Không thể kết nối đến máy chủ Backend (http://localhost:3000).");
     } finally {
       setLoading(false);
     }
@@ -3139,6 +3148,7 @@ const navItems = [
   { key: "branches", label: "Chi nhánh", icon: Store, allowedRoles: ["admin", "store_manager"] },
   { key: "storeMap", label: "Bản đồ", icon: MapPin, allowedRoles: ["admin", "store_manager"] },
   { key: "products", label: "Sản phẩm", icon: Package, allowedRoles: ["admin", "store_manager", "staff"] },
+  { key: "combos", label: "Combo", icon: Boxes, allowedRoles: ["admin", "store_manager"] },
   { key: "categories", label: "Danh mục", icon: Tag, allowedRoles: ["admin", "store_manager", "staff"] },
   { key: "productTags", label: "Tag sản phẩm", icon: Tag, allowedRoles: ["admin", "store_manager", "staff"] },
   { key: "inventory", label: "Tồn kho", icon: Boxes, allowedRoles: ["admin", "store_manager", "staff"] },
@@ -3155,12 +3165,77 @@ const navItems = [
   allowedRoles: AdminRole[];
 }>;
 
+const KEY_TO_PATH: Record<string, string> = {
+  dashboard: "/admin/dashboard",
+  orders: "/admin/orders",
+  branches: "/admin/branches",
+  storeMap: "/admin/map",
+  products: "/admin/products",
+  categories: "/admin/categories",
+  productTags: "/admin/tags",
+  inventory: "/admin/inventory",
+  users: "/admin/users",
+  reviews: "/admin/reviews",
+  vouchers: "/admin/vouchers",
+  banners: "/admin/banners",
+  revenue: "/admin/statistics",
+  settings: "/admin/settings",
+};
+
+const PATH_TO_KEY: Record<string, string> = {
+  "/admin": "dashboard",
+  "/admin/": "dashboard",
+  "/admin/dashboard": "dashboard",
+  "/admin/orders": "orders",
+  "/admin/branches": "branches",
+  "/admin/map": "storeMap",
+  "/admin/products": "products",
+  "/admin/categories": "categories",
+  "/admin/tags": "productTags",
+  "/admin/inventory": "inventory",
+  "/admin/users": "users",
+  "/admin/reviews": "reviews",
+  "/admin/vouchers": "vouchers",
+  "/admin/banners": "banners",
+  "/admin/statistics": "revenue",
+  "/admin/settings": "settings",
+};
+
 export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUser?: any }) {
   const role = (adminUser?.role ?? "admin") as AdminRole;
   const visibleNav = navItems.filter(item => item.allowedRoles.includes(role));
-  const [active, setActive] = useState(visibleNav[0]?.key ?? "dashboard");
+
+  const getInitialActive = () => {
+    const currentKey = PATH_TO_KEY[window.location.pathname];
+    if (currentKey && visibleNav.some(item => item.key === currentKey)) {
+      return currentKey;
+    }
+    return visibleNav[0]?.key ?? "dashboard";
+  };
+
+  const [active, setActive] = useState(getInitialActive);
   const [mobileNav, setMobileNav] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("sb_admin_sidebar_collapsed") === "true");
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const key = PATH_TO_KEY[window.location.pathname];
+      if (key && visibleNav.some(item => item.key === key)) {
+        setActive(key);
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [visibleNav]);
+
+  const selectTab = (key: string) => {
+    setActive(key);
+    setMobileNav(false);
+    const targetPath = KEY_TO_PATH[key] || "/admin/dashboard";
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState(null, "", targetPath);
+    }
+  };
 
   const toggleSidebar = () => {
     setSidebarCollapsed(previous => {
@@ -3176,6 +3251,7 @@ export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUse
     branches: <AdminBranches adminUser={adminUser} />,
     storeMap: <AdminStoreMap />,
     products: <AdminProducts />,
+    combos: <AdminCombos />,
     categories: <AdminCategories />,
     productTags: <AdminProductTags />,
     inventory: <AdminInventory />,
@@ -3240,7 +3316,7 @@ export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUse
             {visibleNav.map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
-                onClick={() => { setActive(key); setMobileNav(false); }}
+                onClick={() => selectTab(key)}
                 title={sidebarCollapsed ? label : undefined}
                 aria-label={label}
                 className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${sidebarCollapsed ? "lg:justify-center lg:gap-0 lg:px-0" : ""} ${active === key ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:bg-sidebar-accent"}`}
