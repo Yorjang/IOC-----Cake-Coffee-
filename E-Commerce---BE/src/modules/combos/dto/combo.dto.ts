@@ -13,9 +13,6 @@ export class ComboItemDto {
   @Min(1)
   quantity: number;
 
-  @IsBoolean()
-  @IsOptional()
-  isOptional?: boolean;
 }
 
 export class CreateComboDto {

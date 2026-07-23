@@ -2,6 +2,7 @@ import { Heart, Minus, Plus, Star, Check } from "lucide-react";
 import { Btn, ProductCard } from "../components/shared";
 import { VIEW_KEYS } from "../../config/appConfig";
 import { useProductDetail } from "../features/products/hooks/useProductDetail";
+import { ComboContents, type ComboContentItem } from "../features/products/ui/ComboContents";
 
 const formatPrice = (priceNum: number): string => {
   return priceNum.toLocaleString("vi-VN") + "đ";
@@ -19,6 +20,7 @@ export function ProductDetail(props: any) {
     sugar, setSugar,
     ice, setIce,
     selectedToppings,
+    comboDrinkOptions,
     customText, setCustomText,
     needCandles, setNeedCandles,
     quantity, setQuantity,
@@ -26,9 +28,10 @@ export function ProductDetail(props: any) {
     related,
     unitPrice,
     discountedPrice, discountAmount, bestCoupon, totalPriceStr,
-    toggleTopping, handleAdd
+    toggleTopping, updateComboDrinkOption, handleAdd
   } = useProductDetail(props);
   const isCombo = p[2] === VIEW_KEYS.COMBO;
+  const comboItems: ComboContentItem[] = Array.isArray(p.raw?.items) ? p.raw.items : [];
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6 lg:px-10">
@@ -87,36 +90,42 @@ export function ProductDetail(props: any) {
 
           <hr className="border-border" />
 
-          {/* Size selection */}
-          <div className="space-y-3">
-            <h3 className="font-semibold text-sm text-foreground">Kích cỡ</h3>
-            {availableVariants.length > 0 ? (
-            <div className="flex flex-wrap gap-3">
-              {availableVariants.map((variant: any) => (
-                <button
-                  key={variant.id}
-                  type="button"
-                  onClick={() => setSelectedVariantId(variant.id)}
-                  className={`rounded-xl border px-5 py-2.5 text-sm font-medium transition ${selectedVariant?.id === variant.id ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border hover:border-primary/50 text-foreground"}`}
-                >
-                  <span>{variant.size || variant.variantName}</span>
-                  <span className="ml-2 text-xs opacity-75">{formatPrice(Number(variant.price))}</span>
-                </button>
-              ))}
+          {isCombo ? (
+            <ComboContents
+              items={comboItems}
+              drinkOptions={comboDrinkOptions}
+              sugarOptions={SUGAR_OPTIONS}
+              iceOptions={ICE_OPTIONS}
+              onDrinkOptionChange={updateComboDrinkOption}
+            />
+          ) : (
+            <div className="space-y-3">
+              <h3 className="font-semibold text-sm text-foreground">Kích cỡ</h3>
+              {availableVariants.length > 0 ? (
+                <div className="flex flex-wrap gap-3">
+                  {availableVariants.map((variant: any) => (
+                    <button
+                      key={variant.id}
+                      type="button"
+                      onClick={() => setSelectedVariantId(variant.id)}
+                      className={`rounded-xl border px-5 py-2.5 text-sm font-medium transition ${selectedVariant?.id === variant.id ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border hover:border-primary/50 text-foreground"}`}
+                    >
+                      <span>{variant.size || variant.variantName}</span>
+                      <span className="ml-2 text-xs opacity-75">{formatPrice(Number(variant.price))}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+                  Sản phẩm hiện chưa có kích cỡ đang bán.
+                </p>
+              )}
             </div>
-            ) : (
-              <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
-                Sản phẩm hiện chưa có kích cỡ đang bán.
-              </p>
-            )}
-          </div>
+          )}
 
           {/* Drinks specific options */}
-          {(isDrink || isCombo) && (
+          {isDrink && (
             <div className="space-y-5 pt-1">
-              {isCombo && (
-                <p className="text-xs text-muted-foreground">Áp dụng cho phần đồ uống trong combo</p>
-              )}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="block font-semibold text-sm text-foreground">Chọn mức đường</label>

@@ -194,6 +194,11 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
                     <div className="text-[11px] text-muted-foreground/80 space-y-0.5 mt-1">
                       {item.options.sugar && <div>Đường: {item.options.sugar}</div>}
                       {item.options.ice && <div>Đá: {item.options.ice}</div>}
+                      {item.options.comboDrinkOptions && Object.values(item.options.comboDrinkOptions).map((option: any, optionIndex) => (
+                        <div key={`${option.productName}-${optionIndex}`}>
+                          {option.productName}: đường {option.sugar}, đá {option.ice}
+                        </div>
+                      ))}
                       {item.options.toppings && item.options.toppings.length > 0 && (
                         <div>Topping: {item.options.toppings.join(", ")}</div>
                       )}

@@ -71,12 +71,12 @@ export function AdminCombos() {
   };
   useEffect(() => { load(); }, []);
 
-  const addItem = () => setItems(current => [...current, { childProductId: "", childVariantId: "", quantity: 1, isOptional: false }]);
+  const addItem = () => setItems(current => [...current, { childProductId: "", childVariantId: "", quantity: 1 }]);
   const updateItem = (index: number, changes: any) => setItems(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...changes } : item));
   const openAdd = () => {
     setEditing(null);
     setForm(emptyForm());
-    setItems([{ childProductId: "", childVariantId: "", quantity: 1, isOptional: false }]);
+    setItems([{ childProductId: "", childVariantId: "", quantity: 1 }]);
     setShowModal(true);
   };
   const openEdit = (combo: any) => {
@@ -90,7 +90,7 @@ export function AdminCombos() {
       isActive: combo.isActive,
       branchId: combo.branchId || (isManager ? user?.branchId || "" : "")
     });
-    setItems((combo.items || []).map((item: any) => ({ childProductId: item.childProductId, childVariantId: item.childVariantId || "", quantity: item.quantity, isOptional: item.isOptional })));
+    setItems((combo.items || []).map((item: any) => ({ childProductId: item.childProductId, childVariantId: item.childVariantId || "", quantity: item.quantity })));
     setShowModal(true);
   };
   const save = async () => {
@@ -108,7 +108,7 @@ export function AdminCombos() {
           name: form.name.trim(), 
           price: Number(form.price), 
           branchId: form.branchId || null,
-          items: items.map(item => ({ childProductId: item.childProductId, childVariantId: item.childVariantId || undefined, quantity: Number(item.quantity), isOptional: item.isOptional })) 
+          items: items.map(item => ({ childProductId: item.childProductId, childVariantId: item.childVariantId || undefined, quantity: Number(item.quantity) }))
         }),
       });
       if (!res.ok) { const error = await parseRes(res); throw new Error(Array.isArray(error.message) ? error.message.join(", ") : error.message); }
@@ -154,7 +154,7 @@ export function AdminCombos() {
           </select>
         )}
         <textarea className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm outline-none sm:col-span-2" rows={2} placeholder="Mô tả combo" value={form.description} onChange={event => setForm({ ...form, description: event.target.value })} /><div className="sm:col-span-2"><ImageUploader label="Hình ảnh combo" value={form.imageUrl} onChange={imageUrl => setForm({ ...form, imageUrl })} /></div><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isActive} onChange={event => setForm({ ...form, isActive: event.target.checked })} />Hiển thị combo</label></div>
-      <div className="mt-5 rounded-2xl border border-sidebar-accent p-4"><div className="mb-3 flex items-center justify-between"><div><h4 className="font-semibold">Sản phẩm thành phần</h4><p className="text-xs text-muted-foreground">Chọn sản phẩm, biến thể và số lượng trong combo.</p></div><AdminBtn variant="ghost" onClick={addItem}><span className="flex items-center gap-1"><Plus size={14} />Thêm sản phẩm</span></AdminBtn></div><div className="space-y-3">{items.map((item, index) => { const selectedProduct = products.find(product => product.id === item.childProductId); return <div key={index} className="grid items-end gap-3 rounded-xl bg-sidebar-accent p-3 md:grid-cols-[minmax(180px,1fr)_minmax(160px,1fr)_100px_110px_40px]"><label className="grid gap-1 text-xs text-muted-foreground">Sản phẩm<select className="rounded-lg bg-sidebar px-3 py-2 text-sm text-foreground" value={item.childProductId} onChange={event => updateItem(index, { childProductId: event.target.value, childVariantId: "" })}><option value="">-- Chọn --</option>{products.map(product => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label><label className="grid gap-1 text-xs text-muted-foreground">Biến thể<select className="rounded-lg bg-sidebar px-3 py-2 text-sm text-foreground" value={item.childVariantId} onChange={event => updateItem(index, { childVariantId: event.target.value })}><option value="">Mặc định / bất kỳ</option>{(selectedProduct?.variants || []).map((variant: any) => <option key={variant.id} value={variant.id}>{variant.variantName} - {Number(variant.price).toLocaleString("vi-VN")}đ</option>)}</select></label><label className="grid gap-1 text-xs text-muted-foreground">Số lượng<input type="number" min="1" className="rounded-lg bg-sidebar px-3 py-2 text-sm" value={item.quantity} onChange={event => updateItem(index, { quantity: event.target.value })} /></label><label className="flex h-9 items-center gap-2 text-xs text-muted-foreground"><input type="checkbox" checked={item.isOptional} onChange={event => updateItem(index, { isOptional: event.target.checked })} />Tùy chọn</label><button type="button" onClick={() => setItems(current => current.filter((_, itemIndex) => itemIndex !== index))} className="grid size-9 place-items-center rounded-lg text-red-400 hover:bg-red-500/10"><Trash2 size={15} /></button></div>; })}</div></div>
+      <div className="mt-5 rounded-2xl border border-sidebar-accent p-4"><div className="mb-3 flex items-center justify-between"><div><h4 className="font-semibold">Sản phẩm thành phần</h4><p className="text-xs text-muted-foreground">Chọn sản phẩm, biến thể và số lượng trong combo.</p></div><AdminBtn variant="ghost" onClick={addItem}><span className="flex items-center gap-1"><Plus size={14} />Thêm sản phẩm</span></AdminBtn></div><div className="space-y-3">{items.map((item, index) => { const selectedProduct = products.find(product => product.id === item.childProductId); return <div key={index} className="grid items-end gap-3 rounded-xl bg-sidebar-accent p-3 md:grid-cols-[minmax(180px,1fr)_minmax(160px,1fr)_100px_40px]"><label className="grid gap-1 text-xs text-muted-foreground">Sản phẩm<select className="rounded-lg bg-sidebar px-3 py-2 text-sm text-foreground" value={item.childProductId} onChange={event => updateItem(index, { childProductId: event.target.value, childVariantId: "" })}><option value="">-- Chọn --</option>{products.map(product => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label><label className="grid gap-1 text-xs text-muted-foreground">Biến thể<select className="rounded-lg bg-sidebar px-3 py-2 text-sm text-foreground" value={item.childVariantId} onChange={event => updateItem(index, { childVariantId: event.target.value })}><option value="">Mặc định / bất kỳ</option>{(selectedProduct?.variants || []).map((variant: any) => <option key={variant.id} value={variant.id}>{variant.variantName} - {Number(variant.price).toLocaleString("vi-VN")}đ</option>)}</select></label><label className="grid gap-1 text-xs text-muted-foreground">Số lượng<input type="number" min="1" className="rounded-lg bg-sidebar px-3 py-2 text-sm" value={item.quantity} onChange={event => updateItem(index, { quantity: event.target.value })} /></label><button type="button" onClick={() => setItems(current => current.filter((_, itemIndex) => itemIndex !== index))} className="grid size-9 place-items-center rounded-lg text-red-400 hover:bg-red-500/10"><Trash2 size={15} /></button></div>; })}</div></div>
       <div className="mt-5 flex justify-end gap-3"><AdminBtn variant="ghost" onClick={() => setShowModal(false)}>Hủy</AdminBtn><AdminBtn onClick={save} disabled={saving}>{saving ? "Đang lưu…" : editing ? "Cập nhật" : "Tạo combo"}</AdminBtn></div>
     </div></div>}
   </div>;

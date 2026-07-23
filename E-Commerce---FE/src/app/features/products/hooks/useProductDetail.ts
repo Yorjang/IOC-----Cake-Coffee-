@@ -7,11 +7,17 @@ const formatPrice = (priceNum: number): string => {
   return priceNum.toLocaleString("vi-VN") + "đ";
 };
 
+interface ComboDrinkOption {
+  productName: string;
+  sugar: string;
+  ice: string;
+}
 
 export function useProductDetail({ product, setView, onAddToCart, wishlist, onToggleWishlist, onSelectProduct, products = [], publicCoupons = [] }: any) {
   const p = product || products[0] || ["Sản phẩm", "0đ", "Khác", "", "5.0", ""];
   const isDrink = CATEGORY_GROUPS.DRINKS.includes(p[2] as any);
   const isBirthdayCake = p[2] === "Bánh sinh nhật";
+  const isCombo = p.raw?.productType === "combo";
   const availableVariants = useMemo(() => {
     const variants = Array.isArray(p.raw?.variants) ? p.raw.variants : [];
     return variants
@@ -30,6 +36,7 @@ export function useProductDetail({ product, setView, onAddToCart, wishlist, onTo
   const [sugar, setSugar] = useState("100%");
   const [ice, setIce] = useState("100%");
   const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
+  const [comboDrinkOptions, setComboDrinkOptions] = useState<Record<string, ComboDrinkOption>>({});
   const [customText, setCustomText] = useState("");
   const [needCandles, setNeedCandles] = useState(false);
   const [quantity, setQuantity] = useState(1);
@@ -45,6 +52,29 @@ export function useProductDetail({ product, setView, onAddToCart, wishlist, onTo
   useEffect(() => {
     setSelectedToppings(current => current.filter(name => toppingOptions.some((topping: any) => topping.name === name)));
   }, [p.raw?.id, toppingOptions]);
+
+  useEffect(() => {
+    if (!isCombo) {
+      setComboDrinkOptions({});
+      return;
+    }
+    const comboItems = Array.isArray(p.raw?.items) ? p.raw.items : [];
+    const nextOptions = comboItems.reduce(
+      (options: Record<string, ComboDrinkOption>, item: any) => {
+        const productType = item.childProduct?.productType?.toLowerCase();
+        if (productType === "coffee" || productType === "drink") {
+          options[item.id] = {
+            productName: item.childProduct?.name ?? "Đồ uống",
+            sugar: "100%",
+            ice: "100%",
+          };
+        }
+        return options;
+      },
+      {},
+    );
+    setComboDrinkOptions(nextOptions);
+  }, [isCombo, p.raw?.id, p.raw?.items]);
 
   const selectedVariant = availableVariants.find((variant: any) => variant.id === selectedVariantId)
     || availableVariants[0];
@@ -73,6 +103,22 @@ export function useProductDetail({ product, setView, onAddToCart, wishlist, onTo
     );
   };
 
+  const updateComboDrinkOption = (
+    itemId: string,
+    field: keyof ComboDrinkOption,
+    value: string,
+  ) => {
+    setComboDrinkOptions(current => ({
+      ...current,
+      [itemId]: {
+        productName: current[itemId]?.productName ?? "Đồ uống",
+        sugar: current[itemId]?.sugar ?? "100%",
+        ice: current[itemId]?.ice ?? "100%",
+        [field]: value,
+      },
+    }));
+  };
+
   const handleAdd = (buyNow = false) => {
     if (!selectedVariant) {
       toast.error("Sản phẩm hiện chưa có kích cỡ khả dụng.");
@@ -82,6 +128,7 @@ export function useProductDetail({ product, setView, onAddToCart, wishlist, onTo
       sugar: isDrink ? sugar : undefined,
       ice: isDrink ? ice : undefined,
       toppings: isDrink && selectedToppings.length > 0 ? selectedToppings : undefined,
+      comboDrinkOptions: isCombo ? comboDrinkOptions : undefined,
       customText: isBirthdayCake && customText.trim() ? customText : undefined,
       needCandles: isBirthdayCake && needCandles ? true : undefined,
     };
@@ -108,6 +155,7 @@ export function useProductDetail({ product, setView, onAddToCart, wishlist, onTo
     sugar, setSugar,
     ice, setIce,
     selectedToppings, setSelectedToppings,
+    comboDrinkOptions,
     customText, setCustomText,
     needCandles, setNeedCandles,
     quantity, setQuantity,
@@ -115,6 +163,6 @@ export function useProductDetail({ product, setView, onAddToCart, wishlist, onTo
     related,
     toppingsPrice, variantPrice, unitPrice,
     selectedSize, discountedPrice, discountAmount, bestCoupon, totalPriceStr,
-    toggleTopping, handleAdd
+    toggleTopping, updateComboDrinkOption, handleAdd
   };
 }

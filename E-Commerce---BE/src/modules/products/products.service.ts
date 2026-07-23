@@ -137,7 +137,14 @@ export class ProductsService implements OnModuleInit {
                 : Object.keys(baseWhere).length > 0 ? baseWhere : undefined;
         return this.products.find({
             where,
-            relations: { category: true, variants: true, toppings: true, tags: true, branch: true },
+            relations: {
+                category: true,
+                variants: true,
+                toppings: true,
+                tags: true,
+                branch: true,
+                items: { childProduct: { category: true }, childVariant: true },
+            },
             order: { name: 'ASC' },
         });
     }
@@ -145,7 +152,14 @@ export class ProductsService implements OnModuleInit {
     async findProductById(id: string): Promise<Product> {
         const prod = await this.products.findOne({
             where: { id },
-            relations: { category: true, variants: true, toppings: true, tags: true, branch: true },
+            relations: {
+                category: true,
+                variants: true,
+                toppings: true,
+                tags: true,
+                branch: true,
+                items: { childProduct: { category: true }, childVariant: true },
+            },
         });
         if (!prod) throw new NotFoundException('Không tìm thấy sản phẩm');
         return prod;

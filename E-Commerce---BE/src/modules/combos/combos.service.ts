@@ -185,7 +185,6 @@ export class CombosService {
       childProductId: item.childProductId,
       childVariantId: item.childVariantId || null,
       quantity: item.quantity,
-      isOptional: item.isOptional ?? false,
       sortOrder: index,
     }));
   }
