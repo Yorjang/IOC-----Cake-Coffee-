@@ -49,6 +49,11 @@ export class CouponsService implements OnModuleInit {
     } catch (err) {
       console.error('Error adding is_approved to coupons:', err);
     }
+    try {
+      await this.coupons.query('ALTER TABLE coupons ADD COLUMN IF NOT EXISTS is_pending_delete BOOLEAN DEFAULT FALSE');
+    } catch (err) {
+      console.error('Error adding is_pending_delete to coupons:', err);
+    }
 
   }
 
@@ -70,7 +75,7 @@ export class CouponsService implements OnModuleInit {
 
   async findPublicActive(userId?: string, branchId?: string): Promise<Coupon[]> {
     const coupons = await this.coupons.find({
-      where: { status: CouponStatus.ACTIVE, isApproved: true },
+      where: { status: CouponStatus.ACTIVE, isApproved: true, isPendingDelete: false },
       relations: { product: { category: true }, category: true, branch: true },
       order: { createdAt: 'DESC' },
     });
@@ -130,7 +135,14 @@ export class CouponsService implements OnModuleInit {
     }
 
     const branchId = user.role === UserRole.STORE_MANAGER ? user.branchId : dto.branchId;
-    const isApproved = user.role !== UserRole.STORE_MANAGER;
+    let isApproved = true;
+    if (user.role === UserRole.STORE_MANAGER) {
+      const isPercentOverLimit = discountType === DiscountType.PERCENT && discountValue > 10;
+      const isFixedOverLimit = discountType === DiscountType.FIXED && discountValue > 10000;
+      if (isPercentOverLimit || isFixedOverLimit) {
+        isApproved = false;
+      }
+    }
 
     const coupon = this.coupons.create({
       code: dto.code.toUpperCase().trim(),
@@ -244,7 +256,13 @@ export class CouponsService implements OnModuleInit {
     }
 
     if (user.role === UserRole.STORE_MANAGER) {
-      coupon.isApproved = false;
+      const isPercentOverLimit = coupon.discountType === DiscountType.PERCENT && coupon.discountValue > 10;
+      const isFixedOverLimit = coupon.discountType === DiscountType.FIXED && coupon.discountValue > 10000;
+      if (isPercentOverLimit || isFixedOverLimit) {
+        coupon.isApproved = false;
+      } else {
+        coupon.isApproved = true;
+      }
     }
 
     const saved = await this.coupons.save(coupon);
@@ -254,7 +272,7 @@ export class CouponsService implements OnModuleInit {
     } as any;
   }
 
-  async approve(id: string, user: User): Promise<Coupon> {
+  async approve(id: string, user: User): Promise<any> {
     if (user.role !== UserRole.ADMIN) {
       throw new BadRequestException('Chỉ quản trị viên mới có quyền duyệt voucher.');
     }
@@ -262,15 +280,21 @@ export class CouponsService implements OnModuleInit {
     if (!coupon) {
       throw new BadRequestException('Voucher không tồn tại.');
     }
-    coupon.isApproved = true;
-    const saved = await this.coupons.save(coupon);
-    return {
-      ...saved,
-      isActive: saved.status === CouponStatus.ACTIVE,
-    } as any;
+    if (coupon.isPendingDelete) {
+      await this.coupons.delete(id);
+      return { message: 'Đã duyệt yêu cầu xóa voucher.', deleted: true };
+    } else {
+      coupon.isApproved = true;
+      const saved = await this.coupons.save(coupon);
+      return {
+        ...saved,
+        isActive: saved.status === CouponStatus.ACTIVE,
+        deleted: false,
+      } as any;
+    }
   }
 
-  async delete(id: string, user: User): Promise<{ message: string }> {
+  async delete(id: string, user: User): Promise<{ message: string; pending: boolean }> {
     const coupon = await this.coupons.findOne({ where: { id } });
     if (!coupon) {
       throw new BadRequestException('Voucher không tồn tại.');
@@ -278,8 +302,14 @@ export class CouponsService implements OnModuleInit {
     if (user.role === UserRole.STORE_MANAGER && coupon.branchId !== user.branchId) {
       throw new BadRequestException('Bạn không có quyền xóa voucher của chi nhánh khác');
     }
-    await this.coupons.delete(id);
-    return { message: 'Xóa voucher thành công' };
+    if (user.role === UserRole.STORE_MANAGER) {
+      coupon.isPendingDelete = true;
+      await this.coupons.save(coupon);
+      return { message: 'Đã gửi yêu cầu xóa voucher lên Admin phê duyệt.', pending: true };
+    } else {
+      await this.coupons.delete(id);
+      return { message: 'Xóa voucher thành công', pending: false };
+    }
   }
 }
 

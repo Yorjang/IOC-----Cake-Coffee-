@@ -221,7 +221,9 @@ export function AdminVouchers() {
   };
 
   const handleApprove = async (id: string) => {
-    if (!window.confirm("Bạn có chắc chắn muốn duyệt voucher này không?")) return;
+    const couponObj = coupons.find(c => c.id === id);
+    const actionLabel = couponObj?.isPendingDelete ? "duyệt xóa" : "phê duyệt";
+    if (!window.confirm(`Bạn có chắc chắn muốn ${actionLabel} voucher này không?`)) return;
     const token = localStorage.getItem("accessToken");
     try {
       const res = await fetch(`${env.API_URL}/admin/vouchers/${id}/approve`, {
@@ -287,7 +289,11 @@ export function AdminVouchers() {
               const hasLimit = v.usageLimit !== null;
               const usedRatio = hasLimit ? (v.usedCount / v.usageLimit) * 100 : 0;
               const isExpired = new Date(v.expiresAt) < new Date();
-              const status = !v.isApproved ? "Chờ duyệt" : (isExpired ? "Hết hạn" : (v.isActive ? "Hoạt động" : "Tạm khóa"));
+              const status = v.isPendingDelete
+                ? "Chờ xóa"
+                : !v.isApproved
+                  ? "Chờ duyệt"
+                  : isExpired ? "Hết hạn" : (v.isActive ? "Hoạt động" : "Tạm khóa");
 
               return (
                 <tr key={v.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
@@ -338,9 +344,9 @@ export function AdminVouchers() {
                   <td className="py-3"><StatusBadge status={status} /></td>
                   <td className="py-3">
                     <div className="flex gap-2">
-                      {isAdmin && !v.isApproved && (
+                      {isAdmin && (!v.isApproved || v.isPendingDelete) && (
                         <button
-                          title="Duyệt voucher"
+                          title={v.isPendingDelete ? "Duyệt xóa" : "Duyệt voucher"}
                           onClick={() => handleApprove(v.id)}
                           className="inline-flex size-8 items-center justify-center rounded-lg bg-green-950/40 text-green-400 hover:bg-green-900/40 transition animate-pulse"
                         >

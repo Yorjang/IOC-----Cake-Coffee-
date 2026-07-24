@@ -99,6 +99,9 @@ export class Coupon {
   @Column({ name: 'is_approved', type: 'boolean', default: true })
   isApproved: boolean;
 
+  @Column({ name: 'is_pending_delete', type: 'boolean', default: false })
+  isPendingDelete: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }

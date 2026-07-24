@@ -175,6 +175,7 @@ export const statusColor: Record<string, string> = {
   "Mới": "bg-blue-100 text-blue-700",
   "Đã duyệt": "bg-green-100 text-green-700",
   "Chờ duyệt": "bg-yellow-100 text-yellow-700",
+  "Chờ xóa": "bg-red-100 text-red-700",
   "Ẩn": "bg-gray-100 text-gray-700",
   "Đang hoạt động": "bg-green-100 text-green-700",
   "Hết lượt": "bg-red-100 text-red-700",

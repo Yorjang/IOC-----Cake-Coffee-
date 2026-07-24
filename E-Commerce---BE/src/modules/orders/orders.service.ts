@@ -231,13 +231,16 @@ export class OrdersService {
     let couponId: string | null = null;
     if (couponCode && userId) {
       const couponRes = await this.orders.query(
-        `SELECT id, status, expires_at, usage_limit, used_count, per_customer_limit, product_id, categories_id, branch_id, is_approved FROM coupons WHERE code = $1`,
+        `SELECT id, status, expires_at, usage_limit, used_count, per_customer_limit, product_id, categories_id, branch_id, is_approved, is_pending_delete FROM coupons WHERE code = $1`,
         [couponCode.toUpperCase().trim()]
       );
       if (couponRes.length === 0) {
         throw new BadRequestException(`Mã giảm giá "${couponCode}" không hợp lệ.`);
       }
       const coupon = couponRes[0];
+      if (coupon.is_pending_delete === true) {
+        throw new BadRequestException(`Mã giảm giá "${couponCode}" đã bị yêu cầu xóa và đang chờ duyệt.`);
+      }
       if (coupon.is_approved === false) {
         throw new BadRequestException(`Mã giảm giá "${couponCode}" đang chờ quản trị viên phê duyệt.`);
       }
