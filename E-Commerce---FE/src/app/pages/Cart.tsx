@@ -197,6 +197,7 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
                       {item.options.comboDrinkOptions && Object.values(item.options.comboDrinkOptions).map((option: any, optionIndex) => (
                         <div key={`${option.productName}-${optionIndex}`}>
                           {option.productName}: đường {option.sugar}, đá {option.ice}
+                          {option.toppings && option.toppings.length > 0 && ` + Topping: ${option.toppings.join(", ")}`}
                         </div>
                       ))}
                       {item.options.toppings && item.options.toppings.length > 0 && (

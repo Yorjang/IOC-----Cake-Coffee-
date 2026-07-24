@@ -47,6 +47,15 @@ export class CouponsController {
     return this.couponsService.update(id, dto, user);
   }
 
+  @Patch(':id/approve')
+  @Permissions(Permission.MANAGE_BRANCHES) // RESTRICTED TO ADMIN ONLY IN SERVICE
+  approve(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.couponsService.approve(id, user);
+  }
+
   @Delete(':id')
   @Permissions(Permission.MANAGE_BRANCHES) // Managers and admins only
   delete(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {

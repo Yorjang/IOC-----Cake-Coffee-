@@ -50,9 +50,10 @@ export function getDiscountedPrice(originalPrice: number, productOrId: any, coup
       }
     }
   });
+  const finalDiscount = Math.round(maxDiscount);
   return {
-    discountedPrice: Math.max(0, originalPrice - maxDiscount),
-    discountAmount: maxDiscount,
+    discountedPrice: Math.max(0, originalPrice - finalDiscount),
+    discountAmount: finalDiscount,
     bestCoupon
   };
 }

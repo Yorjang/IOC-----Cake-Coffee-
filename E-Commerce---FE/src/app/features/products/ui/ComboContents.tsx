@@ -1,3 +1,5 @@
+import { Check } from "lucide-react";
+
 interface ComboProduct {
   name: string;
   productType?: string;
@@ -5,6 +7,7 @@ interface ComboProduct {
     name?: string;
     slug?: string;
   } | null;
+  toppings?: any[];
 }
 
 interface ComboVariant {
@@ -23,6 +26,7 @@ export interface ComboContentItem {
 export interface ComboDrinkOption {
   sugar: string;
   ice: string;
+  toppings?: string[];
 }
 
 interface ComboContentsProps {
@@ -35,6 +39,7 @@ interface ComboContentsProps {
     field: keyof ComboDrinkOption,
     value: string,
   ) => void;
+  onComboDrinkToppingToggle?: (itemId: string, toppingName: string) => void;
 }
 
 function isDrinkItem(item: ComboContentItem): boolean {
@@ -55,6 +60,7 @@ export function ComboContents({
   sugarOptions,
   iceOptions,
   onDrinkOptionChange,
+  onComboDrinkToppingToggle,
 }: ComboContentsProps) {
   const sortedItems = [...items].sort(
     (first, second) => (first.sortOrder ?? 0) - (second.sortOrder ?? 0),
@@ -72,9 +78,9 @@ export function ComboContents({
       {sortedItems.length > 0 ? (
         <div className="overflow-hidden rounded-2xl border border-border">
           {sortedItems.map((item) => {
-            const option = drinkOptions[item.id] ?? { sugar: "100%", ice: "100%" };
+            const option = drinkOptions[item.id] ?? { sugar: "100%", ice: "100%", toppings: [] };
             return (
-              <div key={item.id} className="border-b border-border p-4 last:border-b-0">
+              <div key={item.id} className="border-b border-border p-4 last:border-b-0 animate-fadeIn">
                 <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center">
                   <p className="truncate text-sm font-semibold text-foreground">
                     {item.childProduct?.name ?? "Sản phẩm không còn khả dụng"}
@@ -96,7 +102,7 @@ export function ComboContents({
                       <select
                         value={option.sugar}
                         onChange={(event) => onDrinkOptionChange(item.id, "sugar", event.target.value)}
-                        className="rounded-xl border border-border bg-background px-3 py-2.5 text-sm font-normal outline-none focus:border-primary"
+                        className="rounded-xl border border-border bg-background px-3 py-2.5 text-sm font-normal outline-none focus:border-primary transition"
                       >
                         {sugarOptions.map((value) => <option key={value} value={value}>{value}</option>)}
                       </select>
@@ -106,11 +112,40 @@ export function ComboContents({
                       <select
                         value={option.ice}
                         onChange={(event) => onDrinkOptionChange(item.id, "ice", event.target.value)}
-                        className="rounded-xl border border-border bg-background px-3 py-2.5 text-sm font-normal outline-none focus:border-primary"
+                        className="rounded-xl border border-border bg-background px-3 py-2.5 text-sm font-normal outline-none focus:border-primary transition"
                       >
                         {iceOptions.map((value) => <option key={value} value={value}>{value}</option>)}
                       </select>
                     </label>
+                  </div>
+                )}
+
+                {item.childProduct?.toppings && item.childProduct.toppings.filter((t: any) => t.isActive).length > 0 && (
+                  <div className="mt-4 border-t border-border pt-4">
+                    <p className="text-xs font-semibold text-foreground mb-2">Thêm Topping</p>
+                    <div className="flex flex-wrap gap-2">
+                      {item.childProduct.toppings
+                        .filter((t: any) => t.isActive)
+                        .map((t: any) => {
+                          const isSelected = (option.toppings || []).includes(t.name);
+                          return (
+                            <button
+                              key={t.id || t.name}
+                              type="button"
+                              onClick={() => onComboDrinkToppingToggle?.(item.id, t.name)}
+                              className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs transition ${
+                                isSelected
+                                  ? "border-primary bg-primary/5 text-primary font-semibold"
+                                  : "border-border hover:border-primary/50 text-foreground"
+                              }`}
+                            >
+                              {isSelected && <Check size={12} />}
+                              <span>{t.name}</span>
+                              <span className="opacity-75">({t.price.toLocaleString("vi-VN")}đ)</span>
+                            </button>
+                          );
+                        })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -125,3 +160,4 @@ export function ComboContents({
     </div>
   );
 }
+

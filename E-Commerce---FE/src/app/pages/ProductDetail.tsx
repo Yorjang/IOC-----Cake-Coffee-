@@ -28,7 +28,7 @@ export function ProductDetail(props: any) {
     related,
     unitPrice,
     discountedPrice, discountAmount, bestCoupon, totalPriceStr,
-    toggleTopping, updateComboDrinkOption, handleAdd
+    toggleTopping, updateComboDrinkOption, toggleComboDrinkTopping, handleAdd
   } = useProductDetail(props);
   const isCombo = p[2] === VIEW_KEYS.COMBO;
   const comboItems: ComboContentItem[] = Array.isArray(p.raw?.items) ? p.raw.items : [];
@@ -97,6 +97,7 @@ export function ProductDetail(props: any) {
               sugarOptions={SUGAR_OPTIONS}
               iceOptions={ICE_OPTIONS}
               onDrinkOptionChange={updateComboDrinkOption}
+              onComboDrinkToppingToggle={toggleComboDrinkTopping}
             />
           ) : (
             <div className="space-y-3">

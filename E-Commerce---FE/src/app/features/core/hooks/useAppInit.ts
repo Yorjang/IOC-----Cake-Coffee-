@@ -142,12 +142,39 @@ const mapDbCartToLegacy = (dbItems: any[]): any[] => {
     ];
     (legacyProduct as any).raw = p;
     
-    let options = {};
+    let options: any = {};
     try {
       options = item.note ? JSON.parse(item.note) : {};
     } catch {
       options = { customText: item.note };
     }
+
+    let toppingsCost = 0;
+    if (options && options.toppings) {
+      const selectedTps: string[] = options.toppings;
+      const productTps: any[] = p.toppings || [];
+      for (const name of selectedTps) {
+        const tp = productTps.find((x: any) => x.name === name);
+        if (tp) toppingsCost += Number(tp.price || 0);
+      }
+    }
+    if (options && options.comboDrinkOptions) {
+      const cdo = options.comboDrinkOptions;
+      const comboItems = Array.isArray(p.items) ? p.items : [];
+      for (const itemKey of Object.keys(cdo)) {
+        const selectedCdo = cdo[itemKey];
+        if (selectedCdo && selectedCdo.toppings && selectedCdo.toppings.length > 0) {
+          const matchedComboItem = comboItems.find((ci: any) => ci.id === itemKey);
+          const childProductToppings = matchedComboItem?.childProduct?.toppings || [];
+          for (const tpName of selectedCdo.toppings) {
+            const tp = childProductToppings.find((x: any) => x.name === tpName);
+            if (tp) toppingsCost += Number(tp.price || 0);
+          }
+        }
+      }
+    }
+
+    const itemUnitPrice = Number(variantPrice) + toppingsCost;
 
     return {
       dbId: item.id,
@@ -155,7 +182,8 @@ const mapDbCartToLegacy = (dbItems: any[]): any[] => {
       size: item.variant?.size || "Vừa",
       quantity: item.quantity,
       options: options,
-      price: Number(variantPrice),
+      price: itemUnitPrice,
+      basePrice: Number(variantPrice),
       productId: item.productId,
       variantId: item.variantId
     };
@@ -726,6 +754,7 @@ export function useAppInit() {
           quantity: qty,
           options,
           price: cartPrice,
+          basePrice: Number(selectedVariant?.price || 0),
           productId,
           variantId,
         });
@@ -863,8 +892,8 @@ export function useAppInit() {
         productName: rawProd.name,
         variantName: variant.variantName,
         quantity: item.quantity,
-        unitPrice: Number(variant.price),
-        totalPrice: Number(variant.price) * item.quantity,
+        unitPrice: item.price || Number(variant.price),
+        totalPrice: (item.price || Number(variant.price)) * item.quantity,
       };
     });
 
@@ -948,7 +977,7 @@ export function useAppInit() {
         return isProductMatch && isCategoryMatch && isSizeMatch;
       });
 
-      const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
+      const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.basePrice || item.price || parsePrice(item.product[1])) * item.quantity, 0);
 
       if (matchingItems.length > 0) {
         if (appliedCoupon.discountType === "percent") {

@@ -110,6 +110,14 @@ export function AdminVouchers() {
       toast.error("Vui lòng điền đầy đủ các trường bắt buộc.");
       return;
     }
+    if (discountType === "percent" && Number(discountValue) > 100) {
+      toast.error("Giá trị giảm giá theo phần trăm không được vượt quá 100%.");
+      return;
+    }
+    if (discountType === "percent" && Number(discountValue) <= 0) {
+      toast.error("Giá trị giảm giá theo phần trăm phải lớn hơn 0%.");
+      return;
+    }
     const token = localStorage.getItem("accessToken");
     setSaving(true);
     try {
@@ -212,6 +220,27 @@ export function AdminVouchers() {
     return Array.from(new Set(sizes.map((s: string) => s.trim()))) as string[];
   };
 
+  const handleApprove = async (id: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn duyệt voucher này không?")) return;
+    const token = localStorage.getItem("accessToken");
+    try {
+      const res = await fetch(`${env.API_URL}/admin/vouchers/${id}/approve`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await parseRes(res);
+      if (res.ok) {
+        toast.success("Đã duyệt voucher thành công.");
+        loadCoupons();
+      } else {
+        toast.error(data.message || "Lỗi khi duyệt voucher.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi kết nối.");
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa voucher này không?")) return;
     const token = localStorage.getItem("accessToken");
@@ -258,7 +287,7 @@ export function AdminVouchers() {
               const hasLimit = v.usageLimit !== null;
               const usedRatio = hasLimit ? (v.usedCount / v.usageLimit) * 100 : 0;
               const isExpired = new Date(v.expiresAt) < new Date();
-              const status = isExpired ? "Hết hạn" : (v.isActive ? "Hoạt động" : "Tạm khóa");
+              const status = !v.isApproved ? "Chờ duyệt" : (isExpired ? "Hết hạn" : (v.isActive ? "Hoạt động" : "Tạm khóa"));
 
               return (
                 <tr key={v.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
@@ -309,6 +338,15 @@ export function AdminVouchers() {
                   <td className="py-3"><StatusBadge status={status} /></td>
                   <td className="py-3">
                     <div className="flex gap-2">
+                      {isAdmin && !v.isApproved && (
+                        <button
+                          title="Duyệt voucher"
+                          onClick={() => handleApprove(v.id)}
+                          className="inline-flex size-8 items-center justify-center rounded-lg bg-green-950/40 text-green-400 hover:bg-green-900/40 transition animate-pulse"
+                        >
+                          <CheckCircle size={14} />
+                        </button>
+                      )}
                       <button
                         title="Sửa voucher"
                         onClick={() => handleStartEdit(v)}

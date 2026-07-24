@@ -143,7 +143,7 @@ export class ProductsService implements OnModuleInit {
                 toppings: true,
                 tags: true,
                 branch: true,
-                items: { childProduct: { category: true }, childVariant: true },
+                items: { childProduct: { category: true, toppings: true }, childVariant: true },
             },
             order: { name: 'ASC' },
         });
@@ -158,7 +158,7 @@ export class ProductsService implements OnModuleInit {
                 toppings: true,
                 tags: true,
                 branch: true,
-                items: { childProduct: { category: true }, childVariant: true },
+                items: { childProduct: { category: true, toppings: true }, childVariant: true },
             },
         });
         if (!prod) throw new NotFoundException('Không tìm thấy sản phẩm');

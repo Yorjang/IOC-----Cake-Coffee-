@@ -96,6 +96,9 @@ export class Coupon {
   @JoinColumn({ name: 'branch_id' })
   branch: Branch;
 
+  @Column({ name: 'is_approved', type: 'boolean', default: true })
+  isApproved: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }

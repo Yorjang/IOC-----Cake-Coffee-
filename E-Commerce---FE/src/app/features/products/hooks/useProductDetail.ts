@@ -11,6 +11,7 @@ interface ComboDrinkOption {
   productName: string;
   sugar: string;
   ice: string;
+  toppings?: string[];
 }
 
 export function useProductDetail({ product, setView, onAddToCart, wishlist, onToggleWishlist, onSelectProduct, products = [], publicCoupons = [] }: any) {
@@ -67,6 +68,7 @@ export function useProductDetail({ product, setView, onAddToCart, wishlist, onTo
             productName: item.childProduct?.name ?? "Đồ uống",
             sugar: "100%",
             ice: "100%",
+            toppings: [],
           };
         }
         return options;
@@ -86,15 +88,35 @@ export function useProductDetail({ product, setView, onAddToCart, wishlist, onTo
     .filter((item: any) => item[2] === p[2] && item[0] !== p[0])
     .slice(0, 4);
 
+  const comboToppingsPrice = useMemo(() => {
+    if (!isCombo) return 0;
+    let sum = 0;
+    const comboItems = Array.isArray(p.raw?.items) ? p.raw.items : [];
+    for (const item of comboItems) {
+      const option = comboDrinkOptions[item.id];
+      if (option && option.toppings && option.toppings.length > 0) {
+        const itemToppings = Array.isArray(item.childProduct?.toppings) ? item.childProduct.toppings : [];
+        for (const tName of option.toppings) {
+          const t = itemToppings.find((x: any) => x.name === tName);
+          if (t) {
+            sum += Number(t.price || 0) * Number(item.quantity || 1);
+          }
+        }
+      }
+    }
+    return sum;
+  }, [isCombo, comboDrinkOptions, p.raw?.items]);
+
   const toppingsPrice = selectedToppings.reduce((sum: number, name: string) => {
     const option = toppingOptions.find((topping: any) => topping.name === name);
     return sum + Number(option?.price || 0);
   }, 0);
 
   const variantPrice = Number(selectedVariant?.price || 0);
-  const unitPrice = Math.max(0, variantPrice + toppingsPrice);
+  const unitPrice = Math.max(0, variantPrice + toppingsPrice + comboToppingsPrice);
   const selectedSize = selectedVariant?.size || selectedVariant?.variantName || "";
-  const { discountedPrice, discountAmount, bestCoupon } = getDiscountedPrice(unitPrice, p.raw, publicCoupons, selectedSize);
+  const { discountedPrice: discountedVariantPrice, discountAmount, bestCoupon } = getDiscountedPrice(variantPrice, p.raw, publicCoupons, selectedSize);
+  const discountedPrice = discountedVariantPrice + toppingsPrice + comboToppingsPrice;
   const totalPriceStr = formatPrice(discountedPrice * quantity);
 
   const toggleTopping = (name: string) => {
@@ -114,9 +136,28 @@ export function useProductDetail({ product, setView, onAddToCart, wishlist, onTo
         productName: current[itemId]?.productName ?? "Đồ uống",
         sugar: current[itemId]?.sugar ?? "100%",
         ice: current[itemId]?.ice ?? "100%",
+        toppings: current[itemId]?.toppings ?? [],
         [field]: value,
       },
     }));
+  };
+
+  const toggleComboDrinkTopping = (itemId: string, toppingName: string) => {
+    setComboDrinkOptions(current => {
+      const existing = current[itemId];
+      if (!existing) return current;
+      const currentToppings = existing.toppings || [];
+      const newToppings = currentToppings.includes(toppingName)
+        ? currentToppings.filter(t => t !== toppingName)
+        : [...currentToppings, toppingName];
+      return {
+        ...current,
+        [itemId]: {
+          ...existing,
+          toppings: newToppings,
+        },
+      };
+    });
   };
 
   const handleAdd = (buyNow = false) => {
@@ -163,6 +204,6 @@ export function useProductDetail({ product, setView, onAddToCart, wishlist, onTo
     related,
     toppingsPrice, variantPrice, unitPrice,
     selectedSize, discountedPrice, discountAmount, bestCoupon, totalPriceStr,
-    toggleTopping, updateComboDrinkOption, handleAdd
+    toggleTopping, updateComboDrinkOption, toggleComboDrinkTopping, handleAdd
   };
 }

@@ -44,6 +44,11 @@ export class CouponsService implements OnModuleInit {
     } catch (err) {
       // Ignore if constraint already exists
     }
+    try {
+      await this.coupons.query('ALTER TABLE coupons ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT TRUE');
+    } catch (err) {
+      console.error('Error adding is_approved to coupons:', err);
+    }
 
   }
 
@@ -65,7 +70,7 @@ export class CouponsService implements OnModuleInit {
 
   async findPublicActive(userId?: string, branchId?: string): Promise<Coupon[]> {
     const coupons = await this.coupons.find({
-      where: { status: CouponStatus.ACTIVE },
+      where: { status: CouponStatus.ACTIVE, isApproved: true },
       relations: { product: { category: true }, category: true, branch: true },
       order: { createdAt: 'DESC' },
     });
@@ -108,12 +113,24 @@ export class CouponsService implements OnModuleInit {
 
 
   async create(dto: CreateCouponDto, user: User): Promise<Coupon> {
+    const discountType = dto.discountType || DiscountType.PERCENT;
+    const discountValue = Number(dto.discountValue);
+    if (discountType === DiscountType.PERCENT) {
+      if (discountValue > 100) {
+        throw new BadRequestException('Mã giảm giá theo phần trăm không được vượt quá 100%.');
+      }
+      if (discountValue <= 0) {
+        throw new BadRequestException('Mã giảm giá theo phần trăm phải lớn hơn 0%.');
+      }
+    }
+
     const existing = await this.coupons.findOne({ where: { code: dto.code.toUpperCase().trim() } });
     if (existing) {
       throw new BadRequestException('Mã voucher này đã tồn tại.');
     }
 
     const branchId = user.role === UserRole.STORE_MANAGER ? user.branchId : dto.branchId;
+    const isApproved = user.role !== UserRole.STORE_MANAGER;
 
     const coupon = this.coupons.create({
       code: dto.code.toUpperCase().trim(),
@@ -130,6 +147,7 @@ export class CouponsService implements OnModuleInit {
       categoriesId: dto.categoriesId || null,
       targetSize: dto.targetSize || null,
       branchId: branchId || null,
+      isApproved,
       couponScope: dto.targetSize
         ? CouponScope.VARIANT
         : dto.productId
@@ -172,6 +190,18 @@ export class CouponsService implements OnModuleInit {
 
     if (dto.name !== undefined) coupon.name = dto.name;
     if (dto.description !== undefined) coupon.description = dto.description;
+    
+    const nextDiscountType = dto.discountType !== undefined ? dto.discountType : coupon.discountType;
+    const nextDiscountValue = dto.discountValue !== undefined ? Number(dto.discountValue) : coupon.discountValue;
+    if (nextDiscountType === DiscountType.PERCENT) {
+      if (nextDiscountValue > 100) {
+        throw new BadRequestException('Mã giảm giá theo phần trăm không được vượt quá 100%.');
+      }
+      if (nextDiscountValue <= 0) {
+        throw new BadRequestException('Mã giảm giá theo phần trăm phải lớn hơn 0%.');
+      }
+    }
+
     if (dto.discountType !== undefined) coupon.discountType = dto.discountType;
     if (dto.discountValue !== undefined) coupon.discountValue = Number(dto.discountValue);
     if (dto.minOrderValue !== undefined) coupon.minOrderValue = Number(dto.minOrderValue);
@@ -213,6 +243,26 @@ export class CouponsService implements OnModuleInit {
       coupon.status = dto.isActive ? CouponStatus.ACTIVE : CouponStatus.DISABLED;
     }
 
+    if (user.role === UserRole.STORE_MANAGER) {
+      coupon.isApproved = false;
+    }
+
+    const saved = await this.coupons.save(coupon);
+    return {
+      ...saved,
+      isActive: saved.status === CouponStatus.ACTIVE,
+    } as any;
+  }
+
+  async approve(id: string, user: User): Promise<Coupon> {
+    if (user.role !== UserRole.ADMIN) {
+      throw new BadRequestException('Chỉ quản trị viên mới có quyền duyệt voucher.');
+    }
+    const coupon = await this.coupons.findOne({ where: { id } });
+    if (!coupon) {
+      throw new BadRequestException('Voucher không tồn tại.');
+    }
+    coupon.isApproved = true;
     const saved = await this.coupons.save(coupon);
     return {
       ...saved,

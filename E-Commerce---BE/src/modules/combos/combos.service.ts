@@ -44,7 +44,7 @@ export class CombosService {
       relations: {
         category: true,
         variants: true,
-        items: { childProduct: true, childVariant: true },
+        items: { childProduct: { toppings: true }, childVariant: true },
         branch: true,
       },
       order: { createdAt: 'DESC' },
@@ -172,7 +172,7 @@ export class CombosService {
   private async findOne(id: string): Promise<Product> {
     const combo = await this.products.findOne({
       where: { id, productType: ProductType.COMBO },
-      relations: { category: true, variants: true, items: { childProduct: true, childVariant: true } },
+      relations: { category: true, variants: true, items: { childProduct: { toppings: true }, childVariant: true } },
     });
     if (!combo) throw new NotFoundException('Không tìm thấy combo');
     combo.items.sort((a, b) => a.sortOrder - b.sortOrder);

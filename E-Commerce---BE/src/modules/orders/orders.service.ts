@@ -231,13 +231,16 @@ export class OrdersService {
     let couponId: string | null = null;
     if (couponCode && userId) {
       const couponRes = await this.orders.query(
-        `SELECT id, status, expires_at, usage_limit, used_count, per_customer_limit, product_id, categories_id, branch_id FROM coupons WHERE code = $1`,
+        `SELECT id, status, expires_at, usage_limit, used_count, per_customer_limit, product_id, categories_id, branch_id, is_approved FROM coupons WHERE code = $1`,
         [couponCode.toUpperCase().trim()]
       );
       if (couponRes.length === 0) {
         throw new BadRequestException(`Mã giảm giá "${couponCode}" không hợp lệ.`);
       }
       const coupon = couponRes[0];
+      if (coupon.is_approved === false) {
+        throw new BadRequestException(`Mã giảm giá "${couponCode}" đang chờ quản trị viên phê duyệt.`);
+      }
       if (coupon.status !== 'active') {
         throw new BadRequestException(`Mã giảm giá "${couponCode}" không còn hoạt động.`);
       }
@@ -298,11 +301,22 @@ export class OrdersService {
         const minOrderVal = Number(couponDetail.min_order_value || 0);
         
         if (calculatedSubtotal >= minOrderVal) {
+          // Fetch base variant prices to exclude toppings from discount calculations
+          const variantIds = items.map((item: any) => item.variantId);
+          const variants = await this.orders.query(
+            `SELECT id, price FROM product_variants WHERE id = ANY($1)`,
+            [variantIds]
+          );
+          const basePriceMap = new Map<string, number>();
+          for (const v of variants) {
+            basePriceMap.set(v.id, Number(v.price || 0));
+          }
+
           let matchingSubtotal = calculatedSubtotal;
           
           if (couponDetail.product_id) {
             const matchingItems = items.filter((item: any) => item.productId === couponDetail.product_id);
-            matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (Number(item.unitPrice) * item.quantity), 0);
+            matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + ((basePriceMap.get(item.variantId) || Number(item.unitPrice)) * item.quantity), 0);
           } else if (couponDetail.categories_id) {
             const itemProductIds = items.map((item: any) => item.productId);
             const productsWithCategory = await this.orders.query(
@@ -314,7 +328,10 @@ export class OrdersService {
               .map((p: any) => p.id);
             
             const matchingItems = items.filter((item: any) => matchingProductIds.includes(item.productId));
-            matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (Number(item.unitPrice) * item.quantity), 0);
+            matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + ((basePriceMap.get(item.variantId) || Number(item.unitPrice)) * item.quantity), 0);
+          } else {
+            // General or Order-wide coupon - discount is still calculated against product base prices
+            matchingSubtotal = items.reduce((sum: number, item: any) => sum + ((basePriceMap.get(item.variantId) || Number(item.unitPrice)) * item.quantity), 0);
           }
           
           if (couponDetail.discount_type === 'percent') {
