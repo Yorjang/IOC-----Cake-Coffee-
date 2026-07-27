@@ -1,9 +1,9 @@
-import { parseRes } from '../../utils/api';
 import { useState, useEffect } from "react";
 import { Star, ThumbsUp, Camera, ArrowLeft } from "lucide-react";
 import { env } from "../../config/env";
 import { getAccessToken } from "./authSession";
 import { toast } from "sonner";
+
 
 function StarPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const [hover, setHover] = useState(0);
@@ -28,9 +28,17 @@ function StarPicker({ value, onChange }: { value: number; onChange: (v: number) 
   );
 }
 
-const ratingLabels = ["", "Tệ", "Không tốt", "Bình thường", "Tốt", "Xuất sắc!"];
+const ratingLabels = ["", "Tệ (1/5 sao)", "Không tốt (2/5 sao)", "Bình thường (3/5 sao)", "Tuyệt vời (4/5 sao)", "Xuất sắc! (5/5 sao)"];
 
-export function ReviewPage({ product, onBack }: any) {
+const predefinedTags = [
+  "Cốt bánh mềm mịn",
+  "Ít ngọt, dễ ăn",
+  "Trang trí đẹp",
+  "Đóng gói chống sốc tốt",
+  "Giao hàng nhanh"
+];
+
+export function ReviewPage({ product, onBack, isEmbedded = false }: any) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -38,26 +46,24 @@ export function ReviewPage({ product, onBack }: any) {
   const [sortBy, setSortBy] = useState("newest");
   const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
   const [reviewsList, setReviewsList] = useState<any[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  if (!product) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6">
-        <div className="mb-4 text-muted-foreground"><Camera size={48} /></div>
-        <h2 className="text-xl font-semibold mb-2">Không tìm thấy sản phẩm</h2>
-        <p className="text-muted-foreground mb-6">Có vẻ như sản phẩm này không tồn tại hoặc đã bị xóa.</p>
-        <button onClick={onBack} className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-primary-foreground transition hover:bg-primary/90 font-medium">
-          <ArrowLeft size={18} /> Quay lại
-        </button>
-      </div>
-    );
-  }
+  const toggleTag = (tag: string) => {
+    if (selectedTags.includes(tag)) {
+      setSelectedTags(selectedTags.filter(t => t !== tag));
+    } else {
+      setSelectedTags([...selectedTags, tag]);
+    }
+  };
+
+  if (!product) return null;
 
   const displayProductName = product[0];
   const displayProductPrice = product[1];
   const displayProductImage = product[3];
 
-  const productId = product?.raw?.id;
+  const productId = product.raw?.id;
 
   const loadReviews = async () => {
     if (!productId) return;
@@ -65,7 +71,7 @@ export function ReviewPage({ product, onBack }: any) {
     try {
       const res = await fetch(`${env.API_URL}/reviews/product/${productId}`);
       if (res.ok) {
-        const data = await parseRes(res);
+        const data = await res.json();
         const mapped = data.map((r: any) => ({
           user: r.user?.fullName || "Khách hàng",
           avatar: (r.user?.fullName || "K").charAt(0).toUpperCase(),
@@ -89,7 +95,7 @@ export function ReviewPage({ product, onBack }: any) {
     loadReviews();
   }, [productId]);
 
-  const avgRating = reviewsList.length > 0 
+  const avgRating = reviewsList.length > 0
     ? (reviewsList.reduce((a, r) => a + r.rating, 0) / reviewsList.length).toFixed(1)
     : "5.0";
   const dist = [5, 4, 3, 2, 1].map(r => ({ r, count: reviewsList.filter(x => x.rating === r).length }));
@@ -105,7 +111,14 @@ export function ReviewPage({ product, onBack }: any) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (rating === 0 || !comment.trim()) return;
+    if (rating === 0) return;
+
+    const tagsText = selectedTags.join(", ");
+    const finalComment = selectedTags.length > 0
+      ? comment.trim() ? `${tagsText} - ${comment.trim()}` : tagsText
+      : comment.trim();
+
+    if (!finalComment) return;
 
     const token = getAccessToken();
     if (!token) {
@@ -123,11 +136,11 @@ export function ReviewPage({ product, onBack }: any) {
         body: JSON.stringify({
           productId,
           rating,
-          comment
+          comment: finalComment
         })
       });
 
-      const resData = await parseRes(res);
+      const resData = await res.json();
       if (!res.ok) {
         throw new Error(resData.message || "Gửi đánh giá thất bại");
       }
@@ -141,32 +154,39 @@ export function ReviewPage({ product, onBack }: any) {
     }
   };
 
+  const Container = isEmbedded ? "div" : "main";
+  const containerProps = isEmbedded ? { className: "mt-12", id: "reviews-section" } : { className: "mx-auto max-w-5xl px-4 py-8", id: "reviews-section" };
+
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-3">
-        {onBack && (
-          <button
-            onClick={onBack}
-            className="flex items-center justify-center size-9 rounded-full bg-secondary hover:bg-accent transition text-foreground"
-            title="Quay lại"
-          >
-            <ArrowLeft size={16} />
-          </button>
-        )}
-        <p className="text-sm text-muted-foreground">Trang chủ / {displayProductName} / Đánh giá</p>
-      </div>
+    <Container {...containerProps}>
+      {!isEmbedded && (
+        <>
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-3">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="flex items-center justify-center size-9 rounded-full bg-secondary hover:bg-accent transition text-foreground"
+                title="Quay lại"
+              >
+                <ArrowLeft size={16} />
+              </button>
+            )}
+            <p className="text-sm text-muted-foreground">Trang chủ / {displayProductName} / Đánh giá</p>
+          </div>
 
-      {/* Product context */}
-      <div className="mt-5 flex flex-wrap items-center gap-5 rounded-[2rem] border bg-card p-6">
-        <img src={displayProductImage} alt={displayProductName} className="size-20 rounded-2xl object-cover" />
-        <div className="flex-1">
-          <h1 className="text-3xl">{displayProductName}</h1>
-          <p className="mt-1 text-muted-foreground">{displayProductPrice}</p>
-        </div>
-      </div>
+          {/* Product context */}
+          <div className="mt-5 flex flex-wrap items-center gap-5 rounded-[2rem] border bg-card p-6">
+            <img src={displayProductImage} alt={displayProductName} className="size-20 rounded-2xl object-cover" />
+            <div className="flex-1">
+              <h1 className="text-3xl">{displayProductName}</h1>
+              <p className="mt-1 text-muted-foreground">{displayProductPrice}</p>
+            </div>
+          </div>
+        </>
+      )}
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
+      <div className={`${isEmbedded ? "" : "mt-8"} grid gap-8 lg:grid-cols-[1fr_360px]`}>
         {/* Reviews list */}
         <div>
           {/* Summary */}
@@ -227,7 +247,11 @@ export function ReviewPage({ product, onBack }: any) {
                     {[1, 2, 3, 4, 5].map(s => <Star key={s} size={14} className={s <= r.rating ? "fill-[#d99554] text-[#d99554]" : "text-muted"} />)}
                   </div>
                 </div>
-                <p className="mt-3 text-sm text-foreground/90 leading-relaxed">{r.comment}</p>
+                <p className="mt-3 text-sm text-foreground/90 leading-relaxed">
+                  {r.comment.startsWith("[") && r.comment.includes("]")
+                    ? r.comment.replace(/^\[(.*?)\]\s*/, (match: any, tags: string) => tags + (r.comment.length > match.length ? " - " : ""))
+                    : r.comment}
+                </p>
                 {r.images.length > 0 && (
                   <div className="mt-3 flex gap-2">
                     {r.images.map((img, j) => <img key={j} src={img} alt="review" className="size-16 rounded-xl object-cover" />)}
@@ -252,55 +276,88 @@ export function ReviewPage({ product, onBack }: any) {
           </div>
         </div>
 
-        {/* Write review form */}
+        {/* Write review form - Styled specifically for Sweet Bean Concept */}
         <div className="lg:sticky lg:top-24 h-fit">
-          <div className="rounded-[2rem] border bg-card p-6">
-            <h2 className="text-2xl">Viết đánh giá</h2>
+          <div className="bg-white p-6 rounded-3xl shadow-xl w-full border border-[#F3EFEA]">
+            
+            {/* Header: Product Info */}
+            <div className="flex items-center gap-4 mb-6 pb-4 border-b border-gray-100">
+                <img src={displayProductImage} alt={displayProductName} className="w-16 h-16 rounded-2xl object-cover shadow-sm" />
+                <div>
+                    <h2 className="text-base font-bold text-[#4A3B32]">{displayProductName}</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">Mã SP: {productId || "FNB-92814"}</p>
+                </div>
+            </div>
+
             {submitted ? (
-              <div className="mt-5 rounded-2xl bg-[#eef7ed] p-5 text-sm text-[#355c31]">
-                ✓ Cảm ơn bạn đã đánh giá! Nhận xét sẽ được hiển thị ngay bên dưới.
-                <button onClick={() => { setSubmitted(false); setRating(0); setComment(""); }} className="mt-3 block text-[#355c31] underline">Đánh giá thêm</button>
+              <div className="rounded-2xl bg-[#eef7ed] p-5 text-sm text-[#355c31] text-center mb-4">
+                <p className="font-semibold mb-2">Cảm ơn bạn đã gửi đánh giá!</p>
+                <p className="text-xs mb-4">Nhận xét sẽ được hiển thị ngay bên dưới.</p>
+                <button onClick={() => { setSubmitted(false); setRating(0); setComment(""); setSelectedTags([]); }} className="inline-block px-4 py-2 bg-white rounded-full text-[#355c31] border border-[#355c31] transition hover:bg-[#eef7ed]">Đánh giá thêm</button>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="mt-5 space-y-5">
-                <div>
-                  <label className="mb-2 block text-sm font-semibold">Xếp hạng *</label>
-                  <StarPicker value={rating} onChange={setRating} />
-                  {rating > 0 && <p className="mt-1 text-sm text-primary font-medium">{ratingLabels[rating]}</p>}
+              <form onSubmit={handleSubmit}>
+                {/* Rating Stars */}
+                <div className="text-center mb-6">
+                    <p className="text-sm font-medium text-gray-600 mb-2">Hương vị món này thế nào bạn ơi?</p>
+                    <div className="flex justify-center">
+                      <StarPicker value={rating} onChange={setRating} />
+                    </div>
+                    {rating > 0 && <p className="text-xs font-semibold text-amber-600 mt-1">{ratingLabels[rating]}</p>}
                 </div>
-                <div>
-                  <label className="mb-2 block text-sm font-semibold">Nhận xét *</label>
-                  <textarea
-                    rows={5}
-                    required
-                    value={comment}
-                    onChange={e => setComment(e.target.value)}
-                    placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm này…"
-                    className="w-full resize-none rounded-xl border bg-input-background p-3 text-sm outline-none focus:border-primary transition"
-                  />
-                  <p className="mt-1 text-xs text-muted-foreground text-right">{comment.length}/500</p>
+
+                {/* Tags / Chips */}
+                <div className="mb-6">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Điểm bạn thích nhất ở món này:</p>
+                    <div className="flex flex-wrap gap-2">
+                        {predefinedTags.map(tag => (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => toggleTag(tag)}
+                            className={`px-3.5 py-1.5 text-xs rounded-full transition ${
+                              selectedTags.includes(tag) 
+                                ? "border border-[#8C6D53] text-[#8C6D53] bg-[#F3EFEA] font-medium" 
+                                : "border border-gray-200 text-gray-600 hover:bg-gray-50"
+                            }`}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                    </div>
                 </div>
-                <div>
-                  <label className="mb-2 block text-sm font-semibold">Thêm ảnh (tùy chọn)</label>
-                  <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed bg-secondary p-4 text-sm text-muted-foreground hover:bg-accent transition">
-                    <Camera size={18} /> Chọn ảnh từ thiết bị
-                    <input type="file" accept="image/*" multiple className="hidden" />
-                  </label>
+
+                {/* Comment Textarea */}
+                <div className="mb-4">
+                    <textarea 
+                      className="w-full border border-gray-200 rounded-2xl p-3 text-sm text-gray-700 focus:outline-none focus:border-[#8C6D53] focus:ring-1 focus:ring-[#8C6D53] resize-none h-24 bg-[#FAFAFA]" 
+                      placeholder="Chia sẻ thêm cảm nhận về độ ngọt, lớp kem hoặc phần trà sữa nhé..."
+                      value={comment}
+                      onChange={e => setComment(e.target.value)}
+                    ></textarea>
                 </div>
-                <button
+
+                {/* Image Upload */}
+                <label className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-2xl p-3 text-gray-500 hover:bg-[#FAF7F2] cursor-pointer transition mb-6">
+                    <Camera className="w-5 h-5 text-[#8C6D53]" />
+                    <span className="text-xs font-semibold text-gray-600">Thêm ảnh chụp thực tế (Nhận mã giảm 10%)</span>
+                    <input type="file" className="hidden" accept="image/*" />
+                </label>
+
+                {/* Submit Button */}
+                <button 
                   type="submit"
-                  disabled={rating === 0 || !comment.trim()}
-                  className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:bg-[#57311e] disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={rating === 0}
+                  className="w-full bg-[#8C6D53] hover:bg-[#73573F] text-white font-semibold text-sm py-3 rounded-2xl transition shadow-md shadow-[#8C6D53]/20 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Gửi đánh giá
+                    Gửi Đánh Giá Ngay
                 </button>
-                <p className="text-center text-xs text-muted-foreground">Đánh giá sẽ được hiển thị trực tiếp sau khi bạn gửi.</p>
               </form>
             )}
           </div>
         </div>
       </div>
-    </main>
+    </Container>
   );
 }
 
