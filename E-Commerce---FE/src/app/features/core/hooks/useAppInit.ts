@@ -30,7 +30,7 @@ const apiProductToArray = (p: any, coupons: any[] = []): any[] => {
   const price = originalPrice ? `${originalPrice.toLocaleString("vi-VN")}đ` : "0đ";
   const categoryName = p.category?.name ?? "Khác";
   const imageUrl = p.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=600&h=520&fit=crop&auto=format";
-  const rating = "4.8";
+  const rating = p.rating ? Number(p.rating).toFixed(1) : "0.0";
   const badge = p.productType === "combo"
     ? "Combo"
     : activeVariants.length > 1
@@ -650,7 +650,9 @@ export function useAppInit() {
   const setView = (newView: any, productData?: any) => {
     const target = productData || (newView === VIEW_KEYS.DETAIL ? selectedProduct : null);
     const newPath = getPathFromView(newView, target);
-    if (window.location.pathname !== newPath) window.history.pushState(null, "", newPath);
+    if (decodeURIComponent(window.location.pathname) !== decodeURIComponent(newPath)) {
+      window.history.pushState(null, "", newPath);
+    }
     
     setIsLoading(true);
     setTimeout(() => {
@@ -702,14 +704,8 @@ export function useAppInit() {
 
   const handleLogout = () => {
     clearAuthSession();
-    setUser(null);
-    setAppliedCoupon(null);
-    setCart([]);
-    setWishlist([]);
-    setLastCreatedOrder(null);
     localStorage.removeItem("sb_active_order");
-    setSelectedOrderId(null);
-    setView(VIEW_KEYS.HOME);
+    window.location.href = "/";
   };
 
   const handleAdminLogout = () => {

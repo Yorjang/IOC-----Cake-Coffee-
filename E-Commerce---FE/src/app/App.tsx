@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
+import { Component, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Toaster } from "./components/ui/sonner";
 import { parseRes } from "../utils/api";
 
 import { AdminPanel } from "./components/AdminPanel";
-import { AdminLoginPage } from "./components/AdminLoginPage";
 import { StaffPanel } from "./components/StaffPanel";
 import { AuthPage } from "./components/AuthPage";
 import { ReviewPage } from "./components/ReviewPage";
@@ -75,9 +74,13 @@ const apiProductToArray = (p: any, coupons: any[] = []): any[] => {
 
 
 const apiCategoryToLegacy = (c: any) => ({
+  id: c.id,
+  parentId: c.parentId ?? null,
   name: c.name,
   icon: "",
   img: c.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=280&h=180&fit=crop&auto=format",
+  sortOrder: c.sortOrder ?? 0,
+  isActive: c.isActive !== false,
 });
 
 const VIEW_PATH_MAP: Record<string, string> = {
@@ -90,7 +93,6 @@ const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.SUCCESS]: "/thanh-cong",
   [VIEW_KEYS.DETAIL]: "/chi-tiet",
   [VIEW_KEYS.ADMIN]: "/admin",
-  [VIEW_KEYS.ADMIN_LOGIN]: "/admin/login",
   [VIEW_KEYS.STAFF]: "/nhan-vien",
   [VIEW_KEYS.LOGIN]: "/dang-nhap",
   [VIEW_KEYS.FAVORITES]: "/yeu-thich",
@@ -110,6 +112,7 @@ const getPathFromView = (view: string, product?: any) => {
 };
 
 const getViewFromPath = (path: string, cats: any[] = []) => {
+  if (path.startsWith("/admin")) return VIEW_KEYS.ADMIN;
   for (const [key, value] of Object.entries(VIEW_PATH_MAP)) {
     if (value === path) return key;
   }
@@ -199,6 +202,59 @@ const getCartSessionId = () => {
 };
 const isAdminUser = (currentUser: any) => ADMIN_ROLES.includes(currentUser?.role);
 const isStaffUser = (currentUser: any) => STAFF_ROLES.includes(currentUser?.role);
+
+interface AdminErrorBoundaryProps {
+  children: ReactNode;
+  onExit: () => void;
+}
+
+interface AdminErrorBoundaryState {
+  hasError: boolean;
+}
+
+class AdminErrorBoundary extends Component<AdminErrorBoundaryProps, AdminErrorBoundaryState> {
+  state: AdminErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): AdminErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("Admin panel render error:", error, info);
+  }
+
+  render() {
+    if (!this.state.hasError) return this.props.children;
+
+    return (
+      <div className="admin-theme flex min-h-screen items-center justify-center bg-background p-6 text-foreground">
+        <div className="max-w-md rounded-2xl border bg-card p-8 text-center shadow-lg">
+          <h1 className="text-xl font-semibold">Không thể hiển thị chức năng quản trị</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Dữ liệu trả về không hợp lệ. Vui lòng tải lại trang hoặc đăng nhập lại.</p>
+          <div className="mt-5 flex justify-center gap-3">
+            <button type="button" onClick={() => window.location.reload()} className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground">Tải lại</button>
+            <button type="button" onClick={this.props.onExit} className="rounded-full border px-5 py-2 text-sm">Về trang chủ</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
+interface ProtectedRouteRedirectProps {
+  message?: string;
+  redirect: (view: string) => void;
+}
+
+function ProtectedRouteRedirect({ message, redirect }: ProtectedRouteRedirectProps) {
+  useEffect(() => {
+    window.history.replaceState(null, "", "/");
+    if (message) toast.error(message);
+    redirect(VIEW_KEYS.HOME);
+  }, [message, redirect]);
+
+  return <><Toaster richColors position="top-center" /><LoadingScreen isLoading={true} /></>;
+}
 
 const estimateDelivery = (distanceKm?: number) => {
   if (typeof distanceKm !== "number") return "Chưa tính";
@@ -653,11 +709,6 @@ export default function App() {
     else setView(VIEW_KEYS.HOME);
   };
 
-  const handleAdminLoginSuccess = (adminUser: any) => {
-    setUser(adminUser);
-    setView(isStaffUser(adminUser) ? VIEW_KEYS.STAFF : VIEW_KEYS.ADMIN);
-  };
-
   const handleLogout = () => {
     clearAuthSession();
     setUser(null);
@@ -935,33 +986,29 @@ export default function App() {
   const shipping = subtotal >= 300000 || subtotal === 0 ? 0 : 15000;
   const grandTotal = Math.max(0, subtotal - discount + shipping);
 
-
-  if (view === VIEW_KEYS.ADMIN_LOGIN) {
-    return <><Toaster richColors position="top-center" /><AdminLoginPage onSuccess={handleAdminLoginSuccess} onBack={() => setView(VIEW_KEYS.HOME)} /></>;
-  }
-
   if (view === VIEW_KEYS.ADMIN) {
-    if (!user) {
-      setTimeout(() => setView(VIEW_KEYS.ADMIN_LOGIN), 0);
-      return <><Toaster richColors position="top-center" /></>;
+    if (!user || !getAccessToken()) {
+      return <ProtectedRouteRedirect message="Vui lòng đăng nhập từ trang chủ." redirect={setViewInternal} />;
     }
     if (!isAdminUser(user)) {
-      toast.error("Bạn không có quyền truy cập trang quản trị.");
-      setTimeout(() => setView(VIEW_KEYS.HOME), 0);
-      return <><Toaster richColors position="top-center" /></>;
+      return <ProtectedRouteRedirect message="Bạn không có quyền truy cập trang quản trị." redirect={setViewInternal} />;
     }
-    return <><Toaster richColors position="top-center" /><AdminPanel onExit={handleAdminLogout} adminUser={user} /></>;
+    return (
+      <>
+        <Toaster richColors position="top-center" />
+        <AdminErrorBoundary onExit={handleAdminLogout}>
+          <AdminPanel onExit={handleAdminLogout} adminUser={user} />
+        </AdminErrorBoundary>
+      </>
+    );
   }
 
   if (view === VIEW_KEYS.STAFF) {
-    if (!user) {
-      setTimeout(() => setView(VIEW_KEYS.ADMIN_LOGIN), 0);
-      return <><Toaster richColors position="top-center" /></>;
+    if (!user || !getAccessToken()) {
+      return <ProtectedRouteRedirect message="Vui lòng đăng nhập từ trang chủ." redirect={setViewInternal} />;
     }
     if (!isStaffUser(user) && !isAdminUser(user)) {
-      toast.error("Bạn không có quyền truy cập trang nhân viên.");
-      setTimeout(() => setView(VIEW_KEYS.HOME), 0);
-      return <><Toaster richColors position="top-center" /></>;
+      return <ProtectedRouteRedirect message="Bạn không có quyền truy cập trang nhân viên." redirect={setViewInternal} />;
     }
     return <><Toaster richColors position="top-center" /><StaffPanel onExit={handleAdminLogout} staffUser={user} products={products} /></>;
   }
@@ -1008,7 +1055,7 @@ export default function App() {
             {view === VIEW_KEYS.TERMS && <PolicyPage type="terms" setView={setView} />}
             {view === VIEW_KEYS.RETURN_POLICY && <PolicyPage type="return" setView={setView} />}
             {view === VIEW_KEYS.ORDER_GUIDE && <PolicyPage type="guide" setView={setView} />}
-            {(LISTABLE.includes(view) || categories.some((c: any) => (c.name || c) === view || (c.name || c)?.toLowerCase() === view?.toLowerCase()) || (typeof view === "string" && (view.toLowerCase() === "cà phê" || view.toLowerCase() === "cafe" || window.location.pathname.startsWith("/danh-muc")))) && <ProductListing category={view} setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} searchQuery={searchQuery} products={products} />}
+            {(LISTABLE.includes(view) || categories.some((category: any) => category.name === view)) && <ProductListing category={view} categories={categories} setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} searchQuery={searchQuery} products={products} />}
           </div>
 
         </main>

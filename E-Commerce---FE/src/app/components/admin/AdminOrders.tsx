@@ -78,7 +78,7 @@ export function AdminOrders() {
         toast.success("Đã đánh dấu hoàn tiền thành công.");
         loadOrders();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi xử lý hoàn tiền.");
       }
     } catch (err) {

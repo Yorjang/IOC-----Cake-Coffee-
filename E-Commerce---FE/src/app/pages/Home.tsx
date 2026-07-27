@@ -1,10 +1,11 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Truck, Gift, RefreshCw, Coffee, AlertCircle, Check, Tag, ChevronRight, ChevronLeft, Plus, MapPin, Loader2, PlayCircle, BookOpen, Users, ChefHat } from "lucide-react";
 import { ProductCard, HorizontalProductCard, Section } from "../components/shared";
 import { MESSAGES } from "../../constants/messages";
 import { env } from "../../config/env";
 import { HOME_CONFIG, VIEW_KEYS } from "../../config/appConfig";
+import { getFeaturedParentCategories } from "../features/categories/categoryHierarchy";
 
 
 
@@ -196,6 +197,10 @@ function ScrollingBestSellers({ products: rawProducts = [], onSelectProduct, onA
 export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggleWishlist, products: rawProducts = [], categories: rawCategories = [], publicCoupons: rawCoupons = [] }: any) {
   const products = Array.isArray(rawProducts) ? rawProducts : (Array.isArray(rawProducts?.data) ? rawProducts.data : (Array.isArray(rawProducts?.products) ? rawProducts.products : []));
   const categories = Array.isArray(rawCategories) ? rawCategories : (Array.isArray(rawCategories?.data) ? rawCategories.data : (Array.isArray(rawCategories?.categories) ? rawCategories.categories : []));
+  const featuredCategories = useMemo(
+    () => getFeaturedParentCategories(categories),
+    [categories],
+  );
   const publicCoupons = Array.isArray(rawCoupons) ? rawCoupons : (Array.isArray(rawCoupons?.data) ? rawCoupons.data : (Array.isArray(rawCoupons?.coupons) ? rawCoupons.coupons : []));
   const [activeBanner, setActiveBanner] = useState(0);
   const [banners, setBanners] = useState<Array<{ src: string; alt: string; title?: string; subtitle?: string; linkUrl?: string }>>(() => {
@@ -408,7 +413,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
       {/* ── Featured categories ── */}
       <Section title={MESSAGES.SECTION_CATEGORIES_TITLE}>
         <div className="grid grid-cols-3 gap-3 sm:gap-4 sm:grid-cols-4 lg:grid-cols-6">
-          {categories.map((c) => (
+          {featuredCategories.map((c) => (
             <button key={c.name} onClick={() => setView(c.name)} className="group flex flex-col w-full aspect-[4/5] sm:aspect-square overflow-hidden rounded-[20px] bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-black/5">
               <div className="relative h-[75%] w-full overflow-hidden bg-muted">
                 <img src={c.img} alt={c.name} className="h-full w-full object-cover transition duration-700 group-hover:scale-110" />
