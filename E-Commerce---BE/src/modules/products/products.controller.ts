@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Patch, Delete, Param, Body, UseGuards, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Param, Body, UseGuards, ParseUUIDPipe, Query, Req } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -8,8 +8,13 @@ import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/create-product.dto';
 import { CreateProductVariantDto, UpdateProductVariantDto } from './dto/product-variant.dto';
 import { ReplaceProductToppingsDto } from './dto/product-topping.dto';
+import { CreateProductTagDto, ReplaceProductTagsDto, UpdateProductTagDto } from './dto/product-tag.dto';
+import { User } from '../users/user.entity';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Public } from '../../common/decorators/public.decorator';
+import { FindProductsQueryDto } from './dto/find-products-query.dto';
 
-@Controller('products')
+@Controller(['admin/products', 'products'])
 export class ProductsController {
     constructor(private readonly productsService: ProductsService) {}
 
@@ -48,10 +53,48 @@ export class ProductsController {
         return this.productsService.deleteCategory(id);
     }
 
+    @Get('tags')
+    findAllTags() {
+        return this.productsService.findAllTags();
+    }
+
+    @Get('tags/:id')
+    findTagById(@Param('id', ParseUUIDPipe) id: string) {
+        return this.productsService.findTagById(id);
+    }
+
+    @Post('tags')
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions(Permission.CREATE_PRODUCT)
+    createTag(@Body() dto: CreateProductTagDto) {
+        return this.productsService.createTag(dto);
+    }
+
+    @Patch('tags/:id')
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions(Permission.UPDATE_PRODUCT)
+    updateTag(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateProductTagDto) {
+        return this.productsService.updateTag(id, dto);
+    }
+
+    @Delete('tags/:id')
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions(Permission.DELETE_PRODUCT)
+    deleteTag(@Param('id', ParseUUIDPipe) id: string) {
+        return this.productsService.deleteTag(id);
+    }
+
     // ── Products Routes ──────────────────────────────────────────────────────
     @Get()
-    findAllProducts() {
-        return this.productsService.findAllProducts();
+    @UseGuards(JwtAuthGuard)
+    @Public()
+    findAllProducts(
+        @Req() req: any,
+        @Query() query: FindProductsQueryDto,
+        @CurrentUser() user?: User,
+    ) {
+        const isAdminPath = req.originalUrl?.includes('/admin/');
+        return this.productsService.findAllProducts(query.tag, user, isAdminPath, query.branchId);
     }
 
     @Get('sizes/distinct')
@@ -68,8 +111,8 @@ export class ProductsController {
     @Post()
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Permissions(Permission.CREATE_PRODUCT)
-    createProduct(@Body() dto: CreateProductDto) {
-        return this.productsService.createProduct(dto);
+    createProduct(@Body() dto: CreateProductDto, @CurrentUser() user: User) {
+        return this.productsService.createProduct(dto, user);
     }
 
     @Patch(':id')
@@ -78,15 +121,16 @@ export class ProductsController {
     updateProduct(
         @Param('id', ParseUUIDPipe) id: string,
         @Body() dto: UpdateProductDto,
+        @CurrentUser() user: User,
     ) {
-        return this.productsService.updateProduct(id, dto);
+        return this.productsService.updateProduct(id, dto, user);
     }
 
     @Delete(':id')
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Permissions(Permission.DELETE_PRODUCT)
-    deleteProduct(@Param('id', ParseUUIDPipe) id: string) {
-        return this.productsService.deleteProduct(id);
+    deleteProduct(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+        return this.productsService.deleteProduct(id, user);
     }
 
     @Get(':productId/toppings')
@@ -102,6 +146,21 @@ export class ProductsController {
         @Body() dto: ReplaceProductToppingsDto,
     ) {
         return this.productsService.replaceProductToppings(productId, dto);
+    }
+
+    @Get(':productId/tags')
+    findProductTags(@Param('productId', ParseUUIDPipe) productId: string) {
+        return this.productsService.findProductTags(productId);
+    }
+
+    @Put(':productId/tags')
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions(Permission.UPDATE_PRODUCT)
+    replaceProductTags(
+        @Param('productId', ParseUUIDPipe) productId: string,
+        @Body() dto: ReplaceProductTagsDto,
+    ) {
+        return this.productsService.replaceProductTags(productId, dto);
     }
 
     // ── Product Variants Routes ──────────────────────────────────────────────

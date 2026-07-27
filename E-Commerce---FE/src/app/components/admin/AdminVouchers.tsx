@@ -1,3 +1,4 @@
+import { parseRes } from '../../../utils/api';
 
 import React, { useState, useEffect } from "react";
 import {
@@ -9,10 +10,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { env } from "../../../config/env";
+import { getAccessToken, getStoredUser } from "../authSession";
 import { supabase } from "../../../config/supabase";
 import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
 
 export function AdminVouchers() {
+  const user = getStoredUser();
+  const isManager = user?.role === "store_manager";
+  const isAdmin = user?.role === "admin";
+
   const [coupons, setCoupons] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -33,14 +39,17 @@ export function AdminVouchers() {
   const [targetSize, setTargetSize] = useState("");
   const [description, setDescription] = useState("");
   const [availableSizes, setAvailableSizes] = useState<string[]>([]);
+  const [isActive, setIsActive] = useState(true);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [branchId, setBranchId] = useState(isManager ? user?.branchId || "" : "");
 
   const loadCoupons = async () => {
     const token = localStorage.getItem("accessToken");
     try {
-      const res = await fetch(`${env.API_URL}/coupons`, {
+      const res = await fetch(`${env.API_URL}/admin/vouchers`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         setCoupons(data);
       }
@@ -54,7 +63,7 @@ export function AdminVouchers() {
   const loadProductsOnly = async () => {
     try {
       const pRes = await fetch(`${env.API_URL}/products`);
-      if (pRes.ok) setProducts(await pRes.json());
+      if (pRes.ok) setProducts((await parseRes(pRes)) || []);
     } catch (err) {
       console.error(err);
     }
@@ -63,7 +72,7 @@ export function AdminVouchers() {
   const loadCategoriesOnly = async () => {
     try {
       const res = await fetch(`${env.API_URL}/products/categories`);
-      if (res.ok) setCategories(await res.json());
+      if (res.ok) setCategories(await parseRes(res));
     } catch (err) {
       console.error(err);
     }
@@ -72,7 +81,16 @@ export function AdminVouchers() {
   const loadSizesOnly = async () => {
     try {
       const res = await fetch(`${env.API_URL}/products/sizes/distinct`);
-      if (res.ok) setAvailableSizes(await res.json());
+      if (res.ok) setAvailableSizes(await parseRes(res));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadBranchesOnly = async () => {
+    try {
+      const res = await fetch(`${env.API_URL}/branches/active`);
+      if (res.ok) setBranches(await parseRes(res));
     } catch (err) {
       console.error(err);
     }
@@ -83,6 +101,7 @@ export function AdminVouchers() {
     loadProductsOnly();
     loadCategoriesOnly();
     loadSizesOnly();
+    loadBranchesOnly();
   }, []);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -91,11 +110,19 @@ export function AdminVouchers() {
       toast.error("Vui lòng điền đầy đủ các trường bắt buộc.");
       return;
     }
+    if (discountType === "percent" && Number(discountValue) > 100) {
+      toast.error("Giá trị giảm giá theo phần trăm không được vượt quá 100%.");
+      return;
+    }
+    if (discountType === "percent" && Number(discountValue) <= 0) {
+      toast.error("Giá trị giảm giá theo phần trăm phải lớn hơn 0%.");
+      return;
+    }
     const token = localStorage.getItem("accessToken");
     setSaving(true);
     try {
       const isEditing = !!editingVoucher;
-      const url = isEditing ? `${env.API_URL}/coupons/${editingVoucher.id}` : `${env.API_URL}/coupons`;
+      const url = isEditing ? `${env.API_URL}/admin/vouchers/${editingVoucher.id}` : `${env.API_URL}/admin/vouchers`;
       const method = isEditing ? "PATCH" : "POST";
 
       const res = await fetch(url, {
@@ -116,11 +143,12 @@ export function AdminVouchers() {
           productId: productId || null,
           categoriesId: categoriesId || null,
           targetSize: targetSize || null,
+          branchId: branchId || null,
           description: description || "",
-          isActive: true,
+          isActive: isActive,
         }),
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         toast.success(isEditing ? "Cập nhật voucher thành công." : "Tạo voucher thành công.");
         // Clear form
@@ -133,7 +161,9 @@ export function AdminVouchers() {
         setProductId("");
         setCategoriesId("");
         setTargetSize("");
+        setBranchId(isManager ? user?.branchId || "" : "");
         setDescription("");
+        setIsActive(true);
         setEditingVoucher(null);
         loadCoupons();
       } else {
@@ -160,7 +190,9 @@ export function AdminVouchers() {
     setProductId(v.productId || "");
     setCategoriesId(v.categoriesId || "");
     setTargetSize(v.targetSize || "");
+    setBranchId(v.branchId || "");
     setDescription(v.description || "");
+    setIsActive(v.isActive !== false);
   };
 
   const handleCancelEdit = () => {
@@ -175,7 +207,9 @@ export function AdminVouchers() {
     setProductId("");
     setCategoriesId("");
     setTargetSize("");
+    setBranchId(isManager ? user?.branchId || "" : "");
     setDescription("");
+    setIsActive(true);
   };
 
   const getFilteredSizes = () => {
@@ -186,11 +220,34 @@ export function AdminVouchers() {
     return Array.from(new Set(sizes.map((s: string) => s.trim()))) as string[];
   };
 
+  const handleApprove = async (id: string) => {
+    const couponObj = coupons.find(c => c.id === id);
+    const actionLabel = couponObj?.isPendingDelete ? "duyệt xóa" : "phê duyệt";
+    if (!window.confirm(`Bạn có chắc chắn muốn ${actionLabel} voucher này không?`)) return;
+    const token = localStorage.getItem("accessToken");
+    try {
+      const res = await fetch(`${env.API_URL}/admin/vouchers/${id}/approve`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await parseRes(res);
+      if (res.ok) {
+        toast.success("Đã duyệt voucher thành công.");
+        loadCoupons();
+      } else {
+        toast.error(data.message || "Lỗi khi duyệt voucher.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi kết nối.");
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa voucher này không?")) return;
     const token = localStorage.getItem("accessToken");
     try {
-      const res = await fetch(`${env.API_URL}/coupons/${id}`, {
+      const res = await fetch(`${env.API_URL}/admin/vouchers/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -198,7 +255,7 @@ export function AdminVouchers() {
         toast.success("Xóa voucher thành công.");
         loadCoupons();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi xóa.");
       }
     } catch (err) {
@@ -226,13 +283,17 @@ export function AdminVouchers() {
       </div>
       <div className="overflow-auto rounded-2xl bg-sidebar p-5">
         <table className="w-full text-sm">
-          <TableHeader cols={["Mã", "Sản phẩm", "Kiểu", "Giá trị", "Giảm tối đa", "Đơn tối thiểu", "Đã dùng / Giới hạn", "Hết hạn", "Trạng thái", "Thao tác"]} />
+          <TableHeader cols={["Mã", "Sản phẩm", "Giá trị", "Giảm tối đa", "Đơn tối thiểu", "Đã dùng / Giới hạn", "Hết hạn", "Trạng thái", "Thao tác"]} />
           <tbody>
             {coupons.map(v => {
               const hasLimit = v.usageLimit !== null;
               const usedRatio = hasLimit ? (v.usedCount / v.usageLimit) * 100 : 0;
               const isExpired = new Date(v.expiresAt) < new Date();
-              const status = isExpired ? "Hết hạn" : (v.isActive ? "Hoạt động" : "Tạm khóa");
+              const status = v.isPendingDelete
+                ? "Chờ xóa"
+                : !v.isApproved
+                  ? "Chờ duyệt"
+                  : isExpired ? "Hết hạn" : (v.isActive ? "Hoạt động" : "Tạm khóa");
 
               return (
                 <tr key={v.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
@@ -254,9 +315,11 @@ export function AdminVouchers() {
                         📐 Size: {v.targetSize}
                       </span>
                     )}
-                  </td>
-                  <td className="py-3 text-muted-foreground">
-                    {v.discountType === "percent" ? "Phần trăm" : "Cố định"}
+                    {v.branchId && v.branch && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2.5 py-1 text-xs text-green-600 font-semibold ml-1">
+                        🏬 {v.branch.name}
+                      </span>
+                    )}
                   </td>
                   <td className="py-3 font-semibold text-foreground">
                     {v.discountType === "percent" ? `${Math.round(Number(v.discountValue))}%` : formatMoney(Number(v.discountValue))}
@@ -281,6 +344,15 @@ export function AdminVouchers() {
                   <td className="py-3"><StatusBadge status={status} /></td>
                   <td className="py-3">
                     <div className="flex gap-2">
+                      {isAdmin && (!v.isApproved || v.isPendingDelete) && (
+                        <button
+                          title={v.isPendingDelete ? "Duyệt xóa" : "Duyệt voucher"}
+                          onClick={() => handleApprove(v.id)}
+                          className="inline-flex size-8 items-center justify-center rounded-lg bg-green-950/40 text-green-400 hover:bg-green-900/40 transition animate-pulse"
+                        >
+                          <CheckCircle size={14} />
+                        </button>
+                      )}
                       <button
                         title="Sửa voucher"
                         onClick={() => handleStartEdit(v)}
@@ -405,6 +477,20 @@ export function AdminVouchers() {
               </option>
             ))}
           </select>
+          {isAdmin && (
+            <select
+              className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
+              value={branchId}
+              onChange={e => setBranchId(e.target.value)}
+            >
+              <option value="">Chi nhánh áp dụng: Tất cả</option>
+              {branches.map(b => (
+                <option key={b.id} value={b.id}>
+                  🏬 {b.name}
+                </option>
+              ))}
+            </select>
+          )}
           <select
             className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
             value={targetSize}
@@ -414,6 +500,14 @@ export function AdminVouchers() {
             {getFilteredSizes().map(sz => (
               <option key={sz} value={sz}>Size áp dụng: {sz}</option>
             ))}
+          </select>
+          <select
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
+            value={isActive ? "true" : "false"}
+            onChange={e => setIsActive(e.target.value === "true")}
+          >
+            <option value="true">Trạng thái: Hoạt động (Active)</option>
+            <option value="false">Trạng thái: Tạm khóa (Inactive)</option>
           </select>
           <input
             className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent sm:col-span-2 lg:col-span-3"

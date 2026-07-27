@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, Repository, IsNull } from 'typeorm';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { Cart } from './entities/cart.entity';
@@ -33,7 +33,7 @@ export class CartService {
       const items = manager.getRepository(CartItem);
       const note = dto.note || null;
       let item = await items.findOne({
-        where: { cartId: cart.id, variantId: dto.variantId, note },
+        where: { cartId: cart.id, variantId: dto.variantId, note: note === null ? IsNull() : note },
         lock: { mode: 'pessimistic_write' },
       });
       if (item) {
@@ -134,7 +134,7 @@ export class CartService {
           where: {
             cartId: userCart.id,
             variantId: guestItem.variantId,
-            note: guestItem.note,
+            note: guestItem.note === null ? IsNull() : guestItem.note,
           },
         });
         if (existing) {
@@ -169,7 +169,7 @@ export class CartService {
       : { sessionId: owner.sessionId, branchId };
     let cart = await carts.findOne({
       where,
-      relations: withRelations ? { items: { product: { category: true }, variant: true } } : undefined,
+      relations: withRelations ? { items: { product: { category: true, variants: true, toppings: true }, variant: true } } : undefined,
     });
     if (!cart) {
       cart = await carts.save(carts.create({

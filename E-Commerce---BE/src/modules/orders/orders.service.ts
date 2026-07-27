@@ -1,121 +1,36 @@
-import { Injectable, BadRequestException, OnModuleInit, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Order, OrderStatus } from './order.entity';
+import { DataSource, Repository } from 'typeorm';
+import { FulfillmentType, Order, OrderStatus, PaymentStatus } from './order.entity';
 import { PaymentsService } from '../payments/payments.service';
+import { CartService } from '../cart/cart.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { User, UserRole } from '../users/user.entity';
+import { OrderStatusHistory } from './order-status-history.entity';
+
+const PICKUP_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
+  [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+  [OrderStatus.CONFIRMED]: [OrderStatus.PREPARING, OrderStatus.CANCELLED],
+  [OrderStatus.PREPARING]: [OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+};
+
+const DELIVERY_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
+  [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+  [OrderStatus.CONFIRMED]: [OrderStatus.PREPARING, OrderStatus.CANCELLED],
+  [OrderStatus.PREPARING]: [OrderStatus.SHIPPING, OrderStatus.CANCELLED],
+  [OrderStatus.SHIPPING]: [OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+};
 
 @Injectable()
-export class OrdersService implements OnModuleInit {
+export class OrdersService {
   constructor(
     @InjectRepository(Order)
     private readonly orders: Repository<Order>,
     private readonly paymentsService: PaymentsService,
+    private readonly cartService: CartService,
+    private readonly dataSource: DataSource,
   ) {}
 
-  async onModuleInit() {
-    try {
-      await this.seedAll();
-    } catch (err) {
-      console.error('Lỗi khi chạy database seeder:', err);
-    }
-  }
-
-  async seedAll() {
-    // Make user_id nullable if database schema doesn't allow it yet
-    try {
-      await this.orders.query('ALTER TABLE orders ALTER COLUMN user_id DROP NOT NULL');
-    } catch (err) {
-      console.warn('Could not alter user_id column to nullable in orders table:', (err as any).message);
-    }
-
-    // 1. Check/Create customer user
-    let userId = '';
-    const existingUsers = await this.orders.query('SELECT id FROM users LIMIT 1');
-    if (existingUsers.length > 0) {
-      userId = existingUsers[0].id;
-    } else {
-      const userRes = await this.orders.query(`
-        INSERT INTO users (id, full_name, email, role, password_hash, is_active)
-        VALUES ('3a8b417c-2b61-46ab-a021-39fa1860c23a', 'Nguyễn Văn Khách', 'khach@gmail.com', 'customer', 'pbkdf2_sha256$260000$dummy', true)
-        RETURNING id
-      `);
-      userId = userRes[0].id;
-    }
-
-    // 2. Seed Banners
-    const bannersCount = await this.orders.query('SELECT COUNT(*) as count FROM banners');
-    if (Number(bannersCount[0].count) === 0) {
-      await this.orders.query(`
-        INSERT INTO banners (title, image_url, link_url, sort_order, is_active) VALUES
-        ('Mùa hè rực rỡ - Giảm 20% các dòng trà quả', 'https://images.unsplash.com/photo-1513530534585-c7b1394c6d51?w=800&fit=crop', '', 1, true),
-        ('Combo ngọt ngào - Bánh & Cà phê chỉ từ 49k', 'https://images.unsplash.com/photo-1517433456452-f9633a875f6f?w=800&fit=crop', '', 2, true)
-      `);
-    }
-
-    // 3. Seed Coupons
-    const couponsCount = await this.orders.query('SELECT COUNT(*) as count FROM coupons');
-    if (Number(couponsCount[0].count) === 0) {
-      await this.orders.query(`
-        INSERT INTO coupons (code, name, description, discount_type, discount_value, min_order_value, usage_limit, starts_at, expires_at, status) VALUES
-        ('SWEET10', 'Giảm giá ngọt ngào 10%', 'Giảm 10% cho đơn hàng từ 100k', 'percent', 10, 100000, 200, NOW(), NOW() + INTERVAL '30 days', 'active'),
-        ('COFFEEFREE', 'Tặng cà phê miễn phí', 'Giảm ngay 30k cho đơn từ 150k', 'fixed', 30000, 150000, 100, NOW() - INTERVAL '30 days', NOW() - INTERVAL '1 day', 'expired'),
-        ('NEWBIE', 'Chào mừng bạn mới', 'Giảm 15% cho khách hàng mới', 'percent', 15, 0, 500, NOW(), NOW() + INTERVAL '90 days', 'active')
-      `);
-    }
-
-    // Load branches & product variants for references
-    const branches = await this.orders.query('SELECT id FROM branches');
-    const variants = await this.orders.query('SELECT id, product_id, variant_name FROM product_variants');
-
-    // 4. Seed Reviews
-    const reviewsCount = await this.orders.query('SELECT COUNT(*) as count FROM reviews');
-    if (Number(reviewsCount[0].count) === 0 && variants.length > 0) {
-      const pId = variants[0].product_id;
-      await this.orders.query(`
-        INSERT INTO reviews (product_id, user_id, rating, comment, is_verified, is_visible) VALUES
-        ('${pId}', '${userId}', 5, 'Cà phê rất ngon và thơm béo, giao hàng cực nhanh.', true, true),
-        ('${pId}', '${userId}', 4, 'Bánh tiramisu béo ngậy đắng nhẹ, rất vừa vị.', true, true)
-      `);
-    }
-
-    // 5. Seed Inventory (Stocks)
-    const stocksCount = await this.orders.query('SELECT COUNT(*) as count FROM branch_variant_stocks');
-    if (Number(stocksCount[0].count) === 0 && branches.length > 0 && variants.length > 0) {
-      for (const branch of branches) {
-        for (const variant of variants) {
-          await this.orders.query(`
-            INSERT INTO branch_variant_stocks (branch_id, variant_id, quantity, reserved_quantity, min_quantity)
-            VALUES ('${branch.id}', '${variant.id}', 50, 0, 10)
-          `);
-        }
-      }
-    }
-
-    // 6. Seed Orders & OrderItems
-    const ordersCount = await this.orders.query('SELECT COUNT(*) as count FROM orders');
-    if (Number(ordersCount[0].count) === 0 && branches.length > 0 && variants.length > 0) {
-      const order1Id = 'f02b9e6e-34e8-466d-9b51-0987f6e3cda1';
-      const order2Id = 'f02b9e6e-34e8-466d-9b51-0987f6e3cda2';
-      const order3Id = 'f02b9e6e-34e8-466d-9b51-0987f6e3cda3';
-
-      await this.orders.query(`
-        INSERT INTO orders (id, order_code, user_id, branch_id, subtotal, total_amount, payment_method, payment_status, order_status, order_type, fulfillment_type)
-        VALUES 
-        ('${order1Id}', 'SB001', '${userId}', '${branches[0].id}', 80000, 80000, 'cod', 'pending', 'completed', 'online', 'delivery'),
-        ('${order2Id}', 'SB002', '${userId}', '${branches[0].id}', 90000, 90000, 'momo', 'paid', 'shipping', 'online', 'delivery'),
-        ('${order3Id}', 'SB003', '${userId}', '${branches[0].id}', 30000, 30000, 'cod', 'pending', 'preparing', 'online', 'pickup')
-      `);
-
-      await this.orders.query(`
-        INSERT INTO order_items (order_id, product_id, variant_id, product_name, variant_name, quantity, unit_price, total_price)
-        VALUES
-        ('${order1Id}', '${variants[0].product_id}', '${variants[0].id}', 'Cafe Sữa Đá', '${variants[0].variant_name}', 1, 80000, 80000),
-        ('${order2Id}', '${variants[0].product_id}', '${variants[0].id}', 'Trà đào cam sả', '${variants[0].variant_name}', 2, 45000, 90000),
-        ('${order3Id}', '${variants[0].product_id}', '${variants[0].id}', 'Cafe Đen Đá', '${variants[0].variant_name}', 1, 30000, 30000)
-      `);
-    }
-  }
 
   async findAll(): Promise<Order[]> {
     return this.orders.find({
@@ -124,112 +39,166 @@ export class OrdersService implements OnModuleInit {
     });
   }
 
-  async updateStatus(id: string, status: OrderStatus): Promise<Order> {
-    const order = await this.orders.findOne({ where: { id } });
-    if (!order) {
-      throw new BadRequestException('Order not found');
+  async updateStatus(id: string, status: OrderStatus, user: User): Promise<Order> {
+    return this.dataSource.transaction(async (manager) => {
+      const orderRepository = manager.getRepository(Order);
+      const order = await orderRepository.findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!order) {
+        throw new BadRequestException('Order not found');
+      }
+
+      this.assertCanUpdateOrder(user, order);
+      this.assertValidTransition(order, status);
+
+      const previousStatus = order.orderStatus;
+      order.orderStatus = status;
+      if (status === OrderStatus.COMPLETED) {
+        order.paymentStatus = PaymentStatus.PAID;
+        order.paidAt = new Date();
+      }
+
+      const savedOrder = await orderRepository.save(order);
+      await manager.getRepository(OrderStatusHistory).save({
+        orderId: order.id,
+        fromStatus: previousStatus,
+        toStatus: status,
+        changedBy: user.id,
+        note: null,
+      });
+      return savedOrder;
+    });
+  }
+
+  private assertCanUpdateOrder(user: User, order: Order): void {
+    if (user.role === UserRole.ADMIN) return;
+
+    if (!user.branchId || user.branchId !== order.branchId) {
+      throw new ForbiddenException('You can only update orders in your assigned branch');
     }
-    order.orderStatus = status;
-    if (status === OrderStatus.COMPLETED) {
-      order.paymentStatus = 'paid' as any;
-      order.paidAt = new Date();
+
+    if (user.role === UserRole.STORE_MANAGER || user.role === UserRole.CASHIER) return;
+
+    if (
+      user.role === UserRole.STAFF &&
+      [OrderStatus.CONFIRMED, OrderStatus.PREPARING].includes(order.orderStatus)
+    ) {
+      return;
     }
-    return this.orders.save(order);
+
+    throw new ForbiddenException('Staff can only update orders that are being processed');
+  }
+
+  private assertValidTransition(order: Order, nextStatus: OrderStatus): void {
+    const transitions = order.fulfillmentType === FulfillmentType.PICKUP
+      ? PICKUP_TRANSITIONS
+      : DELIVERY_TRANSITIONS;
+    const allowedStatuses = transitions[order.orderStatus] ?? [];
+
+    if (!allowedStatuses.includes(nextStatus)) {
+      throw new BadRequestException(
+        `Invalid ${order.fulfillmentType} order status transition: ${order.orderStatus} -> ${nextStatus}`,
+      );
+    }
   }
 
   async getDashboardStats(): Promise<any> {
-    const todayOrdersRev = await this.orders.query(`
-      SELECT COALESCE(SUM(total_amount), 0) as total FROM orders 
-      WHERE order_status = 'completed' AND created_at >= CURRENT_DATE
-    `);
-    const todayPosRev = await this.orders.query(`
-      SELECT COALESCE(SUM(total_amount), 0) as total FROM sales_invoices 
-      WHERE invoice_status = 'completed' AND created_at >= CURRENT_DATE
-    `);
+    const formatMoney = (val: number) => new Intl.NumberFormat('vi-VN').format(val) + 'đ';
+
+    // BUG-007 FIX: Run all independent queries in parallel (was serial — 6 round trips)
+    const [
+      todayOrdersRev,
+      todayPosRev,
+      todayOrdersCountRes,
+      todayPosCountRes,
+      productCountRes,
+      newCustomersRes,
+      weeklyChart,
+      recentOrdersDb,
+    ] = await Promise.all([
+      this.orders.query(`
+        SELECT COALESCE(SUM(total_amount), 0) as total FROM orders 
+        WHERE order_status = 'completed' AND created_at >= CURRENT_DATE
+      `),
+      this.orders.query(`
+        SELECT COALESCE(SUM(total_amount), 0) as total FROM sales_invoices 
+        WHERE invoice_status = 'completed' AND created_at >= CURRENT_DATE
+      `),
+      this.orders.query(`
+        SELECT COUNT(*) as count FROM orders WHERE created_at >= CURRENT_DATE
+      `),
+      this.orders.query(`
+        SELECT COUNT(*) as count FROM sales_invoices WHERE created_at >= CURRENT_DATE
+      `),
+      this.orders.query(`
+        SELECT COUNT(*) as count FROM products WHERE is_active = true
+      `),
+      this.orders.query(`
+        SELECT COUNT(*) as count FROM users 
+        WHERE role = 'customer' AND created_at >= CURRENT_DATE
+      `),
+      this.orders.query(`
+        WITH days AS (
+          SELECT generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day')::date as day_date
+        )
+        SELECT 
+          TO_CHAR(d.day_date, 'ID') as day_num,
+          COALESCE(SUM(o.total_amount), 0) + COALESCE(SUM(s.total_amount), 0) as revenue,
+          COUNT(o.id) + COUNT(s.id) as orders
+        FROM days d
+        LEFT JOIN orders o ON DATE(o.created_at) = d.day_date AND o.order_status = 'completed'
+        LEFT JOIN sales_invoices s ON DATE(s.created_at) = d.day_date AND s.invoice_status = 'completed'
+        GROUP BY d.day_date
+        ORDER BY d.day_date
+      `),
+      this.orders.find({
+        relations: { user: true, items: true },
+        order: { createdAt: 'DESC' },
+        take: 5,
+      }),
+    ]);
+
     const todayRevenueVal = Number(todayOrdersRev[0]?.total || 0) + Number(todayPosRev[0]?.total || 0);
-
-    const formatMoney = (val: number) => {
-      return new Intl.NumberFormat('vi-VN').format(val) + 'đ';
-    };
-
-    const todayRevenue = formatMoney(todayRevenueVal);
-
-    const todayOrdersCountRes = await this.orders.query(`
-      SELECT COUNT(*) as count FROM orders WHERE created_at >= CURRENT_DATE
-    `);
-    const todayPosCountRes = await this.orders.query(`
-      SELECT COUNT(*) as count FROM sales_invoices WHERE created_at >= CURRENT_DATE
-    `);
     const todayOrdersCount = Number(todayOrdersCountRes[0]?.count || 0) + Number(todayPosCountRes[0]?.count || 0);
-
-    const productCountRes = await this.orders.query(`
-      SELECT COUNT(*) as count FROM products WHERE is_active = true
-    `);
     const totalProducts = Number(productCountRes[0]?.count || 0);
-
-    const newCustomersRes = await this.orders.query(`
-      SELECT COUNT(*) as count FROM users 
-      WHERE role = 'customer' AND created_at >= CURRENT_DATE
-    `);
     const newCustomers = Number(newCustomersRes[0]?.count || 0);
 
     const stats = [
-      { label: "Doanh thu hôm nay", value: todayRevenue, delta: "+12%", icon: "DollarSign" },
+      { label: "Doanh thu hôm nay", value: formatMoney(todayRevenueVal), delta: "+12%", icon: "DollarSign" },
       { label: "Tổng đơn hàng", value: String(todayOrdersCount), delta: `+${todayOrdersCount} hôm nay`, icon: "ShoppingBag" },
       { label: "Sản phẩm hoạt động", value: String(totalProducts), delta: "3 sắp hết", icon: "Package" },
       { label: "Khách hàng mới", value: String(newCustomers), delta: `+${newCustomers} so hôm qua`, icon: "Users" },
     ];
 
-    const weeklyChart = await this.orders.query(`
-      WITH days AS (
-        SELECT generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day')::date as day_date
-      )
-      SELECT 
-        TO_CHAR(d.day_date, 'ID') as day_num,
-        COALESCE(SUM(o.total_amount), 0) + COALESCE(SUM(s.total_amount), 0) as revenue,
-        COUNT(o.id) + COUNT(s.id) as orders
-      FROM days d
-      LEFT JOIN orders o ON DATE(o.created_at) = d.day_date AND o.order_status = 'completed'
-      LEFT JOIN sales_invoices s ON DATE(s.created_at) = d.day_date AND s.invoice_status = 'completed'
-      GROUP BY d.day_date
-      ORDER BY d.day_date
-    `);
-
     const dayLabels: Record<string, string> = {
       '1': 'T2', '2': 'T3', '3': 'T4', '4': 'T5', '5': 'T6', '6': 'T7', '7': 'CN'
     };
 
-    const weekly = weeklyChart.map((row: any) => {
-      const label = dayLabels[row.day_num.trim()] || row.day_num;
-      return {
-        day: label,
-        revenue: Number(row.revenue),
-        orders: Number(row.orders)
-      };
-    });
+    const weekly = weeklyChart.map((row: any) => ({
+      day: dayLabels[row.day_num.trim()] || row.day_num,
+      revenue: Number(row.revenue),
+      orders: Number(row.orders),
+    }));
 
-    const recentOrdersDb = await this.orders.find({
-      relations: { user: true, items: true },
-      order: { createdAt: 'DESC' },
-      take: 5
-    });
-
-    const recentOrders = recentOrdersDb.map(o => ({
+    const recentOrders = recentOrdersDb.map((o: any) => ({
       id: o.orderCode,
       customer: o.user?.fullName || 'Khách hàng',
-      items: o.items.map(i => `${i.productName} (${i.variantName})`).join(', '),
+      items: o.items.map((i: any) => `${i.productName} (${i.variantName})`).join(', '),
       total: formatMoney(Number(o.totalAmount)),
       status: o.orderStatus === OrderStatus.PENDING ? 'Xác nhận' :
               o.orderStatus === OrderStatus.PREPARING ? 'Đang chuẩn bị' :
               o.orderStatus === OrderStatus.SHIPPING ? 'Đang giao' :
               o.orderStatus === OrderStatus.COMPLETED ? 'Hoàn thành' : 'Huỷ',
-      time: o.createdAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+      time: o.createdAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
     }));
 
     return { stats, weekly, recentOrders };
   }
 
-  async createOrder(userId: string | null, dto: CreateOrderDto): Promise<Order> {
+  async createOrder(userId: string | null, sessionId: string | null, dto: CreateOrderDto): Promise<Order> {
+
     const {
       branchId,
       subtotal,
@@ -262,18 +231,27 @@ export class OrdersService implements OnModuleInit {
     let couponId: string | null = null;
     if (couponCode && userId) {
       const couponRes = await this.orders.query(
-        `SELECT id, status, expires_at, usage_limit, used_count, per_customer_limit, product_id, categories_id FROM coupons WHERE code = $1`,
+        `SELECT id, status, expires_at, usage_limit, used_count, per_customer_limit, product_id, categories_id, branch_id, is_approved, is_pending_delete FROM coupons WHERE code = $1`,
         [couponCode.toUpperCase().trim()]
       );
       if (couponRes.length === 0) {
         throw new BadRequestException(`Mã giảm giá "${couponCode}" không hợp lệ.`);
       }
       const coupon = couponRes[0];
+      if (coupon.is_pending_delete === true) {
+        throw new BadRequestException(`Mã giảm giá "${couponCode}" đã bị yêu cầu xóa và đang chờ duyệt.`);
+      }
+      if (coupon.is_approved === false) {
+        throw new BadRequestException(`Mã giảm giá "${couponCode}" đang chờ quản trị viên phê duyệt.`);
+      }
       if (coupon.status !== 'active') {
         throw new BadRequestException(`Mã giảm giá "${couponCode}" không còn hoạt động.`);
       }
       if (new Date(coupon.expires_at) < new Date()) {
         throw new BadRequestException(`Mã giảm giá "${couponCode}" đã hết hạn.`);
+      }
+      if (coupon.branch_id && coupon.branch_id !== branchId) {
+        throw new BadRequestException(`Mã giảm giá "${couponCode}" không áp dụng cho chi nhánh này.`);
       }
       if (coupon.usage_limit !== null && Number(coupon.used_count) >= Number(coupon.usage_limit)) {
         throw new BadRequestException(`Mã giảm giá "${couponCode}" đã đạt giới hạn sử dụng.`);
@@ -326,11 +304,22 @@ export class OrdersService implements OnModuleInit {
         const minOrderVal = Number(couponDetail.min_order_value || 0);
         
         if (calculatedSubtotal >= minOrderVal) {
+          // Fetch base variant prices to exclude toppings from discount calculations
+          const variantIds = items.map((item: any) => item.variantId);
+          const variants = await this.orders.query(
+            `SELECT id, price FROM product_variants WHERE id = ANY($1)`,
+            [variantIds]
+          );
+          const basePriceMap = new Map<string, number>();
+          for (const v of variants) {
+            basePriceMap.set(v.id, Number(v.price || 0));
+          }
+
           let matchingSubtotal = calculatedSubtotal;
           
           if (couponDetail.product_id) {
             const matchingItems = items.filter((item: any) => item.productId === couponDetail.product_id);
-            matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (Number(item.unitPrice) * item.quantity), 0);
+            matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + ((basePriceMap.get(item.variantId) || Number(item.unitPrice)) * item.quantity), 0);
           } else if (couponDetail.categories_id) {
             const itemProductIds = items.map((item: any) => item.productId);
             const productsWithCategory = await this.orders.query(
@@ -342,7 +331,10 @@ export class OrdersService implements OnModuleInit {
               .map((p: any) => p.id);
             
             const matchingItems = items.filter((item: any) => matchingProductIds.includes(item.productId));
-            matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (Number(item.unitPrice) * item.quantity), 0);
+            matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + ((basePriceMap.get(item.variantId) || Number(item.unitPrice)) * item.quantity), 0);
+          } else {
+            // General or Order-wide coupon - discount is still calculated against product base prices
+            matchingSubtotal = items.reduce((sum: number, item: any) => sum + ((basePriceMap.get(item.variantId) || Number(item.unitPrice)) * item.quantity), 0);
           }
           
           if (couponDetail.discount_type === 'percent') {
@@ -368,74 +360,87 @@ export class OrdersService implements OnModuleInit {
         [branchId, item.variantId]
       );
       if (stockRes.length === 0) {
-        // Tạm thời vô hiệu hóa lỗi để cho phép đặt hàng khi dữ liệu kho chưa được seed
-        console.warn(`[Mock Stock] Sản phẩm ${item.productName} chưa có dữ liệu kho tại chi nhánh này. Đang tạo tự động...`);
-        await this.orders.query(
-          'INSERT INTO branch_variant_stocks (branch_id, variant_id, quantity) VALUES ($1, $2, $3)',
-          [branchId, item.variantId, 999]
-        );
-      } else {
-        const availableQty = Number(stockRes[0].quantity);
-        if (availableQty < item.quantity) {
-          // throw new BadRequestException(`Sản phẩm ${item.productName} (${item.variantName}) không đủ số lượng tồn kho (Còn lại: ${availableQty}).`);
-          console.warn(`[Mock Stock] Sản phẩm ${item.productName} không đủ tồn kho (Còn ${availableQty} < ${item.quantity}). Vẫn cho phép.`);
+        throw new BadRequestException(`Sản phẩm ${item.productName} hiện không khả dụng tại chi nhánh này (Chưa có dữ liệu kho).`);
+      }
+      
+      const availableQty = Number(stockRes[0].quantity);
+      // BUG-002 FIX: Re-enable stock validation
+      if (availableQty < item.quantity) {
+        throw new BadRequestException(`Sản phẩm ${item.productName} (${item.variantName}) không đủ số lượng tồn kho (Còn lại: ${availableQty}).`);
+      }
+    }
+
+    // BUG-008: Update stocks in parallel (was serial N queries)
+    await Promise.all(
+      items.map((item: any) =>
+        this.orders.query(
+          'UPDATE branch_variant_stocks SET quantity = quantity - $1 WHERE branch_id = $2 AND variant_id = $3',
+          [item.quantity, branchId, item.variantId]
+        )
+      )
+    );
+
+    // BUG-006 FIX: Ensure unique constraint exists (safe migration)
+    try {
+      await this.orders.query(`ALTER TABLE orders ADD CONSTRAINT orders_order_code_key UNIQUE (order_code)`);
+    } catch { /* ignore if exists */ }
+
+    // 2 & 3. Atomic Order Insert with retry loop to prevent race condition on order_code
+    let orderId: string;
+    let orderCode = '';
+    let orderInsert: any[];
+    let retries = 0;
+    const maxRetries = 5;
+
+    while (retries < maxRetries) {
+      const randDigits = Math.floor(100000 + Math.random() * 900000);
+      orderCode = `SB${randDigits}`;
+      
+      try {
+        orderInsert = await this.orders.query(`
+          INSERT INTO orders (
+            order_code, user_id, branch_id, subtotal, discount_amount, shipping_fee, total_amount, 
+            payment_method, payment_status, order_status, order_type, fulfillment_type, 
+            shipping_address_street, shipping_address_ward, shipping_address_district, shipping_address_province,
+            shipping_address_phone, shipping_recipient_name, note, coupon_code, session_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+          RETURNING id
+        `, [
+          orderCode, userId || null, branchId, finalSubtotal, finalDiscount, shippingFee, finalTotalAmount,
+          paymentMethod, 'pending', 'pending', 'online', fulfillmentType,
+          shippingAddressStreet, shippingAddressWard, shippingAddressDistrict, shippingAddressProvince,
+          shippingAddressPhone, shippingRecipientName, note,
+          couponCode ? couponCode.toUpperCase().trim() : null, sessionId || null
+        ]);
+        
+        orderId = orderInsert[0].id;
+        break; // Success!
+      } catch (err: any) {
+        // Postgres unique constraint violation code is 23505
+        if (err.code === '23505' && err.constraint === 'orders_order_code_key') {
+          retries++;
+          if (retries >= maxRetries) {
+            throw new InternalServerErrorException('Không thể tạo mã đơn hàng duy nhất, vui lòng thử lại.');
+          }
+        } else {
+          throw err;
         }
       }
     }
 
-    // Update stocks
-    for (const item of items) {
-      await this.orders.query(
-        'UPDATE branch_variant_stocks SET quantity = quantity - $1 WHERE branch_id = $2 AND variant_id = $3',
-        [item.quantity, branchId, item.variantId]
-      );
-    }
-
-    // 2. Generate unique order code
-    let orderCode = '';
-    let isUnique = false;
-    while (!isUnique) {
-      const randDigits = Math.floor(100000 + Math.random() * 900000);
-      orderCode = `SB${randDigits}`;
-      const codeCheck = await this.orders.query('SELECT id FROM orders WHERE order_code = $1', [orderCode]);
-      if (codeCheck.length === 0) {
-        isUnique = true;
-      }
-    }
-
-    // Ensure coupon_code column exists (safe migration)
-    try {
-      await this.orders.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code VARCHAR(100)`);
-    } catch { /* ignore */ }
-
-    // 3. Save order
-    const orderInsert = await this.orders.query(`
-      INSERT INTO orders (
-        order_code, user_id, branch_id, subtotal, discount_amount, shipping_fee, total_amount, 
-        payment_method, payment_status, order_status, order_type, fulfillment_type, 
-        shipping_address_street, shipping_address_ward, shipping_address_district, shipping_address_province,
-        shipping_address_phone, shipping_recipient_name, note, coupon_code
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
-      RETURNING id
-    `, [
-      orderCode, userId || null, branchId, finalSubtotal, finalDiscount, shippingFee, finalTotalAmount,
-      paymentMethod, 'pending', 'pending', 'online', fulfillmentType,
-      shippingAddressStreet, shippingAddressWard, shippingAddressDistrict, shippingAddressProvince,
-      shippingAddressPhone, shippingRecipientName, note,
-      couponCode ? couponCode.toUpperCase().trim() : null
-    ]);
-
-    const orderId = orderInsert[0].id;
-
-    // 4. Save order items
-    for (const item of items) {
-      await this.orders.query(`
-        INSERT INTO order_items (
-          order_id, product_id, variant_id, product_name, variant_name, quantity, unit_price, discount_amount, total_price
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      `, [
-        orderId, item.productId, item.variantId, item.productName, item.variantName, item.quantity, item.unitPrice, 0, item.totalPrice
+    // 4. BUG-008 FIX: Bulk INSERT order items (was N serial queries)
+    if (items.length > 0) {
+      const valuePlaceholders = items.map((_: any, i: number) =>
+        `($${i * 9 + 1}, $${i * 9 + 2}, $${i * 9 + 3}, $${i * 9 + 4}, $${i * 9 + 5}, $${i * 9 + 6}, $${i * 9 + 7}, $${i * 9 + 8}, $${i * 9 + 9})`
+      ).join(', ');
+      const flatParams = items.flatMap((item: any) => [
+        orderId, item.productId, item.variantId, item.productName, item.variantName,
+        item.quantity, item.unitPrice, 0, item.totalPrice
       ]);
+      await this.orders.query(
+        `INSERT INTO order_items (order_id, product_id, variant_id, product_name, variant_name, quantity, unit_price, discount_amount, total_price) VALUES ${valuePlaceholders}`,
+        flatParams
+      );
     }
 
     // 5. Increment coupon usedCount
@@ -448,6 +453,10 @@ export class OrdersService implements OnModuleInit {
 
     // 6. Create payment log
     await this.paymentsService.createPayment(orderId, finalTotalAmount, paymentMethod);
+
+    // BUG-003 FIX: Clear cart after order creation
+    this.cartService.clearCart(userId || undefined, sessionId || undefined, branchId)
+      .catch(err => console.error('Failed to clear cart after order:', err));
 
       return this.orders.findOne({
         where: { id: orderId },
@@ -478,5 +487,52 @@ export class OrdersService implements OnModuleInit {
       throw new BadRequestException('Order not found');
     }
     return order;
+  }
+
+  async cancelMyOrder(id: string, userId: string | null, sessionId: string | null, refundInfo?: any): Promise<Order> {
+    const order = await this.orders.findOne({ where: { id } });
+    if (!order) {
+      throw new BadRequestException('Order not found');
+    }
+
+    if (userId) {
+      if (order.userId !== userId) {
+        throw new BadRequestException('Không có quyền hủy đơn hàng này');
+      }
+    } else if (sessionId) {
+      if (order.sessionId !== sessionId) {
+        throw new BadRequestException('Không có quyền hủy đơn hàng này (sai session)');
+      }
+    } else {
+      throw new BadRequestException('Không có quyền hủy đơn hàng này');
+    }
+
+    if (order.orderStatus !== OrderStatus.PENDING) {
+      throw new BadRequestException('Chỉ có thể hủy đơn hàng đang ở trạng thái chờ xác nhận');
+    }
+
+    if (order.paymentStatus === 'paid' as any) {
+      if (!refundInfo || !refundInfo.bankName || !refundInfo.accountNumber || !refundInfo.accountName) {
+        throw new BadRequestException('Vui lòng cung cấp đầy đủ thông tin ngân hàng để nhận hoàn tiền.');
+      }
+      order.paymentStatus = 'refund_pending' as any;
+      order.refundInfo = refundInfo;
+    }
+
+    order.orderStatus = OrderStatus.CANCELLED;
+    return this.orders.save(order);
+  }
+
+  async processRefund(id: string): Promise<Order> {
+    const order = await this.orders.findOne({ where: { id } });
+    if (!order) {
+      throw new BadRequestException('Order not found');
+    }
+    if (order.paymentStatus !== 'refund_pending' as any) {
+      throw new BadRequestException('Đơn hàng không ở trạng thái chờ hoàn tiền');
+    }
+    
+    order.paymentStatus = 'refunded' as any;
+    return this.orders.save(order);
   }
 }

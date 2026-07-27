@@ -1,14 +1,9 @@
+import { parseRes } from '../../utils/api';
 import { useState, useRef, useEffect } from "react";
 import { LogOut, User, Lock, Phone, Upload, Image as ImageIcon, History, Save, ShieldAlert, Check } from "lucide-react";
 import { toast } from "sonner";
 import { env } from "../../config/env";
 import { getAccessToken } from "../components/authSession";
-
-const MOCK_ORDERS = [
-  { id: "SB98124", date: "05/07/2026", items: "1x Cafe Latte, 1x Bánh Tiramisu", total: "100.000đ", status: "Đã hoàn thành" },
-  { id: "SB97512", date: "28/06/2026", items: "1x Bánh sinh nhật socola", total: "350.000đ", status: "Đã hoàn thành" },
-  { id: "SB99401", date: "07/07/2026", items: "2x Matcha Latte, 1x Bánh mousse xoài", total: "178.000đ", status: "Đang giao" },
-];
 
 const PRESET_AVATARS = [
   { name: "Coffee", url: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=150&auto=format&fit=crop&q=60" },
@@ -18,15 +13,8 @@ const PRESET_AVATARS = [
   { name: "Tiramisu", url: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=150&auto=format&fit=crop&q=60" },
 ];
 
-const FALLBACK_USER = {
-  fullName: "Nguyễn Minh Anh",
-  email: "minhanh@email.com",
-  phone: "0987654321",
-  avatar: "",
-};
-
 export function Profile({ user, setUser, setView, onLogout }: any) {
-  const displayUser = user || FALLBACK_USER;
+  const displayUser = user || { fullName: "", email: "", phone: "", avatar: "" };
 
   // Tabs: 'info' | 'password' | 'orders'
   const [activeTab, setActiveTab] = useState<"info" | "password" | "orders">("info");
@@ -63,7 +51,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = await parseRes(res);
         setOrders(data);
         setCurrentPage(1);
       }
@@ -134,7 +122,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
         }),
       });
 
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) {
         throw new Error(data.message || "Không thể cập nhật thông tin cá nhân");
       }
@@ -183,7 +171,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
         }),
       });
 
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) {
         throw new Error(data.message || "Đổi mật khẩu thất bại");
       }
@@ -609,14 +597,32 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
                             >
                               {getStatusLabel(o.orderStatus)}
                             </span>
-                            {o.orderStatus !== 'cancelled' && (
-                              <button 
-                                onClick={() => setView("Theo dõi", o.id)}
-                                className="mt-2 text-xs font-semibold text-primary hover:underline"
-                              >
-                                Theo dõi đơn
-                              </button>
-                            )}
+                            {o.orderStatus !== 'cancelled' && (() => {
+                              const needsPayment = 
+                                o.paymentStatus === 'pending' && 
+                                !['cod', 'cash'].includes(o.paymentMethod);
+                              
+                              if (needsPayment) {
+                                return (
+                                  <button
+                                    onClick={() => setView("Thanh toán đơn hàng", o.id)}
+                                    className="mt-2 text-xs font-semibold text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-1"
+                                  >
+                                    <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                                    Thanh toán đơn hàng
+                                  </button>
+                                );
+                              }
+                              return (
+                                <button
+                                  onClick={() => setView("Theo dõi", o.id)}
+                                  className="mt-2 text-xs font-semibold text-primary hover:underline"
+                                >
+                                  Theo dõi đơn
+                                </button>
+                              );
+                            })()}
+
                           </div>
                         </div>
                       );

@@ -1,8 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Branch } from '../branches/branch.entity';
 import { ProductVariant } from '../products/product-variant.entity';
 
 @Entity('branch_variant_stocks')
+@Index(['branchId', 'variantId'], { unique: true })
 export class BranchVariantStock {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -10,14 +11,14 @@ export class BranchVariantStock {
   @Column({ name: 'branch_id', type: 'uuid' })
   branchId: string;
 
-  @ManyToOne(() => Branch)
+  @ManyToOne(() => Branch, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'branch_id' })
   branch: Branch;
 
   @Column({ name: 'variant_id', type: 'uuid' })
   variantId: string;
 
-  @ManyToOne(() => ProductVariant)
+  @ManyToOne(() => ProductVariant, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'variant_id' })
   variant: ProductVariant;
 

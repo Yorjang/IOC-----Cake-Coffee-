@@ -45,6 +45,10 @@ export class CreateProductDto {
     @ValidateNested({ each: true })
     @Type(() => CreateProductVariantDto)
     variants?: CreateProductVariantDto[];
+
+    @IsUUID('4')
+    @IsOptional()
+    branchId?: string;
 }
 
 export class UpdateProductDto {
@@ -83,4 +87,8 @@ export class UpdateProductDto {
     @IsBoolean()
     @IsOptional()
     isActive?: boolean;
+
+    @IsUUID('4')
+    @IsOptional()
+    branchId?: string;
 }

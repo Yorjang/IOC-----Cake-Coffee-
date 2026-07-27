@@ -1,8 +1,6 @@
 import { Heart, Star } from "lucide-react";
-import { useState } from "react";
 import { MESSAGES } from "../../constants/messages";
 import { env } from "../../config/env";
-import { VIEW_KEYS } from "../../config/appConfig";
 
 export function Btn({ children, variant = "primary", disabled = false, onClick, small = false }: any) {
   const cls = variant === "primary"
@@ -34,8 +32,12 @@ export function getDiscountedPrice(originalPrice: number, productOrId: any, coup
 
   coupons.forEach(c => {
     const isProductMatch = !c.productId || c.productId === productId;
-    const isSizeMatch = !c.targetSize || !size || c.targetSize === size;
-    if (isProductMatch && isSizeMatch) {
+    const isCategoryMatch = !c.categoriesId || (productCategoryId && c.categoriesId === productCategoryId);
+    const isSizeMatch = !c.targetSize || (size && (
+      size.toLowerCase().trim() === c.targetSize.toLowerCase().trim() ||
+      size.toLowerCase().trim().startsWith(c.targetSize.toLowerCase().trim())
+    ));
+    if (isProductMatch && isCategoryMatch && isSizeMatch) {
       let discount = 0;
       if (c.discountType === 'percent') {
         discount = originalPrice * (Number(c.discountValue) / 100);
@@ -48,9 +50,10 @@ export function getDiscountedPrice(originalPrice: number, productOrId: any, coup
       }
     }
   });
+  const finalDiscount = Math.round(maxDiscount);
   return {
-    discountedPrice: Math.max(0, originalPrice - maxDiscount),
-    discountAmount: maxDiscount,
+    discountedPrice: Math.max(0, originalPrice - finalDiscount),
+    discountAmount: finalDiscount,
     bestCoupon
   };
 }

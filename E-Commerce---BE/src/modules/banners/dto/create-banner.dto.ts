@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsBoolean, IsDateString } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsBoolean, IsDateString, IsUUID } from 'class-validator';
 
 export class CreateBannerDto {
   @IsString()
@@ -6,6 +6,10 @@ export class CreateBannerDto {
   title?: string;
 
   @IsString()
+  @IsString()
+  @IsOptional()
+  subtitle?: string;
+
   @IsNotEmpty({ message: 'Vui lòng chọn hình ảnh banner.' })
   imageUrl: string;
 
@@ -20,6 +24,10 @@ export class CreateBannerDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsUUID('4')
+  @IsOptional()
+  branchId?: string;
 
   @IsDateString()
   @IsOptional()

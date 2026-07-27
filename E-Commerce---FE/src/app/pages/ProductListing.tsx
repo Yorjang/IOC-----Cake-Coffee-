@@ -30,6 +30,8 @@ export function ProductListing({ category, setView, onSelectProduct, onAddToCart
     subCategories = ["Bánh sinh nhật", "Bánh mousse", "Bánh tart", "Bánh quy"];
   } else if (category === "Tìm kiếm") {
     subCategories = ["Bánh sinh nhật", "Bánh mousse", "Bánh tart", "Bánh quy", "Cafe", "Trà", "Đồ uống khác", "Combo"];
+  } else if (category === VIEW_KEYS.ALL_PRODUCTS) {
+    subCategories = ["Bánh sinh nhật", "Bánh mousse", "Bánh tart", "Bánh quy", "Cafe", "Trà", "Đồ uống khác"];
   }
 
   // 1. Base list filtered by Main Category
@@ -42,6 +44,8 @@ export function ProductListing({ category, setView, onSelectProduct, onAddToCart
     baseList = products.filter(p => !CATEGORY_GROUPS.DRINKS.includes(p[2] as any) && p[2] !== "Combo");
   } else if (category === VIEW_KEYS.COMBO) {
     baseList = products.filter(p => p[2] === "Combo");
+  } else if (category === VIEW_KEYS.ALL_PRODUCTS) {
+    baseList = products.filter(p => p[2] !== "Combo");
   } else {
     baseList = products.filter(p => p[2] === category);
   }

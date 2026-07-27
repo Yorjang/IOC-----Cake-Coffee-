@@ -1,5 +1,5 @@
 import { CheckCircle, Crosshair, MapPin, Search, Store, X } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { StoreLocation } from "../../data/storeLocations";
 
 type StoreSelectionModalProps = {
@@ -45,6 +45,8 @@ export function StoreSelectionModal({
   const [manualLocation, setManualLocation] = useState("");
   const [openOnly, setOpenOnly] = useState(true);
 
+  const storeRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
   const filteredStores = useMemo(() => {
     const keyword = manualLocation.trim().toLowerCase();
     return stores.filter((store) => {
@@ -56,6 +58,15 @@ export function StoreSelectionModal({
   }, [manualLocation, openOnly, stores]);
 
   const recommended = filteredStores.find(store => store.isOpenNow) ?? stores.find(store => store.isOpenNow);
+
+  useEffect(() => {
+    const targetId = selectedStore?.id || recommended?.id;
+    if (targetId && storeRefs.current[targetId]) {
+      setTimeout(() => {
+        storeRefs.current[targetId]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 100);
+    }
+  }, [selectedStore, recommended]);
 
   if (stores.length === 0) return null;
 
@@ -114,6 +125,9 @@ export function StoreSelectionModal({
               return (
                 <button
                   key={store.id}
+                  ref={(el) => {
+                    storeRefs.current[store.id] = el;
+                  }}
                   type="button"
                   onClick={() => {
                     if (!isOpen) return;

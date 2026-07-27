@@ -1,3 +1,4 @@
+import { parseRes } from '../../../utils/api';
 
 import React, { useState, useEffect } from "react";
 import {
@@ -8,6 +9,7 @@ import {
   ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
 } from "lucide-react";
 import { toast } from "sonner";
+import { getAccessToken } from "../authSession";
 import { env } from "../../../config/env";
 import { supabase } from "../../../config/supabase";
 import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
@@ -20,17 +22,17 @@ export function Dashboard() {
   const loadStats = async () => {
     setLoading(true);
     setError(null);
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     if (!token) {
       setError("Thiếu mã xác thực (Token). Vui lòng đăng nhập lại.");
       setLoading(false);
       return;
     }
     try {
-      const res = await fetch(`${env.API_URL}/orders/dashboard/stats`, {
+      const res = await fetch(`${env.API_URL}/admin/dashboard`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const resData = await res.json();
+      const resData = await parseRes(res);
       if (res.ok) {
         setData(resData);
       } else {
@@ -165,3 +167,5 @@ export function Dashboard() {
     </div>
   );
 }
+
+

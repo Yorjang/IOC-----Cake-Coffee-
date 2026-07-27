@@ -3,6 +3,7 @@ export const VIEW_KEYS = {
   SWEETS: "Bánh ngọt",
   DRINKS: "Cafe/Đồ uống",
   COMBO: "Combo",
+  ALL_PRODUCTS: "Tất cả sản phẩm",
   CART: "Giỏ hàng",
   CHECKOUT: "Thanh toán",
   SUCCESS: "Thành công",
@@ -11,6 +12,8 @@ export const VIEW_KEYS = {
   ADMIN_LOGIN: "AdminLogin",
   STAFF: "Staff",
   LOGIN: "Đăng nhập",
+  REGISTER: "Đăng ký",
+  FORGOT_PASSWORD: "Quên mật khẩu",
   REVIEW: "Đánh giá",
   FAVORITES: "Yêu thích",
   PROFILE: "Hồ sơ",
@@ -21,6 +24,7 @@ export const VIEW_KEYS = {
   RETURN_POLICY: "Chính sách đổi trả",
   ORDER_GUIDE: "Hướng dẫn đặt bánh",
   TRACKING: "Theo dõi",
+  PAYMENT: "Thanh toán đơn hàng",
 } as const;
 
 export const CATEGORY_GROUPS = {
@@ -29,9 +33,10 @@ export const CATEGORY_GROUPS = {
 
 export const HOME_CONFIG = {
   HERO_ROTATION_MS: 4000,
+  DEAL_ROTATION_MS: 5000,
+  DEAL_ITEMS_LIMIT: 4,
   BEST_SELLERS_LIMIT: 8,
-  NEW_COMBOS_START: 8,
-  NEW_COMBOS_END: 14,
+  NEW_COMBOS_LIMIT: 6,
   FEATURE_ITEMS: [
     { title: "Giao hàng hỏa tốc 45p", sub: "TP.HCM", icon: "Clock" },
     { title: "Nướng mới", sub: "Mỗi ngày", icon: "Coffee" },
@@ -53,7 +58,7 @@ export const CART_CONFIG = {
 
 export const CHECKOUT_CONFIG = {
   SHIPPING_FIELDS: ["Họ tên", "Số điện thoại", "Địa chỉ giao hàng"],
-  PAYMENT_METHODS: ["Thanh toán khi nhận hàng (COD)", "Chuyển khoản ngân hàng", "Ví Momo"],
+  PAYMENT_METHODS: ["Thanh toán khi nhận hàng (COD)", "Chuyển khoản ngân hàng", "VNPay"],
   ORDER_TOTALS: [
     { label: "Tạm tính", value: "360.000đ" },
     { label: "Phí giao hàng", value: "15.000đ" },

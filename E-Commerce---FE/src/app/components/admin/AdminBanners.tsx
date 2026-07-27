@@ -1,36 +1,42 @@
+import { parseRes } from '../../../utils/api';
 
 import React, { useState, useEffect } from "react";
 import {
-  LayoutDashboard, Package, Tag, Settings, ShoppingBag, Users, Star,
-  BarChart2, Image, Edit, Trash2, Eye, Plus, CheckCircle, XCircle,
-  TrendingUp, AlertCircle, Loader2, ToggleLeft, Search, Filter,
-  ArrowUpRight, DollarSign, Clock, ChevronDown, Store, MapPin, Boxes,
-  ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
+  Edit, Trash2, Plus, CheckCircle, XCircle, Loader2
 } from "lucide-react";
 import { toast } from "sonner";
+import { getAccessToken, getStoredUser } from "../authSession";
 import { env } from "../../../config/env";
 import { supabase } from "../../../config/supabase";
 import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
 
 export function AdminBanners() {
+  const user = getStoredUser();
+  const isManager = user?.role === "store_manager";
+  const isAdmin = user?.role === "admin";
+
   const [bannersList, setBannersList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [branchId, setBranchId] = useState(isManager ? user?.branchId || "" : "");
 
+  const [subtitle, setSubtitle] = useState("");
   // Form states
   const [title, setTitle] = useState("");
   const [imageUrl, setImageUrl] = useState("https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800");
   const [linkUrl, setLinkUrl] = useState("");
   const [sortOrder, setSortOrder] = useState("1");
+  const [editingBanner, setEditingBanner] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
 
   const loadBanners = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
-      const res = await fetch(`${env.API_URL}/banners`, {
+      const res = await fetch(`${env.API_URL}/admin/banners`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         setBannersList(data);
       }
@@ -41,14 +47,35 @@ export function AdminBanners() {
     }
   };
 
+  const handleEdit = (banner: any) => { 
+    setEditingBanner(banner); 
+    setTitle(banner.title || ""); 
+    setSubtitle(banner.subtitle || ""); 
+    setImageUrl(banner.imageUrl || ""); 
+    setLinkUrl(banner.linkUrl || ""); 
+    setSortOrder(String(banner.sortOrder ?? 0)); 
+    setBranchId(banner.branchId || (isManager ? user?.branchId || "" : ""));
+    setShowAddForm(true); 
+  };
+  
+  const loadBranches = async () => {
+    try {
+      const res = await fetch(`${env.API_URL}/branches/active`);
+      if (res.ok) setBranches(await parseRes(res));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     loadBanners();
+    loadBranches();
   }, []);
 
   const handleToggleActive = async (banner: any) => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
-      const res = await fetch(`${env.API_URL}/banners/${banner.id}/active`, {
+      const res = await fetch(`${env.API_URL}/admin/banners/${banner.id}/active`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -60,7 +87,7 @@ export function AdminBanners() {
         toast.success("Cập nhật trạng thái banner thành công.");
         loadBanners();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi cập nhật.");
       }
     } catch (err) {
@@ -72,20 +99,17 @@ export function AdminBanners() {
   const handleDelete = async (id: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa banner này không?")) return;
     const token = localStorage.getItem("accessToken");
-    const banner = banners.find((b: any) => b.id === id);
+    const banner = bannersList.find((b: any) => b.id === id);
     try {
-      const res = await fetch(`${env.API_URL}/banners/${id}`, {
+      const res = await fetch(`${env.API_URL}/admin/banners/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         toast.success("Xóa banner thành công.");
-        if (banner?.imageUrl) {
-          await deleteStorageImage(banner.imageUrl);
-        }
         loadBanners();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi xóa.");
       }
     } catch (err) {
@@ -101,33 +125,40 @@ export function AdminBanners() {
       return;
     }
     const token = localStorage.getItem("accessToken");
+    const isEditing = Boolean(editingBanner);
     setSaving(true);
     try {
-      const res = await fetch(`${env.API_URL}/banners`, {
-        method: "POST",
+      const res = await fetch(`${env.API_URL}/admin/banners${isEditing ? `/${editingBanner.id}` : ""}`, {
+        method: isEditing ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
+          subtitle,
           title,
           imageUrl,
           linkUrl,
           sortOrder: Number(sortOrder),
-          isActive: true,
+          isActive: editingBanner?.isActive ?? true,
+          branchId: branchId || null,
         }),
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
-        toast.success("Tạo banner thành công.");
+        toast.success("Lưu banner thành công.");
         setTitle("");
         setImageUrl("https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800");
+        setSubtitle("");
         setLinkUrl("");
         setSortOrder("1");
+        setBranchId(isManager ? user?.branchId || "" : "");
         setShowAddForm(false);
+        setEditingBanner(null);
         loadBanners();
       } else {
-        toast.error(data.message || "Lỗi khi tạo banner.");
+        setEditingBanner(null);
+        toast.error(data.message || "Lỗi khi lưu banner.");
       }
     } catch (err) {
       console.error(err);
@@ -168,6 +199,7 @@ export function AdminBanners() {
               value={title}
               onChange={e => setTitle(e.target.value)}
             />
+            <textarea className="sm:col-span-2 min-h-20 rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent" placeholder={"M\u00f4 t\u1ea3 ng\u1eafn hi\u1ec3n th\u1ecb d\u01b0\u1edbi ti\u00eau \u0111\u1ec1"} value={subtitle} onChange={e => setSubtitle(e.target.value)} />
             <div className="sm:col-span-2">
               <ImageUploader
                 label="Hình ảnh banner"
@@ -188,6 +220,20 @@ export function AdminBanners() {
               value={sortOrder}
               onChange={e => setSortOrder(e.target.value)}
             />
+            {isAdmin && (
+              <select
+                className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
+                value={branchId}
+                onChange={e => setBranchId(e.target.value)}
+              >
+                <option value="">Chi nhánh áp dụng: Tất cả</option>
+                {branches.map(b => (
+                  <option key={b.id} value={b.id}>
+                    🏬 {b.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
           <div className="flex justify-end gap-3">
             <button
@@ -211,10 +257,16 @@ export function AdminBanners() {
                   <p className="font-semibold text-foreground text-base">{b.title}</p>
                   {b.linkUrl && <p className="text-xs text-primary truncate max-w-[200px] mt-0.5">{b.linkUrl}</p>}
                   <p className="mt-1 text-xs text-muted-foreground">Thứ tự hiển thị: {b.sortOrder}</p>
+                  {b.branchId && b.branch && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2.5 py-1 text-xs text-green-600 font-semibold mt-1">
+                      🏬 {b.branch.name}
+                    </span>
+                  )}
                 </div>
                 <StatusBadge status={b.isActive ? "Hiển thị" : "Ẩn"} />
               </div>
               <div className="mt-4 flex gap-2 justify-end">
+                <button title="Edit banner" type="button" onClick={() => handleEdit(b)} className="inline-flex size-8 items-center justify-center rounded-lg bg-blue-950/40 text-blue-400 hover:bg-blue-900/40 transition"><Edit size={14} /></button>
                 <button
                   title="Bật/Tắt hiển thị"
                   type="button"
@@ -244,3 +296,5 @@ export function AdminBanners() {
     </div>
   );
 }
+
+

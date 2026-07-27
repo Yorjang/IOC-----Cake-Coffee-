@@ -1,7 +1,9 @@
+import { parseRes } from '../../utils/api';
 import { useState } from "react";
 import { Lock, Mail, CakeSlice, Eye, EyeOff, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { env } from "../../config/env";
+import { saveAuthSession } from "./authSession";
 
 const ADMIN_ROLES = ["admin", "staff", "cashier", "store_manager"];
 
@@ -25,7 +27,7 @@ export function AdminLoginPage({ onSuccess, onBack }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) throw new Error(data.message || "Đăng nhập thất bại");
 
       const role = data.user?.role;
@@ -34,9 +36,11 @@ export function AdminLoginPage({ onSuccess, onBack }: Props) {
         return;
       }
 
-      localStorage.setItem("accessToken", data.accessToken);
-      localStorage.setItem("refreshToken", data.refreshToken);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      saveAuthSession({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        user: data.user
+      }, true);
       toast.success(`Xin chào, ${data.user?.fullName || "Admin"}!`);
       onSuccess(data.user, data.accessToken);
     } catch (err: any) {
@@ -54,7 +58,7 @@ export function AdminLoginPage({ onSuccess, onBack }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-sidebar flex items-center justify-center p-4">
+    <div className="admin-theme min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 text-center">
@@ -74,7 +78,7 @@ export function AdminLoginPage({ onSuccess, onBack }: Props) {
         </div>
 
         {/* Form */}
-        <div className="rounded-2xl border bg-background p-8 shadow-xl">
+        <div className="rounded-2xl border bg-card p-8 shadow-xl">
           <h2 className="mb-6 text-xl font-semibold text-foreground">Đăng nhập quản trị</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">

@@ -1,6 +1,6 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, IsNull, Repository } from 'typeorm';
 import { Category } from './category.entity';
 import { Product, ProductType } from './product.entity';
 import { ProductVariant, VariantStatus } from './product-variant.entity';
@@ -9,24 +9,36 @@ import { ReplaceProductToppingsDto } from './dto/product-topping.dto';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/create-product.dto';
 import { CreateProductVariantDto, UpdateProductVariantDto } from './dto/product-variant.dto';
+import { ProductTag } from './product-tag.entity';
+import { CreateProductTagDto, ReplaceProductTagsDto, UpdateProductTagDto } from './dto/product-tag.dto';
+import { User, UserRole } from '../users/user.entity';
+
+// BUG-016 FIX: Hoist RegExp to module level — prevents re-creation on every call (js-hoist-regexp)
+const SLUG_ACCENT_MAP: [RegExp, string][] = [
+    [/[áàảãạăắằẳẵặâấầẩẫậ]/g, 'a'],
+    [/[éèẻẽẹêếềểễệ]/g, 'e'],
+    [/[íìỉĩị]/g, 'i'],
+    [/[óòỏõọôốồổỗộơớờởỡợ]/g, 'o'],
+    [/[úùủũụưứừửữự]/g, 'u'],
+    [/[ýỳỷỹỵ]/g, 'y'],
+    [/đ/g, 'd'],
+    [/[^a-z0-9\s-]/g, ''],
+    [/\s+/g, '-'],
+    [/-+/g, '-'],
+];
 
 // Utility helper to generate slug
 function generateSlug(name: string): string {
     let s = name.toLowerCase();
-    s = s.replace(/[áàảãạăắằẳẵặâấầẩẫậ]/g, 'a');
-    s = s.replace(/[éèẻẽẹêếềểễệ]/g, 'e');
-    s = s.replace(/[íìỉĩị]/g, 'i');
-    s = s.replace(/[óòỏõọôốồổỗộơớờởỡợ]/g, 'o');
-    s = s.replace(/[úùủũụưứừửữự]/g, 'u');
-    s = s.replace(/[ýỳỷỹỵ]/g, 'y');
-    s = s.replace(/đ/g, 'd');
-    s = s.replace(/[^a-z0-9\s-]/g, '');
-    s = s.replace(/\s+/g, '-');
-    return s.trim().replace(/-+/g, '-');
+    for (const [pattern, replacement] of SLUG_ACCENT_MAP) {
+        s = s.replace(pattern, replacement);
+    }
+    return s.trim();
 }
 
+
 @Injectable()
-export class ProductsService {
+export class ProductsService implements OnModuleInit {
     constructor(
         @InjectRepository(Category)
         private readonly categories: Repository<Category>,
@@ -39,7 +51,25 @@ export class ProductsService {
 
         @InjectRepository(ProductTopping)
         private readonly toppings: Repository<ProductTopping>,
+
+        @InjectRepository(ProductTag)
+        private readonly tags: Repository<ProductTag>,
     ) {}
+
+    async onModuleInit() {
+        try {
+            await this.products.query('ALTER TABLE products ADD COLUMN IF NOT EXISTS branch_id UUID');
+        } catch (err) {
+            console.error('Error adding branch_id to products:', err);
+        }
+        try {
+            await this.products.query(
+                'ALTER TABLE products ADD CONSTRAINT fk_products_branch FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL'
+            );
+        } catch (err) {
+            // Ignore if constraint already exists
+        }
+    }
 
     // ── Categories CRUD ──────────────────────────────────────────────────────
     async findAllCategories(): Promise<Category[]> {
@@ -90,9 +120,31 @@ export class ProductsService {
     }
 
     // ── Products CRUD ────────────────────────────────────────────────────────
-    async findAllProducts(): Promise<Product[]> {
+    async findAllProducts(tagSlug?: string, user?: User, isAdminPath?: boolean, branchId?: string): Promise<Product[]> {
+        const baseWhere: FindOptionsWhere<Product> = {};
+        if (tagSlug) {
+            baseWhere.tags = { slug: tagSlug };
+        }
+        if (isAdminPath && user?.role === UserRole.STORE_MANAGER && user.branchId) {
+            baseWhere.branchId = user.branchId;
+        }
+        const where: FindOptionsWhere<Product> | FindOptionsWhere<Product>[] | undefined =
+            !isAdminPath && branchId
+                ? [
+                    { ...baseWhere, branchId },
+                    { ...baseWhere, branchId: IsNull() },
+                ]
+                : Object.keys(baseWhere).length > 0 ? baseWhere : undefined;
         return this.products.find({
-            relations: { category: true, variants: true, toppings: true },
+            where,
+            relations: {
+                category: true,
+                variants: true,
+                toppings: true,
+                tags: true,
+                branch: true,
+                items: { childProduct: { category: true, toppings: true }, childVariant: true },
+            },
             order: { name: 'ASC' },
         });
     }
@@ -100,13 +152,20 @@ export class ProductsService {
     async findProductById(id: string): Promise<Product> {
         const prod = await this.products.findOne({
             where: { id },
-            relations: { category: true, variants: true, toppings: true },
+            relations: {
+                category: true,
+                variants: true,
+                toppings: true,
+                tags: true,
+                branch: true,
+                items: { childProduct: { category: true, toppings: true }, childVariant: true },
+            },
         });
         if (!prod) throw new NotFoundException('Không tìm thấy sản phẩm');
         return prod;
     }
 
-    async createProduct(dto: CreateProductDto): Promise<Product> {
+    async createProduct(dto: CreateProductDto, user: User): Promise<Product> {
         // Validate Category
         await this.findCategoryById(dto.categoryId);
 
@@ -114,9 +173,12 @@ export class ProductsService {
         const existing = await this.products.findOne({ where: { slug } });
         if (existing) throw new BadRequestException('Sản phẩm với tên hoặc đường dẫn này đã tồn tại');
 
+        const branchId = user.role === UserRole.STORE_MANAGER ? user.branchId : dto.branchId;
+
         const { variants, ...prodData } = dto;
         const product = this.products.create({
             ...prodData,
+            branchId,
             slug,
         });
 
@@ -124,13 +186,12 @@ export class ProductsService {
 
         // Add variants if provided, otherwise add default variant
         if (variants && variants.length > 0) {
-            for (const vDto of variants) {
-                const variant = this.variants.create({
-                    ...vDto,
-                    productId: savedProduct.id,
-                });
-                await this.variants.save(variant);
-            }
+        // BUG-012 FIX: Save all variants in a single batch call (was serial N saves)
+        const variantEntities = variants.map((vDto: any) =>
+            this.variants.create({ ...vDto, productId: savedProduct.id } as any)
+        );
+        await Promise.all(variantEntities.map(v => this.variants.save(v)));
+
         } else {
             // Default variant creation
             const size = dto.productType === ProductType.COFFEE || dto.productType === ProductType.DRINK ? 'Vừa' : 'Mặc định';
@@ -148,8 +209,11 @@ export class ProductsService {
         return this.findProductById(savedProduct.id);
     }
 
-    async updateProduct(id: string, dto: UpdateProductDto): Promise<Product> {
+    async updateProduct(id: string, dto: UpdateProductDto, user: User): Promise<Product> {
         const prod = await this.findProductById(id);
+        if (user.role === UserRole.STORE_MANAGER && prod.branchId !== user.branchId) {
+            throw new BadRequestException('Bạn không có quyền chỉnh sửa sản phẩm của chi nhánh khác');
+        }
         
         if (dto.categoryId && dto.categoryId !== prod.categoryId) {
             await this.findCategoryById(dto.categoryId);
@@ -164,13 +228,21 @@ export class ProductsService {
             prod.slug = slug;
         }
 
-        Object.assign(prod, dto);
+        const { branchId, ...updateData } = dto;
+        if (user.role === UserRole.ADMIN) {
+            prod.branchId = branchId !== undefined ? branchId : prod.branchId;
+        }
+
+        Object.assign(prod, updateData);
         await this.products.save(prod);
         return this.findProductById(id);
     }
 
-    async deleteProduct(id: string): Promise<void> {
+    async deleteProduct(id: string, user: User): Promise<void> {
         const prod = await this.findProductById(id);
+        if (user.role === UserRole.STORE_MANAGER && prod.branchId !== user.branchId) {
+            throw new BadRequestException('Bạn không có quyền xóa sản phẩm của chi nhánh khác');
+        }
         await this.products.remove(prod);
     }
 
@@ -202,6 +274,64 @@ export class ProductsService {
             if (normalized.length > 0) await repository.save(repository.create(normalized));
         });
         return this.findProductToppings(productId);
+    }
+
+    async findAllTags(): Promise<ProductTag[]> {
+        return this.tags.find({ order: { name: 'ASC' } });
+    }
+
+    async findTagById(id: string): Promise<ProductTag> {
+        const tag = await this.tags.findOne({ where: { id } });
+        if (!tag) throw new NotFoundException('Không tìm thấy tag sản phẩm');
+        return tag;
+    }
+
+    async createTag(dto: CreateProductTagDto): Promise<ProductTag> {
+        const name = dto.name.trim();
+        const slug = dto.slug?.trim() || generateSlug(name);
+        const existing = await this.tags.findOne({ where: [{ name }, { slug }] });
+        if (existing) throw new BadRequestException('Tên hoặc slug tag đã tồn tại');
+        return this.tags.save(this.tags.create({ name, slug }));
+    }
+
+    async updateTag(id: string, dto: UpdateProductTagDto): Promise<ProductTag> {
+        const tag = await this.findTagById(id);
+        const name = dto.name?.trim();
+        const slug = dto.slug?.trim() || (name ? generateSlug(name) : undefined);
+        if (name || slug) {
+            const existing = await this.tags.findOne({
+                where: [
+                    ...(name ? [{ name }] : []),
+                    ...(slug ? [{ slug }] : []),
+                ],
+            });
+            if (existing && existing.id !== id) {
+                throw new BadRequestException('Tên hoặc slug tag đã tồn tại');
+            }
+        }
+        Object.assign(tag, { ...(name ? { name } : {}), ...(slug ? { slug } : {}) });
+        return this.tags.save(tag);
+    }
+
+    async deleteTag(id: string): Promise<void> {
+        await this.tags.remove(await this.findTagById(id));
+    }
+
+    async findProductTags(productId: string): Promise<ProductTag[]> {
+        const product = await this.findProductById(productId);
+        return [...(product.tags || [])].sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+    }
+
+    async replaceProductTags(productId: string, dto: ReplaceProductTagsDto): Promise<ProductTag[]> {
+        await this.findProductById(productId);
+        const tags = dto.tagIds.length
+            ? await this.tags.createQueryBuilder('tag').where('tag.id IN (:...ids)', { ids: dto.tagIds }).getMany()
+            : [];
+        if (tags.length !== dto.tagIds.length) {
+            throw new BadRequestException('Một hoặc nhiều tag không tồn tại');
+        }
+        await this.products.createQueryBuilder().relation(Product, 'tags').of(productId).addAndRemove(dto.tagIds, await this.findProductTags(productId).then(items => items.map(item => item.id)));
+        return this.findProductTags(productId);
     }
 
     // ── Variants CRUD ────────────────────────────────────────────────────────

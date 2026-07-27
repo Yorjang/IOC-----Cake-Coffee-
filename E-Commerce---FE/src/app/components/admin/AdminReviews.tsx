@@ -1,3 +1,4 @@
+import { parseRes } from '../../../utils/api';
 
 import React, { useState, useEffect } from "react";
 import {
@@ -8,6 +9,7 @@ import {
   ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
 } from "lucide-react";
 import { toast } from "sonner";
+import { getAccessToken } from "../authSession";
 import { env } from "../../../config/env";
 import { supabase } from "../../../config/supabase";
 import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
@@ -17,12 +19,12 @@ export function AdminReviews() {
   const [loading, setLoading] = useState(true);
 
   const loadReviews = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
-      const res = await fetch(`${env.API_URL}/reviews`, {
+      const res = await fetch(`${env.API_URL}/admin/reviews`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         setReviewsList(data);
       }
@@ -38,9 +40,9 @@ export function AdminReviews() {
   }, []);
 
   const updateVisibility = async (id: string, isVisible: boolean) => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
-      const res = await fetch(`${env.API_URL}/reviews/${id}/visibility`, {
+      const res = await fetch(`${env.API_URL}/admin/reviews/${id}/visibility`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -52,7 +54,7 @@ export function AdminReviews() {
         toast.success(isVisible ? "Đã hiển thị đánh giá." : "Đã ẩn đánh giá.");
         loadReviews();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi cập nhật.");
       }
     } catch (err) {
@@ -63,9 +65,9 @@ export function AdminReviews() {
 
   const deleteReview = async (id: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa đánh giá này không?")) return;
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
-      const res = await fetch(`${env.API_URL}/reviews/${id}`, {
+      const res = await fetch(`${env.API_URL}/admin/reviews/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -73,7 +75,7 @@ export function AdminReviews() {
         toast.success("Xóa đánh giá thành công.");
         loadReviews();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi xóa.");
       }
     } catch (err) {
@@ -172,3 +174,5 @@ export function AdminReviews() {
     </div>
   );
 }
+
+

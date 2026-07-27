@@ -1,22 +1,9 @@
+import { parseRes } from '../../utils/api';
 import { useState, useEffect } from "react";
 import { Star, ThumbsUp, Camera, ArrowLeft } from "lucide-react";
 import { env } from "../../config/env";
 import { getAccessToken } from "./authSession";
 import { toast } from "sonner";
-
-const mockProducts = [
-  ["Bánh Tiramisu", "45.000đ", "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=120&h=120&fit=crop&auto=format"],
-  ["Cafe Latte", "55.000đ", "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=120&h=120&fit=crop&auto=format"],
-  ["Bánh mousse xoài", "60.000đ", "https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?w=120&h=120&fit=crop&auto=format"],
-];
-
-const initialReviews = [
-  { user: "Nguyễn Minh Anh", avatar: "N", rating: 5, date: "20/06/2025", comment: "Bánh ngon tuyệt, cream mịn, không ngọt quá. Giao hàng nhanh!", likes: 12, verified: true, images: ["https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=80&h=80&fit=crop&auto=format"] },
-  { user: "Trần Thị Bình", avatar: "T", rating: 5, date: "18/06/2025", comment: "Mình đặt bánh sinh nhật cho con, cả nhà khen ngon. Hộp đóng gói đẹp, không bị méo. Sẽ mua lại!", likes: 8, verified: true, images: [] },
-  { user: "Lê Văn Cường", avatar: "L", rating: 4, date: "15/06/2025", comment: "Tiramisu đúng vị Ý, cà phê đậm đà. Chỉ tiếc là lần này giao hơi muộn 15 phút.", likes: 5, verified: false, images: [] },
-  { user: "Phạm Thu Hà", avatar: "P", rating: 5, date: "10/06/2025", comment: "Lần thứ 5 mình order rồi, chất lượng ổn định, nhân viên nhiệt tình. Tuyệt vời!", likes: 20, verified: true, images: ["https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=80&h=80&fit=crop&auto=format", "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=80&h=80&fit=crop&auto=format"] },
-  { user: "Vũ Đức Minh", avatar: "V", rating: 3, date: "05/06/2025", comment: "Vị okay nhưng giá hơi cao so với phần ăn. Phù hợp làm quà hơn là ăn thường ngày.", likes: 2, verified: false, images: [] },
-];
 
 function StarPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const [hover, setHover] = useState(0);
@@ -53,9 +40,22 @@ export function ReviewPage({ product, onBack }: any) {
   const [reviewsList, setReviewsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const displayProductName = product ? product[0] : mockProducts[0][0];
-  const displayProductPrice = product ? product[1] : mockProducts[0][1];
-  const displayProductImage = product ? product[3] : mockProducts[0][2];
+  if (!product) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6">
+        <div className="mb-4 text-muted-foreground"><Camera size={48} /></div>
+        <h2 className="text-xl font-semibold mb-2">Không tìm thấy sản phẩm</h2>
+        <p className="text-muted-foreground mb-6">Có vẻ như sản phẩm này không tồn tại hoặc đã bị xóa.</p>
+        <button onClick={onBack} className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-primary-foreground transition hover:bg-primary/90 font-medium">
+          <ArrowLeft size={18} /> Quay lại
+        </button>
+      </div>
+    );
+  }
+
+  const displayProductName = product[0];
+  const displayProductPrice = product[1];
+  const displayProductImage = product[3];
 
   const productId = product?.raw?.id;
 
@@ -65,7 +65,7 @@ export function ReviewPage({ product, onBack }: any) {
     try {
       const res = await fetch(`${env.API_URL}/reviews/product/${productId}`);
       if (res.ok) {
-        const data = await res.json();
+        const data = await parseRes(res);
         const mapped = data.map((r: any) => ({
           user: r.user?.fullName || "Khách hàng",
           avatar: (r.user?.fullName || "K").charAt(0).toUpperCase(),
@@ -127,7 +127,7 @@ export function ReviewPage({ product, onBack }: any) {
         })
       });
 
-      const resData = await res.json();
+      const resData = await parseRes(res);
       if (!res.ok) {
         throw new Error(resData.message || "Gửi đánh giá thất bại");
       }

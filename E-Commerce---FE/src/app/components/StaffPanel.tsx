@@ -398,7 +398,7 @@ export function StaffPanel({ onExit, staffUser, products = [] }: StaffPanelProps
                     <StaffBadge status={status} />
                   </div>
                   <div className="space-y-3">
-                    {kitchenTickets.filter((ticket) => ticket.status === status).map((ticket) => (
+                    {kitchenTickets.flatMap((ticket) => ticket.status !== status ? [] : [
                       <article key={ticket.id} className="rounded-xl border bg-card p-4 shadow-sm">
                         <p className="font-mono text-xs text-primary">{ticket.id} · {ticket.order}</p>
                         <h3 className="mt-1 font-medium">{ticket.title}</h3>
@@ -407,7 +407,7 @@ export function StaffPanel({ onExit, staffUser, products = [] }: StaffPanelProps
                           <span>{ticket.due}</span>
                         </div>
                       </article>
-                    ))}
+                    ])}
                   </div>
                 </div>
               ))}

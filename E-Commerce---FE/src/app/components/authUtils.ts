@@ -1,3 +1,4 @@
+import { parseRes } from '../../utils/api';
 import { toast } from "sonner";
 import { env } from "../../config/env";
 import { saveAuthSession } from "./authSession";
@@ -71,17 +72,17 @@ export function validateRegisterFields(fullName: string, email: string, phone: s
   return err;
 }
 
-export async function apiLogin(email: string, password: string, onSuccess: () => void) {
+export async function apiLogin(email: string, password: string, remember: boolean, onSuccess: () => void) {
   const res = await fetch(`${env.API_URL}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, remember }),
   });
-  const data = await res.json();
+  const data = await parseRes(res);
 
   if (!res.ok) throw new Error(getAuthErrorMessage(data.message, "Đăng nhập thất bại"));
 
-  saveAuthSession(data, false);
+  saveAuthSession(data, remember);
   toast.success("Đăng nhập thành công!");
   onSuccess();
 }
@@ -99,7 +100,7 @@ export async function apiRegister(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ fullName: fullName.trim().replace(/\s+/g, " "), email, phone, password }),
   });
-  const data = await res.json();
+  const data = await parseRes(res);
 
   if (!res.ok) {
     const err: AuthErrors = {};
@@ -126,3 +127,45 @@ export async function apiRegister(
 
   return null;
 }
+
+export async function apiForgotPassword(email: string): Promise<boolean> {
+  const res = await fetch(`${env.API_URL}/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  const data = await parseRes(res);
+  if (!res.ok) throw new Error(data.message || "Yêu cầu đặt lại mật khẩu thất bại");
+  toast.success(data.message || "Email đặt lại mật khẩu đã được gửi!");
+  return true;
+}
+
+export async function apiResetPassword(token: string, password: string): Promise<boolean> {
+  if (password.length < 6) {
+    throw new Error("Mật khẩu mới phải có tối thiểu 6 ký tự!");
+  }
+  const res = await fetch(`${env.API_URL}/auth/reset-password?token=${token}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+  const data = await parseRes(res);
+  if (!res.ok) throw new Error(data.message || "Đặt lại mật khẩu thất bại");
+  toast.success(data.message || "Mật khẩu đã được đặt lại thành công!");
+  return true;
+}
+
+export async function apiGoogleLogin(idToken: string, remember: boolean, onSuccess: () => void) {
+  const res = await fetch(`${env.API_URL}/auth/google-login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ idToken, remember }),
+  });
+  const data = await parseRes(res);
+  if (!res.ok) throw new Error(getAuthErrorMessage(data.message, "Đăng nhập Google thất bại"));
+
+  saveAuthSession(data, remember);
+  toast.success("Đăng nhập bằng Google thành công!");
+  onSuccess();
+}
+

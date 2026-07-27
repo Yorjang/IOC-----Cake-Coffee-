@@ -1,7 +1,62 @@
 import React, { useState } from "react";
-import { Loader2, UploadCloud } from "lucide-react";
+import { UploadCloud, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../../config/supabase";
+
+
+import {
+  LayoutDashboard, Package, Tag, Settings, ShoppingBag, Users, Star,
+  BarChart2, Image, Store, MapPin, Boxes
+} from "lucide-react";
+
+export type AdminRole = "admin" | "store_manager" | "staff" | "cashier";
+
+export const ROLE_LABEL: Record<AdminRole, string> = {
+  admin: "Quản trị viên",
+  store_manager: "Quản lý cửa hàng",
+  staff: "Nhân viên",
+  cashier: "Thu ngân",
+};
+
+export const WEEK_DAYS = [
+  { value: "monday", label: "Thứ Hai" },
+  { value: "tuesday", label: "Thứ Ba" },
+  { value: "wednesday", label: "Thứ Tư" },
+  { value: "thursday", label: "Thứ Năm" },
+  { value: "friday", label: "Thứ Sáu" },
+  { value: "saturday", label: "Thứ Bảy" },
+  { value: "sunday", label: "Chủ Nhật" },
+];
+
+export const defaultOpeningHours = () => WEEK_DAYS.map(day => ({
+  dayOfWeek: day.value,
+  openingTime: "07:00",
+  closingTime: "22:00",
+  isClosed: false,
+}));
+
+export const navItems = [
+  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, allowedRoles: ["admin", "store_manager", "staff", "cashier"] },
+  { key: "orders", label: "Đơn hàng", icon: ShoppingBag, allowedRoles: ["admin", "store_manager", "staff", "cashier"] },
+  { key: "branches", label: "Chi nhánh", icon: Store, allowedRoles: ["admin", "store_manager"] },
+  { key: "storeMap", label: "Bản đồ", icon: MapPin, allowedRoles: ["admin", "store_manager"] },
+  { key: "products", label: "Sản phẩm", icon: Package, allowedRoles: ["admin", "store_manager", "staff"] },
+  { key: "combos", label: "Combo", icon: Boxes, allowedRoles: ["admin", "store_manager"] },
+  { key: "categories", label: "Danh mục", icon: Tag, allowedRoles: ["admin", "store_manager", "staff"] },
+  { key: "productTags", label: "Tag sản phẩm", icon: Tag, allowedRoles: ["admin", "staff"] },
+  { key: "inventory", label: "Tồn kho", icon: Boxes, allowedRoles: ["admin", "store_manager", "staff"] },
+  { key: "users", label: "Người dùng", icon: Users, allowedRoles: ["admin"] },
+  { key: "reviews", label: "Đánh giá", icon: Star, allowedRoles: ["admin", "store_manager", "staff"] },
+  { key: "vouchers", label: "Voucher", icon: Tag, allowedRoles: ["admin", "store_manager"] },
+  { key: "banners", label: "Banner", icon: Image, allowedRoles: ["admin", "store_manager"] },
+  { key: "revenue", label: "Thống kê", icon: BarChart2, allowedRoles: ["admin", "store_manager"] },
+  { key: "settings", label: "Cài đặt", icon: Settings, allowedRoles: ["admin"] },
+] satisfies Array<{
+  key: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  allowedRoles: AdminRole[];
+}>;
 
 export function ImageUploader({ label, value, onChange }: { label: string; value: string; onChange: (url: string) => void }) {
   const [uploading, setUploading] = useState(false);
@@ -21,7 +76,7 @@ export function ImageUploader({ label, value, onChange }: { label: string; value
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `products/${fileName}`;
 
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from('cakeandcoffee')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -90,7 +145,6 @@ export function ImageUploader({ label, value, onChange }: { label: string; value
   );
 }
 
-
 export async function deleteStorageImage(imageUrl: string) {
   if (!imageUrl) return;
   if (imageUrl.includes("supabase.co/storage/v1/object/public/cakeandcoffee/")) {
@@ -107,7 +161,6 @@ export async function deleteStorageImage(imageUrl: string) {
   }
 }
 
-
 export const statusColor: Record<string, string> = {
   "Đang giao": "bg-blue-100 text-blue-700",
   "Đang chuẩn bị": "bg-yellow-100 text-yellow-700",
@@ -122,6 +175,7 @@ export const statusColor: Record<string, string> = {
   "Mới": "bg-blue-100 text-blue-700",
   "Đã duyệt": "bg-green-100 text-green-700",
   "Chờ duyệt": "bg-yellow-100 text-yellow-700",
+  "Chờ xóa": "bg-red-100 text-red-700",
   "Ẩn": "bg-gray-100 text-gray-700",
   "Đang hoạt động": "bg-green-100 text-green-700",
   "Hết lượt": "bg-red-100 text-red-700",
@@ -131,11 +185,9 @@ export const statusColor: Record<string, string> = {
   "Sắp hết": "bg-yellow-100 text-yellow-700",
 };
 
-
 export function StatusBadge({ status }: { status: string }) {
   return <span className={`inline-block rounded-full px-3 py-0.5 text-xs font-semibold ${statusColor[status] ?? "bg-gray-100 text-gray-600"}`}>{status}</span>;
 }
-
 
 export function AdminBtn({ children, variant = "primary", onClick, disabled = false }: any) {
   const cls = variant === "primary"
@@ -145,7 +197,6 @@ export function AdminBtn({ children, variant = "primary", onClick, disabled = fa
       : "border border-primary/30 bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary-foreground";
   return <button type="button" onClick={onClick} disabled={disabled} className={`inline-flex min-h-8 min-w-10 items-center justify-center rounded-lg px-3 py-1.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${cls}`}>{children}</button>;
 }
-
 
 export function TableHeader({ cols }: { cols: string[] }) {
   return <thead><tr className="border-b border-sidebar-accent">{cols.map(c => <th key={c} className="pb-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{c}</th>)}</tr></thead>;
