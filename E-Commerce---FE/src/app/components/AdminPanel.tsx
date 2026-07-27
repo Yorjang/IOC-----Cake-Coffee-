@@ -237,7 +237,7 @@ function Dashboard() {
         {stats.map(({ label, value, delta, icon }: any) => {
           const IconComponent = iconMap[icon] || DollarSign;
           return (
-            <div key={label} className="rounded-2xl bg-sidebar p-5 transition hover:bg-sidebar-accent">
+            <div key={label} className="rounded-2xl bg-card border border-border shadow-sm p-5 transition hover:bg-sidebar-accent">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">{label}</p>
                 <span className="rounded-xl bg-sidebar-accent p-2">
@@ -254,7 +254,7 @@ function Dashboard() {
         })}
       </div>
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="rounded-2xl bg-sidebar p-5">
+        <div className="rounded-2xl bg-card border border-border shadow-sm p-5">
           <h3 className="mb-4 font-semibold text-foreground">Doanh thu 7 ngày qua</h3>
           <div className="flex items-end gap-3 h-40">
             {weekly.map((d: any) => (
@@ -269,7 +269,7 @@ function Dashboard() {
             ))}
           </div>
         </div>
-        <div className="rounded-2xl bg-sidebar p-5">
+        <div className="rounded-2xl bg-card border border-border shadow-sm p-5">
           <h3 className="mb-4 font-semibold text-foreground">Đơn hàng gần đây</h3>
           <div className="space-y-3">
             {recentOrders.map((o: any) => (
@@ -292,15 +292,15 @@ function Dashboard() {
         </div>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl bg-sidebar p-5 flex items-center gap-3">
+        <div className="rounded-2xl bg-card border border-border shadow-sm p-5 flex items-center gap-3">
           <CheckCircle className="text-green-400 shrink-0" size={18} />
           <p className="text-sm text-muted-foreground">Báo cáo tháng hoạt động bình thường.</p>
         </div>
-        <div className="rounded-2xl bg-sidebar p-5 flex items-center gap-3">
+        <div className="rounded-2xl bg-card border border-border shadow-sm p-5 flex items-center gap-3">
           <AlertCircle className="text-yellow-400 shrink-0" size={18} />
           <p className="text-sm text-muted-foreground">Kiểm tra tồn kho định kỳ tại tab Tồn kho.</p>
         </div>
-        <div className="rounded-2xl bg-sidebar p-5 flex items-center gap-3">
+        <div className="rounded-2xl bg-card border border-border shadow-sm p-5 flex items-center gap-3">
           <CheckCircle className="text-green-400 shrink-0" size={18} />
           <p className="text-sm text-muted-foreground">Tất cả cổng thanh toán hoạt động bình thường.</p>
         </div>
@@ -538,7 +538,7 @@ function AdminProducts() {
         <AdminBtn onClick={openAdd}><span className="flex items-center gap-1"><Plus size={14} />Thêm sản phẩm</span></AdminBtn>
       </div>
       <div className="flex flex-wrap gap-3">
-        <div className="flex items-center gap-2 rounded-xl bg-sidebar px-3 py-2 text-sm"><Search size={14} className="text-muted-foreground" /><input className="bg-transparent outline-none text-foreground placeholder:text-muted-foreground" placeholder="Tìm sản phẩm…" value={search} onChange={e => setSearch(e.target.value)} /></div>
+        <div className="flex items-center gap-2 rounded-xl bg-sidebar border border-border px-3 py-2 text-sm focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-colors"><Search size={14} className="text-muted-foreground" /><input className="bg-transparent outline-none text-foreground placeholder:text-muted-foreground" placeholder="Tìm sản phẩm…" value={search} onChange={e => setSearch(e.target.value)} /></div>
       </div>
       {loading ? <div className="py-10 text-center text-muted-foreground"><Loader2 className="inline animate-spin mr-2" size={16} />Đang tải…</div> : (
         <div className="overflow-auto rounded-2xl bg-sidebar">
@@ -590,15 +590,15 @@ function AdminProducts() {
           <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-sidebar p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-foreground mb-4">{editing ? "Sửa sản phẩm" : "Thêm sản phẩm mới"}</h3>
             <div className="space-y-3">
-              <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" placeholder="Tên sản phẩm" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-              <select className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" value={form.categoryId} onChange={e => setForm({ ...form, categoryId: e.target.value })}>
+              <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" placeholder="Tên sản phẩm" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+              <select className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={form.categoryId} onChange={e => setForm({ ...form, categoryId: e.target.value })}>
                 <option value="">-- Chọn danh mục --</option>
                 {cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
-              <select className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" value={form.productType} onChange={e => setForm({ ...form, productType: e.target.value })}>
+              <select className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={form.productType} onChange={e => setForm({ ...form, productType: e.target.value })}>
                 <option value="cake">Bánh (cake)</option><option value="coffee">Cafe (coffee)</option><option value="drink">Đồ uống (drink)</option><option value="combo">Combo</option>
               </select>
-              <textarea className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none resize-none" rows={2} placeholder="Mô tả sản phẩm" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+              <textarea className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors resize-none" rows={2} placeholder="Mô tả sản phẩm" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
               <ImageUploader label="Hình ảnh sản phẩm" value={form.imageUrl} onChange={url => setForm({ ...form, imageUrl: url })} />
               <div className="rounded-2xl border border-sidebar-accent p-4">
                 <h4 className="font-semibold text-foreground">Tag hiển thị sản phẩm</h4>
@@ -834,8 +834,8 @@ function AdminCategories() {
           <div className="w-full max-w-md rounded-2xl bg-sidebar p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-foreground mb-4">{editing ? "Sửa danh mục" : "Thêm danh mục mới"}</h3>
             <div className="space-y-3">
-              <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" placeholder="Tên danh mục" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-              <textarea className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none resize-none" rows={2} placeholder="Mô tả danh mục" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+              <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" placeholder="Tên danh mục" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+              <textarea className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors resize-none" rows={2} placeholder="Mô tả danh mục" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
               <ImageUploader label="Hình ảnh danh mục" value={form.imageUrl} onChange={url => setForm({ ...form, imageUrl: url })} />
             </div>
             <div className="mt-5 flex justify-end gap-3">
@@ -886,7 +886,7 @@ function AdminProductTags() {
   return <div className="space-y-5">
     <div className="flex items-center justify-between gap-3"><div><h2 className="text-2xl font-semibold text-foreground">Tag sản phẩm</h2><p className="mt-1 text-sm text-muted-foreground">Mỗi tag tạo thành một khu vực sản phẩm trên trang chủ.</p></div><AdminBtn onClick={() => openForm()}><span className="flex items-center gap-1"><Plus size={14} />Thêm tag</span></AdminBtn></div>
     {loading ? <div className="py-10 text-center text-muted-foreground"><Loader2 className="inline animate-spin mr-2" size={16} />Đang tải…</div> : <div className="overflow-auto rounded-2xl bg-sidebar"><table className="w-full text-sm"><TableHeader cols={["Tên tag", "Slug/API", "Thao tác"]} /><tbody>{items.map(tag => <tr key={tag.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition"><td className="py-3 font-medium text-foreground">{tag.name}</td><td className="py-3 font-mono text-xs text-muted-foreground">?tag={tag.slug}</td><td className="py-3"><div className="flex gap-2"><AdminBtn variant="ghost" onClick={() => openForm(tag)}><Edit size={14} /></AdminBtn><AdminBtn variant="danger" onClick={() => remove(tag)}><Trash2 size={14} /></AdminBtn></div></td></tr>)}</tbody></table></div>}
-    {showModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)}><div className="w-full max-w-md rounded-2xl bg-sidebar p-6 shadow-2xl" onClick={event => event.stopPropagation()}><h3 className="mb-4 text-lg font-semibold text-foreground">{editing ? "Sửa tag" : "Thêm tag mới"}</h3><input autoFocus className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" placeholder="Ví dụ: Bán chạy" value={name} onChange={event => setName(event.target.value)} /><div className="mt-5 flex justify-end gap-3"><AdminBtn variant="ghost" onClick={() => setShowModal(false)}>Hủy</AdminBtn><AdminBtn onClick={save}>{editing ? "Cập nhật" : "Tạo tag"}</AdminBtn></div></div></div>}
+    {showModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)}><div className="w-full max-w-md rounded-2xl bg-sidebar p-6 shadow-2xl" onClick={event => event.stopPropagation()}><h3 className="mb-4 text-lg font-semibold text-foreground">{editing ? "Sửa tag" : "Thêm tag mới"}</h3><input autoFocus className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" placeholder="Ví dụ: Bán chạy" value={name} onChange={event => setName(event.target.value)} /><div className="mt-5 flex justify-end gap-3"><AdminBtn variant="ghost" onClick={() => setShowModal(false)}>Hủy</AdminBtn><AdminBtn onClick={save}>{editing ? "Cập nhật" : "Tạo tag"}</AdminBtn></div></div></div>}
   </div>;
 }
 
@@ -1120,7 +1120,7 @@ function AdminBranches({ adminUser }: { adminUser?: any }) {
 
       <div className="grid gap-4 md:grid-cols-3">
         {branchRows.map(branch => (
-          <div key={branch.id} className="rounded-2xl bg-sidebar p-5 transition hover:bg-sidebar-accent">
+          <div key={branch.id} className="rounded-2xl bg-card border border-border shadow-sm p-5 transition hover:bg-sidebar-accent">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="font-mono text-xs text-primary">{branch.id.slice(0, 8)}</p>
@@ -1133,14 +1133,14 @@ function AdminBranches({ adminUser }: { adminUser?: any }) {
               <p className="flex gap-2"><Clock size={15} className="mt-0.5 shrink-0 text-primary" />{branch.phone || "Chưa có số điện thoại"}</p>
               <p className="flex gap-2"><Users size={15} className="mt-0.5 shrink-0 text-primary" />{branch.email || "Chưa có email"}</p>
             </div>
-            <div className="mt-5 grid grid-cols-2 gap-3 rounded-xl bg-sidebar-accent p-3 text-sm">
+            <div className="mt-5 flex flex-wrap gap-4 rounded-xl border border-border/50 bg-sidebar-accent/50 p-4 text-sm">
               <div>
                 <p className="text-xs text-muted-foreground">Latitude</p>
-                <p className="mt-1 font-semibold text-foreground">{branch.latitude || "-"}</p>
+                <p className="mt-1 font-semibold text-foreground break-all">{branch.latitude || "-"}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Longitude</p>
-                <p className="mt-1 font-semibold text-primary">{branch.longitude || "-"}</p>
+                <p className="mt-1 font-semibold text-primary break-all">{branch.longitude || "-"}</p>
               </div>
             </div>
             <div className="mt-4 flex gap-2">
@@ -1174,26 +1174,26 @@ function AdminBranches({ adminUser }: { adminUser?: any }) {
             <div className="grid gap-4">
               <label className="grid gap-1 text-sm">
                 <span className="text-muted-foreground">Tên chi nhánh</span>
-                <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={branchForm.name || ""} onChange={e => setBranchForm((prev: any) => ({ ...prev, name: e.target.value }))} />
+                <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={branchForm.name || ""} onChange={e => setBranchForm((prev: any) => ({ ...prev, name: e.target.value }))} />
               </label>
               <label className="grid gap-1 text-sm">
                 <span className="text-muted-foreground">Địa chỉ</span>
-                <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={branchForm.address || ""} onChange={e => setBranchForm((prev: any) => ({ ...prev, address: e.target.value }))} />
+                <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={branchForm.address || ""} onChange={e => setBranchForm((prev: any) => ({ ...prev, address: e.target.value }))} />
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="grid gap-1 text-sm">
                   <span className="text-muted-foreground">Số điện thoại</span>
-                  <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={branchForm.phone || ""} onChange={e => setBranchForm((prev: any) => ({ ...prev, phone: e.target.value }))} />
+                  <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={branchForm.phone || ""} onChange={e => setBranchForm((prev: any) => ({ ...prev, phone: e.target.value }))} />
                 </label>
                 <label className="grid gap-1 text-sm">
                   <span className="text-muted-foreground">Email</span>
-                  <input type="email" className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={branchForm.email || ""} onChange={e => setBranchForm((prev: any) => ({ ...prev, email: e.target.value }))} />
+                  <input type="email" className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={branchForm.email || ""} onChange={e => setBranchForm((prev: any) => ({ ...prev, email: e.target.value }))} />
                 </label>
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
                 <label className="grid gap-1 text-sm">
                   <span className="text-muted-foreground">Trạng thái</span>
-                  <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={branchForm.status || "active"} onChange={e => setBranchForm((prev: any) => ({ ...prev, status: e.target.value, isActive: e.target.value === "active" }))}>
+                  <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={branchForm.status || "active"} onChange={e => setBranchForm((prev: any) => ({ ...prev, status: e.target.value, isActive: e.target.value === "active" }))}>
                     <option value="active">Hiển thị</option>
                     <option value="inactive">Ẩn</option>
                     <option value="temporarily_closed">Tạm đóng</option>
@@ -1201,11 +1201,11 @@ function AdminBranches({ adminUser }: { adminUser?: any }) {
                 </label>
                 <label className="grid gap-1 text-sm">
                   <span className="text-muted-foreground">Latitude</span>
-                  <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={branchForm.latitude || ""} onChange={e => setBranchForm((prev: any) => ({ ...prev, latitude: e.target.value }))} />
+                  <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={branchForm.latitude || ""} onChange={e => setBranchForm((prev: any) => ({ ...prev, latitude: e.target.value }))} />
                 </label>
                 <label className="grid gap-1 text-sm">
                   <span className="text-muted-foreground">Longitude</span>
-                  <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={branchForm.longitude || ""} onChange={e => setBranchForm((prev: any) => ({ ...prev, longitude: e.target.value }))} />
+                  <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={branchForm.longitude || ""} onChange={e => setBranchForm((prev: any) => ({ ...prev, longitude: e.target.value }))} />
                 </label>
               </div>
             </div>
@@ -1243,11 +1243,11 @@ function AdminBranches({ adminUser }: { adminUser?: any }) {
                       <span className="text-sm font-semibold text-foreground">{day.label}</span>
                       <label className="grid gap-1 text-xs text-muted-foreground">
                         Mở cửa
-                        <input type="time" disabled={item?.isClosed} value={item?.openingTime || "07:00"} onChange={e => updateOpeningHour(day.value, { openingTime: e.target.value })} className="rounded-lg bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none disabled:opacity-40" />
+                        <input type="time" disabled={item?.isClosed} value={item?.openingTime || "07:00"} onChange={e => updateOpeningHour(day.value, { openingTime: e.target.value })} className="rounded-lg bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors disabled:opacity-40" />
                       </label>
                       <label className="grid gap-1 text-xs text-muted-foreground">
                         Đóng cửa
-                        <input type="time" disabled={item?.isClosed} value={item?.closingTime || "22:00"} onChange={e => updateOpeningHour(day.value, { closingTime: e.target.value })} className="rounded-lg bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none disabled:opacity-40" />
+                        <input type="time" disabled={item?.isClosed} value={item?.closingTime || "22:00"} onChange={e => updateOpeningHour(day.value, { closingTime: e.target.value })} className="rounded-lg bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors disabled:opacity-40" />
                       </label>
                       <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground sm:justify-end">
                         <input type="checkbox" checked={!!item?.isClosed} onChange={e => updateOpeningHour(day.value, { isClosed: e.target.checked })} className="size-4 accent-primary" />
@@ -1539,7 +1539,7 @@ function AdminInventory() {
           ["Sắp hết hàng", String(lowStock), "Cần nhập hàng sớm"],
           ["Hết hàng", String(outOfStock), "Ẩn khỏi menu bán hàng"],
         ].map(([label, value, sub], index) => (
-          <div key={label} className="rounded-2xl bg-sidebar p-5">
+          <div key={label} className="rounded-2xl bg-card border border-border shadow-sm p-5">
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">{label}</p>
               <Boxes size={17} className={index === 0 ? "text-primary" : index === 1 ? "text-yellow-400" : "text-red-400"} />
@@ -1729,7 +1729,7 @@ function AdminOrders() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-foreground">Quản lý đơn hàng</h2>
-        <div className="flex items-center gap-2 rounded-xl bg-sidebar px-3 py-2 text-sm">
+        <div className="flex items-center gap-2 rounded-xl bg-sidebar border border-border px-3 py-2 text-sm focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-colors">
           <Search size={14} className="text-muted-foreground" />
           <input
             className="bg-transparent outline-none text-foreground placeholder:text-muted-foreground w-40"
@@ -1990,7 +1990,7 @@ function AdminUsers() {
           <button onClick={loadUsers} className="rounded-xl bg-sidebar px-3 py-2 text-sm text-muted-foreground hover:bg-sidebar-accent transition">
             {loading ? "Đang tải..." : "Tải lại"}
           </button>
-          <div className="flex items-center gap-2 rounded-xl bg-sidebar px-3 py-2 text-sm"><Search size={14} className="text-muted-foreground" /><input className="bg-transparent outline-none text-foreground placeholder:text-muted-foreground w-44" placeholder="Tìm tên, email…" value={search} onChange={e => setSearch(e.target.value)} /></div>
+          <div className="flex items-center gap-2 rounded-xl bg-sidebar border border-border px-3 py-2 text-sm focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-colors"><Search size={14} className="text-muted-foreground" /><input className="bg-transparent outline-none text-foreground placeholder:text-muted-foreground w-44" placeholder="Tìm tên, email…" value={search} onChange={e => setSearch(e.target.value)} /></div>
         </div>
       </div>
       <div className="overflow-auto rounded-2xl bg-sidebar">
@@ -2037,20 +2037,20 @@ function AdminUsers() {
             <div className="grid gap-4">
               <label className="grid gap-1 text-sm">
                 <span className="text-muted-foreground">Họ tên</span>
-                <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={editingUser.fullName || ""} onChange={e => setEditingUser((prev: any) => ({ ...prev, fullName: e.target.value }))} />
+                <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={editingUser.fullName || ""} onChange={e => setEditingUser((prev: any) => ({ ...prev, fullName: e.target.value }))} />
               </label>
               <label className="grid gap-1 text-sm">
                 <span className="text-muted-foreground">Email</span>
-                <input type="email" className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={editingUser.email || ""} onChange={e => setEditingUser((prev: any) => ({ ...prev, email: e.target.value }))} />
+                <input type="email" className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={editingUser.email || ""} onChange={e => setEditingUser((prev: any) => ({ ...prev, email: e.target.value }))} />
               </label>
               <label className="grid gap-1 text-sm">
                 <span className="text-muted-foreground">Số điện thoại</span>
-                <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={editingUser.phone || ""} onChange={e => setEditingUser((prev: any) => ({ ...prev, phone: e.target.value }))} />
+                <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={editingUser.phone || ""} onChange={e => setEditingUser((prev: any) => ({ ...prev, phone: e.target.value }))} />
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="grid gap-1 text-sm">
                   <span className="text-muted-foreground">Vai trò</span>
-                  <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={editingUser.role || "customer"} onChange={e => setEditingUser((prev: any) => ({ ...prev, role: e.target.value, branchId: needsBranch(e.target.value) ? prev.branchId : null }))}>
+                  <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={editingUser.role || "customer"} onChange={e => setEditingUser((prev: any) => ({ ...prev, role: e.target.value, branchId: needsBranch(e.target.value) ? prev.branchId : null }))}>
                     <option value="customer">customer</option>
                     <option value="staff">staff</option>
                     <option value="cashier">cashier</option>
@@ -2061,7 +2061,7 @@ function AdminUsers() {
                 {needsBranch(editingUser.role) && (
                   <label className="grid gap-1 text-sm">
                     <span className="text-muted-foreground">Chi nhánh</span>
-                    <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={editingUser.branchId || ""} onChange={e => setEditingUser((prev: any) => ({ ...prev, branchId: e.target.value || null }))}>
+                    <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={editingUser.branchId || ""} onChange={e => setEditingUser((prev: any) => ({ ...prev, branchId: e.target.value || null }))}>
                       <option value="">Chọn chi nhánh</option>
                       {branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
                     </select>
@@ -2069,7 +2069,7 @@ function AdminUsers() {
                 )}
                 <label className="grid gap-1 text-sm">
                   <span className="text-muted-foreground">Trạng thái</span>
-                  <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={editingUser.isActive ? "active" : "inactive"} onChange={e => setEditingUser((prev: any) => ({ ...prev, isActive: e.target.value === "active" }))}>
+                  <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={editingUser.isActive ? "active" : "inactive"} onChange={e => setEditingUser((prev: any) => ({ ...prev, isActive: e.target.value === "active" }))}>
                     <option value="active">Hoạt động</option>
                     <option value="inactive">Khóa</option>
                   </select>
@@ -2099,26 +2099,26 @@ function AdminUsers() {
             <div className="grid gap-4">
               <label className="grid gap-1 text-sm">
                 <span className="text-muted-foreground">Họ tên</span>
-                <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={creatingUser.fullName || ""} onChange={e => setCreatingUser((prev: any) => ({ ...prev, fullName: e.target.value }))} />
+                <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={creatingUser.fullName || ""} onChange={e => setCreatingUser((prev: any) => ({ ...prev, fullName: e.target.value }))} />
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="grid gap-1 text-sm">
                   <span className="text-muted-foreground">Email</span>
-                  <input type="email" className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={creatingUser.email || ""} onChange={e => setCreatingUser((prev: any) => ({ ...prev, email: e.target.value }))} />
+                  <input type="email" className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={creatingUser.email || ""} onChange={e => setCreatingUser((prev: any) => ({ ...prev, email: e.target.value }))} />
                 </label>
                 <label className="grid gap-1 text-sm">
                   <span className="text-muted-foreground">Số điện thoại</span>
-                  <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={creatingUser.phone || ""} onChange={e => setCreatingUser((prev: any) => ({ ...prev, phone: e.target.value }))} />
+                  <input className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={creatingUser.phone || ""} onChange={e => setCreatingUser((prev: any) => ({ ...prev, phone: e.target.value }))} />
                 </label>
               </div>
               <label className="grid gap-1 text-sm">
                 <span className="text-muted-foreground">Mật khẩu ban đầu</span>
-                <input type="password" className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={creatingUser.password || ""} onChange={e => setCreatingUser((prev: any) => ({ ...prev, password: e.target.value }))} />
+                <input type="password" className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={creatingUser.password || ""} onChange={e => setCreatingUser((prev: any) => ({ ...prev, password: e.target.value }))} />
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="grid gap-1 text-sm">
                   <span className="text-muted-foreground">Vai trò</span>
-                  <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={creatingUser.role || "customer"} onChange={e => setCreatingUser((prev: any) => ({ ...prev, role: e.target.value, branchId: needsBranch(e.target.value) ? prev.branchId : null }))}>
+                  <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={creatingUser.role || "customer"} onChange={e => setCreatingUser((prev: any) => ({ ...prev, role: e.target.value, branchId: needsBranch(e.target.value) ? prev.branchId : null }))}>
                     <option value="customer">customer</option>
                     <option value="staff">staff</option>
                     <option value="cashier">cashier</option>
@@ -2129,7 +2129,7 @@ function AdminUsers() {
                 {needsBranch(creatingUser.role) && (
                   <label className="grid gap-1 text-sm">
                     <span className="text-muted-foreground">Chi nhánh</span>
-                    <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={creatingUser.branchId || ""} onChange={e => setCreatingUser((prev: any) => ({ ...prev, branchId: e.target.value || null }))}>
+                    <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={creatingUser.branchId || ""} onChange={e => setCreatingUser((prev: any) => ({ ...prev, branchId: e.target.value || null }))}>
                       <option value="">Chọn chi nhánh</option>
                       {branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
                     </select>
@@ -2137,7 +2137,7 @@ function AdminUsers() {
                 )}
                 <label className="grid gap-1 text-sm">
                   <span className="text-muted-foreground">Trạng thái</span>
-                  <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-primary/30" value={creatingUser.isActive ? "active" : "inactive"} onChange={e => setCreatingUser((prev: any) => ({ ...prev, isActive: e.target.value === "active" }))}>
+                  <select className="rounded-xl bg-sidebar px-3 py-2 text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" value={creatingUser.isActive ? "active" : "inactive"} onChange={e => setCreatingUser((prev: any) => ({ ...prev, isActive: e.target.value === "active" }))}>
                     <option value="active">Hoạt động</option>
                     <option value="inactive">Khóa</option>
                   </select>
@@ -2252,7 +2252,7 @@ function AdminReviews() {
       </div>
       <div className="grid gap-4">
         {reviewsList.map(r => (
-          <div key={r.id} className="rounded-2xl bg-sidebar p-5 transition hover:bg-sidebar-accent">
+          <div key={r.id} className="rounded-2xl bg-card border border-border shadow-sm p-5 transition hover:bg-sidebar-accent">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
@@ -2618,14 +2618,14 @@ function AdminVouchers() {
           </tbody>
         </table>
       </div>
-      <form onSubmit={handleSave} className="rounded-2xl bg-sidebar p-5 space-y-4">
+      <form onSubmit={handleSave} className="rounded-2xl bg-card border border-border shadow-sm p-5 space-y-4">
         <h3 className="text-sm font-semibold text-foreground">
           {editingVoucher ? `Chỉnh sửa voucher: ${editingVoucher.code}` : "Tạo voucher mới"}
         </h3>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <input
             required
-            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent"
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors placeholder:text-muted-foreground border border-sidebar-accent"
             placeholder="Mã voucher (VD: SUMMER30)"
             value={code}
             onChange={e => setCode(e.target.value)}
@@ -2641,14 +2641,14 @@ function AdminVouchers() {
           <input
             required
             type="number"
-            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent"
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors placeholder:text-muted-foreground border border-sidebar-accent"
             placeholder="Giá trị (VD: 20 hoặc 50000)"
             value={discountValue}
             onChange={e => setDiscountValue(e.target.value)}
           />
           <input
             type="number"
-            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent"
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors placeholder:text-muted-foreground border border-sidebar-accent"
             placeholder="Đơn tối thiểu (đ)"
             value={minOrderValue}
             onChange={e => setMinOrderValue(e.target.value)}
@@ -2656,7 +2656,7 @@ function AdminVouchers() {
           {discountType === "percent" && (
             <input
               type="number"
-              className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent"
+              className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors placeholder:text-muted-foreground border border-sidebar-accent"
               placeholder="Giảm tối đa (đ) - Để trống nếu không giới hạn"
               value={maxDiscount}
               onChange={e => setMaxDiscount(e.target.value)}
@@ -2664,7 +2664,7 @@ function AdminVouchers() {
           )}
           <input
             type="number"
-            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent"
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors placeholder:text-muted-foreground border border-sidebar-accent"
             placeholder="Giới hạn lượt dùng (để trống nếu vô hạn)"
             value={usageLimit}
             onChange={e => setUsageLimit(e.target.value)}
@@ -2724,7 +2724,7 @@ function AdminVouchers() {
             ))}
           </select>
           <input
-            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent sm:col-span-2 lg:col-span-3"
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors placeholder:text-muted-foreground border border-sidebar-accent sm:col-span-2 lg:col-span-3"
             placeholder="Mô tả voucher (VD: Giảm giá 20k cho sản phẩm size Lớn)"
             value={description}
             onChange={e => setDescription(e.target.value)}
@@ -2901,7 +2901,7 @@ function AdminBanners() {
       </div>
 
       {showAddForm && (
-        <form onSubmit={handleCreate} className="rounded-2xl bg-sidebar p-5 space-y-4">
+        <form onSubmit={handleCreate} className="rounded-2xl bg-card border border-border shadow-sm p-5 space-y-4">
           <h3 className="text-sm font-semibold text-foreground">Thêm banner mới</h3>
           <div className="grid gap-3 sm:grid-cols-2">
             <input
@@ -3014,14 +3014,14 @@ function AdminRevenue() {
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
         {[["Tổng doanh thu", "316.000.000đ", "+18% so tháng trước"], ["Tổng đơn hàng", "2.420", "+24 đơn hôm nay"], ["Giá trị trung bình", "130.578đ", "mỗi đơn hàng"]].map(([l, v, s]) => (
-          <div key={l} className="rounded-2xl bg-sidebar p-5">
+          <div key={l} className="rounded-2xl bg-card border border-border shadow-sm p-5">
             <p className="text-sm text-muted-foreground">{l}</p>
             <h3 className="mt-2 text-2xl font-bold text-foreground">{v}</h3>
             <p className="mt-1 text-xs text-green-400">{s}</p>
           </div>
         ))}
       </div>
-      <div className="rounded-2xl bg-sidebar p-5">
+      <div className="rounded-2xl bg-card border border-border shadow-sm p-5">
         <h3 className="mb-5 font-semibold text-foreground">Doanh thu theo tháng</h3>
         <div className="flex items-end gap-4 h-48">
           {monthly.map(d => (
@@ -3033,7 +3033,7 @@ function AdminRevenue() {
           ))}
         </div>
       </div>
-      <div className="rounded-2xl bg-sidebar p-5">
+      <div className="rounded-2xl bg-card border border-border shadow-sm p-5">
         <h3 className="mb-4 font-semibold text-foreground">Top sản phẩm bán chạy</h3>
         <div className="space-y-3">
           {topProducts.map((p, i) => (
@@ -3063,27 +3063,27 @@ function AdminSettings() {
     <div className="space-y-6">
       <h2 className="text-2xl font-semibold text-foreground">Cài đặt hệ thống</h2>
       <div className="grid gap-5 lg:grid-cols-2">
-        <div className="rounded-2xl bg-sidebar p-5 space-y-4">
+        <div className="rounded-2xl bg-card border border-border shadow-sm p-5 space-y-4">
           <h3 className="font-semibold text-foreground">Thông tin cửa hàng</h3>
           {["Tên cửa hàng", "Email liên hệ", "Số điện thoại", "Địa chỉ"].map((label, i) => (
             <div key={label}>
               <label className="mb-1 block text-xs text-muted-foreground">{label}</label>
-              <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" defaultValue={["Sweet Bean Coffee & Cake", "hello@sweetbean.vn", "0909 888 777", "123 Nguyễn Huệ, Q1, TP.HCM"][i]} />
+              <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" defaultValue={["Sweet Bean Coffee & Cake", "hello@sweetbean.vn", "0909 888 777", "123 Nguyễn Huệ, Q1, TP.HCM"][i]} />
             </div>
           ))}
           <AdminBtn>Lưu thay đổi</AdminBtn>
         </div>
-        <div className="rounded-2xl bg-sidebar p-5 space-y-4">
+        <div className="rounded-2xl bg-card border border-border shadow-sm p-5 space-y-4">
           <h3 className="font-semibold text-foreground">Cấu hình giao hàng</h3>
           {[["Phí giao hàng cơ bản", "25.000đ"], ["Miễn phí từ", "200.000đ"], ["Bán kính giao (km)", "15"], ["Thời gian giao (phút)", "45-90"]].map(([l, v]) => (
             <div key={l}>
               <label className="mb-1 block text-xs text-muted-foreground">{l}</label>
-              <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none" defaultValue={v} />
+              <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" defaultValue={v} />
             </div>
           ))}
           <AdminBtn>Lưu cấu hình</AdminBtn>
         </div>
-        <div className="rounded-2xl bg-sidebar p-5 space-y-4">
+        <div className="rounded-2xl bg-card border border-border shadow-sm p-5 space-y-4">
           <h3 className="font-semibold text-foreground">Cổng thanh toán</h3>
           {[["COD", true], ["Momo", true], ["VNPay", true], ["ZaloPay", false]].map(([name, active]) => (
             <div key={name as string} className="flex items-center justify-between">
@@ -3092,7 +3092,7 @@ function AdminSettings() {
             </div>
           ))}
         </div>
-        <div className="rounded-2xl bg-sidebar p-5 space-y-4">
+        <div className="rounded-2xl bg-card border border-border shadow-sm p-5 space-y-4">
           <h3 className="font-semibold text-foreground">Thông báo</h3>
           {["Email đơn hàng mới", "SMS xác nhận", "Thông báo hết hàng", "Báo cáo doanh thu hàng ngày"].map(n => (
             <div key={n} className="flex items-center justify-between">

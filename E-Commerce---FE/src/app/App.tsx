@@ -92,7 +92,6 @@ const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.ADMIN_LOGIN]: "/admin/login",
   [VIEW_KEYS.STAFF]: "/nhan-vien",
   [VIEW_KEYS.LOGIN]: "/dang-nhap",
-  [VIEW_KEYS.REVIEW]: "/danh-gia",
   [VIEW_KEYS.FAVORITES]: "/yeu-thich",
   [VIEW_KEYS.PROFILE]: "/ho-so",
   [VIEW_KEYS.RESET_PASSWORD]: "/reset-password",
@@ -597,7 +596,7 @@ export default function App() {
         setSelectedOrderId(productData || null);
       } else {
         if (productData) setSelectedProduct(productData);
-        else if (newView !== VIEW_KEYS.DETAIL && newView !== VIEW_KEYS.REVIEW) setSelectedProduct(null);
+        else if (newView !== VIEW_KEYS.DETAIL) setSelectedProduct(null);
       }
       setTimeout(() => setIsLoading(false), 100);
     }, 400);
@@ -949,7 +948,6 @@ export default function App() {
     const token = new URLSearchParams(window.location.search).get("token") || "";
     return <><Toaster richColors position="top-center" /><AuthPage onSuccess={handleLoginSuccess} initialMode="reset" resetToken={token} /></>;
   }
-  if (view === VIEW_KEYS.REVIEW) return <><Toaster richColors position="top-center" /><ReviewPage product={selectedProduct} onBack={() => setView(VIEW_KEYS.DETAIL)} /></>;
 
   return (
     <>

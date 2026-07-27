@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Heart, Minus, Plus, Star, Check } from "lucide-react";
 import { Btn, ProductCard, getDiscountedPrice } from "../components/shared";
+import { ReviewPage } from "../components/ReviewPage";
 import { CATEGORY_GROUPS, VIEW_KEYS } from "../../config/appConfig";
 import { env } from "../../config/env";
 import { toast } from "sonner";
@@ -156,7 +157,9 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
                 <Star size={16} className="fill-amber-500 text-amber-500" /> {p[4]}
               </span>
               <span className="text-muted-foreground text-sm">|</span>
-              <button onClick={() => setView(VIEW_KEYS.REVIEW)} className="text-primary hover:underline text-sm font-semibold transition">
+              <button onClick={() => {
+                document.getElementById('reviews-section')?.scrollIntoView({ behavior: 'smooth' });
+              }} className="text-primary hover:underline text-sm font-semibold transition">
                 Xem đánh giá của khách hàng
               </button>
             </div>
@@ -183,19 +186,19 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
           <div className="space-y-3">
             <h3 className="font-semibold text-sm text-foreground">Kích cỡ</h3>
             {availableVariants.length > 0 ? (
-            <div className="flex flex-wrap gap-3">
-              {availableVariants.map((variant: any) => (
-                <button
-                  key={variant.id}
-                  type="button"
-                  onClick={() => setSelectedVariantId(variant.id)}
-                  className={`rounded-xl border px-5 py-2.5 text-sm font-medium transition ${selectedVariant?.id === variant.id ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border hover:border-primary/50 text-foreground"}`}
-                >
-                  <span>{variant.size || variant.variantName}</span>
-                  <span className="ml-2 text-xs opacity-75">{formatPrice(Number(variant.price))}</span>
-                </button>
-              ))}
-            </div>
+              <div className="flex flex-wrap gap-3">
+                {availableVariants.map((variant: any) => (
+                  <button
+                    key={variant.id}
+                    type="button"
+                    onClick={() => setSelectedVariantId(variant.id)}
+                    className={`rounded-xl border px-5 py-2.5 text-sm font-medium transition ${selectedVariant?.id === variant.id ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border hover:border-primary/50 text-foreground"}`}
+                  >
+                    <span>{variant.size || variant.variantName}</span>
+                    <span className="ml-2 text-xs opacity-75">{formatPrice(Number(variant.price))}</span>
+                  </button>
+                ))}
+              </div>
             ) : (
               <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
                 Sản phẩm hiện chưa có kích cỡ đang bán.
@@ -243,11 +246,10 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
                         key={t.name}
                         type="button"
                         onClick={() => toggleTopping(t.name)}
-                        className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold rounded-full border transition ${
-                          isSelected
+                        className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold rounded-full border transition ${isSelected
                             ? "bg-primary/10 border-primary text-primary"
                             : "border-border hover:border-primary/50 text-foreground"
-                        }`}
+                          }`}
                       >
                         {isSelected && <Check size={12} />}
                         <span>{t.name} (+{formatPrice(Number(t.price || 0))})</span>
@@ -318,6 +320,11 @@ export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggl
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="mt-12 border-t pt-8">
+        <h3 className="text-2xl font-bold font-serif mb-2 text-foreground">Đánh giá khách hàng</h3>
+        <ReviewPage product={p} isEmbedded={true} />
       </div>
 
       {related.length > 0 && (
