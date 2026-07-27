@@ -101,7 +101,14 @@ const getViewFromPath = (path: string, cats: any[] = []) => {
   if (path.startsWith("/chi-tiet/")) return VIEW_KEYS.DETAIL;
   if (path.startsWith("/danh-muc/")) {
     const slug = decodeURIComponent(path.replace("/danh-muc/", ""));
-    return cats.find(c => c.name.toLowerCase().replace(/\s+/g, "-") === slug)?.name ?? VIEW_KEYS.SWEETS;
+    const found = cats.find(c => (c.name || c).toLowerCase().replace(/\s+/g, "-") === slug);
+    if (found) return found.name || found;
+    if (slug === "ca-phe" || slug === "cà-phê" || slug === "cafe") return "Cà phê";
+    if (slug === "banh-ngot") return VIEW_KEYS.SWEETS;
+    if (slug === "do-uong" || slug === "cafe-do-uong") return VIEW_KEYS.DRINKS;
+    if (slug === "combo") return VIEW_KEYS.COMBO;
+    if (slug === "tat-ca-san-pham" || slug === "tat-ca") return VIEW_KEYS.ALL_PRODUCTS;
+    return VIEW_KEYS.SWEETS;
   }
   return VIEW_KEYS.HOME;
 };
@@ -117,7 +124,7 @@ const parsePrice = (s: string) => parseInt(s.replace(/[^0-9]/g, ""), 10);
 const LISTABLE = [
   VIEW_KEYS.SWEETS, VIEW_KEYS.DRINKS, VIEW_KEYS.COMBO, VIEW_KEYS.ALL_PRODUCTS,
   "Bánh sinh nhật", "Bánh mousse", "Bánh tart", "Bánh quy",
-  "Cafe", "Trà", "Đồ uống khác", "Tìm kiếm",
+  "Cafe", "Cà phê", "Cà Phê", "Trà", "Đồ uống khác", "Tìm kiếm",
 ];
 
 // ── Helper to map DB cart items to FE legacy format ─────────────────────────

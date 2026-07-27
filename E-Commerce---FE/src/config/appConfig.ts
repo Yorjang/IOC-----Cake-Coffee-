@@ -28,7 +28,7 @@ export const VIEW_KEYS = {
 } as const;
 
 export const CATEGORY_GROUPS = {
-  DRINKS: ["Cafe", "Trà", "Đồ uống khác"],
+  DRINKS: ["Cafe", "Cà phê", "Cà Phê", "Trà", "Đồ uống khác"],
 } as const;
 
 export const HOME_CONFIG = {
