@@ -9,8 +9,10 @@ import { CreateProductDto, UpdateProductDto } from './dto/create-product.dto';
 import { CreateProductVariantDto, UpdateProductVariantDto } from './dto/product-variant.dto';
 import { ReplaceProductToppingsDto } from './dto/product-topping.dto';
 import { CreateProductTagDto, ReplaceProductTagsDto, UpdateProductTagDto } from './dto/product-tag.dto';
+import { Public } from '../../common/decorators/public.decorator';
+import { FindProductsQueryDto } from './dto/find-products-query.dto';
 
-@Controller('products')
+@Controller(['admin/products', 'products'])
 export class ProductsController {
     constructor(private readonly productsService: ProductsService) {}
 
@@ -82,13 +84,22 @@ export class ProductsController {
 
     // ── Products Routes ──────────────────────────────────────────────────────
     @Get()
-    findAllProducts(@Query('tag') tag?: string) {
-        return this.productsService.findAllProducts(tag);
+    @UseGuards(JwtAuthGuard)
+    @Public()
+    findAllProducts(
+        @Query() query: FindProductsQueryDto,
+    ) {
+        return this.productsService.findAllProducts(query.tag);
     }
 
     @Get('sizes/distinct')
     findDistinctSizes() {
         return this.productsService.findDistinctVariantSizes();
+    }
+
+    @Get('options/drink')
+    getDrinkOptions() {
+        return this.productsService.getDrinkOptions();
     }
 
     @Get(':id')

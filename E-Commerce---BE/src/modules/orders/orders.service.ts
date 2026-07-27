@@ -1,10 +1,25 @@
-import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Order, OrderStatus } from './order.entity';
+import { DataSource, Repository } from 'typeorm';
+import { FulfillmentType, Order, OrderStatus, PaymentStatus } from './order.entity';
 import { PaymentsService } from '../payments/payments.service';
 import { CartService } from '../cart/cart.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { User, UserRole } from '../users/user.entity';
+import { OrderStatusHistory } from './order-status-history.entity';
+
+const PICKUP_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
+  [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+  [OrderStatus.CONFIRMED]: [OrderStatus.PREPARING, OrderStatus.CANCELLED],
+  [OrderStatus.PREPARING]: [OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+};
+
+const DELIVERY_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
+  [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+  [OrderStatus.CONFIRMED]: [OrderStatus.PREPARING, OrderStatus.CANCELLED],
+  [OrderStatus.PREPARING]: [OrderStatus.SHIPPING, OrderStatus.CANCELLED],
+  [OrderStatus.SHIPPING]: [OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+};
 
 @Injectable()
 export class OrdersService {
@@ -13,6 +28,7 @@ export class OrdersService {
     private readonly orders: Repository<Order>,
     private readonly paymentsService: PaymentsService,
     private readonly cartService: CartService,
+    private readonly dataSource: DataSource,
   ) {}
 
 
@@ -23,17 +39,69 @@ export class OrdersService {
     });
   }
 
-  async updateStatus(id: string, status: OrderStatus): Promise<Order> {
-    const order = await this.orders.findOne({ where: { id } });
-    if (!order) {
-      throw new BadRequestException('Order not found');
+  async updateStatus(id: string, status: OrderStatus, user: User): Promise<Order> {
+    return this.dataSource.transaction(async (manager) => {
+      const orderRepository = manager.getRepository(Order);
+      const order = await orderRepository.findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!order) {
+        throw new BadRequestException('Order not found');
+      }
+
+      this.assertCanUpdateOrder(user, order);
+      this.assertValidTransition(order, status);
+
+      const previousStatus = order.orderStatus;
+      order.orderStatus = status;
+      if (status === OrderStatus.COMPLETED) {
+        order.paymentStatus = PaymentStatus.PAID;
+        order.paidAt = new Date();
+      }
+
+      const savedOrder = await orderRepository.save(order);
+      await manager.getRepository(OrderStatusHistory).save({
+        orderId: order.id,
+        fromStatus: previousStatus,
+        toStatus: status,
+        changedBy: user.id,
+        note: null,
+      });
+      return savedOrder;
+    });
+  }
+
+  private assertCanUpdateOrder(user: User, order: Order): void {
+    if (user.role === UserRole.ADMIN) return;
+
+    if (!user.branchId || user.branchId !== order.branchId) {
+      throw new ForbiddenException('You can only update orders in your assigned branch');
     }
-    order.orderStatus = status;
-    if (status === OrderStatus.COMPLETED) {
-      order.paymentStatus = 'paid' as any;
-      order.paidAt = new Date();
+
+    if (user.role === UserRole.STORE_MANAGER || user.role === UserRole.CASHIER) return;
+
+    if (
+      user.role === UserRole.STAFF &&
+      [OrderStatus.CONFIRMED, OrderStatus.PREPARING].includes(order.orderStatus)
+    ) {
+      return;
     }
-    return this.orders.save(order);
+
+    throw new ForbiddenException('Staff can only update orders that are being processed');
+  }
+
+  private assertValidTransition(order: Order, nextStatus: OrderStatus): void {
+    const transitions = order.fulfillmentType === FulfillmentType.PICKUP
+      ? PICKUP_TRANSITIONS
+      : DELIVERY_TRANSITIONS;
+    const allowedStatuses = transitions[order.orderStatus] ?? [];
+
+    if (!allowedStatuses.includes(nextStatus)) {
+      throw new BadRequestException(
+        `Invalid ${order.fulfillmentType} order status transition: ${order.orderStatus} -> ${nextStatus}`,
+      );
+    }
   }
 
   async getDashboardStats(): Promise<any> {
@@ -163,18 +231,27 @@ export class OrdersService {
     let couponId: string | null = null;
     if (couponCode && userId) {
       const couponRes = await this.orders.query(
-        `SELECT id, status, expires_at, usage_limit, used_count, per_customer_limit, product_id, categories_id FROM coupons WHERE code = $1`,
+        `SELECT id, status, expires_at, usage_limit, used_count, per_customer_limit, product_id, categories_id, branch_id, is_approved, is_pending_delete FROM coupons WHERE code = $1`,
         [couponCode.toUpperCase().trim()]
       );
       if (couponRes.length === 0) {
         throw new BadRequestException(`Mã giảm giá "${couponCode}" không hợp lệ.`);
       }
       const coupon = couponRes[0];
+      if (coupon.is_pending_delete === true) {
+        throw new BadRequestException(`Mã giảm giá "${couponCode}" đã bị yêu cầu xóa và đang chờ duyệt.`);
+      }
+      if (coupon.is_approved === false) {
+        throw new BadRequestException(`Mã giảm giá "${couponCode}" đang chờ quản trị viên phê duyệt.`);
+      }
       if (coupon.status !== 'active') {
         throw new BadRequestException(`Mã giảm giá "${couponCode}" không còn hoạt động.`);
       }
       if (new Date(coupon.expires_at) < new Date()) {
         throw new BadRequestException(`Mã giảm giá "${couponCode}" đã hết hạn.`);
+      }
+      if (coupon.branch_id && coupon.branch_id !== branchId) {
+        throw new BadRequestException(`Mã giảm giá "${couponCode}" không áp dụng cho chi nhánh này.`);
       }
       if (coupon.usage_limit !== null && Number(coupon.used_count) >= Number(coupon.usage_limit)) {
         throw new BadRequestException(`Mã giảm giá "${couponCode}" đã đạt giới hạn sử dụng.`);
@@ -227,11 +304,22 @@ export class OrdersService {
         const minOrderVal = Number(couponDetail.min_order_value || 0);
         
         if (calculatedSubtotal >= minOrderVal) {
+          // Fetch base variant prices to exclude toppings from discount calculations
+          const variantIds = items.map((item: any) => item.variantId);
+          const variants = await this.orders.query(
+            `SELECT id, price FROM product_variants WHERE id = ANY($1)`,
+            [variantIds]
+          );
+          const basePriceMap = new Map<string, number>();
+          for (const v of variants) {
+            basePriceMap.set(v.id, Number(v.price || 0));
+          }
+
           let matchingSubtotal = calculatedSubtotal;
           
           if (couponDetail.product_id) {
             const matchingItems = items.filter((item: any) => item.productId === couponDetail.product_id);
-            matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (Number(item.unitPrice) * item.quantity), 0);
+            matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + ((basePriceMap.get(item.variantId) || Number(item.unitPrice)) * item.quantity), 0);
           } else if (couponDetail.categories_id) {
             const itemProductIds = items.map((item: any) => item.productId);
             const productsWithCategory = await this.orders.query(
@@ -243,7 +331,10 @@ export class OrdersService {
               .map((p: any) => p.id);
             
             const matchingItems = items.filter((item: any) => matchingProductIds.includes(item.productId));
-            matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (Number(item.unitPrice) * item.quantity), 0);
+            matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + ((basePriceMap.get(item.variantId) || Number(item.unitPrice)) * item.quantity), 0);
+          } else {
+            // General or Order-wide coupon - discount is still calculated against product base prices
+            matchingSubtotal = items.reduce((sum: number, item: any) => sum + ((basePriceMap.get(item.variantId) || Number(item.unitPrice)) * item.quantity), 0);
           }
           
           if (couponDetail.discount_type === 'percent') {

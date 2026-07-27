@@ -12,6 +12,8 @@ export const VIEW_KEYS = {
   ADMIN_LOGIN: "AdminLogin",
   STAFF: "Staff",
   LOGIN: "Đăng nhập",
+  REGISTER: "Đăng ký",
+  FORGOT_PASSWORD: "Quên mật khẩu",
   REVIEW: "Đánh giá",
   FAVORITES: "Yêu thích",
   PROFILE: "Hồ sơ",
@@ -26,7 +28,7 @@ export const VIEW_KEYS = {
 } as const;
 
 export const CATEGORY_GROUPS = {
-  DRINKS: ["Cafe", "Trà", "Đồ uống khác"],
+  DRINKS: ["Cafe", "Cà phê", "Cà Phê", "Trà", "Đồ uống khác"],
 } as const;
 
 export const HOME_CONFIG = {
@@ -43,29 +45,10 @@ export const HOME_CONFIG = {
   ],
 } as const;
 
-export const PRODUCT_DETAIL_CONFIG = {
-  DEFAULT_PRODUCT_INDEX: 0,
-  SIZE_OPTIONS: ["Nhỏ", "Vừa", "Lớn"],
-  DEFAULT_SIZE_INDEX: 1,
-} as const;
-
-export const CART_CONFIG = {
-  SAMPLE_PRODUCT_INDEXES: [0, 1],
-  ITEM_QUANTITY: 1,
-} as const;
-
 export const CHECKOUT_CONFIG = {
   SHIPPING_FIELDS: ["Họ tên", "Số điện thoại", "Địa chỉ giao hàng"],
-  PAYMENT_METHODS: ["Thanh toán khi nhận hàng (COD)", "Chuyển khoản ngân hàng", "Ví Momo"],
-  ORDER_TOTALS: [
-    { label: "Tạm tính", value: "360.000đ" },
-    { label: "Phí giao hàng", value: "15.000đ" },
-    { label: "Giảm giá", value: "-0đ", highlight: true },
-  ],
-  GRAND_TOTAL: "375.000đ",
+  PAYMENT_METHODS: ["Thanh toán khi nhận hàng (COD)", "Chuyển khoản ngân hàng", "VNPay"],
 } as const;
 
-export const HEADER_CONFIG = {
-  FAVORITE_COUNT: 4,
-  CART_COUNT: 3,
-} as const;
+export const NAV_PAGES = ["Trang chủ", "Bánh ngọt", "Cafe/Đồ uống", "Combo", "Hệ thống cửa hàng"];
+

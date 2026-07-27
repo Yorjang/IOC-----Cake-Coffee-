@@ -29,7 +29,7 @@ export function AdminInventory() {
   const loadInventory = async () => {
     const token = getAccessToken();
     try {
-      const res = await fetch(`${env.API_URL}/inventory`, {
+      const res = await fetch(`${env.API_URL}/admin/inventory`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await parseRes(res);
@@ -46,7 +46,7 @@ export function AdminInventory() {
   const loadBranches = async () => {
     const token = getAccessToken();
     try {
-      const res = await fetch(`${env.API_URL}/branches`, {
+      const res = await fetch(`${env.API_URL}/admin/branches`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await parseRes(res);
@@ -73,7 +73,7 @@ export function AdminInventory() {
     const token = getAccessToken();
     setSaving(true);
     try {
-      const res = await fetch(`${env.API_URL}/inventory/${editingStock.id}`, {
+      const res = await fetch(`${env.API_URL}/admin/inventory/${editingStock.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

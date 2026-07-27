@@ -22,7 +22,7 @@ export function AdminProductTags() {
   const [name, setName] = useState("");
   const load = async () => {
     setLoading(true);
-    try { const res = await fetch(`${env.API_URL}/products/tags`); if (res.ok) setItems(await parseRes(res)); }
+    try { const res = await fetch(`${env.API_URL}/admin/tags`); if (res.ok) setItems(await parseRes(res)); }
     finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
@@ -32,7 +32,7 @@ export function AdminProductTags() {
     const token = getAccessToken();
     if (!token) return;
     try {
-      const res = await fetch(`${env.API_URL}/products/tags${editing ? `/${editing.id}` : ""}`, { method: editing ? "PATCH" : "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ name: name.trim() }) });
+      const res = await fetch(`${env.API_URL}/admin/tags${editing ? `/${editing.id}` : ""}`, { method: editing ? "PATCH" : "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ name: name.trim() }) });
       if (!res.ok) { const error = await parseRes(res); throw new Error(error.message); }
       setShowModal(false); await load(); toast.success(editing ? "Đã cập nhật tag." : "Đã tạo tag.");
     } catch (error: any) { toast.error(error.message || "Không thể lưu tag."); }
@@ -42,7 +42,7 @@ export function AdminProductTags() {
     const token = getAccessToken();
     if (!token) return;
     try {
-      const res = await fetch(`${env.API_URL}/products/tags/${tag.id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${env.API_URL}/admin/tags/${tag.id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) { const error = await parseRes(res); throw new Error(error.message); }
       await load(); toast.success("Đã xóa tag.");
     } catch (error: any) { toast.error(error.message || "Không thể xóa tag."); }

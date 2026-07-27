@@ -29,7 +29,7 @@ export function Dashboard() {
       return;
     }
     try {
-      const res = await fetch(`${env.API_URL}/orders/dashboard/stats`, {
+      const res = await fetch(`${env.API_URL}/admin/dashboard`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const resData = await parseRes(res);

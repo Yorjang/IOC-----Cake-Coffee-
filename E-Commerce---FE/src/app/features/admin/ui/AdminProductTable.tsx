@@ -24,7 +24,14 @@ export function AdminProductTable({
                 <td className="py-3 pr-4">
                   <div className="flex items-center gap-3">
                     {p.imageUrl && <img src={p.imageUrl} alt={p.name} className="size-10 rounded-lg object-cover" />}
-                    <span className="text-foreground">{p.name}</span>
+                    <div>
+                      <span className="text-foreground font-medium">{p.name}</span>
+                      {p.branchId && p.branch && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2.5 py-0.5 text-[10px] text-green-600 font-semibold ml-1.5">
+                          🏬 {p.branch.name}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </td>
                 <td className="py-3 text-muted-foreground">{p.category?.name ?? "-"}</td>
