@@ -30,7 +30,10 @@ export function AdminProducts() {
     filtered,
     fmtPrice,
     emptyVariant,
-    emptyTopping
+    emptyTopping,
+    branches,
+    isAdmin,
+    isManager
   } = useAdminProducts();
 
   return (
@@ -78,6 +81,9 @@ export function AdminProducts() {
         emptyTopping={emptyTopping}
         save={save}
         saving={saving}
+        branches={branches}
+        isAdmin={isAdmin}
+        isManager={isManager}
       />
     </div>
   );

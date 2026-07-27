@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Product } from '../products/product.entity';
 import { Category } from '../products/category.entity';
+import { Branch } from '../branches/branch.entity';
 
 export enum DiscountType {
   PERCENT = 'percent',
@@ -88,7 +89,20 @@ export class Coupon {
   @Column({ name: 'target_size', type: 'varchar', length: 50, nullable: true })
   targetSize: string;
 
+  @Column({ name: 'branch_id', type: 'uuid', nullable: true })
+  branchId: string;
+
+  @ManyToOne(() => Branch, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'branch_id' })
+  branch: Branch;
+
+  @Column({ name: 'is_approved', type: 'boolean', default: true })
+  isApproved: boolean;
+
+  @Column({ name: 'is_pending_delete', type: 'boolean', default: false })
+  isPendingDelete: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
-
 }
+

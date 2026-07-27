@@ -8,7 +8,9 @@ import { matchSize } from "../App";
 const parsePrice = (priceStr: string) => parseInt(priceStr.replace(/[^0-9]/g, ""), 10);
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
-export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons = [], appliedCoupon, setAppliedCoupon, user }: any) {
+export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, publicCoupons: rawCoupons = [], appliedCoupon, setAppliedCoupon, user }: any) {
+  const cart = Array.isArray(rawCart) ? rawCart : (Array.isArray(rawCart?.data) ? rawCart.data : []);
+  const publicCoupons = Array.isArray(rawCoupons) ? rawCoupons : (Array.isArray(rawCoupons?.data) ? rawCoupons.data : []);
   const [coupon, setCoupon] = useState("");
   const [isCouponModalOpen, setIsCouponModalOpen] = useState(false);
 
@@ -194,6 +196,12 @@ export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons =
                     <div className="text-[11px] text-muted-foreground/80 space-y-0.5 mt-1">
                       {item.options.sugar && <div>Đường: {item.options.sugar}</div>}
                       {item.options.ice && <div>Đá: {item.options.ice}</div>}
+                      {item.options.comboDrinkOptions && Object.values(item.options.comboDrinkOptions).map((option: any, optionIndex) => (
+                        <div key={`${option.productName}-${optionIndex}`}>
+                          {option.productName}: đường {option.sugar}, đá {option.ice}
+                          {option.toppings && option.toppings.length > 0 && ` + Topping: ${option.toppings.join(", ")}`}
+                        </div>
+                      ))}
                       {item.options.toppings && item.options.toppings.length > 0 && (
                         <div>Topping: {item.options.toppings.join(", ")}</div>
                       )}

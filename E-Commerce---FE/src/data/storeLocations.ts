@@ -16,9 +16,7 @@ export type StoreLocation = {
     closingTime: string | null;
     isClosed: boolean;
   } | null;
-};
-
-export const storeLocations: StoreLocation[] = [
+};export const storeLocations: StoreLocation[] = [
   {
     id: "q1",
     name: "Sweet Bean Quận 1",

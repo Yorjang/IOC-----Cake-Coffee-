@@ -13,15 +13,9 @@ export class ComboItemDto {
   @Min(1)
   quantity: number;
 
-  @IsBoolean()
-  @IsOptional()
-  isOptional?: boolean;
 }
 
 export class CreateComboDto {
-  @IsUUID('4')
-  categoryId: string;
-
   @IsString()
   @IsNotEmpty()
   name: string;
@@ -34,10 +28,6 @@ export class CreateComboDto {
   @IsOptional()
   imageUrl?: string;
 
-  @IsString()
-  @IsNotEmpty()
-  sku: string;
-
   @IsNumber()
   @Min(0)
   price: number;
@@ -45,6 +35,10 @@ export class CreateComboDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsUUID('4')
+  @IsOptional()
+  branchId?: string;
 
   @IsArray()
   @ArrayMinSize(1)

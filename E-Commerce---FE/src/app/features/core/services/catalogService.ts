@@ -3,13 +3,14 @@ import { parseRes } from '../../../../utils/api';
 
 interface CatalogProduct {
   productType?: string;
+  [key: string]: any;
 }
 
 export async function getCatalogProducts(branchId?: string): Promise<CatalogProduct[]> {
-  const comboQuery = branchId ? `?branchId=${encodeURIComponent(branchId)}` : '';
+  const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : '';
   const [productResponse, comboResponse] = await Promise.all([
-    fetch(`${env.API_URL}/products`),
-    branchId ? fetch(`${env.API_URL}/combos${comboQuery}`) : Promise.resolve(null),
+    fetch(`${env.API_URL}/products${query}`),
+    branchId ? fetch(`${env.API_URL}/combos${query}`) : Promise.resolve(null),
   ]);
 
   const productData = await parseRes(productResponse);

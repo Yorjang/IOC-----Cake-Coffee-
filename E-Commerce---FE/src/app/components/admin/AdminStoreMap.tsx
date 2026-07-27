@@ -22,7 +22,7 @@ export function AdminStoreMap() {
   const loadBranches = async () => {
     const token = getAccessToken();
     try {
-      const res = await fetch(`${env.API_URL}/branches`, {
+      const res = await fetch(`${env.API_URL}/admin/branches`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await parseRes(res);

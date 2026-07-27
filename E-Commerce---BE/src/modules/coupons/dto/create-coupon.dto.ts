@@ -58,6 +58,10 @@ export class CreateCouponDto {
   @IsString()
   @IsOptional()
   targetSize?: string;
+
+  @IsUUID('4', { message: 'ID chi nhánh không hợp lệ.' })
+  @IsOptional()
+  branchId?: string;
 }
 
 

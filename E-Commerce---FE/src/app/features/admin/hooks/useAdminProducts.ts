@@ -1,20 +1,25 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { getAccessToken } from "../../../components/authSession";
+import { getAccessToken, getStoredUser } from "../../../components/authSession";
 import { env } from "../../../../config/env";
 import { parseRes } from "../../../../utils/api";
 
 export function useAdminProducts() {
+  const user = getStoredUser();
+  const isManager = user?.role === "store_manager";
+  const isAdmin = user?.role === "admin";
+
   const [items, setItems] = useState<any[]>([]);
   const [cats, setCats] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ name: "", categoryId: "", description: "", imageUrl: "", productType: "cake" });
+  const [form, setForm] = useState({ name: "", categoryId: "", description: "", imageUrl: "", productType: "cake", branchId: isManager ? user?.branchId || "" : "" });
   const [variantForms, setVariantForms] = useState<any[]>([]);
   const [toppingForms, setToppingForms] = useState<any[]>([]);
   const [removedVariantIds, setRemovedVariantIds] = useState<string[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
 
   const getToken = () => getAccessToken();
@@ -22,12 +27,18 @@ export function useAdminProducts() {
   const load = async () => {
     setLoading(true);
     try {
-      const [pRes, cRes] = await Promise.all([
-        fetch(`${env.API_URL}/products`),
+      const token = getToken();
+      const headers: any = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const [pRes, cRes, bRes] = await Promise.all([
+        fetch(`${env.API_URL}/products`, { headers }),
         fetch(`${env.API_URL}/products/categories`),
+        fetch(`${env.API_URL}/branches/active`),
       ]);
       if (pRes.ok) setItems(await parseRes(pRes));
       if (cRes.ok) setCats(await parseRes(cRes));
+      if (bRes.ok) setBranches(await parseRes(bRes));
     } catch { /* silent */ } finally { setLoading(false); }
   };
 
@@ -48,7 +59,7 @@ export function useAdminProducts() {
 
   const openAdd = () => {
     setEditing(null);
-    setForm({ name: "", categoryId: cats[0]?.id ?? "", description: "", imageUrl: "", productType: "cake" });
+    setForm({ name: "", categoryId: cats[0]?.id ?? "", description: "", imageUrl: "", productType: "cake", branchId: isManager ? user?.branchId || "" : "" });
     setVariantForms([emptyVariant()]);
     setToppingForms([]);
     setRemovedVariantIds([]);
@@ -57,7 +68,7 @@ export function useAdminProducts() {
 
   const openEdit = (p: any) => {
     setEditing(p);
-    setForm({ name: p.name, categoryId: p.categoryId, description: p.description || "", imageUrl: p.imageUrl || "", productType: p.productType });
+    setForm({ name: p.name, categoryId: p.categoryId, description: p.description || "", imageUrl: p.imageUrl || "", productType: p.productType, branchId: p.branchId || (isManager ? user?.branchId || "" : "") });
     setVariantForms((p.variants || []).map((variant: any) => ({
       ...variant,
       price: String(variant.price),
@@ -113,7 +124,7 @@ export function useAdminProducts() {
     }
     const url = editing ? `${env.API_URL}/products/${editing.id}` : `${env.API_URL}/products`;
     const method = editing ? "PATCH" : "POST";
-    const body: any = { name: form.name, categoryId: form.categoryId, description: form.description, imageUrl: form.imageUrl, productType: form.productType };
+    const body: any = { name: form.name, categoryId: form.categoryId, description: form.description, imageUrl: form.imageUrl, productType: form.productType, branchId: form.branchId || null };
     if (!editing) {
       body.variants = variantForms.map(({ id, createdAt, updatedAt, productId, product, ...variant }) => ({
         ...variant,
@@ -235,6 +246,9 @@ export function useAdminProducts() {
     filtered,
     fmtPrice,
     emptyVariant,
-    emptyTopping
+    emptyTopping,
+    branches,
+    isAdmin,
+    isManager
   };
 }

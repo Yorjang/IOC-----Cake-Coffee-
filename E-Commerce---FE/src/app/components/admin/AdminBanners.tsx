@@ -2,21 +2,23 @@ import { parseRes } from '../../../utils/api';
 
 import React, { useState, useEffect } from "react";
 import {
-  LayoutDashboard, Package, Tag, Settings, ShoppingBag, Users, Star,
-  BarChart2, Image, Edit, Trash2, Eye, Plus, CheckCircle, XCircle,
-  TrendingUp, AlertCircle, Loader2, ToggleLeft, Search, Filter,
-  ArrowUpRight, DollarSign, Clock, ChevronDown, Store, MapPin, Boxes,
-  ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
+  Edit, Trash2, Plus, CheckCircle, XCircle, Loader2
 } from "lucide-react";
 import { toast } from "sonner";
-import { getAccessToken } from "../authSession";
+import { getAccessToken, getStoredUser } from "../authSession";
 import { env } from "../../../config/env";
 import { supabase } from "../../../config/supabase";
 import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
 
 export function AdminBanners() {
+  const user = getStoredUser();
+  const isManager = user?.role === "store_manager";
+  const isAdmin = user?.role === "admin";
+
   const [bannersList, setBannersList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [branchId, setBranchId] = useState(isManager ? user?.branchId || "" : "");
 
   const [subtitle, setSubtitle] = useState("");
   // Form states
@@ -31,7 +33,7 @@ export function AdminBanners() {
   const loadBanners = async () => {
     const token = getAccessToken();
     try {
-      const res = await fetch(`${env.API_URL}/banners`, {
+      const res = await fetch(`${env.API_URL}/admin/banners`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await parseRes(res);
@@ -45,16 +47,35 @@ export function AdminBanners() {
     }
   };
 
-  const handleEdit = (banner: any) => { setEditingBanner(banner); setTitle(banner.title || ""); setSubtitle(banner.subtitle || ""); setImageUrl(banner.imageUrl || ""); setLinkUrl(banner.linkUrl || ""); setSortOrder(String(banner.sortOrder ?? 0)); setShowAddForm(true); };
+  const handleEdit = (banner: any) => { 
+    setEditingBanner(banner); 
+    setTitle(banner.title || ""); 
+    setSubtitle(banner.subtitle || ""); 
+    setImageUrl(banner.imageUrl || ""); 
+    setLinkUrl(banner.linkUrl || ""); 
+    setSortOrder(String(banner.sortOrder ?? 0)); 
+    setBranchId(banner.branchId || (isManager ? user?.branchId || "" : ""));
+    setShowAddForm(true); 
+  };
   
+  const loadBranches = async () => {
+    try {
+      const res = await fetch(`${env.API_URL}/branches/active`);
+      if (res.ok) setBranches(await parseRes(res));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     loadBanners();
+    loadBranches();
   }, []);
 
   const handleToggleActive = async (banner: any) => {
     const token = getAccessToken();
     try {
-      const res = await fetch(`${env.API_URL}/banners/${banner.id}/active`, {
+      const res = await fetch(`${env.API_URL}/admin/banners/${banner.id}/active`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -80,7 +101,7 @@ export function AdminBanners() {
     const token = localStorage.getItem("accessToken");
     const banner = bannersList.find((b: any) => b.id === id);
     try {
-      const res = await fetch(`${env.API_URL}/banners/${id}`, {
+      const res = await fetch(`${env.API_URL}/admin/banners/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -107,7 +128,7 @@ export function AdminBanners() {
     const isEditing = Boolean(editingBanner);
     setSaving(true);
     try {
-      const res = await fetch(`${env.API_URL}/banners${isEditing ? `/${editingBanner.id}` : ""}`, {
+      const res = await fetch(`${env.API_URL}/admin/banners${isEditing ? `/${editingBanner.id}` : ""}`, {
         method: isEditing ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",
@@ -120,6 +141,7 @@ export function AdminBanners() {
           linkUrl,
           sortOrder: Number(sortOrder),
           isActive: editingBanner?.isActive ?? true,
+          branchId: branchId || null,
         }),
       });
       const data = await parseRes(res);
@@ -130,6 +152,7 @@ export function AdminBanners() {
         setSubtitle("");
         setLinkUrl("");
         setSortOrder("1");
+        setBranchId(isManager ? user?.branchId || "" : "");
         setShowAddForm(false);
         setEditingBanner(null);
         loadBanners();
@@ -166,7 +189,7 @@ export function AdminBanners() {
       </div>
 
       {showAddForm && (
-        <form onSubmit={handleCreate} className="rounded-2xl bg-sidebar p-5 space-y-4">
+        <form onSubmit={handleCreate} className="rounded-2xl bg-card border border-border shadow-sm p-5 space-y-4">
           <h3 className="text-sm font-semibold text-foreground">Thêm banner mới</h3>
           <div className="grid gap-3 sm:grid-cols-2">
             <input
@@ -197,6 +220,20 @@ export function AdminBanners() {
               value={sortOrder}
               onChange={e => setSortOrder(e.target.value)}
             />
+            {isAdmin && (
+              <select
+                className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
+                value={branchId}
+                onChange={e => setBranchId(e.target.value)}
+              >
+                <option value="">Chi nhánh áp dụng: Tất cả</option>
+                {branches.map(b => (
+                  <option key={b.id} value={b.id}>
+                    🏬 {b.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
           <div className="flex justify-end gap-3">
             <button
@@ -220,6 +257,11 @@ export function AdminBanners() {
                   <p className="font-semibold text-foreground text-base">{b.title}</p>
                   {b.linkUrl && <p className="text-xs text-primary truncate max-w-[200px] mt-0.5">{b.linkUrl}</p>}
                   <p className="mt-1 text-xs text-muted-foreground">Thứ tự hiển thị: {b.sortOrder}</p>
+                  {b.branchId && b.branch && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2.5 py-1 text-xs text-green-600 font-semibold mt-1">
+                      🏬 {b.branch.name}
+                    </span>
+                  )}
                 </div>
                 <StatusBadge status={b.isActive ? "Hiển thị" : "Ẩn"} />
               </div>

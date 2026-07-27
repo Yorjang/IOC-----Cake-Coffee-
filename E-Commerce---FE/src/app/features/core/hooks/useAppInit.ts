@@ -68,10 +68,12 @@ const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.CHECKOUT]: "/thanh-toan",
   [VIEW_KEYS.SUCCESS]: "/thanh-cong",
   [VIEW_KEYS.DETAIL]: "/chi-tiet",
-  [VIEW_KEYS.ADMIN]: "/admin",
+  [VIEW_KEYS.ADMIN]: "/admin/dashboard",
   [VIEW_KEYS.ADMIN_LOGIN]: "/admin/login",
   [VIEW_KEYS.STAFF]: "/nhan-vien",
   [VIEW_KEYS.LOGIN]: "/dang-nhap",
+  [VIEW_KEYS.REGISTER]: "/dang-ky",
+  [VIEW_KEYS.FORGOT_PASSWORD]: "/quen-mat-khau",
   [VIEW_KEYS.REVIEW]: "/danh-gia",
   [VIEW_KEYS.FAVORITES]: "/yeu-thich",
   [VIEW_KEYS.PROFILE]: "/ho-so",
@@ -91,6 +93,8 @@ export const getPathFromView = (view: string, product?: any) => {
 };
 
 const getViewFromPath = (path: string, cats: any[] = []) => {
+  if (path === "/admin/login") return VIEW_KEYS.ADMIN_LOGIN;
+  if (path === "/admin" || path.startsWith("/admin/")) return VIEW_KEYS.ADMIN;
   for (const [key, value] of Object.entries(VIEW_PATH_MAP)) {
     if (value === path) return key;
   }
@@ -138,12 +142,39 @@ const mapDbCartToLegacy = (dbItems: any[]): any[] => {
     ];
     (legacyProduct as any).raw = p;
     
-    let options = {};
+    let options: any = {};
     try {
       options = item.note ? JSON.parse(item.note) : {};
     } catch {
       options = { customText: item.note };
     }
+
+    let toppingsCost = 0;
+    if (options && options.toppings) {
+      const selectedTps: string[] = options.toppings;
+      const productTps: any[] = p.toppings || [];
+      for (const name of selectedTps) {
+        const tp = productTps.find((x: any) => x.name === name);
+        if (tp) toppingsCost += Number(tp.price || 0);
+      }
+    }
+    if (options && options.comboDrinkOptions) {
+      const cdo = options.comboDrinkOptions;
+      const comboItems = Array.isArray(p.items) ? p.items : [];
+      for (const itemKey of Object.keys(cdo)) {
+        const selectedCdo = cdo[itemKey];
+        if (selectedCdo && selectedCdo.toppings && selectedCdo.toppings.length > 0) {
+          const matchedComboItem = comboItems.find((ci: any) => ci.id === itemKey);
+          const childProductToppings = matchedComboItem?.childProduct?.toppings || [];
+          for (const tpName of selectedCdo.toppings) {
+            const tp = childProductToppings.find((x: any) => x.name === tpName);
+            if (tp) toppingsCost += Number(tp.price || 0);
+          }
+        }
+      }
+    }
+
+    const itemUnitPrice = Number(variantPrice) + toppingsCost;
 
     return {
       dbId: item.id,
@@ -151,7 +182,8 @@ const mapDbCartToLegacy = (dbItems: any[]): any[] => {
       size: item.variant?.size || "Vừa",
       quantity: item.quantity,
       options: options,
-      price: Number(variantPrice),
+      price: itemUnitPrice,
+      basePrice: Number(variantPrice),
       productId: item.productId,
       variantId: item.variantId
     };
@@ -274,38 +306,45 @@ export function useAppInit() {
   };
 
   useEffect(() => {
-    if (appliedCoupon && cart.length > 0) {
-      const currentSubtotal = cart.reduce((s, i) => s + (i.price || parsePrice(i.product[1])) * i.quantity, 0);
-      const minOrderVal = Number(appliedCoupon.minOrderValue || 0);
-      if (currentSubtotal < minOrderVal) {
+    if (appliedCoupon) {
+      if (appliedCoupon.branchId && appliedCoupon.branchId !== selectedStore.id) {
         setAppliedCoupon(null);
-        toast.error("Voucher đã bị hủy do giỏ hàng không đủ điều kiện đơn hàng tối thiểu.");
+        toast.error("Voucher không khả dụng cho chi nhánh này.");
         return;
       }
-      
-      if (appliedCoupon.productId) {
-        const hasProduct = cart.some((item: any) => (item.productId || item.product?.raw?.id) === appliedCoupon.productId);
-        if (!hasProduct) {
+      if (cart.length > 0) {
+        const currentSubtotal = cart.reduce((s, i) => s + (i.price || parsePrice(i.product[1])) * i.quantity, 0);
+        const minOrderVal = Number(appliedCoupon.minOrderValue || 0);
+        if (currentSubtotal < minOrderVal) {
           setAppliedCoupon(null);
-          toast.error("Voucher đã bị hủy do sản phẩm áp dụng không còn trong giỏ hàng.");
+          toast.error("Voucher đã bị hủy do giỏ hàng không đủ điều kiện đơn hàng tối thiểu.");
           return;
         }
-      }
-      
-      if (appliedCoupon.categoriesId) {
-        const hasCategory = cart.some((item: any) => {
-          const prod = item.product?.raw;
-          if (!prod) return false;
-          return prod.categoryId === appliedCoupon.categoriesId || prod.categoriesId === appliedCoupon.categoriesId || prod.category?.id === appliedCoupon.categoriesId;
-        });
-        if (!hasCategory) {
-          setAppliedCoupon(null);
-          toast.error("Voucher đã bị hủy do không còn sản phẩm thuộc danh mục áp dụng trong giỏ hàng.");
-          return;
+        
+        if (appliedCoupon.productId) {
+          const hasProduct = cart.some((item: any) => (item.productId || item.product?.raw?.id) === appliedCoupon.productId);
+          if (!hasProduct) {
+            setAppliedCoupon(null);
+            toast.error("Voucher đã bị hủy do sản phẩm áp dụng không còn trong giỏ hàng.");
+            return;
+          }
+        }
+        
+        if (appliedCoupon.categoriesId) {
+          const hasCategory = cart.some((item: any) => {
+            const prod = item.product?.raw;
+            if (!prod) return false;
+            return prod.categoryId === appliedCoupon.categoriesId || prod.categoriesId === appliedCoupon.categoriesId || prod.category?.id === appliedCoupon.categoriesId;
+          });
+          if (!hasCategory) {
+            setAppliedCoupon(null);
+            toast.error("Voucher đã bị hủy do không còn sản phẩm thuộc danh mục áp dụng trong giỏ hàng.");
+            return;
+          }
         }
       }
     }
-  }, [cart, appliedCoupon]);
+  }, [cart, appliedCoupon, selectedStore?.id]);
 
 
   const fetchCart = async (branchId: string, token = getAccessToken()) => {
@@ -343,16 +382,16 @@ export function useAppInit() {
       try {
         let couponsList: any[] = [];
         try {
-          couponsList = await getAvailableCoupons();
+          const branchIdParam = selectedStore?.id && UUID_PATTERN.test(selectedStore.id) ? selectedStore.id : undefined;
+          couponsList = await getAvailableCoupons(branchIdParam);
           if (!cancelled) setPublicCoupons(couponsList);
         } catch (err) {
           console.error("Lỗi khi tải vouchers:", err);
         }
 
+        const selectedBranchId = UUID_PATTERN.test(selectedStore?.id || '') ? selectedStore.id : undefined;
         const [productsData, cRes] = await Promise.all([
-          getCatalogProducts(
-            UUID_PATTERN.test(selectedStore?.id || "") ? selectedStore.id : undefined,
-          ),
+          getCatalogProducts(selectedBranchId),
           fetch(`${env.API_URL}/products/categories`),
         ]);
         if (!cancelled) {
@@ -670,7 +709,7 @@ export function useAppInit() {
     clearAuthSession();
     setUser(null);
     setCart([]);
-    setView(VIEW_KEYS.HOME);
+    setView(VIEW_KEYS.ADMIN_LOGIN);
   };
 
   // ── Cart / Wishlist handlers ─────────────────────────────────────────────
@@ -708,6 +747,7 @@ export function useAppInit() {
           quantity: qty,
           options,
           price: cartPrice,
+          basePrice: Number(selectedVariant?.price || 0),
           productId,
           variantId,
         });
@@ -845,8 +885,8 @@ export function useAppInit() {
         productName: rawProd.name,
         variantName: variant.variantName,
         quantity: item.quantity,
-        unitPrice: Number(variant.price),
-        totalPrice: Number(variant.price) * item.quantity,
+        unitPrice: item.price || Number(variant.price),
+        totalPrice: (item.price || Number(variant.price)) * item.quantity,
       };
     });
 
@@ -930,7 +970,7 @@ export function useAppInit() {
         return isProductMatch && isCategoryMatch && isSizeMatch;
       });
 
-      const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
+      const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.basePrice || item.price || parsePrice(item.product[1])) * item.quantity, 0);
 
       if (matchingItems.length > 0) {
         if (appliedCoupon.discountType === "percent") {
@@ -951,7 +991,7 @@ export function useAppInit() {
 
 
   return {
-    view, setView: setViewInternal,
+    view, setView,
     isLoading, setIsLoading,
     selectedProduct, handleSelectProduct,
     searchQuery, setSearchQuery,
