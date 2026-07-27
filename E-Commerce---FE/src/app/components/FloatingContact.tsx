@@ -1,7 +1,15 @@
-import { ChevronUp, Facebook, Instagram, Twitter, Youtube } from "lucide-react";
+import { ChevronUp, Facebook, Instagram, PackageSearch, Twitter, Youtube } from "lucide-react";
 import { useEffect, useState } from "react";
 
-export function FloatingContact() {
+interface FloatingContactProps {
+  onTrackOrder?: () => void;
+  showOrderTracking?: boolean;
+}
+
+export function FloatingContact({
+  onTrackOrder,
+  showOrderTracking = false,
+}: FloatingContactProps) {
   const [showTop, setShowTop] = useState(false);
 
   useEffect(() => {
@@ -18,6 +26,21 @@ export function FloatingContact() {
 
   return (
     <div className="fixed bottom-8 right-6 z-[999] flex flex-col items-center gap-3">
+      {showOrderTracking && onTrackOrder && (
+        <button
+          type="button"
+          onClick={onTrackOrder}
+          className="group relative flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition hover:-translate-y-0.5 hover:bg-primary/90"
+          title="Theo dõi đơn hàng"
+          aria-label="Theo dõi đơn hàng"
+        >
+          <PackageSearch size={22} />
+          <span className="pointer-events-none absolute right-full mr-3 whitespace-nowrap rounded-lg bg-foreground px-3 py-2 text-xs font-semibold text-background opacity-0 shadow-md transition group-hover:opacity-100 group-focus-visible:opacity-100">
+            Theo dõi đơn hàng
+          </span>
+        </button>
+      )}
+
       {/* Facebook */}
       <a href="https://facebook.com" target="_blank" rel="noreferrer" className="flex items-center justify-center w-11 h-11 rounded-full bg-[#3d2314] text-white shadow-lg hover:opacity-80 transition">
         <Facebook size={20} fill="currentColor" className="border-none" />

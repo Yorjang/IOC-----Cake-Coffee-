@@ -600,7 +600,11 @@ export class OrdersService {
 
       order.orderStatus = OrderStatus.CANCELLED;
       await this.restoreStocks(order.id, order.branchId, manager);
-      return orderRepository.save(order);
+      await orderRepository.save(order);
+      return orderRepository.findOneOrFail({
+        where: { id },
+        relations: { items: true, branch: true },
+      });
     });
   }
 

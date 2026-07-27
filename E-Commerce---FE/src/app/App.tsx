@@ -15,6 +15,7 @@ import { useCartState } from "./hooks/useCartState";
 import { NAV_PAGES, VIEW_KEYS } from "../config/appConfig";
 import { STORE_STORAGE_KEY, getPathFromView, VIEW_PATH_MAP, parsePrice } from '../utils/appUtils';
 import { clearAuthSession } from "./components/authSession";
+import { rememberTrackingOrder } from "./features/order-tracking/services/orderTrackingService";
 
 export default function App() {
   const appState = useAppState();
@@ -136,6 +137,7 @@ export default function App() {
       } catch (err) { }
       
       setLastCreatedOrder(resData);
+      if (resData?.id) rememberTrackingOrder(resData.id);
       setCart([]);
       setAppliedCoupon(null);
       toast.success("Đặt hàng thành công!");
@@ -184,7 +186,10 @@ export default function App() {
             handleSelectStore={handleSelectStore} handleAdminLogout={handleLogout}
           />
         </main>
-        <FloatingContact />
+        <FloatingContact
+          showOrderTracking={view === VIEW_KEYS.HOME}
+          onTrackOrder={() => setView(VIEW_KEYS.TRACKING)}
+        />
         {view === VIEW_KEYS.HOME && <SalesNotification products={products} onSelectProduct={handleSelectProduct} />}
         <Footer setView={setView} />
         {showStorePopup && (
