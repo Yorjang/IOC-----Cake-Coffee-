@@ -9,7 +9,8 @@ import { HOME_CONFIG, VIEW_KEYS } from "../../config/appConfig";
 
 
 
-function VoucherDetailModal({ voucher, products, onSelectProduct, setView, onClose }: any) {
+function VoucherDetailModal({ voucher, products: rawProducts = [], onSelectProduct, setView, onClose }: any) {
+  const products = Array.isArray(rawProducts) ? rawProducts : (Array.isArray(rawProducts?.data) ? rawProducts.data : []);
   if (!voucher) return null;
   const d = voucher.rawData;
   const scopeProduct = d?.product;
@@ -161,7 +162,8 @@ function VoucherRow({ code, title, sub, onClick }: any) {
   );
 }
 
-function ScrollingBestSellers({ products, onSelectProduct, onAddToCart }: any) {
+function ScrollingBestSellers({ products: rawProducts = [], onSelectProduct, onAddToCart }: any) {
+  const products = Array.isArray(rawProducts) ? rawProducts : (Array.isArray(rawProducts?.data) ? rawProducts.data : []);
   const displayProducts = [...products, ...products, ...products, ...products];
 
   return (
@@ -192,7 +194,10 @@ function ScrollingBestSellers({ products, onSelectProduct, onAddToCart }: any) {
   );
 }
 
-export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggleWishlist, products = [], categories = [], publicCoupons = [] }: any) {
+export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggleWishlist, products: rawProducts = [], categories: rawCategories = [], publicCoupons: rawCoupons = [] }: any) {
+  const products = Array.isArray(rawProducts) ? rawProducts : (Array.isArray(rawProducts?.data) ? rawProducts.data : (Array.isArray(rawProducts?.products) ? rawProducts.products : []));
+  const categories = Array.isArray(rawCategories) ? rawCategories : (Array.isArray(rawCategories?.data) ? rawCategories.data : (Array.isArray(rawCategories?.categories) ? rawCategories.categories : []));
+  const publicCoupons = Array.isArray(rawCoupons) ? rawCoupons : (Array.isArray(rawCoupons?.data) ? rawCoupons.data : (Array.isArray(rawCoupons?.coupons) ? rawCoupons.coupons : []));
   const [activeBanner, setActiveBanner] = useState(0);
   const [banners, setBanners] = useState<Array<{ src: string; alt: string; title?: string; subtitle?: string; linkUrl?: string }>>(() => {
     try {
@@ -232,8 +237,9 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
     fetch(`${env.API_URL}/banners/public`)
       .then(response => response.ok ? response.json() : Promise.reject(response.status))
       .then(data => { 
-        const next = Array.isArray(data) 
-          ? data.filter((banner: any) => banner.imageUrl).map((banner: any) => ({ 
+        const rawBanners = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
+        const next = Array.isArray(rawBanners) 
+          ? rawBanners.filter((banner: any) => banner.imageUrl).map((banner: any) => ({ 
               src: banner.imageUrl, 
               alt: banner.title || "Sweet Bean promotion", 
               title: banner.title, 

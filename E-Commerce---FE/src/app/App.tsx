@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Toaster } from "./components/ui/sonner";
+import { parseRes } from "../utils/api";
 
 import { AdminPanel } from "./components/AdminPanel";
 import { AdminLoginPage } from "./components/AdminLoginPage";
@@ -319,8 +320,8 @@ export default function App() {
         headers,
       });
       if (res.ok) {
-        const dbCart = await res.json();
-        const legacyCart = mapDbCartToLegacy(dbCart.items || []);
+        const dbCart = await parseRes(res);
+        const legacyCart = mapDbCartToLegacy(dbCart?.items || dbCart?.data?.items || (Array.isArray(dbCart) ? dbCart : []));
         setCart(legacyCart);
       }
     } catch (err) {
@@ -346,7 +347,8 @@ export default function App() {
         try {
           const couponRes = await fetch(`${env.API_URL}/coupons/public`);
           if (couponRes.ok) {
-            couponsList = await couponRes.json();
+            const raw = await parseRes(couponRes);
+            couponsList = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw?.coupons) ? raw.coupons : []));
             setPublicCoupons(couponsList);
           }
         } catch (err) {
@@ -358,11 +360,13 @@ export default function App() {
           fetch(`${env.API_URL}/products/categories`),
         ]);
         if (pRes.ok) {
-          const apiProducts = await pRes.json();
+          const raw = await parseRes(pRes);
+          const apiProducts = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw?.products) ? raw.products : []));
           setProducts(apiProducts.map(p => apiProductToArray(p, couponsList)));
         }
         if (cRes.ok) {
-          const apiCategories = await cRes.json();
+          const raw = await parseRes(cRes);
+          const apiCategories = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw?.categories) ? raw.categories : []));
           setCategories(apiCategories.map(apiCategoryToLegacy));
         }
       } catch {
@@ -378,7 +382,8 @@ export default function App() {
       try {
         const res = await fetch(`${env.API_URL}/branches/active`);
         if (!res.ok) return;
-        const branches = await res.json();
+        const rawBranches = await parseRes(res);
+        const branches = Array.isArray(rawBranches) ? rawBranches : (Array.isArray(rawBranches?.data) ? rawBranches.data : []);
         const statusById = new Map(
           branches.map((branch: any) => [branch.id, apiBranchToStore(branch)]),
         );
@@ -422,7 +427,8 @@ export default function App() {
         const res = await fetch(`${env.API_URL}/branches/active`);
         if (!res.ok) throw new Error("Cannot load branches");
 
-        const apiBranches = await res.json();
+        const rawBranches = await parseRes(res);
+        const apiBranches = Array.isArray(rawBranches) ? rawBranches : (Array.isArray(rawBranches?.data) ? rawBranches.data : []);
         const stores = Array.isArray(apiBranches) ? apiBranches.map(apiBranchToStore) : [];
         if (cancelled || loadedNearbyBranches || stores.length === 0) return;
 
@@ -446,7 +452,8 @@ export default function App() {
             const res = await fetch(`${env.API_URL}/branches/nearby?lat=${latitude}&lng=${longitude}`);
             if (!res.ok) return;
 
-            const nearbyBranches = await res.json();
+            const rawNearby = await parseRes(res);
+            const nearbyBranches = Array.isArray(rawNearby) ? rawNearby : (Array.isArray(rawNearby?.data) ? rawNearby.data : rawNearby);
             const storesWithDistance = Array.isArray(nearbyBranches)
               ? nearbyBranches.map(apiBranchToStore)
               : [apiBranchToStore(nearbyBranches)];
@@ -507,8 +514,8 @@ export default function App() {
     (async () => {
       try {
         const res = await fetch(`${env.API_URL}/auth/verify-email?token=${token}`);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Xác thực email thất bại");
+        const data = await parseRes(res);
+        if (!res.ok) throw new Error(data?.message || "Xác thực email thất bại");
         toast.success("Xác thực email thành công! Bạn có thể đăng nhập ngay.");
         setView(VIEW_KEYS.LOGIN);
       } catch (err: any) {
@@ -618,8 +625,8 @@ export default function App() {
           },
         });
         if (res.ok) {
-          const dbCart = await res.json();
-          setCart(mapDbCartToLegacy(dbCart.items || []));
+          const dbCart = await parseRes(res);
+          setCart(mapDbCartToLegacy(dbCart?.items || dbCart?.data?.items || (Array.isArray(dbCart) ? dbCart : [])));
         }
       } catch (err) {
         console.error("Lỗi khi gộp giỏ session vào tài khoản:", err);
@@ -705,10 +712,10 @@ export default function App() {
           note: optionsKey,
         }),
       });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.message || "Không thể cập nhật giỏ hàng");
+      const result = await parseRes(res);
+      if (!res.ok) throw new Error(result?.message || "Không thể cập nhật giỏ hàng");
       setCart(prev => prev.map(item =>
-        matchesItem(item) ? { ...item, dbId: result.itemId } : item,
+        matchesItem(item) ? { ...item, dbId: result?.itemId || result?.id || result?.data?.itemId || result?.data?.id || item.dbId } : item,
       ));
     } catch (err: any) {
       setCart(prev => prev.flatMap(item => {
@@ -737,8 +744,8 @@ export default function App() {
         headers: cartHeaders(true),
         body: JSON.stringify({ quantity: newQty }),
       });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.message || "Không thể cập nhật số lượng");
+      const result = await parseRes(res);
+      if (!res.ok) throw new Error(result?.message || "Không thể cập nhật số lượng");
     } catch (err: any) {
       setCart(prev => prev.map(current =>
         current.dbId === item.dbId ? { ...current, quantity: previousQty } : current,
@@ -760,8 +767,8 @@ export default function App() {
         method: "DELETE",
         headers: cartHeaders(),
       });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.message || "Không thể xóa sản phẩm");
+      const result = await parseRes(res);
+      if (!res.ok) throw new Error(result?.message || "Không thể xóa sản phẩm");
     } catch (err: any) {
       setCart(prev => {
         if (prev.some(current => current.dbId === item.dbId)) return prev;
@@ -852,9 +859,9 @@ export default function App() {
         body: JSON.stringify(payload),
       });
 
-      const resData = await res.json();
+      const resData = await parseRes(res);
       if (!res.ok) {
-        throw new Error(resData.message || "Đặt hàng thất bại");
+        throw new Error(resData?.message || "Đặt hàng thất bại");
       }
 
       try {

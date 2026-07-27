@@ -10,7 +10,9 @@ const formatPrice = (priceNum: number): string => {
 };
 
 
-export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggleWishlist, onSelectProduct, products = [], publicCoupons = [] }: any) {
+export function ProductDetail({ product, setView, onAddToCart, wishlist, onToggleWishlist, onSelectProduct, products: rawProducts = [], publicCoupons: rawCoupons = [] }: any) {
+  const products = Array.isArray(rawProducts) ? rawProducts : (Array.isArray(rawProducts?.data) ? rawProducts.data : []);
+  const publicCoupons = Array.isArray(rawCoupons) ? rawCoupons : (Array.isArray(rawCoupons?.data) ? rawCoupons.data : []);
   const p = product || products[0] || ["Sản phẩm", "0đ", "Khác", "", "5.0", ""];
   const isDrink = CATEGORY_GROUPS.DRINKS.includes(p[2] as any);
   const isBirthdayCake = p[2] === "Bánh sinh nhật";
