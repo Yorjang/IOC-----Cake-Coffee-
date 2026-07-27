@@ -753,7 +753,14 @@ function AdminCategories() {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ name: "", description: "", imageUrl: "" });
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    imageUrl: "",
+    parentId: "",
+    sortOrder: 0,
+    isActive: true,
+  });
 
   const getToken = () => localStorage.getItem("accessToken");
 
@@ -761,14 +768,32 @@ function AdminCategories() {
     setLoading(true);
     try {
       const res = await fetch(`${env.API_URL}/products/categories`);
-      if (res.ok) setItems(await res.json());
+      if (res.ok) {
+        const response = await res.json();
+        setItems(Array.isArray(response?.data) ? response.data : response);
+      }
     } catch { /* silent */ } finally { setLoading(false); }
   };
 
   useEffect(() => { load(); }, []);
 
-  const openAdd = () => { setEditing(null); setForm({ name: "", description: "", imageUrl: "" }); setShowModal(true); };
-  const openEdit = (c: any) => { setEditing(c); setForm({ name: c.name, description: c.description || "", imageUrl: c.imageUrl || "" }); setShowModal(true); };
+  const openAdd = () => {
+    setEditing(null);
+    setForm({ name: "", description: "", imageUrl: "", parentId: "", sortOrder: 0, isActive: true });
+    setShowModal(true);
+  };
+  const openEdit = (c: any) => {
+    setEditing(c);
+    setForm({
+      name: c.name,
+      description: c.description || "",
+      imageUrl: c.imageUrl || "",
+      parentId: c.parentId || "",
+      sortOrder: c.sortOrder ?? 0,
+      isActive: c.isActive !== false,
+    });
+    setShowModal(true);
+  };
 
   const save = async () => {
     const token = getToken();
@@ -776,7 +801,8 @@ function AdminCategories() {
     const url = editing ? `${env.API_URL}/products/categories/${editing.id}` : `${env.API_URL}/products/categories`;
     const method = editing ? "PATCH" : "POST";
     try {
-      const res = await fetch(url, { method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(form) });
+      const payload = { ...form, parentId: form.parentId || null };
+      const res = await fetch(url, { method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
       if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
       setShowModal(false); load();
     } catch (err: any) { toast.error(err.message || "Lỗi khi lưu danh mục"); }
@@ -806,13 +832,14 @@ function AdminCategories() {
       {loading ? <div className="py-10 text-center text-muted-foreground"><Loader2 className="inline animate-spin mr-2" size={16} />Đang tải…</div> : (
         <div className="overflow-auto rounded-2xl bg-sidebar">
           <table className="w-full text-sm">
-            <TableHeader cols={["Tên danh mục", "Slug", "Mô tả", "Trạng thái", "Thao tác"]} />
+            <TableHeader cols={["Tên danh mục", "Danh mục cha", "Thứ tự", "Slug", "Trạng thái", "Thao tác"]} />
             <tbody>
               {items.map(c => (
                 <tr key={c.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
                   <td className="py-3 font-medium text-foreground">{c.name}</td>
+                  <td className="py-3 text-xs text-muted-foreground">{items.find(parent => parent.id === c.parentId)?.name || "Danh mục gốc"}</td>
+                  <td className="py-3 text-xs text-muted-foreground">{c.sortOrder ?? 0}</td>
                   <td className="py-3 font-mono text-xs text-muted-foreground">{c.slug}</td>
-                  <td className="py-3 text-muted-foreground text-xs max-w-[200px] truncate">{c.description || "-"}</td>
                   <td className="py-3"><StatusBadge status={c.isActive ? "Hiển thị" : "Ẩn"} /></td>
                   <td className="py-3">
                     <div className="flex gap-2">
@@ -835,6 +862,17 @@ function AdminCategories() {
             <h3 className="text-lg font-semibold text-foreground mb-4">{editing ? "Sửa danh mục" : "Thêm danh mục mới"}</h3>
             <div className="space-y-3">
               <input className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors" placeholder="Tên danh mục" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+              <select className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border" value={form.parentId} onChange={e => setForm({ ...form, parentId: e.target.value })}>
+                <option value="">Danh mục gốc — hiển thị ở Danh mục nổi bật</option>
+                {items.filter(category => category.id !== editing?.id && !category.parentId).map(category => (
+                  <option key={category.id} value={category.id}>{category.name}</option>
+                ))}
+              </select>
+              <input type="number" min={0} className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border" placeholder="Thứ tự hiển thị" value={form.sortOrder} onChange={e => setForm({ ...form, sortOrder: Number(e.target.value) })} />
+              <label className="flex items-center gap-2 text-sm text-foreground">
+                <input type="checkbox" checked={form.isActive} onChange={e => setForm({ ...form, isActive: e.target.checked })} />
+                Hiển thị danh mục
+              </label>
               <textarea className="w-full rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-border focus:border-primary focus:ring-1 focus:ring-primary transition-colors resize-none" rows={2} placeholder="Mô tả danh mục" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
               <ImageUploader label="Hình ảnh danh mục" value={form.imageUrl} onChange={url => setForm({ ...form, imageUrl: url })} />
             </div>

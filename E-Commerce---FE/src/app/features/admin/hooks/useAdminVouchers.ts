@@ -24,7 +24,7 @@ export function useAdminVouchers() {
   const [isActive, setIsActive] = useState(true);
 
   const loadCoupons = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/coupons`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -80,7 +80,7 @@ export function useAdminVouchers() {
       toast.error("Vui lòng điền đầy đủ các trường bắt buộc.");
       return;
     }
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     setSaving(true);
     try {
       const isEditing = !!editingVoucher;
@@ -180,7 +180,7 @@ export function useAdminVouchers() {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa voucher này không?")) return;
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/coupons/${id}`, {
         method: "DELETE",

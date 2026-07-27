@@ -1,6 +1,10 @@
 import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsInt, IsUUID } from 'class-validator';
 
 export class CreateCategoryDto {
+    @IsUUID()
+    @IsOptional()
+    parentId?: string | null;
+
     @IsString()
     @IsNotEmpty({ message: 'Tên danh mục không được để trống' })
     name: string;
@@ -27,6 +31,10 @@ export class CreateCategoryDto {
 }
 
 export class UpdateCategoryDto {
+    @IsUUID()
+    @IsOptional()
+    parentId?: string | null;
+
     @IsString()
     @IsOptional()
     name?: string;

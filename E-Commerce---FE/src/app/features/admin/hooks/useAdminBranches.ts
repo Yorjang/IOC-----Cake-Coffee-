@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { env } from "../../../../config/env";
 import { parseRes } from "../../../../utils/api";
+import { getAccessToken } from "../../../components/authSession";
 
 const WEEK_DAYS = [
   { value: "monday", label: "Thứ 2" },
@@ -30,7 +31,7 @@ export function useAdminBranches({ adminUser }: { adminUser?: any }) {
   const [loadingHours, setLoadingHours] = useState(false);
   const [savingHours, setSavingHours] = useState(false);
 
-  const getToken = () => localStorage.getItem("accessToken");
+  const getToken = () => getAccessToken();
   const statusLabel = (status: string) => ({
     active: "Hiển thị",
     inactive: "Ẩn",

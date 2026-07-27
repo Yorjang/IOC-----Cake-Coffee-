@@ -75,9 +75,13 @@ const apiProductToArray = (p: any, coupons: any[] = []): any[] => {
 
 
 const apiCategoryToLegacy = (c: any) => ({
+  id: c.id,
+  parentId: c.parentId ?? null,
   name: c.name,
   icon: "",
   img: c.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=280&h=180&fit=crop&auto=format",
+  sortOrder: c.sortOrder ?? 0,
+  isActive: c.isActive !== false,
 });
 
 const VIEW_PATH_MAP: Record<string, string> = {
@@ -1008,7 +1012,7 @@ export default function App() {
             {view === VIEW_KEYS.TERMS && <PolicyPage type="terms" setView={setView} />}
             {view === VIEW_KEYS.RETURN_POLICY && <PolicyPage type="return" setView={setView} />}
             {view === VIEW_KEYS.ORDER_GUIDE && <PolicyPage type="guide" setView={setView} />}
-            {(LISTABLE.includes(view) || categories.some((c: any) => (c.name || c) === view || (c.name || c)?.toLowerCase() === view?.toLowerCase()) || (typeof view === "string" && (view.toLowerCase() === "cà phê" || view.toLowerCase() === "cafe" || window.location.pathname.startsWith("/danh-muc")))) && <ProductListing category={view} setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} searchQuery={searchQuery} products={products} />}
+            {(LISTABLE.includes(view) || categories.some((category: any) => category.name === view)) && <ProductListing category={view} categories={categories} setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} searchQuery={searchQuery} products={products} />}
           </div>
 
         </main>

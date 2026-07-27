@@ -6,7 +6,7 @@ export class Category {
     id: string;
 
     @Column({ name: 'parent_id', type: 'uuid', nullable: true })
-    parentId: string;
+    parentId: string | null;
 
     @Column({ unique: true, length: 200 })
     name: string;
