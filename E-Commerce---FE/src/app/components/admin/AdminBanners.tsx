@@ -189,7 +189,7 @@ export function AdminBanners() {
       </div>
 
       {showAddForm && (
-        <form onSubmit={handleCreate} className="rounded-2xl bg-sidebar p-5 space-y-4">
+        <form onSubmit={handleCreate} className="rounded-2xl bg-card border border-border shadow-sm p-5 space-y-4">
           <h3 className="text-sm font-semibold text-foreground">Thêm banner mới</h3>
           <div className="grid gap-3 sm:grid-cols-2">
             <input

@@ -8,7 +8,9 @@ import { matchSize } from "../App";
 const parsePrice = (priceStr: string) => parseInt(priceStr.replace(/[^0-9]/g, ""), 10);
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
-export function Cart({ cart, onUpdateQty, onRemoveItem, setView, publicCoupons = [], appliedCoupon, setAppliedCoupon, user }: any) {
+export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, publicCoupons: rawCoupons = [], appliedCoupon, setAppliedCoupon, user }: any) {
+  const cart = Array.isArray(rawCart) ? rawCart : (Array.isArray(rawCart?.data) ? rawCart.data : []);
+  const publicCoupons = Array.isArray(rawCoupons) ? rawCoupons : (Array.isArray(rawCoupons?.data) ? rawCoupons.data : []);
   const [coupon, setCoupon] = useState("");
   const [isCouponModalOpen, setIsCouponModalOpen] = useState(false);
 
