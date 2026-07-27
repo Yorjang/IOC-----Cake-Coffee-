@@ -10,6 +10,8 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { env } from "../../config/env";
 import { supabase } from "../../config/supabase";
+import { getAccessToken } from "./authSession";
+import { parseRes } from "../../utils/api";
 
 function ImageUploader({ label, value, onChange }: { label: string; value: string; onChange: (url: string) => void }) {
   const [uploading, setUploading] = useState(false);
@@ -163,7 +165,7 @@ function Dashboard() {
   const loadStats = async () => {
     setLoading(true);
     setError(null);
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     if (!token) {
       setError("Thiếu mã xác thực (Token). Vui lòng đăng nhập lại.");
       setLoading(false);
@@ -173,7 +175,7 @@ function Dashboard() {
       const res = await fetch(`${env.API_URL}/orders/dashboard/stats`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const resData = await res.json();
+      const resData = await parseRes(res);
       if (res.ok) {
         setData(resData);
       } else {
@@ -215,7 +217,9 @@ function Dashboard() {
     );
   }
 
-  const { stats, weekly, recentOrders } = data;
+  const stats = Array.isArray(data?.stats) ? data.stats : [];
+  const weekly = Array.isArray(data?.weekly) ? data.weekly : [];
+  const recentOrders = Array.isArray(data?.recentOrders) ? data.recentOrders : [];
   const maxRev = Math.max(...weekly.map((d: any) => d.revenue), 1);
 
   const iconMap: Record<string, any> = {
@@ -325,7 +329,7 @@ function AdminProducts() {
   const [removedVariantIds, setRemovedVariantIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const getToken = () => localStorage.getItem("accessToken");
+  const getToken = () => getAccessToken();
 
   const load = async () => {
     setLoading(true);
@@ -335,9 +339,9 @@ function AdminProducts() {
         fetch(`${env.API_URL}/products/categories`),
         fetch(`${env.API_URL}/products/tags`),
       ]);
-      if (pRes.ok) setItems(await pRes.json());
-      if (cRes.ok) setCats(await cRes.json());
-      if (tRes.ok) setTags(await tRes.json());
+      if (pRes.ok) setItems(await parseRes(pRes));
+      if (cRes.ok) setCats(await parseRes(cRes));
+      if (tRes.ok) setTags(await parseRes(tRes));
     } catch { /* silent */ } finally { setLoading(false); }
   };
 
@@ -438,8 +442,8 @@ function AdminProducts() {
     setSaving(true);
     try {
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
-      const savedProduct = await res.json();
+      if (!res.ok) { const err = await parseRes(res); throw new Error(err.message); }
+      const savedProduct = await parseRes(res);
       if (editing) {
         for (const variant of variantForms) {
           const payload = {
@@ -461,7 +465,7 @@ function AdminProducts() {
             },
           );
           if (!variantRes.ok) {
-            const error = await variantRes.json();
+            const error = await parseRes(variantRes);
             throw new Error(error.message || `Không thể lưu biến thể ${variant.variantName}`);
           }
         }
@@ -471,7 +475,7 @@ function AdminProducts() {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (!deleteRes.ok) {
-            const error = await deleteRes.json();
+            const error = await parseRes(deleteRes);
             throw new Error(error.message || "Không thể xóa biến thể");
           }
         }
@@ -489,7 +493,7 @@ function AdminProducts() {
         }),
       });
       if (!toppingRes.ok) {
-        const error = await toppingRes.json();
+        const error = await parseRes(toppingRes);
         throw new Error(error.message || "Không thể lưu danh sách topping");
       }
       const tagRes = await fetch(`${env.API_URL}/products/${savedProduct.id}/tags`, {
@@ -498,7 +502,7 @@ function AdminProducts() {
         body: JSON.stringify({ tagIds: selectedTagIds }),
       });
       if (!tagRes.ok) {
-        const error = await tagRes.json();
+        const error = await parseRes(tagRes);
         throw new Error(error.message || "Không thể lưu danh sách tag");
       }
       setShowModal(false); load();
@@ -514,7 +518,7 @@ function AdminProducts() {
     const item = items.find(p => p.id === id);
     try {
       const res = await fetch(`${env.API_URL}/products/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      if (!res.ok) { const err = await parseRes(res); throw new Error(err.message); }
       if (item?.imageUrl) {
         await deleteStorageImage(item.imageUrl);
       }
@@ -762,14 +766,14 @@ function AdminCategories() {
     isActive: true,
   });
 
-  const getToken = () => localStorage.getItem("accessToken");
+  const getToken = () => getAccessToken();
 
   const load = async () => {
     setLoading(true);
     try {
       const res = await fetch(`${env.API_URL}/products/categories`);
       if (res.ok) {
-        const response = await res.json();
+        const response = await parseRes(res);
         setItems(Array.isArray(response?.data) ? response.data : response);
       }
     } catch { /* silent */ } finally { setLoading(false); }
@@ -803,7 +807,7 @@ function AdminCategories() {
     try {
       const payload = { ...form, parentId: form.parentId || null };
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      if (!res.ok) { const err = await parseRes(res); throw new Error(err.message); }
       setShowModal(false); load();
     } catch (err: any) { toast.error(err.message || "Lỗi khi lưu danh mục"); }
   };
@@ -815,7 +819,7 @@ function AdminCategories() {
     const item = items.find(c => c.id === id);
     try {
       const res = await fetch(`${env.API_URL}/products/categories/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      if (!res.ok) { const err = await parseRes(res); throw new Error(err.message); }
       if (item?.imageUrl) {
         await deleteStorageImage(item.imageUrl);
       }
@@ -896,28 +900,28 @@ function AdminProductTags() {
   const [name, setName] = useState("");
   const load = async () => {
     setLoading(true);
-    try { const res = await fetch(`${env.API_URL}/products/tags`); if (res.ok) setItems(await res.json()); }
+    try { const res = await fetch(`${env.API_URL}/products/tags`); if (res.ok) setItems(await parseRes(res)); }
     finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
   const openForm = (tag?: any) => { setEditing(tag || null); setName(tag?.name || ""); setShowModal(true); };
   const save = async () => {
     if (!name.trim()) return toast.error("Vui lòng nhập tên tag.");
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     if (!token) return;
     try {
       const res = await fetch(`${env.API_URL}/products/tags${editing ? `/${editing.id}` : ""}`, { method: editing ? "PATCH" : "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ name: name.trim() }) });
-      if (!res.ok) { const error = await res.json(); throw new Error(error.message); }
+      if (!res.ok) { const error = await parseRes(res); throw new Error(error.message); }
       setShowModal(false); await load(); toast.success(editing ? "Đã cập nhật tag." : "Đã tạo tag.");
     } catch (error: any) { toast.error(error.message || "Không thể lưu tag."); }
   };
   const remove = async (tag: any) => {
     if (!confirm(`Xóa tag “${tag.name}”? Tag sẽ được gỡ khỏi các sản phẩm.`)) return;
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     if (!token) return;
     try {
       const res = await fetch(`${env.API_URL}/products/tags/${tag.id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) { const error = await res.json(); throw new Error(error.message); }
+      if (!res.ok) { const error = await parseRes(res); throw new Error(error.message); }
       await load(); toast.success("Đã xóa tag.");
     } catch (error: any) { toast.error(error.message || "Không thể xóa tag."); }
   };
@@ -955,7 +959,7 @@ function AdminBranches({ adminUser }: { adminUser?: any }) {
   const [loadingHours, setLoadingHours] = useState(false);
   const [savingHours, setSavingHours] = useState(false);
 
-  const getToken = () => localStorage.getItem("accessToken");
+  const getToken = () => getAccessToken();
   const statusLabel = (status: string) => ({
     active: "Hiển thị",
     inactive: "Ẩn",
@@ -985,7 +989,7 @@ function AdminBranches({ adminUser }: { adminUser?: any }) {
       const res = await fetch(`${env.API_URL}/branches`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) throw new Error(data.message || "Không thể tải danh sách chi nhánh.");
       setBranchRows(data);
     } catch (err: any) {
@@ -1038,7 +1042,7 @@ function AdminBranches({ adminUser }: { adminUser?: any }) {
         },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) throw new Error(data.message || "Không thể lưu chi nhánh.");
 
       setBranchRows(prev => isEditing ? prev.map(branch => branch.id === data.id ? data : branch) : [data, ...prev]);
@@ -1064,7 +1068,7 @@ function AdminBranches({ adminUser }: { adminUser?: any }) {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) throw new Error(data.message || "Không thể xóa chi nhánh.");
       setBranchRows(prev => prev.filter(item => item.id !== branch.id));
       toast.success("Đã xóa chi nhánh.");
@@ -1086,7 +1090,7 @@ function AdminBranches({ adminUser }: { adminUser?: any }) {
     setLoadingHours(true);
     try {
       const res = await fetch(`${env.API_URL}/branches/${branch.id}/opening-hours`);
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) throw new Error(data.message || "Không thể tải giờ mở cửa.");
       const byDay = new Map(data.map((item: any) => [item.dayOfWeek, item]));
       setOpeningHours(defaultOpeningHours().map(item => {
@@ -1128,7 +1132,7 @@ function AdminBranches({ adminUser }: { adminUser?: any }) {
         },
         body: JSON.stringify({ openingHours }),
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) throw new Error(data.message || "Không thể lưu giờ mở cửa.");
       toast.success("Đã cập nhật giờ mở cửa.");
       setScheduleBranch(null);
@@ -1316,12 +1320,12 @@ function AdminStoreMap() {
   const [loading, setLoading] = useState(true);
 
   const loadBranches = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/branches`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         setBranchesList(data);
         if (data.length > 0) {
@@ -1440,12 +1444,12 @@ function AdminInventory() {
   const [variantFilter, setVariantFilter] = useState("ALL");
 
   const loadInventory = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/inventory`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         setStocks(data);
       }
@@ -1457,12 +1461,12 @@ function AdminInventory() {
   };
 
   const loadBranches = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/branches`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         setBranches(data);
       }
@@ -1483,7 +1487,7 @@ function AdminInventory() {
   };
 
   const handleSave = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     setSaving(true);
     try {
       const res = await fetch(`${env.API_URL}/inventory/${editingStock.id}`, {
@@ -1497,7 +1501,7 @@ function AdminInventory() {
           minQuantity: Number(formMinQuantity),
         }),
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         toast.success("Cập nhật tồn kho thành công.");
         setEditingStock(null);
@@ -1688,12 +1692,12 @@ function AdminOrders() {
   const [search, setSearch] = useState("");
 
   const loadOrders = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/orders`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         setOrdersList(data);
       }
@@ -1709,7 +1713,7 @@ function AdminOrders() {
   }, []);
 
   const updateStatus = async (id: string, newStatus: string) => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/orders/${id}/status`, {
         method: "PATCH",
@@ -1723,7 +1727,7 @@ function AdminOrders() {
         toast.success("Cập nhật trạng thái đơn hàng thành công.");
         loadOrders();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi cập nhật.");
       }
     } catch (err) {
@@ -1850,7 +1854,7 @@ function AdminUsers() {
   const [editingUser, setEditingUser] = useState<any>(null);
   const [creatingUser, setCreatingUser] = useState<any>(null);
 
-  const getToken = () => localStorage.getItem("accessToken");
+  const getToken = () => getAccessToken();
   const branchRoles = ["staff", "cashier", "store_manager"];
   const needsBranch = (role?: string) => branchRoles.includes(role || "");
   const branchName = (branchId?: string | null) => branches.find(branch => branch.id === branchId)?.name || "-";
@@ -1867,7 +1871,7 @@ function AdminUsers() {
       const res = await fetch(`${env.API_URL}/users`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) throw new Error(data.message || "Không thể tải danh sách người dùng.");
       setAdminUsers(data);
     } catch (err: any) {
@@ -1885,7 +1889,7 @@ function AdminUsers() {
       const res = await fetch(`${env.API_URL}/branches/active`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) throw new Error(data.message || "Không thể tải danh sách chi nhánh.");
       setBranches(data);
     } catch (err: any) {
@@ -1930,7 +1934,7 @@ function AdminUsers() {
           isActive: editingUser.isActive,
         }),
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) throw new Error(data.message || "Không thể cập nhật người dùng.");
 
       setAdminUsers(prev => prev.map(user => user.id === data.id ? data : user));
@@ -1981,7 +1985,7 @@ function AdminUsers() {
           isActive: creatingUser.isActive,
         }),
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) throw new Error(data.message || "Không thể cấp tài khoản.");
 
       setAdminUsers(prev => [data, ...prev]);
@@ -2007,7 +2011,7 @@ function AdminUsers() {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (!res.ok) throw new Error(data.message || "Không thể xóa người dùng.");
 
       setAdminUsers(prev => prev.filter(item => item.id !== user.id));
@@ -2201,12 +2205,12 @@ function AdminReviews() {
   const [loading, setLoading] = useState(true);
 
   const loadReviews = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/reviews`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         setReviewsList(data);
       }
@@ -2222,7 +2226,7 @@ function AdminReviews() {
   }, []);
 
   const updateVisibility = async (id: string, isVisible: boolean) => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/reviews/${id}/visibility`, {
         method: "PATCH",
@@ -2236,7 +2240,7 @@ function AdminReviews() {
         toast.success(isVisible ? "Đã hiển thị đánh giá." : "Đã ẩn đánh giá.");
         loadReviews();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi cập nhật.");
       }
     } catch (err) {
@@ -2247,7 +2251,7 @@ function AdminReviews() {
 
   const deleteReview = async (id: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa đánh giá này không?")) return;
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/reviews/${id}`, {
         method: "DELETE",
@@ -2257,7 +2261,7 @@ function AdminReviews() {
         toast.success("Xóa đánh giá thành công.");
         loadReviews();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi xóa.");
       }
     } catch (err) {
@@ -2381,12 +2385,12 @@ function AdminVouchers() {
   const [availableSizes, setAvailableSizes] = useState<string[]>([]);
 
   const loadCoupons = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/coupons`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         setCoupons(data);
       }
@@ -2400,7 +2404,7 @@ function AdminVouchers() {
   const loadProductsOnly = async () => {
     try {
       const pRes = await fetch(`${env.API_URL}/products`);
-      if (pRes.ok) setProducts(await pRes.json());
+      if (pRes.ok) setProducts(await parseRes(pRes));
     } catch (err) {
       console.error(err);
     }
@@ -2409,7 +2413,7 @@ function AdminVouchers() {
   const loadCategoriesOnly = async () => {
     try {
       const res = await fetch(`${env.API_URL}/products/categories`);
-      if (res.ok) setCategories(await res.json());
+      if (res.ok) setCategories(await parseRes(res));
     } catch (err) {
       console.error(err);
     }
@@ -2418,7 +2422,7 @@ function AdminVouchers() {
   const loadSizesOnly = async () => {
     try {
       const res = await fetch(`${env.API_URL}/products/sizes/distinct`);
-      if (res.ok) setAvailableSizes(await res.json());
+      if (res.ok) setAvailableSizes(await parseRes(res));
     } catch (err) {
       console.error(err);
     }
@@ -2437,7 +2441,7 @@ function AdminVouchers() {
       toast.error("Vui lòng điền đầy đủ các trường bắt buộc.");
       return;
     }
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     setSaving(true);
     try {
       const isEditing = !!editingVoucher;
@@ -2466,7 +2470,7 @@ function AdminVouchers() {
           isActive: true,
         }),
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         toast.success(isEditing ? "Cập nhật voucher thành công." : "Tạo voucher thành công.");
         // Clear form
@@ -2534,7 +2538,7 @@ function AdminVouchers() {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa voucher này không?")) return;
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/coupons/${id}`, {
         method: "DELETE",
@@ -2544,7 +2548,7 @@ function AdminVouchers() {
         toast.success("Xóa voucher thành công.");
         loadCoupons();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi xóa.");
       }
     } catch (err) {
@@ -2806,12 +2810,12 @@ function AdminBanners() {
   const [showAddForm, setShowAddForm] = useState(false);
 
   const loadBanners = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/banners`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         setBannersList(data);
       }
@@ -2827,7 +2831,7 @@ function AdminBanners() {
   }, []);
 
   const handleToggleActive = async (banner: any) => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/banners/${banner.id}/active`, {
         method: "PATCH",
@@ -2841,7 +2845,7 @@ function AdminBanners() {
         toast.success("Cập nhật trạng thái banner thành công.");
         loadBanners();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi cập nhật.");
       }
     } catch (err) {
@@ -2852,7 +2856,7 @@ function AdminBanners() {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa banner này không?")) return;
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     const banner = bannersList.find((b: any) => b.id === id);
     try {
       const res = await fetch(`${env.API_URL}/banners/${id}`, {
@@ -2866,7 +2870,7 @@ function AdminBanners() {
         }
         loadBanners();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi xóa.");
       }
     } catch (err) {
@@ -2881,7 +2885,7 @@ function AdminBanners() {
       toast.error("Vui lòng nhập tên và link ảnh banner.");
       return;
     }
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     setSaving(true);
     try {
       const res = await fetch(`${env.API_URL}/banners`, {
@@ -2898,7 +2902,7 @@ function AdminBanners() {
           isActive: true,
         }),
       });
-      const data = await res.json();
+      const data = await parseRes(res);
       if (res.ok) {
         toast.success("Tạo banner thành công.");
         setTitle("");
@@ -3176,12 +3180,65 @@ const navItems = [
   allowedRoles: AdminRole[];
 }>;
 
+const ADMIN_TAB_PATHS: Record<string, string> = {
+  dashboard: "/admin/dashboard",
+  orders: "/admin/orders",
+  branches: "/admin/branches",
+  storeMap: "/admin/map",
+  products: "/admin/products",
+  categories: "/admin/categories",
+  productTags: "/admin/tags",
+  inventory: "/admin/inventory",
+  users: "/admin/users",
+  reviews: "/admin/reviews",
+  vouchers: "/admin/vouchers",
+  banners: "/admin/banners",
+  revenue: "/admin/statistics",
+  settings: "/admin/settings",
+};
+
+const ADMIN_PATH_TABS: Record<string, string> = Object.fromEntries(
+  Object.entries(ADMIN_TAB_PATHS).map(([tab, path]) => [path, tab]),
+);
+
 export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUser?: any }) {
   const role = (adminUser?.role ?? "admin") as AdminRole;
   const visibleNav = navItems.filter(item => item.allowedRoles.includes(role));
-  const [active, setActive] = useState(visibleNav[0]?.key ?? "dashboard");
+  const getTabFromPath = () => {
+    const requestedTab = window.location.pathname === "/admin"
+      ? "dashboard"
+      : ADMIN_PATH_TABS[window.location.pathname];
+    return visibleNav.some(item => item.key === requestedTab)
+      ? requestedTab
+      : visibleNav[0]?.key ?? "dashboard";
+  };
+  const [active, setActive] = useState(getTabFromPath);
   const [mobileNav, setMobileNav] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("sb_admin_sidebar_collapsed") === "true");
+
+  useEffect(() => {
+    const syncTabWithPath = () => {
+      const nextTab = getTabFromPath();
+      if (window.location.pathname === "/admin") {
+        window.history.replaceState(null, "", ADMIN_TAB_PATHS[nextTab] ?? "/admin/dashboard");
+      }
+      setActive(nextTab);
+      setMobileNav(false);
+    };
+    syncTabWithPath();
+    const handlePopState = () => syncTabWithPath();
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [role]);
+
+  const selectTab = (key: string) => {
+    setActive(key);
+    setMobileNav(false);
+    const targetPath = ADMIN_TAB_PATHS[key] ?? "/admin/dashboard";
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState(null, "", targetPath);
+    }
+  };
 
   const toggleSidebar = () => {
     setSidebarCollapsed(previous => {
@@ -3261,7 +3318,7 @@ export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUse
             {visibleNav.map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
-                onClick={() => { setActive(key); setMobileNav(false); }}
+                onClick={() => selectTab(key)}
                 title={sidebarCollapsed ? label : undefined}
                 aria-label={label}
                 className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${sidebarCollapsed ? "lg:justify-center lg:gap-0 lg:px-0" : ""} ${active === key ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:bg-sidebar-accent"}`}

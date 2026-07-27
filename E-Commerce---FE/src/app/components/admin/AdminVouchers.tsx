@@ -44,7 +44,7 @@ export function AdminVouchers() {
   const [branchId, setBranchId] = useState(isManager ? user?.branchId || "" : "");
 
   const loadCoupons = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/admin/vouchers`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -118,7 +118,7 @@ export function AdminVouchers() {
       toast.error("Giá trị giảm giá theo phần trăm phải lớn hơn 0%.");
       return;
     }
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     setSaving(true);
     try {
       const isEditing = !!editingVoucher;
@@ -224,7 +224,7 @@ export function AdminVouchers() {
     const couponObj = coupons.find(c => c.id === id);
     const actionLabel = couponObj?.isPendingDelete ? "duyệt xóa" : "phê duyệt";
     if (!window.confirm(`Bạn có chắc chắn muốn ${actionLabel} voucher này không?`)) return;
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/admin/vouchers/${id}/approve`, {
         method: "PATCH",
@@ -245,7 +245,7 @@ export function AdminVouchers() {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa voucher này không?")) return;
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/admin/vouchers/${id}`, {
         method: "DELETE",
