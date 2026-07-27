@@ -27,10 +27,9 @@ import { StoreMap } from "./pages/StoreMap";
 import { PolicyPage } from "./pages/PolicyPage";
 import { OrderTracking } from "./pages/OrderTracking";
 
-import { navPages } from "../data/mockData";
 import { storeLocations as fallbackStoreLocations, type StoreLocation } from "../data/storeLocations";
 import { env } from "../config/env";
-import { VIEW_KEYS } from "../config/appConfig";
+import { VIEW_KEYS, NAV_PAGES } from "../config/appConfig";
 import { getDiscountedPrice } from "./components/shared";
 import { clearAuthSession, getAccessToken, getAccessTokenExpiry, getStoredUser, refreshAuthSession } from "./components/authSession";
 
@@ -981,7 +980,7 @@ export default function App() {
         <Header
           view={view}
           setView={setView}
-          navPages={navPages}
+          navPages={NAV_PAGES}
           wishlistCount={wishlist.length}
           cartCount={cart.reduce((s, i) => s + i.quantity, 0)}
           searchQuery={searchQuery}

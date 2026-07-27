@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Truck, Gift, RefreshCw, Coffee, AlertCircle, Check, Tag, ChevronRight, ChevronLeft, Plus, MapPin, Loader2, PlayCircle, BookOpen, Users, ChefHat } from "lucide-react";
-import { heroBanners } from "../../data/mockData";
 import { ProductCard, HorizontalProductCard, Section } from "../components/shared";
 import { MESSAGES } from "../../constants/messages";
 import { env } from "../../config/env";

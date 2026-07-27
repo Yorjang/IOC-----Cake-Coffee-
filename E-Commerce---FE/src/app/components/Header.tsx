@@ -22,7 +22,7 @@ export function Header({
   const [profileOpen, setProfileOpen] = useState(false);
   
   // Use navPages as categories
-  const categories = navPages || ["Tất cả", "Entremet", "Tart", "Macaron", "Theo mùa"];
+  const categories = navPages || [];
 
   return (
     <header className="sticky top-0 z-40 bg-background/97 backdrop-blur-sm border-b border-border">
