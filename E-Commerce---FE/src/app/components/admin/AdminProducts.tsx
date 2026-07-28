@@ -33,7 +33,10 @@ export function AdminProducts() {
     emptyTopping,
     branches,
     isAdmin,
-    isManager
+    isManager,
+    ingredients,
+    variantRecipes,
+    updateVariantRecipe,
   } = useAdminProducts();
 
   return (
@@ -84,6 +87,9 @@ export function AdminProducts() {
         branches={branches}
         isAdmin={isAdmin}
         isManager={isManager}
+        ingredients={ingredients}
+        variantRecipes={variantRecipes}
+        updateVariantRecipe={updateVariantRecipe}
       />
     </div>
   );

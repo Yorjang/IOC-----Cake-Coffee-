@@ -3161,7 +3161,7 @@ export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUse
     products: <AdminProducts />,
     categories: <AdminCategories />,
     productTags: <AdminProductTags />,
-    inventory: <AdminInventory />,
+    inventory: <AdminInventory adminUser={adminUser} />,
     users: <AdminUsers />,
     reviews: <AdminReviews />,
     vouchers: <AdminVouchers />,

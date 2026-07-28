@@ -10,12 +10,14 @@ import {
   Put,
   Query,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/constants/permissions';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { UserRole } from '../users/user.entity';
 import { InventoryService } from './inventory.service';
 import { UpdateInventoryDto } from './dto/update-inventory.dto';
 import { CreateIngredientDto, UpdateIngredientDto } from './dto/create-ingredient.dto';
@@ -25,6 +27,7 @@ import { CreateStockBatchDto, UpdateStockBatchDto } from './dto/stock-batch.dto'
 import { CreateInventoryTransactionDto } from './dto/create-inventory-transaction.dto';
 import { CreatePurchaseOrderDto, QueryPurchaseOrderDto } from './dto/create-purchase-order.dto';
 import { ConfirmInboundDto } from './dto/confirm-inbound.dto';
+import { QueryAdjustmentDto } from './dto/query-adjustment.dto';
 import {
   QueryVariantStockDto,
   QueryIngredientStockDto,
@@ -44,13 +47,19 @@ export class InventoryController {
   // ───────────────────────────────────────────────────────────────────────────
   @Get()
   @Permissions(Permission.VIEW_INVENTORY)
-  findAllStocks(@Query() query: QueryVariantStockDto) {
+  findAllStocks(@Query() query: QueryVariantStockDto, @CurrentUser() user: any) {
+    if (user?.role === UserRole.STORE_MANAGER && user?.branchId) {
+      query.branchId = user.branchId;
+    }
     return this.inventoryService.findVariantStocks(query);
   }
 
   @Get('variants')
   @Permissions(Permission.VIEW_INVENTORY)
-  findVariantStocks(@Query() query: QueryVariantStockDto) {
+  findVariantStocks(@Query() query: QueryVariantStockDto, @CurrentUser() user: any) {
+    if (user?.role === UserRole.STORE_MANAGER && user?.branchId) {
+      query.branchId = user.branchId;
+    }
     return this.inventoryService.findVariantStocks(query);
   }
 
@@ -65,8 +74,9 @@ export class InventoryController {
   updateStock(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateInventoryDto,
+    @CurrentUser() user: any,
   ) {
-    return this.inventoryService.updateVariantStock(id, dto);
+    return this.inventoryService.updateVariantStock(id, dto, user);
   }
 
   @Patch('variants/:id')
@@ -74,8 +84,9 @@ export class InventoryController {
   updateVariantStock(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateInventoryDto,
+    @CurrentUser() user: any,
   ) {
-    return this.inventoryService.updateVariantStock(id, dto);
+    return this.inventoryService.updateVariantStock(id, dto, user);
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -138,8 +149,9 @@ export class InventoryController {
   updateBranchIngredientStock(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateBranchIngredientStockDto,
+    @CurrentUser() user: any,
   ) {
-    return this.inventoryService.updateBranchIngredientStock(id, dto);
+    return this.inventoryService.updateBranchIngredientStock(id, dto, user);
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -284,5 +296,41 @@ export class InventoryController {
     @CurrentUser() user: any,
   ) {
     return this.inventoryService.confirmInbound(dto, user);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Stock Adjustment Requests Approval Workflow
+  // ───────────────────────────────────────────────────────────────────────────
+  @Get('adjustments')
+  @Permissions(Permission.VIEW_INVENTORY)
+  findAllAdjustments(
+    @Query() query: QueryAdjustmentDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.inventoryService.findAllAdjustments(query, user);
+  }
+
+  @Post('adjustments/:id/approve')
+  @Permissions(Permission.MANAGE_INVENTORY)
+  approveAdjustment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: any,
+  ) {
+    if (user?.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Chỉ có Admin mới được phê duyệt yêu cầu điều chỉnh tồn kho.');
+    }
+    return this.inventoryService.approveAdjustment(id, user.id);
+  }
+
+  @Post('adjustments/:id/reject')
+  @Permissions(Permission.MANAGE_INVENTORY)
+  rejectAdjustment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: any,
+  ) {
+    if (user?.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Chỉ có Admin mới được từ chối yêu cầu điều chỉnh tồn kho.');
+    }
+    return this.inventoryService.rejectAdjustment(id, user.id);
   }
 }

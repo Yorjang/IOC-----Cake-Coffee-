@@ -8,6 +8,7 @@ import {
   IsOptional,
   IsDateString,
   IsString,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -32,6 +33,14 @@ export class ConfirmInboundItemDto {
   @IsOptional()
   @IsString()
   batchCode?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isIngredient?: boolean;
+
+  @IsOptional()
+  @IsString()
+  unit?: string;
 }
 
 export class ConfirmInboundDto {

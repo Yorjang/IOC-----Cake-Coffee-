@@ -16,7 +16,7 @@ interface ComboDrinkOption {
 
 export function useProductDetail({ product, setView, onAddToCart, wishlist, onToggleWishlist, onSelectProduct, products = [], publicCoupons = [] }: any) {
   const p = product || products[0] || ["Sản phẩm", "0đ", "Khác", "", "5.0", ""];
-  const isDrink = CATEGORY_GROUPS.DRINKS.includes(p[2] as any);
+  const isDrink = p.raw?.productType === "coffee" || p.raw?.productType === "drink";
   const isBirthdayCake = p[2] === "Bánh sinh nhật";
   const isCombo = p.raw?.productType === "combo";
   const availableVariants = useMemo(() => {

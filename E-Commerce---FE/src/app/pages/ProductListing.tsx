@@ -23,32 +23,42 @@ export function ProductListing({ category, setView, onSelectProduct, onAddToCart
     setSortBy("default");
   }, [category]);
 
-  // Determine subcategories to show in sidebar
-  let subCategories: string[] = [];
-  if (category === VIEW_KEYS.DRINKS) {
-    subCategories = ["Cafe", "Trà", "Đồ uống khác"];
-  } else if (category === VIEW_KEYS.SWEETS) {
-    subCategories = ["Bánh sinh nhật", "Bánh mousse", "Bánh tart", "Bánh quy"];
-  } else if (category === "Tìm kiếm") {
-    subCategories = ["Bánh sinh nhật", "Bánh mousse", "Bánh tart", "Bánh quy", "Cafe", "Trà", "Đồ uống khác", "Combo"];
-  } else if (category === VIEW_KEYS.ALL_PRODUCTS) {
-    subCategories = ["Bánh sinh nhật", "Bánh mousse", "Bánh tart", "Bánh quy", "Cafe", "Trà", "Đồ uống khác"];
-  }
-
   // 1. Base list filtered by Main Category
   let baseList: any[] = [];
   if (category === "Tìm kiếm") {
     baseList = products.filter(p => p[0].toLowerCase().includes(searchQuery.toLowerCase()));
   } else if (category === VIEW_KEYS.DRINKS) {
-    baseList = products.filter(p => CATEGORY_GROUPS.DRINKS.includes(p[2] as any));
+    baseList = products.filter(p => p.raw?.productType === "coffee" || p.raw?.productType === "drink");
   } else if (category === VIEW_KEYS.SWEETS) {
-    baseList = products.filter(p => !CATEGORY_GROUPS.DRINKS.includes(p[2] as any) && p[2] !== "Combo");
+    baseList = products.filter(p => p.raw?.productType === "cake");
   } else if (category === VIEW_KEYS.COMBO) {
-    baseList = products.filter(p => p[2] === "Combo");
+    baseList = products.filter(p => p.raw?.productType === "combo");
   } else if (category === VIEW_KEYS.ALL_PRODUCTS) {
-    baseList = products.filter(p => p[2] !== "Combo");
+    baseList = products.filter(p => p.raw?.productType !== "combo");
   } else {
     baseList = products.filter(p => p[2] === category);
+  }
+
+  // 2. Determine subcategories to show in sidebar dynamically
+  let subCategories: string[] = [];
+  if (category === VIEW_KEYS.DRINKS) {
+    const drinkCats = products
+      .filter((p: any) => p.raw?.productType === "coffee" || p.raw?.productType === "drink")
+      .map((p: any) => p[2] as string);
+    subCategories = Array.from(new Set(drinkCats));
+  } else if (category === VIEW_KEYS.SWEETS) {
+    const sweetCats = products
+      .filter((p: any) => p.raw?.productType === "cake")
+      .map((p: any) => p[2] as string);
+    subCategories = Array.from(new Set(sweetCats));
+  } else if (category === "Tìm kiếm") {
+    const searchCats = baseList.map((p: any) => p[2] as string);
+    subCategories = Array.from(new Set(searchCats));
+  } else if (category === VIEW_KEYS.ALL_PRODUCTS) {
+    const allCats = products
+      .filter((p: any) => p.raw?.productType !== "combo")
+      .map((p: any) => p[2] as string);
+    subCategories = Array.from(new Set(allCats));
   }
 
   // 2. Apply Sub-category filter
