@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 import { useEffect, useMemo, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Truck, Gift, RefreshCw, Coffee, AlertCircle, Check, Tag, ChevronRight, ChevronLeft, Plus, MapPin, Loader2, PlayCircle, BookOpen, Users, ChefHat } from "lucide-react";
@@ -6,161 +7,213 @@ import { MESSAGES } from "../../constants/messages";
 import { env } from "../../config/env";
 import { HOME_CONFIG, VIEW_KEYS } from "../../config/appConfig";
 import { getFeaturedParentCategories } from "../features/categories/categoryHierarchy";
+=======
+import React from 'react';
+import { motion } from 'motion/react';
+import { FadingVideo } from '../components/FadingVideo';
+import { BlurText } from '../components/BlurText';
+import { ArrowUpRight, Play, Clock, Globe, Image as ImageIcon, Film, Lightbulb } from 'lucide-react';
+>>>>>>> Stashed changes
 
+export function Home() {
+  return (
+    <div className="bg-black min-h-screen text-white font-body selection:bg-white/20" style={{ backgroundColor: '#000' }}>
+      {/* SECTION 1: HERO */}
+      <section className="relative w-full h-screen overflow-hidden flex flex-col">
+        {/* Background Video */}
+        <FadingVideo 
+          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260418_080021_d598092b-c4c2-4e53-8e46-94cf9064cd50.mp4"
+          className="absolute left-1/2 top-0 -translate-x-1/2 object-cover object-top z-0"
+          style={{ width: "120%", height: "120%" }}
+        />
 
-
-function VoucherDetailModal({ voucher, products: rawProducts = [], onSelectProduct, setView, onClose }: any) {
-  const products = Array.isArray(rawProducts) ? rawProducts : (Array.isArray(rawProducts?.data) ? rawProducts.data : []);
-  if (!voucher) return null;
-  const d = voucher.rawData;
-  const scopeProduct = d?.product;
-  const scopeCategory = d?.category;
-  const scopeLabel = d?.productId && scopeProduct
-    ? 'Sản phẩm'
-    : d?.categoriesId && scopeCategory
-      ? 'Danh mục'
-      : null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose} style={{ animation: 'fadeIn .2s ease' }}>
-      <div className="bg-card w-full max-w-md rounded-2xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} style={{ animation: 'slideUp .25s ease' }}>
-        <button onClick={onClose} className="absolute right-4 top-4 text-muted-foreground hover:text-foreground z-10">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-        </button>
-
-        {/* Header */}
-        <div className="text-center mb-5 mt-2">
-          <div className="mx-auto w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mb-3">
-            <Tag size={28} className="text-primary" />
+        {/* Navbar */}
+        <nav className="fixed top-4 left-0 right-0 px-8 lg:px-16 z-50 flex items-center justify-between">
+          <div className="w-12 h-12 liquid-glass rounded-full flex items-center justify-center font-heading italic text-3xl lowercase pb-1">a</div>
+          
+          <div className="hidden md:flex items-center liquid-glass rounded-full p-1.5 gap-1">
+            {['Home', 'Voyages', 'Worlds', 'Innovation', 'Plan Launch'].map((item) => (
+              <a key={item} href="#" className="px-3 py-2 text-sm font-medium text-white/90 font-body hover:bg-white/10 rounded-full transition-colors">
+                {item}
+              </a>
+            ))}
+            <button className="ml-2 bg-white text-black px-4 py-2 rounded-full text-sm font-medium flex items-center gap-1 whitespace-nowrap">
+              Claim a Spot <ArrowUpRight className="h-4 w-4" />
+            </button>
           </div>
-          <h3 className="text-xl font-bold font-serif">{voucher.sub}</h3>
-          <p className="text-sm text-primary font-mono tracking-widest mt-2 bg-primary/10 inline-block px-4 py-1.5 rounded-full uppercase font-bold">{voucher.code}</p>
+
+          <div className="w-12 h-12 invisible"></div>
+        </nav>
+
+        {/* Hero Content */}
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center pt-24 px-4 text-center">
+          <motion.div 
+            initial={{ filter: 'blur(10px)', opacity: 0, y: 20 }}
+            animate={{ filter: 'blur(0px)', opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, ease: 'easeOut' }}
+            className="liquid-glass rounded-full flex items-center p-1 pr-3 gap-2 mb-6"
+          >
+            <span className="bg-white text-black px-3 py-1 text-xs font-semibold rounded-full">New</span>
+            <span className="text-sm text-white/90">Maiden Crewed Voyage to Mars Arrives 2026</span>
+          </motion.div>
+
+          <BlurText 
+            text="Venture Past Our Sky Across the Universe"
+            className="text-6xl md:text-7xl lg:text-[5.5rem] font-heading italic text-white leading-[0.8] max-w-2xl justify-center tracking-[-4px]"
+          />
+
+          <motion.p 
+            initial={{ filter: 'blur(10px)', opacity: 0, y: 20 }}
+            animate={{ filter: 'blur(0px)', opacity: 1, y: 0 }}
+            transition={{ delay: 0.8, ease: 'easeOut' }}
+            className="mt-4 text-sm md:text-base text-white max-w-2xl font-body font-light leading-tight"
+          >
+            Discover the universe in ways once unimaginable. Our pioneering vessels and breakthrough engineering bring deep-space exploration within reach—secure and extraordinary.
+          </motion.p>
+
+          <motion.div 
+            initial={{ filter: 'blur(10px)', opacity: 0, y: 20 }}
+            animate={{ filter: 'blur(0px)', opacity: 1, y: 0 }}
+            transition={{ delay: 1.1, ease: 'easeOut' }}
+            className="flex items-center gap-6 mt-6"
+          >
+            <button className="liquid-glass-strong rounded-full px-5 py-2.5 text-sm font-medium text-white flex items-center gap-2 hover:bg-white/10 transition-colors">
+              Start Your Voyage <ArrowUpRight className="h-5 w-5" />
+            </button>
+            <button className="text-sm font-medium text-white flex items-center gap-2 hover:text-white/80 transition-colors">
+              View Liftoff <Play className="h-4 w-4 fill-current" />
+            </button>
+          </motion.div>
+
+          <motion.div 
+            initial={{ filter: 'blur(10px)', opacity: 0, y: 20 }}
+            animate={{ filter: 'blur(0px)', opacity: 1, y: 0 }}
+            transition={{ delay: 1.3, ease: 'easeOut' }}
+            className="flex flex-wrap justify-center items-stretch gap-4 mt-8"
+          >
+            <div className="liquid-glass p-5 w-[220px] rounded-[1.25rem] flex flex-col justify-between text-left h-[140px]">
+              <Clock className="w-7 h-7 text-white stroke-[1.5]" />
+              <div>
+                <div className="font-heading italic text-white text-4xl tracking-[-1px] leading-none">34.5 Min</div>
+                <div className="text-xs text-white font-body font-light mt-2">Average Videos Watch Time</div>
+              </div>
+            </div>
+            <div className="liquid-glass p-5 w-[220px] rounded-[1.25rem] flex flex-col justify-between text-left h-[140px]">
+              <Globe className="w-7 h-7 text-white stroke-[1.5]" />
+              <div>
+                <div className="font-heading italic text-white text-4xl tracking-[-1px] leading-none">2.8B+</div>
+                <div className="text-xs text-white font-body font-light mt-2">Users Across the Globe</div>
+              </div>
+            </div>
+          </motion.div>
         </div>
 
-        {/* Description */}
-        {voucher.title && voucher.title !== voucher.sub && (
-          <div className="bg-secondary/50 p-3 rounded-xl text-center text-foreground font-medium text-sm mb-4">
-            {voucher.title}
+        {/* Partners */}
+        <motion.div 
+          initial={{ filter: 'blur(10px)', opacity: 0, y: 20 }}
+          animate={{ filter: 'blur(0px)', opacity: 1, y: 0 }}
+          transition={{ delay: 1.4, ease: 'easeOut' }}
+          className="relative z-10 flex flex-col items-center gap-4 pb-8 pt-8"
+        >
+          <div className="liquid-glass rounded-full px-3.5 py-1 text-xs font-medium text-white">
+            Collaborating with top aerospace pioneers globally
           </div>
-        )}
+          <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16 font-heading italic text-white text-2xl md:text-3xl tracking-tight">
+            <span>Aeon</span>
+            <span>Vela</span>
+            <span>Apex</span>
+            <span>Orbit</span>
+            <span>Zeno</span>
+          </div>
+        </motion.div>
+      </section>
 
-        {/* Detail grid */}
-        {d && (
-          <div className="space-y-3 text-sm">
-            <div className="grid grid-cols-[110px_1fr] gap-y-2.5 gap-x-3 bg-secondary/30 rounded-xl p-4">
-              <span className="text-muted-foreground font-medium">Giảm giá:</span>
-              <span className="text-foreground font-semibold">
-                {d.discountType === 'percent'
-                  ? `${Number(d.discountValue)}%${d.maxDiscount ? ` (tối đa ${Number(d.maxDiscount).toLocaleString()}đ)` : ''}`
-                  : `${Number(d.discountValue).toLocaleString()}đ`}
-              </span>
+      {/* SECTION 2: CAPABILITIES */}
+      <section className="relative w-full min-h-screen flex flex-col">
+        {/* Background Video */}
+        <FadingVideo 
+          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260418_094631_d30ab262-45ee-4b7d-99f3-5d5848c8ef13.mp4"
+          className="absolute inset-0 w-full h-full object-cover z-0"
+        />
 
-              <span className="text-muted-foreground font-medium">Đơn tối thiểu:</span>
-              <span className="text-foreground font-semibold">
-                {d.minOrderValue > 0 ? `${Number(d.minOrderValue).toLocaleString()}đ` : 'Không yêu cầu'}
-              </span>
+        <div className="relative z-10 px-8 md:px-16 lg:px-20 pt-24 pb-10 flex flex-col min-h-screen">
+          <div className="mb-auto">
+            <div className="text-sm font-body text-white/80 mb-6">// Capabilities</div>
+            <h2 className="font-heading italic text-white text-6xl md:text-7xl lg:text-[6rem] leading-[0.9] tracking-[-3px]">
+              Production<br/>evolved
+            </h2>
+          </div>
 
-              {(d.startsAt || d.expiresAt) && (
-                <>
-                  <span className="text-muted-foreground font-medium">Hạn dùng:</span>
-                  <span className="text-foreground">
-                    {d.startsAt ? new Date(d.startsAt).toLocaleDateString('vi-VN') : 'Nay'}
-                    {' — '}
-                    {d.expiresAt ? new Date(d.expiresAt).toLocaleDateString('vi-VN') : 'Không thời hạn'}
-                  </span>
-                </>
-              )}
-
-              <span className="text-muted-foreground font-medium">Phạm vi:</span>
-              <span className="text-foreground font-semibold">
-                {scopeLabel ? scopeLabel : 'Toàn bộ đơn hàng'}
-              </span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16">
+            {/* Card 1 */}
+            <div className="liquid-glass rounded-[1.25rem] p-6 min-h-[360px] flex flex-col">
+              <div className="flex items-start justify-between gap-4">
+                <div className="w-11 h-11 liquid-glass rounded-[0.75rem] flex items-center justify-center shrink-0">
+                  <ImageIcon className="h-6 w-6 text-white" />
+                </div>
+                <div className="flex flex-wrap justify-end gap-1.5 max-w-[70%]">
+                  {['Natural Context', 'Photo Realism', 'Infinite Settings', 'Eco-Vibe'].map(tag => (
+                    <span key={tag} className="liquid-glass rounded-full px-3 py-1 text-[11px] text-white/90 font-body whitespace-nowrap">{tag}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="flex-1"></div>
+              <div className="mt-6">
+                <h3 className="font-heading italic text-white text-3xl md:text-4xl tracking-[-1px] leading-none">AI Scenery</h3>
+                <p className="mt-3 text-sm text-white/90 font-body font-light leading-snug max-w-[32ch]">
+                  AI analyzes your product to create indistinguishable natural environments — from Icelandic cliffs to misty forests.
+                </p>
+              </div>
             </div>
 
-            {/* Applied product card */}
-            {d.productId && scopeProduct && (
-              <div className="border rounded-xl p-3 flex items-center gap-3">
-                {scopeProduct.imageUrl && (
-                  <img src={scopeProduct.imageUrl} alt={scopeProduct.name} className="w-16 h-16 rounded-lg object-cover shrink-0 border" />
-                )}
-                <div className="min-w-0">
-                  <p className="text-xs text-primary font-semibold uppercase tracking-wide mb-0.5">Áp dụng cho sản phẩm</p>
-                  <p className="font-bold text-foreground truncate">{scopeProduct.name}</p>
-                  {scopeProduct.category?.name && (
-                    <p className="text-xs text-muted-foreground mt-0.5">Danh mục: {scopeProduct.category.name}</p>
-                  )}
+            {/* Card 2 */}
+            <div className="liquid-glass rounded-[1.25rem] p-6 min-h-[360px] flex flex-col">
+              <div className="flex items-start justify-between gap-4">
+                <div className="w-11 h-11 liquid-glass rounded-[0.75rem] flex items-center justify-center shrink-0">
+                  <Film className="h-6 w-6 text-white" />
+                </div>
+                <div className="flex flex-wrap justify-end gap-1.5 max-w-[70%]">
+                  {['Scale Fast', 'Visual Consistency', 'Time Saver', 'Ready to Post'].map(tag => (
+                    <span key={tag} className="liquid-glass rounded-full px-3 py-1 text-[11px] text-white/90 font-body whitespace-nowrap">{tag}</span>
+                  ))}
                 </div>
               </div>
-            )}
+              <div className="flex-1"></div>
+              <div className="mt-6">
+                <h3 className="font-heading italic text-white text-3xl md:text-4xl tracking-[-1px] leading-none">Batch Production</h3>
+                <p className="mt-3 text-sm text-white/90 font-body font-light leading-snug max-w-[32ch]">
+                  Style your entire product line in minutes. Create a unified visual identity for catalogues and social media without weeks of retouching.
+                </p>
+              </div>
+            </div>
 
-            {/* Applied category card */}
-            {d.categoriesId && scopeCategory && !d.productId && (
-              <div className="border rounded-xl p-3 flex items-center gap-3">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Gift size={22} className="text-primary" />
+            {/* Card 3 */}
+            <div className="liquid-glass rounded-[1.25rem] p-6 min-h-[360px] flex flex-col">
+              <div className="flex items-start justify-between gap-4">
+                <div className="w-11 h-11 liquid-glass rounded-[0.75rem] flex items-center justify-center shrink-0">
+                  <Lightbulb className="h-6 w-6 text-white" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-primary font-semibold uppercase tracking-wide mb-0.5">Áp dụng cho danh mục</p>
-                  <p className="font-bold text-foreground">{scopeCategory.name}</p>
-                </div>
-              </div>
-            )}
-
-            {/* All orders */}
-            {!d.productId && !d.categoriesId && (
-              <div className="border rounded-xl p-3 flex items-center gap-3 border-dashed">
-                <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
-                  <Check size={22} className="text-green-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-green-600 font-semibold uppercase tracking-wide mb-0.5">Không giới hạn</p>
-                  <p className="font-bold text-foreground">Áp dụng cho tất cả sản phẩm</p>
+                <div className="flex flex-wrap justify-end gap-1.5 max-w-[70%]">
+                  {['Ray Tracing', 'Physical Shadows', 'Studio Quality', 'Sunlight Sync'].map(tag => (
+                    <span key={tag} className="liquid-glass rounded-full px-3 py-1 text-[11px] text-white/90 font-body whitespace-nowrap">{tag}</span>
+                  ))}
                 </div>
               </div>
-            )}
+              <div className="flex-1"></div>
+              <div className="mt-6">
+                <h3 className="font-heading italic text-white text-3xl md:text-4xl tracking-[-1px] leading-none">Smart Lighting</h3>
+                <p className="mt-3 text-sm text-white/90 font-body font-light leading-snug max-w-[32ch]">
+                  Automatic lighting and material adjustment. Achieve flawless integration with realistic shadows and sunlight.
+                </p>
+              </div>
+            </div>
           </div>
-        )}
-
-        {/* CTA */}
-        <div className="mt-6">
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(voucher.code);
-              if (d?.productId) {
-                const p = products.find((p: any) => p[0] === d.productId || p.raw?.id === d.productId);
-                if (p) {
-                  onSelectProduct?.(p);
-                } else {
-                  setView?.(VIEW_KEYS.SWEETS);
-                }
-              } else {
-                // If it's a category or global voucher, just go to shop
-                setView?.(VIEW_KEYS.SWEETS);
-              }
-              onClose();
-            }}
-            className="w-full bg-primary text-primary-foreground font-bold rounded-xl py-3 hover:bg-primary/90 transition"
-          >
-            Đặt hàng ngay
-          </button>
         </div>
-      </div>
-    </div>,
-    document.body
-  );
-}
-
-function VoucherRow({ code, title, sub, onClick }: any) {
-  return (
-    <div onClick={onClick} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4 cursor-pointer hover:border-foreground/30 transition">
-      <div>
-        <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase mb-1">{code}</p>
-        <p className="text-sm font-bold text-foreground leading-snug">{title}</p>
-        <p className="text-[12px] text-muted-foreground mt-1">{sub}</p>
-      </div>
+      </section>
     </div>
   );
 }
+<<<<<<< Updated upstream
 
 function ScrollingBestSellers({ products: rawProducts = [], onSelectProduct, onAddToCart }: any) {
   const products = Array.isArray(rawProducts) ? rawProducts : (Array.isArray(rawProducts?.data) ? rawProducts.data : []);
@@ -570,3 +623,5 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
     </>
   );
 }
+=======
+>>>>>>> Stashed changes

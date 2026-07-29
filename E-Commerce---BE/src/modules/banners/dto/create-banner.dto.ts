@@ -21,6 +21,10 @@ export class CreateBannerDto {
   @IsOptional()
   sortOrder?: number;
 
+  @IsString()
+  @IsOptional()
+  position?: string;
+
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;

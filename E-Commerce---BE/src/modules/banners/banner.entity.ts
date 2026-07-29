@@ -21,6 +21,9 @@ export class Banner {
   @Column({ name: 'sort_order', type: 'smallint', default: 0 })
   sortOrder: number;
 
+  @Column({ type: 'varchar', length: 50, default: 'home_main' })
+  position: string;
+
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 

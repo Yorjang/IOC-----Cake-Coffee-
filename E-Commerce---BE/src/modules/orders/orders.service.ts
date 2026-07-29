@@ -535,4 +535,14 @@ export class OrdersService {
     order.paymentStatus = 'refunded' as any;
     return this.orders.save(order);
   }
+
+  async hasPurchasedProduct(userId: string, productId: string): Promise<boolean> {
+    const result = await this.orders.query(
+      `SELECT 1 FROM orders o 
+       INNER JOIN order_items oi ON o.id = oi.order_id 
+       WHERE o.user_id = $1 AND oi.product_id = $2 AND o.order_status = 'completed' LIMIT 1`,
+      [userId, productId]
+    );
+    return result.length > 0;
+  }
 }

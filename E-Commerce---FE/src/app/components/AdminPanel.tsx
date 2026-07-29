@@ -175,7 +175,11 @@ function Dashboard() {
       const res = await fetch(`${env.API_URL}/orders/dashboard/stats`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+<<<<<<< Updated upstream
       const resData = await parseRes(res);
+=======
+      const resData = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (res.ok) {
         setData(resData);
       } else {
@@ -217,9 +221,13 @@ function Dashboard() {
     );
   }
 
+<<<<<<< Updated upstream
   const stats = Array.isArray(data?.stats) ? data.stats : [];
   const weekly = Array.isArray(data?.weekly) ? data.weekly : [];
   const recentOrders = Array.isArray(data?.recentOrders) ? data.recentOrders : [];
+=======
+  const { stats = [], weekly = [], recentOrders = [] } = data || {};
+>>>>>>> Stashed changes
   const maxRev = Math.max(...weekly.map((d: any) => d.revenue), 1);
 
   const iconMap: Record<string, any> = {
@@ -339,9 +347,15 @@ function AdminProducts() {
         fetch(`${env.API_URL}/products/categories`),
         fetch(`${env.API_URL}/products/tags`),
       ]);
+<<<<<<< Updated upstream
       if (pRes.ok) setItems(await parseRes(pRes));
       if (cRes.ok) setCats(await parseRes(cRes));
       if (tRes.ok) setTags(await parseRes(tRes));
+=======
+      if (pRes.ok) setItems(await pRes.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d));
+      if (cRes.ok) setCats(await cRes.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d));
+      if (tRes.ok) setTags(await tRes.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d));
+>>>>>>> Stashed changes
     } catch { /* silent */ } finally { setLoading(false); }
   };
 
@@ -442,8 +456,13 @@ function AdminProducts() {
     setSaving(true);
     try {
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
+<<<<<<< Updated upstream
       if (!res.ok) { const err = await parseRes(res); throw new Error(err.message); }
       const savedProduct = await parseRes(res);
+=======
+      if (!res.ok) { const err = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d); throw new Error(err.message); }
+      const savedProduct = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (editing) {
         for (const variant of variantForms) {
           const payload = {
@@ -465,7 +484,11 @@ function AdminProducts() {
             },
           );
           if (!variantRes.ok) {
+<<<<<<< Updated upstream
             const error = await parseRes(variantRes);
+=======
+            const error = await variantRes.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
             throw new Error(error.message || `Không thể lưu biến thể ${variant.variantName}`);
           }
         }
@@ -475,7 +498,11 @@ function AdminProducts() {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (!deleteRes.ok) {
+<<<<<<< Updated upstream
             const error = await parseRes(deleteRes);
+=======
+            const error = await deleteRes.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
             throw new Error(error.message || "Không thể xóa biến thể");
           }
         }
@@ -493,7 +520,11 @@ function AdminProducts() {
         }),
       });
       if (!toppingRes.ok) {
+<<<<<<< Updated upstream
         const error = await parseRes(toppingRes);
+=======
+        const error = await toppingRes.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
         throw new Error(error.message || "Không thể lưu danh sách topping");
       }
       const tagRes = await fetch(`${env.API_URL}/products/${savedProduct.id}/tags`, {
@@ -502,7 +533,11 @@ function AdminProducts() {
         body: JSON.stringify({ tagIds: selectedTagIds }),
       });
       if (!tagRes.ok) {
+<<<<<<< Updated upstream
         const error = await parseRes(tagRes);
+=======
+        const error = await tagRes.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
         throw new Error(error.message || "Không thể lưu danh sách tag");
       }
       setShowModal(false); load();
@@ -518,7 +553,11 @@ function AdminProducts() {
     const item = items.find(p => p.id === id);
     try {
       const res = await fetch(`${env.API_URL}/products/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+<<<<<<< Updated upstream
       if (!res.ok) { const err = await parseRes(res); throw new Error(err.message); }
+=======
+      if (!res.ok) { const err = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d); throw new Error(err.message); }
+>>>>>>> Stashed changes
       if (item?.imageUrl) {
         await deleteStorageImage(item.imageUrl);
       }
@@ -772,10 +811,14 @@ function AdminCategories() {
     setLoading(true);
     try {
       const res = await fetch(`${env.API_URL}/products/categories`);
+<<<<<<< Updated upstream
       if (res.ok) {
         const response = await parseRes(res);
         setItems(Array.isArray(response?.data) ? response.data : response);
       }
+=======
+      if (res.ok) setItems(await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d));
+>>>>>>> Stashed changes
     } catch { /* silent */ } finally { setLoading(false); }
   };
 
@@ -805,9 +848,14 @@ function AdminCategories() {
     const url = editing ? `${env.API_URL}/products/categories/${editing.id}` : `${env.API_URL}/products/categories`;
     const method = editing ? "PATCH" : "POST";
     try {
+<<<<<<< Updated upstream
       const payload = { ...form, parentId: form.parentId || null };
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
       if (!res.ok) { const err = await parseRes(res); throw new Error(err.message); }
+=======
+      const res = await fetch(url, { method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(form) });
+      if (!res.ok) { const err = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d); throw new Error(err.message); }
+>>>>>>> Stashed changes
       setShowModal(false); load();
     } catch (err: any) { toast.error(err.message || "Lỗi khi lưu danh mục"); }
   };
@@ -819,7 +867,11 @@ function AdminCategories() {
     const item = items.find(c => c.id === id);
     try {
       const res = await fetch(`${env.API_URL}/products/categories/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+<<<<<<< Updated upstream
       if (!res.ok) { const err = await parseRes(res); throw new Error(err.message); }
+=======
+      if (!res.ok) { const err = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d); throw new Error(err.message); }
+>>>>>>> Stashed changes
       if (item?.imageUrl) {
         await deleteStorageImage(item.imageUrl);
       }
@@ -900,7 +952,11 @@ function AdminProductTags() {
   const [name, setName] = useState("");
   const load = async () => {
     setLoading(true);
+<<<<<<< Updated upstream
     try { const res = await fetch(`${env.API_URL}/products/tags`); if (res.ok) setItems(await parseRes(res)); }
+=======
+    try { const res = await fetch(`${env.API_URL}/products/tags`); if (res.ok) setItems(await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d)); }
+>>>>>>> Stashed changes
     finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
@@ -911,7 +967,11 @@ function AdminProductTags() {
     if (!token) return;
     try {
       const res = await fetch(`${env.API_URL}/products/tags${editing ? `/${editing.id}` : ""}`, { method: editing ? "PATCH" : "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ name: name.trim() }) });
+<<<<<<< Updated upstream
       if (!res.ok) { const error = await parseRes(res); throw new Error(error.message); }
+=======
+      if (!res.ok) { const error = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d); throw new Error(error.message); }
+>>>>>>> Stashed changes
       setShowModal(false); await load(); toast.success(editing ? "Đã cập nhật tag." : "Đã tạo tag.");
     } catch (error: any) { toast.error(error.message || "Không thể lưu tag."); }
   };
@@ -921,7 +981,11 @@ function AdminProductTags() {
     if (!token) return;
     try {
       const res = await fetch(`${env.API_URL}/products/tags/${tag.id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+<<<<<<< Updated upstream
       if (!res.ok) { const error = await parseRes(res); throw new Error(error.message); }
+=======
+      if (!res.ok) { const error = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d); throw new Error(error.message); }
+>>>>>>> Stashed changes
       await load(); toast.success("Đã xóa tag.");
     } catch (error: any) { toast.error(error.message || "Không thể xóa tag."); }
   };
@@ -989,7 +1053,11 @@ function AdminBranches({ adminUser }: { adminUser?: any }) {
       const res = await fetch(`${env.API_URL}/branches`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (!res.ok) throw new Error(data.message || "Không thể tải danh sách chi nhánh.");
       setBranchRows(data);
     } catch (err: any) {
@@ -1042,7 +1110,11 @@ function AdminBranches({ adminUser }: { adminUser?: any }) {
         },
         body: JSON.stringify(payload),
       });
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (!res.ok) throw new Error(data.message || "Không thể lưu chi nhánh.");
 
       setBranchRows(prev => isEditing ? prev.map(branch => branch.id === data.id ? data : branch) : [data, ...prev]);
@@ -1068,7 +1140,11 @@ function AdminBranches({ adminUser }: { adminUser?: any }) {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (!res.ok) throw new Error(data.message || "Không thể xóa chi nhánh.");
       setBranchRows(prev => prev.filter(item => item.id !== branch.id));
       toast.success("Đã xóa chi nhánh.");
@@ -1090,7 +1166,11 @@ function AdminBranches({ adminUser }: { adminUser?: any }) {
     setLoadingHours(true);
     try {
       const res = await fetch(`${env.API_URL}/branches/${branch.id}/opening-hours`);
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (!res.ok) throw new Error(data.message || "Không thể tải giờ mở cửa.");
       const byDay = new Map(data.map((item: any) => [item.dayOfWeek, item]));
       setOpeningHours(defaultOpeningHours().map(item => {
@@ -1132,7 +1212,11 @@ function AdminBranches({ adminUser }: { adminUser?: any }) {
         },
         body: JSON.stringify({ openingHours }),
       });
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (!res.ok) throw new Error(data.message || "Không thể lưu giờ mở cửa.");
       toast.success("Đã cập nhật giờ mở cửa.");
       setScheduleBranch(null);
@@ -1325,7 +1409,11 @@ function AdminStoreMap() {
       const res = await fetch(`${env.API_URL}/branches`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (res.ok) {
         setBranchesList(data);
         if (data.length > 0) {
@@ -1449,7 +1537,11 @@ function AdminInventory() {
       const res = await fetch(`${env.API_URL}/inventory`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (res.ok) {
         setStocks(data);
       }
@@ -1466,7 +1558,11 @@ function AdminInventory() {
       const res = await fetch(`${env.API_URL}/branches`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (res.ok) {
         setBranches(data);
       }
@@ -1501,7 +1597,11 @@ function AdminInventory() {
           minQuantity: Number(formMinQuantity),
         }),
       });
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (res.ok) {
         toast.success("Cập nhật tồn kho thành công.");
         setEditingStock(null);
@@ -1697,7 +1797,11 @@ function AdminOrders() {
       const res = await fetch(`${env.API_URL}/orders`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (res.ok) {
         setOrdersList(data);
       }
@@ -1727,7 +1831,11 @@ function AdminOrders() {
         toast.success("Cập nhật trạng thái đơn hàng thành công.");
         loadOrders();
       } else {
+<<<<<<< Updated upstream
         const errData = await parseRes(res);
+=======
+        const errData = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
         toast.error(errData.message || "Lỗi khi cập nhật.");
       }
     } catch (err) {
@@ -1871,7 +1979,11 @@ function AdminUsers() {
       const res = await fetch(`${env.API_URL}/users`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (!res.ok) throw new Error(data.message || "Không thể tải danh sách người dùng.");
       setAdminUsers(data);
     } catch (err: any) {
@@ -1889,7 +2001,11 @@ function AdminUsers() {
       const res = await fetch(`${env.API_URL}/branches/active`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (!res.ok) throw new Error(data.message || "Không thể tải danh sách chi nhánh.");
       setBranches(data);
     } catch (err: any) {
@@ -1934,7 +2050,11 @@ function AdminUsers() {
           isActive: editingUser.isActive,
         }),
       });
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (!res.ok) throw new Error(data.message || "Không thể cập nhật người dùng.");
 
       setAdminUsers(prev => prev.map(user => user.id === data.id ? data : user));
@@ -1985,7 +2105,11 @@ function AdminUsers() {
           isActive: creatingUser.isActive,
         }),
       });
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (!res.ok) throw new Error(data.message || "Không thể cấp tài khoản.");
 
       setAdminUsers(prev => [data, ...prev]);
@@ -2011,7 +2135,11 @@ function AdminUsers() {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (!res.ok) throw new Error(data.message || "Không thể xóa người dùng.");
 
       setAdminUsers(prev => prev.filter(item => item.id !== user.id));
@@ -2210,7 +2338,11 @@ function AdminReviews() {
       const res = await fetch(`${env.API_URL}/reviews`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (res.ok) {
         setReviewsList(data);
       }
@@ -2240,7 +2372,11 @@ function AdminReviews() {
         toast.success(isVisible ? "Đã hiển thị đánh giá." : "Đã ẩn đánh giá.");
         loadReviews();
       } else {
+<<<<<<< Updated upstream
         const errData = await parseRes(res);
+=======
+        const errData = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
         toast.error(errData.message || "Lỗi khi cập nhật.");
       }
     } catch (err) {
@@ -2261,7 +2397,11 @@ function AdminReviews() {
         toast.success("Xóa đánh giá thành công.");
         loadReviews();
       } else {
+<<<<<<< Updated upstream
         const errData = await parseRes(res);
+=======
+        const errData = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
         toast.error(errData.message || "Lỗi khi xóa.");
       }
     } catch (err) {
@@ -2390,7 +2530,11 @@ function AdminVouchers() {
       const res = await fetch(`${env.API_URL}/coupons`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (res.ok) {
         setCoupons(data);
       }
@@ -2404,7 +2548,11 @@ function AdminVouchers() {
   const loadProductsOnly = async () => {
     try {
       const pRes = await fetch(`${env.API_URL}/products`);
+<<<<<<< Updated upstream
       if (pRes.ok) setProducts(await parseRes(pRes));
+=======
+      if (pRes.ok) setProducts(await pRes.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d));
+>>>>>>> Stashed changes
     } catch (err) {
       console.error(err);
     }
@@ -2413,7 +2561,11 @@ function AdminVouchers() {
   const loadCategoriesOnly = async () => {
     try {
       const res = await fetch(`${env.API_URL}/products/categories`);
+<<<<<<< Updated upstream
       if (res.ok) setCategories(await parseRes(res));
+=======
+      if (res.ok) setCategories(await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d));
+>>>>>>> Stashed changes
     } catch (err) {
       console.error(err);
     }
@@ -2422,7 +2574,11 @@ function AdminVouchers() {
   const loadSizesOnly = async () => {
     try {
       const res = await fetch(`${env.API_URL}/products/sizes/distinct`);
+<<<<<<< Updated upstream
       if (res.ok) setAvailableSizes(await parseRes(res));
+=======
+      if (res.ok) setAvailableSizes(await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d));
+>>>>>>> Stashed changes
     } catch (err) {
       console.error(err);
     }
@@ -2470,7 +2626,11 @@ function AdminVouchers() {
           isActive: true,
         }),
       });
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (res.ok) {
         toast.success(isEditing ? "Cập nhật voucher thành công." : "Tạo voucher thành công.");
         // Clear form
@@ -2548,7 +2708,11 @@ function AdminVouchers() {
         toast.success("Xóa voucher thành công.");
         loadCoupons();
       } else {
+<<<<<<< Updated upstream
         const errData = await parseRes(res);
+=======
+        const errData = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
         toast.error(errData.message || "Lỗi khi xóa.");
       }
     } catch (err) {
@@ -2802,10 +2966,12 @@ function AdminBanners() {
   const [loading, setLoading] = useState(true);
 
   // Form states
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [imageUrl, setImageUrl] = useState("https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800");
   const [linkUrl, setLinkUrl] = useState("");
   const [sortOrder, setSortOrder] = useState("1");
+  const [position, setPosition] = useState("home_main");
   const [saving, setSaving] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -2815,7 +2981,11 @@ function AdminBanners() {
       const res = await fetch(`${env.API_URL}/banners`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (res.ok) {
         setBannersList(data);
       }
@@ -2845,7 +3015,11 @@ function AdminBanners() {
         toast.success("Cập nhật trạng thái banner thành công.");
         loadBanners();
       } else {
+<<<<<<< Updated upstream
         const errData = await parseRes(res);
+=======
+        const errData = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
         toast.error(errData.message || "Lỗi khi cập nhật.");
       }
     } catch (err) {
@@ -2870,7 +3044,11 @@ function AdminBanners() {
         }
         loadBanners();
       } else {
+<<<<<<< Updated upstream
         const errData = await parseRes(res);
+=======
+        const errData = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
         toast.error(errData.message || "Lỗi khi xóa.");
       }
     } catch (err) {
@@ -2879,7 +3057,32 @@ function AdminBanners() {
     }
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const openAdd = () => {
+    setEditingId(null);
+    setTitle("");
+    setImageUrl("https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800");
+    setLinkUrl("");
+    setSortOrder("1");
+    setPosition("home_main");
+    setShowAddForm(true);
+  };
+
+  const openEdit = (banner: any) => {
+    setEditingId(banner.id);
+    setTitle(banner.title || "");
+    setImageUrl(banner.imageUrl || "");
+    setLinkUrl(banner.linkUrl || "");
+    setSortOrder(String(banner.sortOrder || 1));
+    setPosition(banner.position || "home_main");
+    setShowAddForm(true);
+  };
+
+  const closeForm = () => {
+    setShowAddForm(false);
+    setEditingId(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !imageUrl) {
       toast.error("Vui lòng nhập tên và link ảnh banner.");
@@ -2888,8 +3091,11 @@ function AdminBanners() {
     const token = getAccessToken();
     setSaving(true);
     try {
-      const res = await fetch(`${env.API_URL}/banners`, {
-        method: "POST",
+      const url = editingId ? `${env.API_URL}/banners/${editingId}` : `${env.API_URL}/banners`;
+      const method = editingId ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -2899,20 +3105,21 @@ function AdminBanners() {
           imageUrl,
           linkUrl,
           sortOrder: Number(sortOrder),
-          isActive: true,
+          position,
+          ...(editingId ? {} : { isActive: true }),
         }),
       });
+<<<<<<< Updated upstream
       const data = await parseRes(res);
+=======
+      const data = await res.json().then(d => (d && d.data !== undefined && d.data !== null) ? d.data : d);
+>>>>>>> Stashed changes
       if (res.ok) {
-        toast.success("Tạo banner thành công.");
-        setTitle("");
-        setImageUrl("https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800");
-        setLinkUrl("");
-        setSortOrder("1");
-        setShowAddForm(false);
+        toast.success(editingId ? "Cập nhật banner thành công." : "Tạo banner thành công.");
+        closeForm();
         loadBanners();
       } else {
-        toast.error(data.message || "Lỗi khi tạo banner.");
+        toast.error(data.message || "Lỗi khi lưu banner.");
       }
     } catch (err) {
       console.error(err);
@@ -2934,17 +3141,17 @@ function AdminBanners() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-foreground">Quản lý banner</h2>
-        <AdminBtn onClick={() => setShowAddForm(!showAddForm)}>
+        <AdminBtn onClick={() => showAddForm ? closeForm() : openAdd()}>
           <span className="flex items-center gap-1">
-            <Plus size={14} />
+            {showAddForm ? <X size={14} /> : <Plus size={14} />}
             {showAddForm ? "Hủy" : "Thêm banner"}
           </span>
         </AdminBtn>
       </div>
 
       {showAddForm && (
-        <form onSubmit={handleCreate} className="rounded-2xl bg-card border border-border shadow-sm p-5 space-y-4">
-          <h3 className="text-sm font-semibold text-foreground">Thêm banner mới</h3>
+        <form onSubmit={handleSubmit} className="rounded-2xl bg-card border border-border shadow-sm p-5 space-y-4">
+          <h3 className="text-sm font-semibold text-foreground">{editingId ? "Sửa banner" : "Thêm banner mới"}</h3>
           <div className="grid gap-3 sm:grid-cols-2">
             <input
               required
@@ -2953,6 +3160,16 @@ function AdminBanners() {
               value={title}
               onChange={e => setTitle(e.target.value)}
             />
+            <select
+              className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
+              value={position}
+              onChange={e => setPosition(e.target.value)}
+            >
+              <option value="home_main">Trang chủ (Chính - To)</option>
+              <option value="home_secondary">Trang chủ (Phụ - Nhỏ)</option>
+              <option value="footer">Cuối trang (Footer)</option>
+              <option value="sidebar">Thanh bên (Sidebar)</option>
+            </select>
             <div className="sm:col-span-2">
               <ImageUploader
                 label="Hình ảnh banner"
@@ -2976,11 +3193,18 @@ function AdminBanners() {
           </div>
           <div className="flex justify-end gap-3">
             <button
+              type="button"
+              onClick={closeForm}
+              className="rounded-full border border-sidebar-accent px-6 py-2 text-sm text-muted-foreground hover:bg-sidebar transition"
+            >
+              Hủy
+            </button>
+            <button
               type="submit"
               disabled={saving}
               className="rounded-full bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/80 disabled:opacity-50 transition"
             >
-              {saving ? "Đang tạo..." : "Lưu banner"}
+              {saving ? "Đang lưu..." : (editingId ? "Cập nhật" : "Lưu banner")}
             </button>
           </div>
         </form>
@@ -2996,10 +3220,19 @@ function AdminBanners() {
                   <p className="font-semibold text-foreground text-base">{b.title}</p>
                   {b.linkUrl && <p className="text-xs text-primary truncate max-w-[200px] mt-0.5">{b.linkUrl}</p>}
                   <p className="mt-1 text-xs text-muted-foreground">Thứ tự hiển thị: {b.sortOrder}</p>
+                  <p className="mt-1 text-xs text-muted-foreground font-mono">Vị trí: {b.position}</p>
                 </div>
                 <StatusBadge status={b.isActive ? "Hiển thị" : "Ẩn"} />
               </div>
               <div className="mt-4 flex gap-2 justify-end">
+                <button
+                  title="Sửa banner"
+                  type="button"
+                  onClick={() => openEdit(b)}
+                  className="inline-flex size-8 items-center justify-center rounded-lg bg-blue-950/40 text-blue-400 hover:bg-blue-900/40 transition"
+                >
+                  <Edit size={14} />
+                </button>
                 <button
                   title="Bật/Tắt hiển thị"
                   type="button"

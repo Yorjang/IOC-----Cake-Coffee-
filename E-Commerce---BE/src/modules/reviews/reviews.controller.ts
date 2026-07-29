@@ -16,6 +16,15 @@ export class ReviewsController {
     return this.reviewsService.findByProduct(productId);
   }
 
+  @Get('check-eligibility/:productId')
+  @UseGuards(JwtAuthGuard)
+  checkEligibility(
+    @CurrentUser() user: any,
+    @Param('productId', ParseUUIDPipe) productId: string,
+  ) {
+    return this.reviewsService.checkEligibility(user.id, productId);
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard)
   create(@CurrentUser() user: any, @Body() dto: CreateReviewDto) {
