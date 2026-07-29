@@ -1,6 +1,5 @@
-import React from 'react';
-import { Edit, Trash2, Clock, Users, MapPin, Plus } from 'lucide-react';
-import { StatusBadge, AdminBtn } from '../../../components/admin/AdminShared';
+import { Clock, Edit, MapPin, Plus, Trash2, Users } from 'lucide-react';
+import { AdminBtn, StatusBadge } from '../../../components/admin/AdminShared';
 
 export function AdminBranchTable({
   branchRows,

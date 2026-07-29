@@ -1,7 +1,6 @@
-import React from "react";
 import { useAdminBranches } from "../../features/admin/hooks/useAdminBranches";
-import { AdminBranchTable } from "../../features/admin/ui/AdminBranchTable";
 import { AdminBranchModal } from "../../features/admin/ui/AdminBranchModal";
+import { AdminBranchTable } from "../../features/admin/ui/AdminBranchTable";
 
 export function AdminBranches({ adminUser }: { adminUser?: any }) {
   const {

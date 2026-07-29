@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { ProductsService } from '../products/products.service';
 import { CreateProductTagDto, UpdateProductTagDto } from '../products/dto/product-tag.dto';
+import { ProductsService } from '../products/products.service';
 
 @Injectable()
 export class TagsService {

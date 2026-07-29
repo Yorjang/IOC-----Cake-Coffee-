@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { env } from "../../../../config/env";
 import { parseRes } from "../../../../utils/api";

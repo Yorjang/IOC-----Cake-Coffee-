@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
+import { getPayloadConfigFromPayload, useChart } from "./chart-core";
 import { cn } from "./utils";
-import { useChart, getPayloadConfigFromPayload } from "./chart-core";
 
 export const ChartTooltip = RechartsPrimitive.Tooltip;
 export const ChartLegend = RechartsPrimitive.Legend;

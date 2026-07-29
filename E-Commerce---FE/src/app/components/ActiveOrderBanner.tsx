@@ -1,7 +1,7 @@
-import { parseRes } from '../../utils/api';
-import { useState, useEffect } from "react";
-import { Package, X, ChevronRight } from "lucide-react";
+import { ChevronRight, Package, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { env } from "../../config/env";
+import { parseRes } from '../../utils/api';
 import { getAccessToken } from "./authSession";
 
 export function ActiveOrderBanner({ lastCreatedOrder, onClick, onPayment, isHidden }: { lastCreatedOrder?: any, onClick: (order: any) => void, onPayment?: (orderId: string) => void, isHidden?: boolean }) {

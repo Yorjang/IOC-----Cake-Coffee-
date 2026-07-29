@@ -1,18 +1,17 @@
 import { parseRes } from '../../../utils/api';
 
-import React, { useState, useEffect } from "react";
 import {
-  LayoutDashboard, Package, Tag, Settings, ShoppingBag, Users, Star,
-  BarChart2, Image, Edit, Trash2, Eye, Plus, CheckCircle, XCircle,
-  TrendingUp, AlertCircle, Loader2, ToggleLeft, Search, Filter,
-  ArrowUpRight, DollarSign, Clock, ChevronDown, Store, MapPin, Boxes,
-  ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
+  CheckCircle,
+  Loader2,
+  Star,
+  Trash2,
+  XCircle
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { getAccessToken } from "../authSession";
 import { env } from "../../../config/env";
-import { supabase } from "../../../config/supabase";
-import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
+import { getAccessToken } from "../authSession";
+import { StatusBadge } from "./AdminShared";
 
 export function AdminReviews() {
   const [reviewsList, setReviewsList] = useState<any[]>([]);

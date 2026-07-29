@@ -4,9 +4,9 @@ import { DataSource, FindOptionsWhere, IsNull, Not, Repository } from 'typeorm';
 import { Category } from '../products/category.entity';
 import { ProductVariant, VariantStatus } from '../products/product-variant.entity';
 import { Product, ProductType } from '../products/product.entity';
+import { User, UserRole } from '../users/user.entity';
 import { ComboItem } from './combo-item.entity';
 import { ComboItemDto, CreateComboDto, UpdateComboDto } from './dto/combo.dto';
-import { User, UserRole } from '../users/user.entity';
 
 function createSlug(name: string): string {
   return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()

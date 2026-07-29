@@ -1,14 +1,18 @@
 import { parseRes } from '../../../utils/api';
 
-import React, { useState, useEffect } from "react";
 import {
-  Edit, Trash2, Plus, CheckCircle, XCircle, Loader2
+  CheckCircle,
+  Edit,
+  Loader2,
+  Plus,
+  Trash2,
+  XCircle
 } from "lucide-react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { getAccessToken, getStoredUser } from "../authSession";
 import { env } from "../../../config/env";
-import { supabase } from "../../../config/supabase";
-import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
+import { getAccessToken, getStoredUser } from "../authSession";
+import { AdminBtn, ImageUploader, StatusBadge } from "./AdminShared";
 
 export function AdminBanners() {
   const user = getStoredUser();

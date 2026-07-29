@@ -1,6 +1,5 @@
-import React from 'react';
 import { Edit, Trash2 } from 'lucide-react';
-import { TableHeader, StatusBadge } from '../../../components/admin/AdminShared';
+import { StatusBadge, TableHeader } from '../../../components/admin/AdminShared';
 
 export function AdminVoucherTable({
   coupons,
