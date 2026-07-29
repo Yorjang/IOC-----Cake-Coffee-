@@ -45,7 +45,7 @@ export function FadingVideo({ src, style, ...props }: FadingVideoProps) {
 
     const handleLoadedData = () => {
       video.style.opacity = '0';
-      video.play().catch(console.error);
+      video.play().catch(() => {});
       fadeTo(1, FADE_MS);
     };
 
@@ -62,7 +62,7 @@ export function FadingVideo({ src, style, ...props }: FadingVideoProps) {
       video.style.opacity = '0';
       setTimeout(() => {
         video.currentTime = 0;
-        video.play().catch(console.error);
+        video.play().catch(() => {});
         fadingOutRef.current = false;
         fadeTo(1, FADE_MS);
       }, 100);

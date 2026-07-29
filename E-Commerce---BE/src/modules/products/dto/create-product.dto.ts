@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsUUID, IsEnum, ValidateNested, IsArray } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsUUID, IsEnum, ValidateNested, IsArray, ValidateIf } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ProductType } from '../product.entity';
 import { CreateProductVariantDto } from './product-variant.dto';
@@ -48,7 +48,8 @@ export class CreateProductDto {
 
     @IsUUID('4')
     @IsOptional()
-    branchId?: string;
+    @ValidateIf((o, v) => v !== null && v !== '')
+    branchId?: string | null;
 }
 
 export class UpdateProductDto {
@@ -90,5 +91,6 @@ export class UpdateProductDto {
 
     @IsUUID('4')
     @IsOptional()
-    branchId?: string;
+    @ValidateIf((o, v) => v !== null && v !== '')
+    branchId?: string | null;
 }
