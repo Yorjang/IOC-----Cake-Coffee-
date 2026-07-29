@@ -9,17 +9,23 @@ export function AdminProductTable({
   filtered,
   fmtPrice,
   openEdit,
-  remove
+  remove,
+  isAdmin
 }: any) {
   if (loading) {
     return <div className="py-10 text-center text-muted-foreground"><Loader2 className="inline animate-spin mr-2" size={16} />Đang tải…</div>;
+  }
+
+  const cols = ["Sản phẩm", "Danh mục", "Giá", "Biến thể", "Loại", "Nguyên liệu"];
+  if (isAdmin) {
+    cols.push("Thao tác");
   }
 
   return (
     <>
       <div className="overflow-auto rounded-2xl bg-sidebar">
         <table className="w-full text-sm">
-          <TableHeader cols={["Sản phẩm", "Danh mục", "Giá", "Biến thể", "Loại", "Nguyên liệu", "Thao tác"]} />
+          <TableHeader cols={cols} />
           <tbody>
             {filtered.map((p: any) => (
               <tr key={p.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
@@ -36,23 +42,25 @@ export function AdminProductTable({
                     </div>
                   </div>
                 </td>
-                <td className="py-3 text-muted-foreground">{p.category?.name ?? "-"}</td>
-                <td className="py-3 font-semibold text-primary">{fmtPrice(p)}</td>
-                <td className="py-3 text-muted-foreground">{p.variants?.length ?? 0}</td>
-                <td className="py-3"><span className="rounded-full bg-sidebar-accent px-2 py-0.5 text-xs text-primary">{p.productType}</span></td>
-                <td className="py-3 max-w-[200px]">
+                <td className="py-3 pr-4 text-muted-foreground">{p.category?.name ?? "-"}</td>
+                <td className="py-3 pr-4 font-semibold text-primary">{fmtPrice(p)}</td>
+                <td className="py-3 pr-4 text-muted-foreground">{p.variants?.length ?? 0}</td>
+                <td className="py-3 pr-4"><span className="rounded-full bg-sidebar-accent px-2 py-0.5 text-xs text-primary">{p.productType}</span></td>
+                <td className="py-3 pr-4 max-w-[200px]">
                   {DRINK_TYPES.includes(p.productType) ? (
-                    <IngredientSummaryCell variants={p.variants} />
+                     <IngredientSummaryCell variants={p.variants} />
                   ) : (
                     <span className="text-muted-foreground text-xs">-</span>
                   )}
                 </td>
-                <td className="py-3">
-                  <div className="flex gap-2">
-                    <AdminBtn variant="ghost" onClick={() => openEdit(p)}><Edit size={14} /></AdminBtn>
-                    <AdminBtn variant="danger" onClick={() => remove(p.id)}><Trash2 size={14} /></AdminBtn>
-                  </div>
-                </td>
+                {isAdmin && (
+                  <td className="py-3 pr-4">
+                    <div className="flex gap-2">
+                      <AdminBtn variant="ghost" onClick={() => openEdit(p)}><Edit size={14} /></AdminBtn>
+                      <AdminBtn variant="danger" onClick={() => remove(p.id)}><Trash2 size={14} /></AdminBtn>
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

@@ -199,5 +199,5 @@ export function AdminBtn({ children, variant = "primary", onClick, disabled = fa
 }
 
 export function TableHeader({ cols }: { cols: string[] }) {
-  return <thead><tr className="border-b border-sidebar-accent">{cols.map(c => <th key={c} className="pb-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{c}</th>)}</tr></thead>;
+  return <thead><tr className="border-b border-sidebar-accent">{cols.map(c => <th key={c} className="pb-3 pr-4 text-left text-xs uppercase tracking-wider text-muted-foreground">{c}</th>)}</tr></thead>;
 }

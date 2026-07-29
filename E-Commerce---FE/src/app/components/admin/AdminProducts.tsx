@@ -67,6 +67,7 @@ export function AdminProducts() {
         fmtPrice={fmtPrice}
         openEdit={openEdit}
         remove={remove}
+        isAdmin={isAdmin}
       />
 
       <AdminProductModal 
