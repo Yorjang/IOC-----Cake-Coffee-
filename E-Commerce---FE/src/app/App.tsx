@@ -6,6 +6,7 @@ import { parseRes } from "../utils/api";
 import { AdminPanel } from "./components/AdminPanel";
 import { StaffPanel } from "./components/StaffPanel";
 import { AuthPage } from "./components/AuthPage";
+import { AdminLoginPage } from "./components/AdminLoginPage";
 import { ReviewPage } from "./components/ReviewPage";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { Header } from "./components/Header";
@@ -243,15 +244,17 @@ class AdminErrorBoundary extends Component<AdminErrorBoundaryProps, AdminErrorBo
 
 interface ProtectedRouteRedirectProps {
   message?: string;
+  targetView?: string;
+  targetPath?: string;
   redirect: (view: string) => void;
 }
 
-function ProtectedRouteRedirect({ message, redirect }: ProtectedRouteRedirectProps) {
+function ProtectedRouteRedirect({ message, targetView = VIEW_KEYS.HOME, targetPath = "/", redirect }: ProtectedRouteRedirectProps) {
   useEffect(() => {
-    window.history.replaceState(null, "", "/");
+    window.history.replaceState(null, "", targetPath);
     if (message) toast.error(message);
-    redirect(VIEW_KEYS.HOME);
-  }, [message, redirect]);
+    redirect(targetView);
+  }, [message, targetView, targetPath, redirect]);
 
   return <><Toaster richColors position="top-center" /><LoadingScreen isLoading={true} /></>;
 }
@@ -987,11 +990,19 @@ export default function App() {
   const grandTotal = Math.max(0, subtotal - discount + shipping);
 
   if (view === VIEW_KEYS.ADMIN) {
-    if (!user || !getAccessToken()) {
-      return <ProtectedRouteRedirect message="Vui lòng đăng nhập từ trang chủ." redirect={setViewInternal} />;
-    }
-    if (!isAdminUser(user)) {
-      return <ProtectedRouteRedirect message="Bạn không có quyền truy cập trang quản trị." redirect={setViewInternal} />;
+    if (!user || !getAccessToken() || !isAdminUser(user)) {
+      return (
+        <>
+          <Toaster richColors position="top-center" />
+          <AdminLoginPage
+            onSuccess={(u) => {
+              setUser(u);
+              setView(VIEW_KEYS.ADMIN);
+            }}
+            onBack={() => setView(VIEW_KEYS.HOME)}
+          />
+        </>
+      );
     }
     return (
       <>
@@ -1005,10 +1016,24 @@ export default function App() {
 
   if (view === VIEW_KEYS.STAFF) {
     if (!user || !getAccessToken()) {
-      return <ProtectedRouteRedirect message="Vui lòng đăng nhập từ trang chủ." redirect={setViewInternal} />;
+      return (
+        <ProtectedRouteRedirect
+          message="Vui lòng đăng nhập tài khoản Nhân viên để truy cập trang nhân viên."
+          targetView={VIEW_KEYS.LOGIN}
+          targetPath="/dang-nhap"
+          redirect={setViewInternal}
+        />
+      );
     }
     if (!isStaffUser(user) && !isAdminUser(user)) {
-      return <ProtectedRouteRedirect message="Bạn không có quyền truy cập trang nhân viên." redirect={setViewInternal} />;
+      return (
+        <ProtectedRouteRedirect
+          message="Bạn không có quyền truy cập trang nhân viên."
+          targetView={VIEW_KEYS.HOME}
+          targetPath="/"
+          redirect={setViewInternal}
+        />
+      );
     }
     return <><Toaster richColors position="top-center" /><StaffPanel onExit={handleAdminLogout} staffUser={user} products={products} /></>;
   }
