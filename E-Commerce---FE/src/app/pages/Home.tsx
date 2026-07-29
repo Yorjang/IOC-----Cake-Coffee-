@@ -1,219 +1,45 @@
-<<<<<<< Updated upstream
-import { useEffect, useMemo, useState, useRef } from "react";
-import { createPortal } from "react-dom";
-import { Truck, Gift, RefreshCw, Coffee, AlertCircle, Check, Tag, ChevronRight, ChevronLeft, Plus, MapPin, Loader2, PlayCircle, BookOpen, Users, ChefHat } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Truck, Gift, RefreshCw, Coffee, Tag, ChevronRight, ChevronLeft } from "lucide-react";
 import { ProductCard, HorizontalProductCard, Section } from "../components/shared";
 import { MESSAGES } from "../../constants/messages";
 import { env } from "../../config/env";
 import { HOME_CONFIG, VIEW_KEYS } from "../../config/appConfig";
 import { getFeaturedParentCategories } from "../features/categories/categoryHierarchy";
-=======
-import React from 'react';
-import { motion } from 'motion/react';
-import { FadingVideo } from '../components/FadingVideo';
-import { BlurText } from '../components/BlurText';
-import { ArrowUpRight, Play, Clock, Globe, Image as ImageIcon, Film, Lightbulb } from 'lucide-react';
->>>>>>> Stashed changes
 
-export function Home() {
+function VoucherRow({ code, title, sub, onClick }: any) {
   return (
-    <div className="bg-black min-h-screen text-white font-body selection:bg-white/20" style={{ backgroundColor: '#000' }}>
-      {/* SECTION 1: HERO */}
-      <section className="relative w-full h-screen overflow-hidden flex flex-col">
-        {/* Background Video */}
-        <FadingVideo 
-          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260418_080021_d598092b-c4c2-4e53-8e46-94cf9064cd50.mp4"
-          className="absolute left-1/2 top-0 -translate-x-1/2 object-cover object-top z-0"
-          style={{ width: "120%", height: "120%" }}
-        />
-
-        {/* Navbar */}
-        <nav className="fixed top-4 left-0 right-0 px-8 lg:px-16 z-50 flex items-center justify-between">
-          <div className="w-12 h-12 liquid-glass rounded-full flex items-center justify-center font-heading italic text-3xl lowercase pb-1">a</div>
-          
-          <div className="hidden md:flex items-center liquid-glass rounded-full p-1.5 gap-1">
-            {['Home', 'Voyages', 'Worlds', 'Innovation', 'Plan Launch'].map((item) => (
-              <a key={item} href="#" className="px-3 py-2 text-sm font-medium text-white/90 font-body hover:bg-white/10 rounded-full transition-colors">
-                {item}
-              </a>
-            ))}
-            <button className="ml-2 bg-white text-black px-4 py-2 rounded-full text-sm font-medium flex items-center gap-1 whitespace-nowrap">
-              Claim a Spot <ArrowUpRight className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div className="w-12 h-12 invisible"></div>
-        </nav>
-
-        {/* Hero Content */}
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center pt-24 px-4 text-center">
-          <motion.div 
-            initial={{ filter: 'blur(10px)', opacity: 0, y: 20 }}
-            animate={{ filter: 'blur(0px)', opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, ease: 'easeOut' }}
-            className="liquid-glass rounded-full flex items-center p-1 pr-3 gap-2 mb-6"
-          >
-            <span className="bg-white text-black px-3 py-1 text-xs font-semibold rounded-full">New</span>
-            <span className="text-sm text-white/90">Maiden Crewed Voyage to Mars Arrives 2026</span>
-          </motion.div>
-
-          <BlurText 
-            text="Venture Past Our Sky Across the Universe"
-            className="text-6xl md:text-7xl lg:text-[5.5rem] font-heading italic text-white leading-[0.8] max-w-2xl justify-center tracking-[-4px]"
-          />
-
-          <motion.p 
-            initial={{ filter: 'blur(10px)', opacity: 0, y: 20 }}
-            animate={{ filter: 'blur(0px)', opacity: 1, y: 0 }}
-            transition={{ delay: 0.8, ease: 'easeOut' }}
-            className="mt-4 text-sm md:text-base text-white max-w-2xl font-body font-light leading-tight"
-          >
-            Discover the universe in ways once unimaginable. Our pioneering vessels and breakthrough engineering bring deep-space exploration within reach—secure and extraordinary.
-          </motion.p>
-
-          <motion.div 
-            initial={{ filter: 'blur(10px)', opacity: 0, y: 20 }}
-            animate={{ filter: 'blur(0px)', opacity: 1, y: 0 }}
-            transition={{ delay: 1.1, ease: 'easeOut' }}
-            className="flex items-center gap-6 mt-6"
-          >
-            <button className="liquid-glass-strong rounded-full px-5 py-2.5 text-sm font-medium text-white flex items-center gap-2 hover:bg-white/10 transition-colors">
-              Start Your Voyage <ArrowUpRight className="h-5 w-5" />
-            </button>
-            <button className="text-sm font-medium text-white flex items-center gap-2 hover:text-white/80 transition-colors">
-              View Liftoff <Play className="h-4 w-4 fill-current" />
-            </button>
-          </motion.div>
-
-          <motion.div 
-            initial={{ filter: 'blur(10px)', opacity: 0, y: 20 }}
-            animate={{ filter: 'blur(0px)', opacity: 1, y: 0 }}
-            transition={{ delay: 1.3, ease: 'easeOut' }}
-            className="flex flex-wrap justify-center items-stretch gap-4 mt-8"
-          >
-            <div className="liquid-glass p-5 w-[220px] rounded-[1.25rem] flex flex-col justify-between text-left h-[140px]">
-              <Clock className="w-7 h-7 text-white stroke-[1.5]" />
-              <div>
-                <div className="font-heading italic text-white text-4xl tracking-[-1px] leading-none">34.5 Min</div>
-                <div className="text-xs text-white font-body font-light mt-2">Average Videos Watch Time</div>
-              </div>
-            </div>
-            <div className="liquid-glass p-5 w-[220px] rounded-[1.25rem] flex flex-col justify-between text-left h-[140px]">
-              <Globe className="w-7 h-7 text-white stroke-[1.5]" />
-              <div>
-                <div className="font-heading italic text-white text-4xl tracking-[-1px] leading-none">2.8B+</div>
-                <div className="text-xs text-white font-body font-light mt-2">Users Across the Globe</div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Partners */}
-        <motion.div 
-          initial={{ filter: 'blur(10px)', opacity: 0, y: 20 }}
-          animate={{ filter: 'blur(0px)', opacity: 1, y: 0 }}
-          transition={{ delay: 1.4, ease: 'easeOut' }}
-          className="relative z-10 flex flex-col items-center gap-4 pb-8 pt-8"
-        >
-          <div className="liquid-glass rounded-full px-3.5 py-1 text-xs font-medium text-white">
-            Collaborating with top aerospace pioneers globally
-          </div>
-          <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16 font-heading italic text-white text-2xl md:text-3xl tracking-tight">
-            <span>Aeon</span>
-            <span>Vela</span>
-            <span>Apex</span>
-            <span>Orbit</span>
-            <span>Zeno</span>
-          </div>
-        </motion.div>
-      </section>
-
-      {/* SECTION 2: CAPABILITIES */}
-      <section className="relative w-full min-h-screen flex flex-col">
-        {/* Background Video */}
-        <FadingVideo 
-          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260418_094631_d30ab262-45ee-4b7d-99f3-5d5848c8ef13.mp4"
-          className="absolute inset-0 w-full h-full object-cover z-0"
-        />
-
-        <div className="relative z-10 px-8 md:px-16 lg:px-20 pt-24 pb-10 flex flex-col min-h-screen">
-          <div className="mb-auto">
-            <div className="text-sm font-body text-white/80 mb-6">// Capabilities</div>
-            <h2 className="font-heading italic text-white text-6xl md:text-7xl lg:text-[6rem] leading-[0.9] tracking-[-3px]">
-              Production<br/>evolved
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16">
-            {/* Card 1 */}
-            <div className="liquid-glass rounded-[1.25rem] p-6 min-h-[360px] flex flex-col">
-              <div className="flex items-start justify-between gap-4">
-                <div className="w-11 h-11 liquid-glass rounded-[0.75rem] flex items-center justify-center shrink-0">
-                  <ImageIcon className="h-6 w-6 text-white" />
-                </div>
-                <div className="flex flex-wrap justify-end gap-1.5 max-w-[70%]">
-                  {['Natural Context', 'Photo Realism', 'Infinite Settings', 'Eco-Vibe'].map(tag => (
-                    <span key={tag} className="liquid-glass rounded-full px-3 py-1 text-[11px] text-white/90 font-body whitespace-nowrap">{tag}</span>
-                  ))}
-                </div>
-              </div>
-              <div className="flex-1"></div>
-              <div className="mt-6">
-                <h3 className="font-heading italic text-white text-3xl md:text-4xl tracking-[-1px] leading-none">AI Scenery</h3>
-                <p className="mt-3 text-sm text-white/90 font-body font-light leading-snug max-w-[32ch]">
-                  AI analyzes your product to create indistinguishable natural environments — from Icelandic cliffs to misty forests.
-                </p>
-              </div>
-            </div>
-
-            {/* Card 2 */}
-            <div className="liquid-glass rounded-[1.25rem] p-6 min-h-[360px] flex flex-col">
-              <div className="flex items-start justify-between gap-4">
-                <div className="w-11 h-11 liquid-glass rounded-[0.75rem] flex items-center justify-center shrink-0">
-                  <Film className="h-6 w-6 text-white" />
-                </div>
-                <div className="flex flex-wrap justify-end gap-1.5 max-w-[70%]">
-                  {['Scale Fast', 'Visual Consistency', 'Time Saver', 'Ready to Post'].map(tag => (
-                    <span key={tag} className="liquid-glass rounded-full px-3 py-1 text-[11px] text-white/90 font-body whitespace-nowrap">{tag}</span>
-                  ))}
-                </div>
-              </div>
-              <div className="flex-1"></div>
-              <div className="mt-6">
-                <h3 className="font-heading italic text-white text-3xl md:text-4xl tracking-[-1px] leading-none">Batch Production</h3>
-                <p className="mt-3 text-sm text-white/90 font-body font-light leading-snug max-w-[32ch]">
-                  Style your entire product line in minutes. Create a unified visual identity for catalogues and social media without weeks of retouching.
-                </p>
-              </div>
-            </div>
-
-            {/* Card 3 */}
-            <div className="liquid-glass rounded-[1.25rem] p-6 min-h-[360px] flex flex-col">
-              <div className="flex items-start justify-between gap-4">
-                <div className="w-11 h-11 liquid-glass rounded-[0.75rem] flex items-center justify-center shrink-0">
-                  <Lightbulb className="h-6 w-6 text-white" />
-                </div>
-                <div className="flex flex-wrap justify-end gap-1.5 max-w-[70%]">
-                  {['Ray Tracing', 'Physical Shadows', 'Studio Quality', 'Sunlight Sync'].map(tag => (
-                    <span key={tag} className="liquid-glass rounded-full px-3 py-1 text-[11px] text-white/90 font-body whitespace-nowrap">{tag}</span>
-                  ))}
-                </div>
-              </div>
-              <div className="flex-1"></div>
-              <div className="mt-6">
-                <h3 className="font-heading italic text-white text-3xl md:text-4xl tracking-[-1px] leading-none">Smart Lighting</h3>
-                <p className="mt-3 text-sm text-white/90 font-body font-light leading-snug max-w-[32ch]">
-                  Automatic lighting and material adjustment. Achieve flawless integration with realistic shadows and sunlight.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+    <div
+      onClick={onClick}
+      className="group cursor-pointer flex items-center justify-between rounded-xl border border-border/80 bg-background/60 p-3.5 transition hover:border-primary/50 hover:bg-background"
+    >
+      <div className="flex flex-col">
+        <span className="text-xs font-bold text-primary font-mono">{code}</span>
+        <span className="text-xs font-semibold text-foreground mt-0.5">{title}</span>
+        <span className="text-[11px] text-muted-foreground">{sub}</span>
+      </div>
+      <button className="rounded-full bg-secondary px-3 py-1 text-[11px] font-semibold text-secondary-foreground transition group-hover:bg-primary group-hover:text-primary-foreground">
+        Chi tiết
+      </button>
     </div>
   );
 }
-<<<<<<< Updated upstream
+
+function VoucherDetailModal({ voucher, products, onSelectProduct, setView, onClose }: any) {
+  if (!voucher) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+        <button onClick={onClose} className="absolute right-4 top-4 text-muted-foreground hover:text-foreground">✕</button>
+        <span className="text-xs font-bold text-primary font-mono">{voucher.code}</span>
+        <h3 className="text-lg font-bold text-foreground mt-1">{voucher.title}</h3>
+        <p className="text-xs text-muted-foreground mt-1">{voucher.sub}</p>
+        <div className="mt-6 flex justify-end">
+          <button onClick={onClose} className="rounded-full bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground">Đóng</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ScrollingBestSellers({ products: rawProducts = [], onSelectProduct, onAddToCart }: any) {
   const products = Array.isArray(rawProducts) ? rawProducts : (Array.isArray(rawProducts?.data) ? rawProducts.data : []);
@@ -269,18 +95,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
     } catch (_) {}
     return [];
   });
-  const [storeSearch, setStoreSearch] = useState("");
   const [selectedVoucher, setSelectedVoucher] = useState<any>(null);
-  const taggedSections = Array.from(
-    products.reduce((sections: Map<string, { tag: any; products: any[] }>, product: any) => {
-      for (const tag of product.raw?.tags || []) {
-        const section = sections.get(tag.id) || { tag, products: [] };
-        section.products.push(product);
-        sections.set(tag.id, section);
-      }
-      return sections;
-    }, new Map()).values(),
-  ) as Array<{ tag: any; products: any[] }>;
 
   const displayVouchers = publicCoupons.slice(0, 3).map((c: any) => ({
     code: c.code,
@@ -305,12 +120,10 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
             })) 
           : []; 
         if (!cancelled && next.length) { 
-          // Save to localStorage for instant 0ms reload next time
           try {
             localStorage.setItem("sb_cached_banners", JSON.stringify(next));
           } catch (_) {}
 
-          // Preload images immediately in browser cache
           next.forEach(b => {
             const img = new Image();
             img.src = b.src;
@@ -330,28 +143,11 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
     return () => window.clearInterval(timer);
   }, [banners.length]);
 
-  const currentBanner = banners[activeBanner];
   return (
     <>
       {/* ── Hero banner ── */}
       {banners.length > 0 && (
         <section className="relative w-full overflow-hidden bg-black group">
-          <style>{`
-            @keyframes slideUpFade {
-              0% { opacity: 0; transform: translateY(40px); }
-              100% { opacity: 1; transform: translateY(0); }
-            }
-            .slide-up-fade {
-              animation: slideUpFade 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-              opacity: 0;
-            }
-            .delay-100 { animation-delay: 0.1s; }
-            .delay-200 { animation-delay: 0.2s; }
-            .delay-300 { animation-delay: 0.3s; }
-            .delay-400 { animation-delay: 0.4s; }
-            .delay-500 { animation-delay: 0.5s; }
-          `}</style>
-
           <div className="relative w-full h-[240px] sm:h-[340px] md:h-[440px] lg:h-[480px] overflow-hidden">
             {banners.map((banner, index) => (
               <div
@@ -362,8 +158,6 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
                   src={banner.src} 
                   alt={banner.alt} 
                   loading={index === 0 ? "eager" : "lazy"}
-                  // @ts-ignore
-                  fetchpriority={index === 0 ? "high" : "low"}
                   decoding="async"
                   className="absolute inset-0 h-full w-full object-cover object-center select-none pointer-events-none" 
                 />
@@ -378,7 +172,6 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
             </div>
           </div>
 
-          {/* Prev/Next Navigation (SugarTown style) */}
           <button
             onClick={() => setActiveBanner((prev) => (prev - 1 + banners.length) % banners.length)}
             className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 size-12 rounded-full bg-white text-[#5b4539] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 shadow-lg z-30"
@@ -394,7 +187,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
         </section>
       )}
 
-      {/* ── Value Propositions Strip (SugarTown style) ── */}
+      {/* ── Value Propositions Strip ── */}
       <div className="relative bg-transparent text-[#2d1a13] py-6 md:py-8">
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-10">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-4">
@@ -435,7 +228,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
         </div>
       </div>
 
-      {/* ── Promo Banner (Image 2) ── */}
+      {/* ── Promo Banner ── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-12">
         <div className="relative w-full h-[260px] md:h-[320px] overflow-hidden rounded-[20px] bg-[#2d1a13]">
           <img src="https://images.unsplash.com/photo-1495147466023-2ce660b86a88?w=1800&h=600&fit=crop&auto=format" alt="Promo" className="absolute inset-0 h-full w-full object-cover opacity-60 mix-blend-overlay" />
@@ -572,12 +365,10 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
           Về Chúng Tôi
         </h2>
         <div className="grid gap-12 md:grid-cols-2 items-start">
-          {/* Left image */}
           <div className="w-full h-[400px] md:h-[700px] overflow-hidden rounded-xl shadow-sm">
             <img src="https://images.unsplash.com/photo-1556910103-1c02745a872f?w=1200&h=1600&fit=crop" alt="Về Chúng Tôi" className="w-full h-full object-cover" />
           </div>
 
-          {/* Right content */}
           <div className="flex flex-col justify-center px-2 md:px-6">
             <div className="text-center mb-8 mt-2 md:mt-10">
               <p className="text-[#b99368] text-[12px] md:text-[13px] font-bold tracking-[0.15em] uppercase mb-2">
@@ -611,8 +402,6 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
         </div>
       </section>
 
-
-
       <VoucherDetailModal
         voucher={selectedVoucher}
         products={products}
@@ -623,5 +412,3 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
     </>
   );
 }
-=======
->>>>>>> Stashed changes
