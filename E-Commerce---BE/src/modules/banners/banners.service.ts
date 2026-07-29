@@ -42,7 +42,7 @@ export class BannersService implements OnModuleInit {
   
   async create(dto: CreateBannerDto, user: User): Promise<Banner> {
     const branchId = user.role === UserRole.STORE_MANAGER ? user.branchId : dto.branchId;
-    const { title, subtitle, imageUrl, linkUrl, sortOrder, isActive, startsAt, expiresAt } = dto;
+    const { title, subtitle, imageUrl, linkUrl, sortOrder, isActive, startsAt, expiresAt, position } = dto;
     const banner = this.banners.create({
       title: title || 'Banner mới',
       imageUrl,
@@ -53,6 +53,7 @@ export class BannersService implements OnModuleInit {
       expiresAt: expiresAt ? new Date(expiresAt) : null,
       subtitle: subtitle?.trim() || null,
       branchId: branchId || null,
+      position: position || 'home_main',
     });
     return this.banners.save(banner);
   }
@@ -84,6 +85,7 @@ export class BannersService implements OnModuleInit {
     banner.sortOrder = Number(dto.sortOrder ?? banner.sortOrder); 
     banner.isActive = dto.isActive ?? banner.isActive; 
     banner.branchId = branchId || null;
+    if (dto.position) banner.position = dto.position;
     return this.banners.save(banner); 
   }
 

@@ -98,7 +98,7 @@ export function AdminBanners() {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa banner này không?")) return;
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     const banner = bannersList.find((b: any) => b.id === id);
     try {
       const res = await fetch(`${env.API_URL}/admin/banners/${id}`, {
@@ -124,7 +124,7 @@ export function AdminBanners() {
       toast.error("Vui lòng nhập tên và link ảnh banner.");
       return;
     }
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     const isEditing = Boolean(editingBanner);
     setSaving(true);
     try {

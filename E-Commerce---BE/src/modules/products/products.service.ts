@@ -60,10 +60,26 @@ export class ProductsService {
         return cat;
     }
 
+    private async validateCategoryParent(categoryId: string | null, parentId?: string | null): Promise<void> {
+        if (!parentId) return;
+        if (categoryId === parentId) {
+            throw new BadRequestException('Danh mục không thể là cha của chính nó');
+        }
+
+        let currentParent = await this.findCategoryById(parentId);
+        while (currentParent.parentId) {
+            if (currentParent.parentId === categoryId) {
+                throw new BadRequestException('Quan hệ danh mục cha con tạo thành vòng lặp');
+            }
+            currentParent = await this.findCategoryById(currentParent.parentId);
+        }
+    }
+
     async createCategory(dto: CreateCategoryDto): Promise<Category> {
         const existing = await this.categories.findOne({ where: { name: dto.name } });
         if (existing) throw new BadRequestException('Tên danh mục này đã tồn tại');
 
+        await this.validateCategoryParent(null, dto.parentId);
         const slug = dto.slug || generateSlug(dto.name);
         const category = this.categories.create({
             ...dto,
@@ -74,6 +90,7 @@ export class ProductsService {
 
     async updateCategory(id: string, dto: UpdateCategoryDto): Promise<Category> {
         const cat = await this.findCategoryById(id);
+        await this.validateCategoryParent(id, dto.parentId);
         if (dto.name && dto.name !== cat.name) {
             const existing = await this.categories.findOne({ where: { name: dto.name } });
             if (existing) throw new BadRequestException('Tên danh mục này đã tồn tại');
@@ -90,6 +107,11 @@ export class ProductsService {
         const productsCount = await this.products.count({ where: { categoryId: id } });
         if (productsCount > 0) {
             throw new BadRequestException('Không thể xóa danh mục này vì vẫn còn sản phẩm đang thuộc danh mục này');
+        }
+
+        const childrenCount = await this.categories.count({ where: { parentId: id } });
+        if (childrenCount > 0) {
+            throw new BadRequestException('Không thể xóa danh mục cha khi vẫn còn danh mục con');
         }
         
         await this.categories.remove(cat);

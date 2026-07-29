@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { ProductCard } from "../components/shared";
 import { CATEGORY_GROUPS, VIEW_KEYS } from "../../config/appConfig";
 import { SlidersHorizontal } from "lucide-react";
+import { getCategoryChildren, isProductInCategoryGroup } from "../features/categories/categoryHierarchy";
 
 // Helper utilities for prices
 const parsePrice = (priceStr: string): number => {
@@ -9,7 +10,7 @@ const parsePrice = (priceStr: string): number => {
   return parseInt(priceStr.replace(/[^0-9]/g, ""), 10);
 };
 
-export function ProductListing({ category, setView, onSelectProduct, onAddToCart, wishlist, onToggleWishlist, searchQuery, products: rawProducts = [] }: any) {
+export function ProductListing({ category, setView, onSelectProduct, onAddToCart, wishlist, onToggleWishlist, searchQuery, products: rawProducts = [], categories = [] }: any) {
   const products = Array.isArray(rawProducts) ? rawProducts : (Array.isArray(rawProducts?.data) ? rawProducts.data : []);
   // Filter States
   const [selectedSubCat, setSelectedSubCat] = useState<string>("Tất cả");
@@ -36,7 +37,7 @@ export function ProductListing({ category, setView, onSelectProduct, onAddToCart
   } else if (category === VIEW_KEYS.ALL_PRODUCTS) {
     baseList = products.filter(p => p.raw?.productType !== "combo");
   } else {
-    baseList = products.filter(p => p[2] === category);
+    baseList = products.filter(p => isProductInCategoryGroup(p, category, categories));
   }
 
   // 2. Determine subcategories to show in sidebar dynamically
@@ -59,12 +60,14 @@ export function ProductListing({ category, setView, onSelectProduct, onAddToCart
       .filter((p: any) => p.raw?.productType !== "combo")
       .map((p: any) => p[2] as string);
     subCategories = Array.from(new Set(allCats));
+  } else {
+    subCategories = getCategoryChildren(category, categories).map(child => child.name);
   }
 
   // 2. Apply Sub-category filter
   let filtered = baseList;
   if (selectedSubCat !== "Tất cả") {
-    filtered = filtered.filter(p => p[2] === selectedSubCat);
+    filtered = filtered.filter(p => isProductInCategoryGroup(p, selectedSubCat, categories));
   }
 
   // 3. Apply Price Range filter

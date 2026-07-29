@@ -1,162 +1,41 @@
-import { useEffect, useState, useRef } from "react";
-import { createPortal } from "react-dom";
-import { Truck, Gift, RefreshCw, Coffee, AlertCircle, Check, Tag, ChevronRight, ChevronLeft, Plus, MapPin, Loader2, PlayCircle, BookOpen, Users, ChefHat } from "lucide-react";
-import { heroBanners } from "../../data/mockData";
+import { useEffect, useMemo, useState } from "react";
+import { Truck, Gift, RefreshCw, Coffee, Tag, ChevronRight, ChevronLeft } from "lucide-react";
 import { ProductCard, HorizontalProductCard, Section } from "../components/shared";
 import { MESSAGES } from "../../constants/messages";
 import { env } from "../../config/env";
 import { HOME_CONFIG, VIEW_KEYS } from "../../config/appConfig";
-
-
-
-function VoucherDetailModal({ voucher, products: rawProducts = [], onSelectProduct, setView, onClose }: any) {
-  const products = Array.isArray(rawProducts) ? rawProducts : (Array.isArray(rawProducts?.data) ? rawProducts.data : []);
-  if (!voucher) return null;
-  const d = voucher.rawData;
-  const scopeProduct = d?.product;
-  const scopeCategory = d?.category;
-  const scopeLabel = d?.productId && scopeProduct
-    ? 'Sản phẩm'
-    : d?.categoriesId && scopeCategory
-      ? 'Danh mục'
-      : null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose} style={{ animation: 'fadeIn .2s ease' }}>
-      <div className="bg-card w-full max-w-md rounded-2xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} style={{ animation: 'slideUp .25s ease' }}>
-        <button onClick={onClose} className="absolute right-4 top-4 text-muted-foreground hover:text-foreground z-10">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-        </button>
-
-        {/* Header */}
-        <div className="text-center mb-5 mt-2">
-          <div className="mx-auto w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mb-3">
-            <Tag size={28} className="text-primary" />
-          </div>
-          <h3 className="text-xl font-bold font-serif">{voucher.sub}</h3>
-          <p className="text-sm text-primary font-mono tracking-widest mt-2 bg-primary/10 inline-block px-4 py-1.5 rounded-full uppercase font-bold">{voucher.code}</p>
-        </div>
-
-        {/* Description */}
-        {voucher.title && voucher.title !== voucher.sub && (
-          <div className="bg-secondary/50 p-3 rounded-xl text-center text-foreground font-medium text-sm mb-4">
-            {voucher.title}
-          </div>
-        )}
-
-        {/* Detail grid */}
-        {d && (
-          <div className="space-y-3 text-sm">
-            <div className="grid grid-cols-[110px_1fr] gap-y-2.5 gap-x-3 bg-secondary/30 rounded-xl p-4">
-              <span className="text-muted-foreground font-medium">Giảm giá:</span>
-              <span className="text-foreground font-semibold">
-                {d.discountType === 'percent'
-                  ? `${Number(d.discountValue)}%${d.maxDiscount ? ` (tối đa ${Number(d.maxDiscount).toLocaleString()}đ)` : ''}`
-                  : `${Number(d.discountValue).toLocaleString()}đ`}
-              </span>
-
-              <span className="text-muted-foreground font-medium">Đơn tối thiểu:</span>
-              <span className="text-foreground font-semibold">
-                {d.minOrderValue > 0 ? `${Number(d.minOrderValue).toLocaleString()}đ` : 'Không yêu cầu'}
-              </span>
-
-              {(d.startsAt || d.expiresAt) && (
-                <>
-                  <span className="text-muted-foreground font-medium">Hạn dùng:</span>
-                  <span className="text-foreground">
-                    {d.startsAt ? new Date(d.startsAt).toLocaleDateString('vi-VN') : 'Nay'}
-                    {' — '}
-                    {d.expiresAt ? new Date(d.expiresAt).toLocaleDateString('vi-VN') : 'Không thời hạn'}
-                  </span>
-                </>
-              )}
-
-              <span className="text-muted-foreground font-medium">Phạm vi:</span>
-              <span className="text-foreground font-semibold">
-                {scopeLabel ? scopeLabel : 'Toàn bộ đơn hàng'}
-              </span>
-            </div>
-
-            {/* Applied product card */}
-            {d.productId && scopeProduct && (
-              <div className="border rounded-xl p-3 flex items-center gap-3">
-                {scopeProduct.imageUrl && (
-                  <img src={scopeProduct.imageUrl} alt={scopeProduct.name} className="w-16 h-16 rounded-lg object-cover shrink-0 border" />
-                )}
-                <div className="min-w-0">
-                  <p className="text-xs text-primary font-semibold uppercase tracking-wide mb-0.5">Áp dụng cho sản phẩm</p>
-                  <p className="font-bold text-foreground truncate">{scopeProduct.name}</p>
-                  {scopeProduct.category?.name && (
-                    <p className="text-xs text-muted-foreground mt-0.5">Danh mục: {scopeProduct.category.name}</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Applied category card */}
-            {d.categoriesId && scopeCategory && !d.productId && (
-              <div className="border rounded-xl p-3 flex items-center gap-3">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Gift size={22} className="text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-primary font-semibold uppercase tracking-wide mb-0.5">Áp dụng cho danh mục</p>
-                  <p className="font-bold text-foreground">{scopeCategory.name}</p>
-                </div>
-              </div>
-            )}
-
-            {/* All orders */}
-            {!d.productId && !d.categoriesId && (
-              <div className="border rounded-xl p-3 flex items-center gap-3 border-dashed">
-                <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
-                  <Check size={22} className="text-green-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-green-600 font-semibold uppercase tracking-wide mb-0.5">Không giới hạn</p>
-                  <p className="font-bold text-foreground">Áp dụng cho tất cả sản phẩm</p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* CTA */}
-        <div className="mt-6">
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(voucher.code);
-              if (d?.productId) {
-                const p = products.find((p: any) => p[0] === d.productId || p.raw?.id === d.productId);
-                if (p) {
-                  onSelectProduct?.(p);
-                } else {
-                  setView?.(VIEW_KEYS.SWEETS);
-                }
-              } else {
-                // If it's a category or global voucher, just go to shop
-                setView?.(VIEW_KEYS.SWEETS);
-              }
-              onClose();
-            }}
-            className="w-full bg-primary text-primary-foreground font-bold rounded-xl py-3 hover:bg-primary/90 transition"
-          >
-            Đặt hàng ngay
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-}
+import { getFeaturedParentCategories } from "../features/categories/categoryHierarchy";
 
 function VoucherRow({ code, title, sub, onClick }: any) {
   return (
-    <div onClick={onClick} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4 cursor-pointer hover:border-foreground/30 transition">
-      <div>
-        <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase mb-1">{code}</p>
-        <p className="text-sm font-bold text-foreground leading-snug">{title}</p>
-        <p className="text-[12px] text-muted-foreground mt-1">{sub}</p>
+    <div
+      onClick={onClick}
+      className="group cursor-pointer flex items-center justify-between rounded-xl border border-border/80 bg-background/60 p-3.5 transition hover:border-primary/50 hover:bg-background"
+    >
+      <div className="flex flex-col">
+        <span className="text-xs font-bold text-primary font-mono">{code}</span>
+        <span className="text-xs font-semibold text-foreground mt-0.5">{title}</span>
+        <span className="text-[11px] text-muted-foreground">{sub}</span>
+      </div>
+      <button className="rounded-full bg-secondary px-3 py-1 text-[11px] font-semibold text-secondary-foreground transition group-hover:bg-primary group-hover:text-primary-foreground">
+        Chi tiết
+      </button>
+    </div>
+  );
+}
+
+function VoucherDetailModal({ voucher, products, onSelectProduct, setView, onClose }: any) {
+  if (!voucher) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+        <button onClick={onClose} className="absolute right-4 top-4 text-muted-foreground hover:text-foreground">✕</button>
+        <span className="text-xs font-bold text-primary font-mono">{voucher.code}</span>
+        <h3 className="text-lg font-bold text-foreground mt-1">{voucher.title}</h3>
+        <p className="text-xs text-muted-foreground mt-1">{voucher.sub}</p>
+        <div className="mt-6 flex justify-end">
+          <button onClick={onClose} className="rounded-full bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground">Đóng</button>
+        </div>
       </div>
     </div>
   );
@@ -197,6 +76,10 @@ function ScrollingBestSellers({ products: rawProducts = [], onSelectProduct, onA
 export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggleWishlist, products: rawProducts = [], categories: rawCategories = [], publicCoupons: rawCoupons = [] }: any) {
   const products = Array.isArray(rawProducts) ? rawProducts : (Array.isArray(rawProducts?.data) ? rawProducts.data : (Array.isArray(rawProducts?.products) ? rawProducts.products : []));
   const categories = Array.isArray(rawCategories) ? rawCategories : (Array.isArray(rawCategories?.data) ? rawCategories.data : (Array.isArray(rawCategories?.categories) ? rawCategories.categories : []));
+  const featuredCategories = useMemo(
+    () => getFeaturedParentCategories(categories),
+    [categories],
+  );
   const publicCoupons = Array.isArray(rawCoupons) ? rawCoupons : (Array.isArray(rawCoupons?.data) ? rawCoupons.data : (Array.isArray(rawCoupons?.coupons) ? rawCoupons.coupons : []));
   const [activeBanner, setActiveBanner] = useState(0);
   const [banners, setBanners] = useState<Array<{ src: string; alt: string; title?: string; subtitle?: string; linkUrl?: string }>>(() => {
@@ -212,18 +95,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
     } catch (_) {}
     return [];
   });
-  const [storeSearch, setStoreSearch] = useState("");
   const [selectedVoucher, setSelectedVoucher] = useState<any>(null);
-  const taggedSections = Array.from(
-    products.reduce((sections: Map<string, { tag: any; products: any[] }>, product: any) => {
-      for (const tag of product.raw?.tags || []) {
-        const section = sections.get(tag.id) || { tag, products: [] };
-        section.products.push(product);
-        sections.set(tag.id, section);
-      }
-      return sections;
-    }, new Map()).values(),
-  ) as Array<{ tag: any; products: any[] }>;
 
   const displayVouchers = publicCoupons.slice(0, 3).map((c: any) => ({
     code: c.code,
@@ -248,12 +120,10 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
             })) 
           : []; 
         if (!cancelled && next.length) { 
-          // Save to localStorage for instant 0ms reload next time
           try {
             localStorage.setItem("sb_cached_banners", JSON.stringify(next));
           } catch (_) {}
 
-          // Preload images immediately in browser cache
           next.forEach(b => {
             const img = new Image();
             img.src = b.src;
@@ -273,28 +143,11 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
     return () => window.clearInterval(timer);
   }, [banners.length]);
 
-  const currentBanner = banners[activeBanner];
   return (
     <>
       {/* ── Hero banner ── */}
       {banners.length > 0 && (
         <section className="relative w-full overflow-hidden bg-black group">
-          <style>{`
-            @keyframes slideUpFade {
-              0% { opacity: 0; transform: translateY(40px); }
-              100% { opacity: 1; transform: translateY(0); }
-            }
-            .slide-up-fade {
-              animation: slideUpFade 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-              opacity: 0;
-            }
-            .delay-100 { animation-delay: 0.1s; }
-            .delay-200 { animation-delay: 0.2s; }
-            .delay-300 { animation-delay: 0.3s; }
-            .delay-400 { animation-delay: 0.4s; }
-            .delay-500 { animation-delay: 0.5s; }
-          `}</style>
-
           <div className="relative w-full h-[240px] sm:h-[340px] md:h-[440px] lg:h-[480px] overflow-hidden">
             {banners.map((banner, index) => (
               <div
@@ -305,8 +158,6 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
                   src={banner.src} 
                   alt={banner.alt} 
                   loading={index === 0 ? "eager" : "lazy"}
-                  // @ts-ignore
-                  fetchpriority={index === 0 ? "high" : "low"}
                   decoding="async"
                   className="absolute inset-0 h-full w-full object-cover object-center select-none pointer-events-none" 
                 />
@@ -321,7 +172,6 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
             </div>
           </div>
 
-          {/* Prev/Next Navigation (SugarTown style) */}
           <button
             onClick={() => setActiveBanner((prev) => (prev - 1 + banners.length) % banners.length)}
             className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 size-12 rounded-full bg-white text-[#5b4539] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 shadow-lg z-30"
@@ -337,7 +187,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
         </section>
       )}
 
-      {/* ── Value Propositions Strip (SugarTown style) ── */}
+      {/* ── Value Propositions Strip ── */}
       <div className="relative bg-transparent text-[#2d1a13] py-6 md:py-8">
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-10">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-4">
@@ -378,7 +228,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
         </div>
       </div>
 
-      {/* ── Promo Banner (Image 2) ── */}
+      {/* ── Promo Banner ── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-12">
         <div className="relative w-full h-[260px] md:h-[320px] overflow-hidden rounded-[20px] bg-[#2d1a13]">
           <img src="https://images.unsplash.com/photo-1495147466023-2ce660b86a88?w=1800&h=600&fit=crop&auto=format" alt="Promo" className="absolute inset-0 h-full w-full object-cover opacity-60 mix-blend-overlay" />
@@ -409,7 +259,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
       {/* ── Featured categories ── */}
       <Section title={MESSAGES.SECTION_CATEGORIES_TITLE}>
         <div className="grid grid-cols-3 gap-3 sm:gap-4 sm:grid-cols-4 lg:grid-cols-6">
-          {categories.map((c) => (
+          {featuredCategories.map((c) => (
             <button key={c.name} onClick={() => setView(c.name)} className="group flex flex-col w-full aspect-[4/5] sm:aspect-square overflow-hidden rounded-[20px] bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-black/5">
               <div className="relative h-[75%] w-full overflow-hidden bg-muted">
                 <img src={c.img} alt={c.name} className="h-full w-full object-cover transition duration-700 group-hover:scale-110" />
@@ -515,12 +365,10 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
           Về Chúng Tôi
         </h2>
         <div className="grid gap-12 md:grid-cols-2 items-start">
-          {/* Left image */}
           <div className="w-full h-[400px] md:h-[700px] overflow-hidden rounded-xl shadow-sm">
             <img src="https://images.unsplash.com/photo-1556910103-1c02745a872f?w=1200&h=1600&fit=crop" alt="Về Chúng Tôi" className="w-full h-full object-cover" />
           </div>
 
-          {/* Right content */}
           <div className="flex flex-col justify-center px-2 md:px-6">
             <div className="text-center mb-8 mt-2 md:mt-10">
               <p className="text-[#b99368] text-[12px] md:text-[13px] font-bold tracking-[0.15em] uppercase mb-2">
@@ -553,8 +401,6 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
           </div>
         </div>
       </section>
-
-
 
       <VoucherDetailModal
         voucher={selectedVoucher}

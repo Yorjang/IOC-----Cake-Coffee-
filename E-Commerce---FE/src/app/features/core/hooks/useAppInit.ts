@@ -30,7 +30,7 @@ const apiProductToArray = (p: any, coupons: any[] = []): any[] => {
   const price = originalPrice ? `${originalPrice.toLocaleString("vi-VN")}đ` : "0đ";
   const categoryName = p.category?.name ?? "Khác";
   const imageUrl = p.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=600&h=520&fit=crop&auto=format";
-  const rating = "4.8";
+  const rating = p.rating ? Number(p.rating).toFixed(1) : "0.0";
   const badge = p.productType === "combo"
     ? "Combo"
     : activeVariants.length > 1
@@ -101,7 +101,14 @@ const getViewFromPath = (path: string, cats: any[] = []) => {
   if (path.startsWith("/chi-tiet/")) return VIEW_KEYS.DETAIL;
   if (path.startsWith("/danh-muc/")) {
     const slug = decodeURIComponent(path.replace("/danh-muc/", ""));
-    return cats.find(c => c.name.toLowerCase().replace(/\s+/g, "-") === slug)?.name ?? VIEW_KEYS.SWEETS;
+    const found = cats.find(c => (c.name || c).toLowerCase().replace(/\s+/g, "-") === slug);
+    if (found) return found.name || found;
+    if (slug === "ca-phe" || slug === "cà-phê" || slug === "cafe") return "Cà phê";
+    if (slug === "banh-ngot") return VIEW_KEYS.SWEETS;
+    if (slug === "do-uong" || slug === "cafe-do-uong") return VIEW_KEYS.DRINKS;
+    if (slug === "combo") return VIEW_KEYS.COMBO;
+    if (slug === "tat-ca-san-pham" || slug === "tat-ca") return VIEW_KEYS.ALL_PRODUCTS;
+    return VIEW_KEYS.SWEETS;
   }
   return VIEW_KEYS.HOME;
 };
@@ -117,7 +124,7 @@ const parsePrice = (s: string) => parseInt(s.replace(/[^0-9]/g, ""), 10);
 const LISTABLE = [
   VIEW_KEYS.SWEETS, VIEW_KEYS.DRINKS, VIEW_KEYS.COMBO, VIEW_KEYS.ALL_PRODUCTS,
   "Bánh sinh nhật", "Bánh mousse", "Bánh tart", "Bánh quy",
-  "Cafe", "Trà", "Đồ uống khác", "Tìm kiếm",
+  "Cafe", "Cà phê", "Cà Phê", "Trà", "Đồ uống khác", "Tìm kiếm",
 ];
 
 // ── Helper to map DB cart items to FE legacy format ─────────────────────────
@@ -258,9 +265,7 @@ export function useAppInit() {
     return savedStore ?? fallbackStoreLocations[0];
   });
   const [availableStores, setAvailableStores] = useState<StoreLocation[]>(fallbackStoreLocations);
-  const [showStorePopup, setShowStorePopup] = useState(() => {
-    return window.location.pathname === "/" && !localStorage.getItem(STORE_STORAGE_KEY);
-  });
+  const [showStorePopup, setShowStorePopup] = useState(false);
   const [manualLocationRequired, setManualLocationRequired] = useState(false);
   const [orderCode, setOrderCode] = useState("");
   const [lastCreatedOrder, setLastCreatedOrder] = useState<any>(null);
@@ -379,25 +384,14 @@ export function useAppInit() {
     `${env.API_URL}/cart${path}?branchId=${selectedStore.id}`;
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         let couponsList: any[] = [];
         try {
-          const headers: Record<string, string> = {};
-          const token = getAccessToken();
-          if (token) headers.Authorization = `Bearer ${token}`;
-
-          let url = `${env.API_URL}/coupons/public`;
-          if (selectedStore?.id) {
-            url += `?branchId=${selectedStore.id}`;
-          }
-
-          const couponRes = await fetch(url, { headers });
-          if (couponRes.ok) {
-            const apiCoupons = await couponRes.json();
-            couponsList = Array.isArray(apiCoupons.data) ? apiCoupons.data : (Array.isArray(apiCoupons) ? apiCoupons : []);
-            setPublicCoupons(couponsList);
-          }
+          const branchIdParam = selectedStore?.id && UUID_PATTERN.test(selectedStore.id) ? selectedStore.id : undefined;
+          couponsList = await getAvailableCoupons(branchIdParam);
+          if (!cancelled) setPublicCoupons(couponsList);
         } catch (err) {
           console.error("Lỗi khi tải vouchers:", err);
         }
@@ -407,17 +401,22 @@ export function useAppInit() {
           getCatalogProducts(selectedBranchId),
           fetch(`${env.API_URL}/products/categories`),
         ]);
-        setProducts(productsData.map((p: any) => apiProductToArray(p, couponsList)));
+        if (!cancelled) {
+          setProducts(productsData.map((p: any) => apiProductToArray(p, couponsList)));
+        }
         if (cRes.ok) {
           const apiCategories = await cRes.json();
           const categoriesData = Array.isArray(apiCategories.data) ? apiCategories.data : (Array.isArray(apiCategories) ? apiCategories : []);
-          setCategories(categoriesData.map(apiCategoryToLegacy));
+          if (!cancelled) setCategories(categoriesData.map(apiCategoryToLegacy));
         }
       } catch (err) {
-        console.error("Lỗi khi fetch products/categories:", err);
+        if (!cancelled) console.error("Lỗi khi fetch products/categories:", err);
       }
     })();
-  }, [selectedStore?.id, user?.id]);
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, selectedStore?.id]);
 
   useEffect(() => {
     if (!showStorePopup) return;
@@ -477,7 +476,10 @@ export function useAppInit() {
         setAvailableStores(stores);
         const savedId = localStorage.getItem(STORE_STORAGE_KEY);
         const savedStore = savedId ? stores.find((store: any) => store.id === savedId) : null;
-        setSelectedStore(savedStore ?? stores[0]);
+        const fallbackOpenStore = stores.find(store => store.isOpenNow) ?? stores[0];
+        const initialStore = savedStore?.isOpenNow ? savedStore : fallbackOpenStore;
+        setSelectedStore(initialStore);
+        localStorage.setItem(STORE_STORAGE_KEY, initialStore.id);
       } catch {
         if (!cancelled) setAvailableStores(fallbackStoreLocations);
       }
@@ -508,6 +510,7 @@ export function useAppInit() {
 
             if (nearest) {
               setSelectedStore(nearest);
+              localStorage.setItem(STORE_STORAGE_KEY, nearest.id);
             }
           } catch {
             // Keep the regular active branch list if location lookup fails.
@@ -515,9 +518,6 @@ export function useAppInit() {
         },
         () => {
           setManualLocationRequired(true);
-          if (!localStorage.getItem(STORE_STORAGE_KEY) && window.location.pathname === "/") {
-            setShowStorePopup(true);
-          }
         },
         { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 },
       );
@@ -650,7 +650,9 @@ export function useAppInit() {
   const setView = (newView: any, productData?: any) => {
     const target = productData || (newView === VIEW_KEYS.DETAIL ? selectedProduct : null);
     const newPath = getPathFromView(newView, target);
-    if (window.location.pathname !== newPath) window.history.pushState(null, "", newPath);
+    if (decodeURIComponent(window.location.pathname) !== decodeURIComponent(newPath)) {
+      window.history.pushState(null, "", newPath);
+    }
     
     setIsLoading(true);
     setTimeout(() => {
@@ -702,14 +704,8 @@ export function useAppInit() {
 
   const handleLogout = () => {
     clearAuthSession();
-    setUser(null);
-    setAppliedCoupon(null);
-    setCart([]);
-    setWishlist([]);
-    setLastCreatedOrder(null);
     localStorage.removeItem("sb_active_order");
-    setSelectedOrderId(null);
-    setView(VIEW_KEYS.HOME);
+    window.location.href = "/";
   };
 
   const handleAdminLogout = () => {
