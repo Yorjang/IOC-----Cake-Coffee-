@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { env } from "../../config/env";
 import { parseRes } from '../../utils/api';
+import { ProfileOrders } from '../features/profile/ui/ProfileOrders';
 import { getAccessToken } from "../components/authSession";
 
 const PRESET_AVATARS = [

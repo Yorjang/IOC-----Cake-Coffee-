@@ -1,198 +1,14 @@
-import { Check, ChevronLeft, ChevronRight, Coffee, Gift, RefreshCw, Tag, Truck } from "lucide-react";
+import { ChevronLeft, ChevronRight, Coffee, Gift, RefreshCw, Tag, Truck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import { HOME_CONFIG, VIEW_KEYS } from "../../config/appConfig";
 import { env } from "../../config/env";
 import { MESSAGES } from "../../constants/messages";
-import { HorizontalProductCard, ProductCard, Section } from "../components/shared";
+import { ProductCard, Section } from "../components/shared";
+import { VoucherDetailModal } from '../features/home/ui/VoucherDetailModal';
+import { ScrollingBestSellers } from '../features/home/ui/HomeBestSellers';
+import { VoucherRow } from '../features/home/ui/VoucherRow';
 import { getFeaturedParentCategories } from "../features/categories/categoryHierarchy";
 
-
-
-function VoucherDetailModal({ voucher, products: rawProducts = [], onSelectProduct, setView, onClose }: any) {
-  const products = Array.isArray(rawProducts) ? rawProducts : (Array.isArray(rawProducts?.data) ? rawProducts.data : []);
-  if (!voucher) return null;
-  const d = voucher.rawData;
-  const scopeProduct = d?.product;
-  const scopeCategory = d?.category;
-  const scopeLabel = d?.productId && scopeProduct
-    ? 'Sản phẩm'
-    : d?.categoriesId && scopeCategory
-      ? 'Danh mục'
-      : null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose} style={{ animation: 'fadeIn .2s ease' }}>
-      <div className="bg-card w-full max-w-md rounded-2xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} style={{ animation: 'slideUp .25s ease' }}>
-        <button onClick={onClose} className="absolute right-4 top-4 text-muted-foreground hover:text-foreground z-10">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-        </button>
-
-        {/* Header */}
-        <div className="text-center mb-5 mt-2">
-          <div className="mx-auto w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mb-3">
-            <Tag size={28} className="text-primary" />
-          </div>
-          <h3 className="text-xl font-bold font-serif">{voucher.sub}</h3>
-          <p className="text-sm text-primary font-mono tracking-widest mt-2 bg-primary/10 inline-block px-4 py-1.5 rounded-full uppercase font-bold">{voucher.code}</p>
-        </div>
-
-        {/* Description */}
-        {voucher.title && voucher.title !== voucher.sub && (
-          <div className="bg-secondary/50 p-3 rounded-xl text-center text-foreground font-medium text-sm mb-4">
-            {voucher.title}
-          </div>
-        )}
-
-        {/* Detail grid */}
-        {d && (
-          <div className="space-y-3 text-sm">
-            <div className="grid grid-cols-[110px_1fr] gap-y-2.5 gap-x-3 bg-secondary/30 rounded-xl p-4">
-              <span className="text-muted-foreground font-medium">Giảm giá:</span>
-              <span className="text-foreground font-semibold">
-                {d.discountType === 'percent'
-                  ? `${Number(d.discountValue)}%${d.maxDiscount ? ` (tối đa ${Number(d.maxDiscount).toLocaleString()}đ)` : ''}`
-                  : `${Number(d.discountValue).toLocaleString()}đ`}
-              </span>
-
-              <span className="text-muted-foreground font-medium">Đơn tối thiểu:</span>
-              <span className="text-foreground font-semibold">
-                {d.minOrderValue > 0 ? `${Number(d.minOrderValue).toLocaleString()}đ` : 'Không yêu cầu'}
-              </span>
-
-              {(d.startsAt || d.expiresAt) && (
-                <>
-                  <span className="text-muted-foreground font-medium">Hạn dùng:</span>
-                  <span className="text-foreground">
-                    {d.startsAt ? new Date(d.startsAt).toLocaleDateString('vi-VN') : 'Nay'}
-                    {' — '}
-                    {d.expiresAt ? new Date(d.expiresAt).toLocaleDateString('vi-VN') : 'Không thời hạn'}
-                  </span>
-                </>
-              )}
-
-              <span className="text-muted-foreground font-medium">Phạm vi:</span>
-              <span className="text-foreground font-semibold">
-                {scopeLabel ? scopeLabel : 'Toàn bộ đơn hàng'}
-              </span>
-            </div>
-
-            {/* Applied product card */}
-            {d.productId && scopeProduct && (
-              <div className="border rounded-xl p-3 flex items-center gap-3">
-                {scopeProduct.imageUrl && (
-                  <img src={scopeProduct.imageUrl} alt={scopeProduct.name} className="w-16 h-16 rounded-lg object-cover shrink-0 border" />
-                )}
-                <div className="min-w-0">
-                  <p className="text-xs text-primary font-semibold uppercase tracking-wide mb-0.5">Áp dụng cho sản phẩm</p>
-                  <p className="font-bold text-foreground truncate">{scopeProduct.name}</p>
-                  {scopeProduct.category?.name && (
-                    <p className="text-xs text-muted-foreground mt-0.5">Danh mục: {scopeProduct.category.name}</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Applied category card */}
-            {d.categoriesId && scopeCategory && !d.productId && (
-              <div className="border rounded-xl p-3 flex items-center gap-3">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Gift size={22} className="text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-primary font-semibold uppercase tracking-wide mb-0.5">Áp dụng cho danh mục</p>
-                  <p className="font-bold text-foreground">{scopeCategory.name}</p>
-                </div>
-              </div>
-            )}
-
-            {/* All orders */}
-            {!d.productId && !d.categoriesId && (
-              <div className="border rounded-xl p-3 flex items-center gap-3 border-dashed">
-                <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
-                  <Check size={22} className="text-green-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-green-600 font-semibold uppercase tracking-wide mb-0.5">Không giới hạn</p>
-                  <p className="font-bold text-foreground">Áp dụng cho tất cả sản phẩm</p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* CTA */}
-        <div className="mt-6">
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(voucher.code);
-              if (d?.productId) {
-                const p = products.find((p: any) => p[0] === d.productId || p.raw?.id === d.productId);
-                if (p) {
-                  onSelectProduct?.(p);
-                } else {
-                  setView?.(VIEW_KEYS.SWEETS);
-                }
-              } else {
-                // If it's a category or global voucher, just go to shop
-                setView?.(VIEW_KEYS.SWEETS);
-              }
-              onClose();
-            }}
-            className="w-full bg-primary text-primary-foreground font-bold rounded-xl py-3 hover:bg-primary/90 transition"
-          >
-            Đặt hàng ngay
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-}
-
-function VoucherRow({ code, title, sub, onClick }: any) {
-  return (
-    <div onClick={onClick} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4 cursor-pointer hover:border-foreground/30 transition">
-      <div>
-        <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase mb-1">{code}</p>
-        <p className="text-sm font-bold text-foreground leading-snug">{title}</p>
-        <p className="text-[12px] text-muted-foreground mt-1">{sub}</p>
-      </div>
-    </div>
-  );
-}
-
-function ScrollingBestSellers({ products: rawProducts = [], onSelectProduct, onAddToCart }: any) {
-  const products = Array.isArray(rawProducts) ? rawProducts : (Array.isArray(rawProducts?.data) ? rawProducts.data : []);
-  const displayProducts = [...products, ...products, ...products, ...products];
-
-  return (
-    <section className="py-20 overflow-hidden bg-[#f4f2ec]">
-      <style>{`
-        @keyframes custom-marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .animate-marquee-infinite {
-          animation: custom-marquee 40s linear infinite;
-        }
-        .animate-marquee-infinite:hover {
-          animation-play-state: paused;
-        }
-      `}</style>
-      <h2 className="text-center text-[36px] md:text-[46px] text-[#3d2314] mb-12 tracking-wide font-bold uppercase" style={{ fontFamily: "'Bodoni Moda', serif" }}>
-        Best Seller
-      </h2>
-      <div className="relative w-full flex">
-        <div className="flex gap-4 md:gap-6 min-w-max px-6 animate-marquee-infinite will-change-transform">
-          {displayProducts.map((p, i) => (
-            <HorizontalProductCard key={`bs-${i}`} p={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
 
 export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggleWishlist, products: rawProducts = [], categories: rawCategories = [], publicCoupons: rawCoupons = [] }: any) {
   const products = Array.isArray(rawProducts) ? rawProducts : (Array.isArray(rawProducts?.data) ? rawProducts.data : (Array.isArray(rawProducts?.products) ? rawProducts.products : []));
@@ -507,7 +323,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
       {/* ── New + combos ── */}
       <Section title={MESSAGES.SECTION_NEW_COMBOS_TITLE} onViewAll={() => setView(VIEW_KEYS.COMBO)}>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {products.slice(HOME_CONFIG.NEW_COMBOS_START, HOME_CONFIG.NEW_COMBOS_END).map(p => (
+          {products.slice(0, HOME_CONFIG.NEW_COMBOS_LIMIT).map((p: any) => (
             <ProductCard key={p[0]} p={p} onSelect={onSelectProduct} isWishlisted={wishlist.some((w: any) => w[0] === p[0])} onToggleWishlist={onToggleWishlist} onAddToCart={onAddToCart} />
           ))}
         </div>

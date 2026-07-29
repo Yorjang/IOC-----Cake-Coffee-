@@ -11,6 +11,8 @@ import { StockBatch } from './entities/stock-batch.entity';
 import { VariantIngredient } from './entities/variant-ingredient.entity';
 import { InventoryController } from './inventory.controller';
 import { InventoryService } from './inventory.service';
+import { PurchaseOrderService } from './purchase-order.service';
+import { IngredientService } from './ingredient.service';
 
 @Module({
   imports: [
@@ -27,7 +29,7 @@ import { InventoryService } from './inventory.service';
     UsersModule,
   ],
   controllers: [InventoryController],
-  providers: [InventoryService],
-  exports: [InventoryService],
+  providers: [InventoryService, PurchaseOrderService, IngredientService],
+  exports: [InventoryService, PurchaseOrderService, IngredientService],
 })
 export class InventoryModule {}

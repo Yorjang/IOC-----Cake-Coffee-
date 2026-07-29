@@ -2,7 +2,7 @@ import { Check, ChevronRight, Minus, Plus, Ticket, Trash2, X } from "lucide-reac
 import { useState } from "react";
 import { toast } from "sonner";
 import { VIEW_KEYS } from "../../config/appConfig";
-import { matchSize } from "../App";
+import { matchSize } from "../../utils/appUtils";
 import { Btn } from "../components/shared";
 
 const parsePrice = (priceStr: string) => parseInt(priceStr.replace(/[^0-9]/g, ""), 10);
