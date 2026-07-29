@@ -134,7 +134,10 @@ export class InventoryController {
   // ───────────────────────────────────────────────────────────────────────────
   @Get('branch-ingredients')
   @Permissions(Permission.VIEW_INVENTORY)
-  findBranchIngredientStocks(@Query() query: QueryIngredientStockDto) {
+  findBranchIngredientStocks(@Query() query: QueryIngredientStockDto, @CurrentUser() user: any) {
+    if (user?.role === UserRole.STORE_MANAGER && user?.branchId) {
+      query.branchId = user.branchId;
+    }
     return this.inventoryService.findBranchIngredientStocks(query);
   }
 
@@ -201,7 +204,10 @@ export class InventoryController {
 
   @Get('batches')
   @Permissions(Permission.VIEW_INVENTORY)
-  findStockBatches(@Query() query: QueryStockBatchDto) {
+  findStockBatches(@Query() query: QueryStockBatchDto, @CurrentUser() user: any) {
+    if (user?.role === UserRole.STORE_MANAGER && user?.branchId) {
+      query.branchId = user.branchId;
+    }
     return this.inventoryService.findStockBatches(query);
   }
 

@@ -9,14 +9,15 @@ import {
   ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
 } from "lucide-react";
 import { toast } from "sonner";
-import { getAccessToken } from "../authSession";
+import { getAccessToken, getStoredUser } from "../authSession";
 import { env } from "../../../config/env";
 import { supabase } from "../../../config/supabase";
 import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
 
 export function AdminInventory({ adminUser }: { adminUser?: any }) {
-  const isAdmin = adminUser?.role === "admin";
-  const isStoreManager = adminUser?.role === "store_manager";
+  const currentUser = adminUser || getStoredUser();
+  const isAdmin = currentUser?.role === "admin";
+  const isStoreManager = currentUser?.role === "store_manager";
 
   const [stocks, setStocks] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
@@ -33,8 +34,8 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
   const [branchFilter, setBranchFilter] = useState(() => {
-    if (adminUser?.role === "store_manager" && adminUser?.branchId) {
-      return adminUser.branchId;
+    if (currentUser?.role === "store_manager" && currentUser?.branchId) {
+      return currentUser.branchId;
     }
     return "ALL";
   });
@@ -129,10 +130,10 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
   useEffect(() => {
     loadInventory();
     loadBranches();
-    if (adminUser?.role === "admin") {
+    if (currentUser?.role === "admin") {
       loadAdjustments();
     }
-  }, [adminUser]);
+  }, [currentUser]);
 
   const handleEdit = (stock: any) => {
     setEditingStock(stock);
