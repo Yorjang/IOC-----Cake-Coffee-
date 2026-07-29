@@ -9,12 +9,13 @@ import {
   ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
 } from "lucide-react";
 import { toast } from "sonner";
-import { getAccessToken } from "../authSession";
+import { getAccessToken, getStoredUser } from "../authSession";
 import { env } from "../../../config/env";
 import { supabase } from "../../../config/supabase";
 import { ImageUploader, StatusBadge, AdminBtn, TableHeader, deleteStorageImage } from "./AdminShared";
 
 export function AdminCategories() {
+  const isAdmin = getStoredUser()?.role === "admin";
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -67,7 +68,9 @@ export function AdminCategories() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-foreground">Quản lý danh mục</h2>
-        <AdminBtn onClick={openAdd}><span className="flex items-center gap-1"><Plus size={14} />Thêm danh mục</span></AdminBtn>
+        {isAdmin && (
+          <AdminBtn onClick={openAdd}><span className="flex items-center gap-1"><Plus size={14} />Thêm danh mục</span></AdminBtn>
+        )}
       </div>
       {loading ? <div className="py-10 text-center text-muted-foreground"><Loader2 className="inline animate-spin mr-2" size={16} />Đang tải…</div> : (
         <div className="overflow-auto rounded-2xl bg-sidebar">
