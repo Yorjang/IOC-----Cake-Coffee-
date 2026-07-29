@@ -367,6 +367,18 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
     return "Đủ hàng";
   };
 
+  const getItemName = (s: any) => {
+    if (s.isIngredient) return s.ingredient?.name;
+    if (!s.variant) return undefined;
+    const prodName = s.variant.product?.name;
+    const varName = s.variant.variantName;
+    if (prodName && varName) {
+      if (varName.toLowerCase().startsWith(prodName.toLowerCase())) return varName;
+      return `${prodName} - ${varName}`;
+    }
+    return prodName || varName;
+  };
+
   const filteredStocks = stocks.filter(s => {
     if (branchFilter !== "ALL" && s.branchId !== branchFilter) return false;
     if (typeFilter !== "ALL") {
@@ -374,7 +386,7 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
       if (typeFilter === "INGREDIENT" && !s.isIngredient) return false;
     }
     if (variantFilter !== "ALL") {
-      const name = s.isIngredient ? s.ingredient?.name : s.variant?.variantName;
+      const name = getItemName(s);
       if (name !== variantFilter) return false;
     }
     return true;
@@ -391,10 +403,10 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
   const uniqueVariants = Array.from(
     new Set(
       filteredBranchStocks
-        .map(s => s.isIngredient ? s.ingredient?.name : s.variant?.variantName)
+        .map(getItemName)
         .filter(Boolean)
     )
-  );
+  ).sort((a: any, b: any) => String(a).localeCompare(String(b), "vi"));
 
   const totalSKU = filteredStocks.length;
   const lowStock = filteredStocks.filter(s => {
