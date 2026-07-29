@@ -1,5 +1,5 @@
-import { IsString, IsNotEmpty, IsUUID, IsNumber, IsOptional, IsDateString, IsEnum, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 import { BatchStatus } from '../entities/stock-batch.entity';
 
 export class CreateStockBatchDto {

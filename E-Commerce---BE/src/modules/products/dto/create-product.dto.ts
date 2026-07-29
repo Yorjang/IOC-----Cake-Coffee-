@@ -1,5 +1,5 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsUUID, IsEnum, ValidateNested, IsArray } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsArray, IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
 import { ProductType } from '../product.entity';
 import { CreateProductVariantDto } from './product-variant.dto';
 

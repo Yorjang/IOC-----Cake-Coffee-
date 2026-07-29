@@ -1,5 +1,5 @@
-import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it, jest } from '@jest/globals';
+import { BadRequestException } from '@nestjs/common';
 import { DataSource, EntityManager, FindOperator, Repository } from 'typeorm';
 import { ProductVariant } from '../products/product-variant.entity';
 import { Product, ProductType } from '../products/product.entity';

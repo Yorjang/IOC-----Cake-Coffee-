@@ -1,14 +1,14 @@
-import { parseRes } from '../../../../utils/api';
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { parseRes } from '../../../../utils/api';
 
-import { storeLocations as fallbackStoreLocations, type StoreLocation } from "../../../../data/storeLocations";
-import { env } from "../../../../config/env";
 import { VIEW_KEYS } from "../../../../config/appConfig";
-import { getDiscountedPrice } from "../../../components/shared";
+import { env } from "../../../../config/env";
+import { storeLocations as fallbackStoreLocations, type StoreLocation } from "../../../../data/storeLocations";
 import { clearAuthSession, getAccessToken, getAccessTokenExpiry, getStoredUser, refreshAuthSession } from "../../../components/authSession";
-import { rememberTrackingOrder } from "../../order-tracking/services/orderTrackingService";
+import { getDiscountedPrice } from "../../../components/shared";
 import { getAvailableCoupons } from "../../coupons/services/couponService";
+import { rememberTrackingOrder } from "../../order-tracking/services/orderTrackingService";
 import { getCatalogProducts } from "../services/catalogService";
 
 export const matchSize = (itemSize: string, targetSize: string): boolean => {

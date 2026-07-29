@@ -1,9 +1,9 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { StatisticsService } from './statistics.service';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../users/user.entity';
+import { StatisticsService } from './statistics.service';
 
 @Controller(['admin/statistics', 'statistics'])
 export class StatisticsController {

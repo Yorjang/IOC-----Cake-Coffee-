@@ -1,18 +1,16 @@
 import { parseRes } from '../../../utils/api';
 
-import React, { useState, useEffect } from "react";
 import {
-  LayoutDashboard, Package, Tag, Settings, ShoppingBag, Users, Star,
-  BarChart2, Image, Edit, Trash2, Eye, Plus, CheckCircle, XCircle,
-  TrendingUp, AlertCircle, Loader2, ToggleLeft, Search, Filter,
-  ArrowUpRight, DollarSign, Clock, ChevronDown, Store, MapPin, Boxes,
-  ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
+  Edit,
+  Loader2,
+  Plus,
+  Trash2
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { getAccessToken } from "../authSession";
 import { env } from "../../../config/env";
-import { supabase } from "../../../config/supabase";
-import { ImageUploader, StatusBadge, AdminBtn, TableHeader, deleteStorageImage } from "./AdminShared";
+import { getAccessToken } from "../authSession";
+import { AdminBtn, ImageUploader, StatusBadge, TableHeader, deleteStorageImage } from "./AdminShared";
 
 export function AdminCategories() {
   const [items, setItems] = useState<any[]>([]);

@@ -1,6 +1,6 @@
-import { parseRes } from '../../utils/api';
 import { toast } from "sonner";
 import { env } from "../../config/env";
+import { parseRes } from '../../utils/api';
 import { saveAuthSession } from "./authSession";
 
 export type AuthMode = "login" | "register" | "forgot" | "reset";

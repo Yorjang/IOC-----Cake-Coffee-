@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { Check, ChevronLeft, ChevronRight, Coffee, Gift, RefreshCw, Tag, Truck } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Truck, Gift, RefreshCw, Coffee, AlertCircle, Check, Tag, ChevronRight, ChevronLeft, Plus, MapPin, Loader2, PlayCircle, BookOpen, Users, ChefHat } from "lucide-react";
-import { ProductCard, HorizontalProductCard, Section } from "../components/shared";
-import { MESSAGES } from "../../constants/messages";
-import { env } from "../../config/env";
 import { HOME_CONFIG, VIEW_KEYS } from "../../config/appConfig";
+import { env } from "../../config/env";
+import { MESSAGES } from "../../constants/messages";
+import { HorizontalProductCard, ProductCard, Section } from "../components/shared";
 import { getFeaturedParentCategories } from "../features/categories/categoryHierarchy";
 
 

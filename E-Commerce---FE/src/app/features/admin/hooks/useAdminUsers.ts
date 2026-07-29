@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { getAccessToken } from "../../../components/authSession";
 import { env } from "../../../../config/env";
 import { parseRes } from "../../../../utils/api";
+import { getAccessToken } from "../../../components/authSession";
 
 export function useAdminUsers() {
   const [adminUsers, setAdminUsers] = useState<any[]>([]);

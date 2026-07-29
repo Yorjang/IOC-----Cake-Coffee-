@@ -1,31 +1,31 @@
-import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, LessThanOrEqual, Between, Like } from 'typeorm';
-import { BranchVariantStock } from './branch-variant-stock.entity';
-import { Ingredient } from './entities/ingredient.entity';
-import { BranchIngredientStock } from './entities/branch-ingredient-stock.entity';
-import { VariantIngredient } from './entities/variant-ingredient.entity';
-import { StockBatch, BatchStatus } from './entities/stock-batch.entity';
-import { InventoryTransaction, InventoryTransactionType } from './entities/inventory-transaction.entity';
-import { PurchaseOrder, PurchaseOrderStatus } from './entities/purchase-order.entity';
-import { PurchaseOrderItem } from './entities/purchase-order-item.entity';
+import { DataSource, Like, Repository } from 'typeorm';
 import { UserRole } from '../users/user.entity';
-import { UpdateInventoryDto } from './dto/update-inventory.dto';
-import { CreateIngredientDto, UpdateIngredientDto } from './dto/create-ingredient.dto';
+import { BranchVariantStock } from './branch-variant-stock.entity';
 import { CreateBranchIngredientStockDto, UpdateBranchIngredientStockDto } from './dto/branch-ingredient-stock.dto';
-import { CreateVariantIngredientDto, BulkSetVariantIngredientsDto } from './dto/variant-ingredient.dto';
-import { CreateStockBatchDto, UpdateStockBatchDto } from './dto/stock-batch.dto';
+import { ConfirmInboundDto } from './dto/confirm-inbound.dto';
+import { CreateIngredientDto, UpdateIngredientDto } from './dto/create-ingredient.dto';
 import { CreateInventoryTransactionDto } from './dto/create-inventory-transaction.dto';
 import { CreatePurchaseOrderDto, QueryPurchaseOrderDto } from './dto/create-purchase-order.dto';
-import { ConfirmInboundDto } from './dto/confirm-inbound.dto';
 import {
-  QueryVariantStockDto,
-  QueryIngredientStockDto,
-  QueryStockBatchDto,
-  QueryInventoryTransactionDto,
   QueryExpiryWarningDto,
+  QueryIngredientStockDto,
+  QueryInventoryTransactionDto,
   QueryLowStockDto,
+  QueryStockBatchDto,
+  QueryVariantStockDto,
 } from './dto/query-inventory.dto';
+import { CreateStockBatchDto, UpdateStockBatchDto } from './dto/stock-batch.dto';
+import { UpdateInventoryDto } from './dto/update-inventory.dto';
+import { BulkSetVariantIngredientsDto, CreateVariantIngredientDto } from './dto/variant-ingredient.dto';
+import { BranchIngredientStock } from './entities/branch-ingredient-stock.entity';
+import { Ingredient } from './entities/ingredient.entity';
+import { InventoryTransaction, InventoryTransactionType } from './entities/inventory-transaction.entity';
+import { PurchaseOrderItem } from './entities/purchase-order-item.entity';
+import { PurchaseOrder, PurchaseOrderStatus } from './entities/purchase-order.entity';
+import { BatchStatus, StockBatch } from './entities/stock-batch.entity';
+import { VariantIngredient } from './entities/variant-ingredient.entity';
 
 @Injectable()
 export class InventoryService {

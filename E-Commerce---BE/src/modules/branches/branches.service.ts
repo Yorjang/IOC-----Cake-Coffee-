@@ -6,15 +6,15 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
+import { User, UserRole } from "../users/user.entity";
+import { BranchOpeningHour, DayOfWeek } from "./branch-opening-hour.entity";
+import { Branch, BranchStatus } from "./branch.entity";
 import { CreateBranchDto } from "./dto/create-branch.dto";
 import { UpdateBranchDto } from "./dto/update-branch.dto";
-import { Branch, BranchStatus } from "./branch.entity";
-import { BranchOpeningHour, DayOfWeek } from "./branch-opening-hour.entity";
 import {
   UpdateOpeningHoursDto,
   UpsertOpeningHourDto,
 } from "./dto/upsert-opening-hour.dto";
-import { User, UserRole } from "../users/user.entity";
 
 export type BranchWithDistance = Branch & {
   distanceKm: number;

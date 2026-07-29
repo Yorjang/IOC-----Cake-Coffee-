@@ -1,36 +1,35 @@
 import { Component, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Toaster } from "./components/ui/sonner";
 import { parseRes } from "../utils/api";
+import { Toaster } from "./components/ui/sonner";
 
 import { AdminPanel } from "./components/AdminPanel";
-import { StaffPanel } from "./components/StaffPanel";
 import { AuthPage } from "./components/AuthPage";
-import { ReviewPage } from "./components/ReviewPage";
-import { LoadingScreen } from "./components/LoadingScreen";
-import { Header } from "./components/Header";
-import { Footer } from "./components/Footer";
-import { StoreSelectionModal } from "./components/StoreSelectionModal";
 import { FloatingContact } from "./components/FloatingContact";
+import { Footer } from "./components/Footer";
+import { Header } from "./components/Header";
+import { LoadingScreen } from "./components/LoadingScreen";
 import { SalesNotification } from "./components/SalesNotification";
+import { StaffPanel } from "./components/StaffPanel";
+import { StoreSelectionModal } from "./components/StoreSelectionModal";
 
-import { Home } from "./pages/Home";
-import { ProductListing } from "./pages/ProductListing";
-import { ProductDetail } from "./pages/ProductDetail";
 import { Cart } from "./pages/Cart";
 import { Checkout } from "./pages/Checkout";
-import { Success } from "./pages/Success";
 import { Favorites } from "./pages/Favorites";
+import { Home } from "./pages/Home";
+import { OrderTracking } from "./pages/OrderTracking";
+import { PolicyPage } from "./pages/PolicyPage";
+import { ProductDetail } from "./pages/ProductDetail";
+import { ProductListing } from "./pages/ProductListing";
 import { Profile } from "./pages/Profile";
 import { StoreMap } from "./pages/StoreMap";
-import { PolicyPage } from "./pages/PolicyPage";
-import { OrderTracking } from "./pages/OrderTracking";
+import { Success } from "./pages/Success";
 
-import { storeLocations as fallbackStoreLocations, type StoreLocation } from "../data/storeLocations";
+import { NAV_PAGES, VIEW_KEYS } from "../config/appConfig";
 import { env } from "../config/env";
-import { VIEW_KEYS, NAV_PAGES } from "../config/appConfig";
-import { getDiscountedPrice } from "./components/shared";
+import { storeLocations as fallbackStoreLocations, type StoreLocation } from "../data/storeLocations";
 import { clearAuthSession, getAccessToken, getAccessTokenExpiry, getStoredUser, refreshAuthSession } from "./components/authSession";
+import { getDiscountedPrice } from "./components/shared";
 
 export const matchSize = (itemSize: string, targetSize: string): boolean => {
   if (!targetSize) return true;

@@ -1,6 +1,5 @@
-import React from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { ImageUploader, AdminBtn } from '../../../components/admin/AdminShared';
+import { AdminBtn, ImageUploader } from '../../../components/admin/AdminShared';
 
 export function AdminProductModal({
   showModal,

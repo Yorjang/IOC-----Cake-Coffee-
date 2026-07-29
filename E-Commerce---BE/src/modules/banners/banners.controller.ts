@@ -1,13 +1,13 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Permission } from '../../common/constants/permissions';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Permissions } from '../../common/decorators/permissions.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { Permissions } from '../../common/decorators/permissions.decorator';
-import { Permission } from '../../common/constants/permissions';
-import { Public } from '../../common/decorators/public.decorator';
+import { User } from '../users/user.entity';
 import { BannersService } from './banners.service';
 import { CreateBannerDto } from './dto/create-banner.dto';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { User } from '../users/user.entity';
 
 @Controller(['admin/banners', 'banners'])
 @UseGuards(JwtAuthGuard, PermissionsGuard)

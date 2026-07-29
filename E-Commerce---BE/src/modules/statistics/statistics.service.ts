@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Order, OrderStatus } from '../orders/order.entity';
-import { OrderItem } from '../orders/order-item.entity';
 import { Branch } from '../branches/branch.entity';
+import { OrderItem } from '../orders/order-item.entity';
+import { Order, OrderStatus } from '../orders/order.entity';
 
 @Injectable()
 export class StatisticsService {

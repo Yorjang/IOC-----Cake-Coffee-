@@ -1,5 +1,5 @@
-import { IsUUID, IsNumber, IsOptional, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsNumber, IsOptional, IsUUID, Min } from 'class-validator';
 
 export class CreateBranchIngredientStockDto {
   @IsUUID()

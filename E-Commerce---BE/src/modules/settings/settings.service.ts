@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Setting } from './setting.entity';
 import { UpdateSettingDto } from './dto/update-setting.dto';
+import { Setting } from './setting.entity';
 
 @Injectable()
 export class SettingsService {

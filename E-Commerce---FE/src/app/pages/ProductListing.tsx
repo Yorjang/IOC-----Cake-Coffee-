@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
-import { ProductCard } from "../components/shared";
-import { CATEGORY_GROUPS, VIEW_KEYS } from "../../config/appConfig";
 import { SlidersHorizontal } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CATEGORY_GROUPS, VIEW_KEYS } from "../../config/appConfig";
+import { ProductCard } from "../components/shared";
 import { getCategoryChildren, isProductInCategoryGroup } from "../features/categories/categoryHierarchy";
 
 // Helper utilities for prices

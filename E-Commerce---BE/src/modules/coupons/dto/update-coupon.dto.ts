@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsNumber, IsDateString, Min, IsUUID, IsBoolean } from 'class-validator';
+import { IsBoolean, IsDateString, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 import { DiscountType } from '../coupon.entity';
 
 export class UpdateCouponDto {

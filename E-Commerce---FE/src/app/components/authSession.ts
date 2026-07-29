@@ -1,5 +1,5 @@
-import { parseRes } from '../../utils/api';
 import { env } from "../../config/env";
+import { parseRes } from '../../utils/api';
 
 const AUTH_KEYS = ["accessToken", "refreshToken", "user"] as const;
 const REMEMBER_KEY = "sb_remember_login";

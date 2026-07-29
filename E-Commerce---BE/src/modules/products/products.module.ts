@@ -1,13 +1,13 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Category } from './category.entity';
-import { Product } from './product.entity';
-import { ProductVariant } from './product-variant.entity';
-import { ProductTopping } from './product-topping.entity';
-import { ProductTag } from './product-tag.entity';
-import { ProductsService } from './products.service';
-import { ProductsController } from './products.controller';
 import { UsersModule } from '../users/users.module';
+import { Category } from './category.entity';
+import { ProductTag } from './product-tag.entity';
+import { ProductTopping } from './product-topping.entity';
+import { ProductVariant } from './product-variant.entity';
+import { Product } from './product.entity';
+import { ProductsController } from './products.controller';
+import { ProductsService } from './products.service';
 
 @Module({
     imports: [

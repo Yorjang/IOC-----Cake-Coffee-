@@ -1,9 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Branch } from '../../branches/branch.entity';
-import { Ingredient } from './ingredient.entity';
 import { ProductVariant } from '../../products/product-variant.entity';
-import { StockBatch } from './stock-batch.entity';
 import { User } from '../../users/user.entity';
+import { Ingredient } from './ingredient.entity';
+import { StockBatch } from './stock-batch.entity';
 
 export enum InventoryTransactionType {
   IMPORT = 'IMPORT',

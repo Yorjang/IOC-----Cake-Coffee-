@@ -1,15 +1,15 @@
-import {
-  IsNotEmpty,
-  IsUUID,
-  IsNumber,
-  Min,
-  IsArray,
-  ValidateNested,
-  IsOptional,
-  IsDateString,
-  IsString,
-} from 'class-validator';
 import { Type } from 'class-transformer';
+import {
+  IsArray,
+  IsDateString,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 
 export class ConfirmInboundItemDto {
   @IsNotEmpty()

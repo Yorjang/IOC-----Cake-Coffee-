@@ -11,28 +11,28 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { Permissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../../common/constants/permissions';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { InventoryService } from './inventory.service';
-import { UpdateInventoryDto } from './dto/update-inventory.dto';
-import { CreateIngredientDto, UpdateIngredientDto } from './dto/create-ingredient.dto';
+import { Permissions } from '../../common/decorators/permissions.decorator';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { CreateBranchIngredientStockDto, UpdateBranchIngredientStockDto } from './dto/branch-ingredient-stock.dto';
-import { CreateVariantIngredientDto, BulkSetVariantIngredientsDto } from './dto/variant-ingredient.dto';
-import { CreateStockBatchDto, UpdateStockBatchDto } from './dto/stock-batch.dto';
+import { ConfirmInboundDto } from './dto/confirm-inbound.dto';
+import { CreateIngredientDto, UpdateIngredientDto } from './dto/create-ingredient.dto';
 import { CreateInventoryTransactionDto } from './dto/create-inventory-transaction.dto';
 import { CreatePurchaseOrderDto, QueryPurchaseOrderDto } from './dto/create-purchase-order.dto';
-import { ConfirmInboundDto } from './dto/confirm-inbound.dto';
 import {
-  QueryVariantStockDto,
-  QueryIngredientStockDto,
-  QueryStockBatchDto,
-  QueryInventoryTransactionDto,
   QueryExpiryWarningDto,
+  QueryIngredientStockDto,
+  QueryInventoryTransactionDto,
   QueryLowStockDto,
+  QueryStockBatchDto,
+  QueryVariantStockDto,
 } from './dto/query-inventory.dto';
+import { CreateStockBatchDto, UpdateStockBatchDto } from './dto/stock-batch.dto';
+import { UpdateInventoryDto } from './dto/update-inventory.dto';
+import { BulkSetVariantIngredientsDto, CreateVariantIngredientDto } from './dto/variant-ingredient.dto';
+import { InventoryService } from './inventory.service';
 
 @Controller(['admin/inventory', 'inventory'])
 @UseGuards(JwtAuthGuard, PermissionsGuard)

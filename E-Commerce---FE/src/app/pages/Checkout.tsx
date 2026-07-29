@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
-import { Truck, CreditCard, Store, MapPin, ShieldAlert, Clock, Crosshair, CheckCircle2, Loader2 } from "lucide-react";
-import { Btn } from "../components/shared";
+import { CheckCircle2, Clock, CreditCard, Crosshair, Loader2, MapPin, ShieldAlert, Store, Truck } from "lucide-react";
 import { CHECKOUT_CONFIG } from "../../config/appConfig";
+import { Btn } from "../components/shared";
 import { useCheckout } from "../features/checkout/hooks/useCheckout";
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
