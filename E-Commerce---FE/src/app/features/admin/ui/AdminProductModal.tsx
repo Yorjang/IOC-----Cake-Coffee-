@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, FlaskConical } from 'lucide-react';
 import { ImageUploader, AdminBtn } from '../../../components/admin/AdminShared';
 
 export function AdminProductModal({
@@ -21,7 +21,10 @@ export function AdminProductModal({
   saving,
   branches,
   isAdmin,
-  isManager
+  isManager,
+  ingredients = [],
+  variantRecipes = {},
+  updateVariantRecipe,
 }: any) {
   if (!showModal) return null;
 
@@ -100,6 +103,84 @@ export function AdminProductModal({
                       <input value={variant.imageUrl || ""} onChange={e => updateVariantForm(index, { imageUrl: e.target.value })} className="rounded-lg bg-sidebar px-3 py-2 text-sm text-foreground outline-none" placeholder="https://..." />
                     </label>
                   </div>
+
+                  {/* === CÔNG THỨC NGUYÊN LIỆU (chỉ coffee/drink) === */}
+                  {(form.productType === 'coffee' || form.productType === 'drink') && variant.id && (
+                    <div className="mt-3 rounded-xl border border-dashed border-sidebar-accent p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                          <FlaskConical size={13} className="text-primary" />
+                          Công thức nguyên liệu
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = variantRecipes[variant.id] || [];
+                            updateVariantRecipe(variant.id, [...current, { ingredientId: '', quantityRequired: 0, unit: 'g' }]);
+                          }}
+                          className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium text-primary bg-primary/10 hover:bg-primary/20 transition"
+                        >
+                          <Plus size={11} /> Thêm nguyên liệu
+                        </button>
+                      </div>
+
+                      {(variantRecipes[variant.id] || []).length === 0 ? (
+                        <p className="text-[11px] text-muted-foreground text-center py-2">Chưa có công thức. Bấm "+ Thêm nguyên liệu" để bắt đầu.</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {(variantRecipes[variant.id] || []).map((row: any, rowIdx: number) => (
+                            <div key={rowIdx} className="flex items-center gap-2">
+                              <select
+                                value={row.ingredientId || ''}
+                                onChange={e => {
+                                  const updated = [...(variantRecipes[variant.id] || [])];
+                                  updated[rowIdx] = { ...updated[rowIdx], ingredientId: e.target.value };
+                                  updateVariantRecipe(variant.id, updated);
+                                }}
+                                className="flex-1 rounded-lg bg-sidebar px-2 py-1.5 text-xs text-foreground outline-none"
+                              >
+                                <option value="">-- Chọn nguyên liệu --</option>
+                                {ingredients.map((ing: any) => (
+                                  <option key={ing.id} value={ing.id}>{ing.name} ({ing.unit})</option>
+                                ))}
+                              </select>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.1"
+                                value={row.quantityRequired || ''}
+                                onChange={e => {
+                                  const updated = [...(variantRecipes[variant.id] || [])];
+                                  updated[rowIdx] = { ...updated[rowIdx], quantityRequired: Number(e.target.value) };
+                                  updateVariantRecipe(variant.id, updated);
+                                }}
+                                className="w-20 rounded-lg bg-sidebar px-2 py-1.5 text-xs text-foreground outline-none text-right"
+                                placeholder="0"
+                              />
+                              <span className="text-[10px] text-muted-foreground w-6 text-center">
+                                {ingredients.find((ing: any) => ing.id === row.ingredientId)?.unit || 'g'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = (variantRecipes[variant.id] || []).filter((_: any, i: number) => i !== rowIdx);
+                                  updateVariantRecipe(variant.id, updated);
+                                }}
+                                className="rounded-lg p-1 text-red-400 hover:bg-red-500/10 transition"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {(form.productType === 'coffee' || form.productType === 'drink') && !variant.id && (
+                    <p className="mt-2 text-[10px] text-amber-500 bg-amber-500/10 rounded-lg px-3 py-1.5">
+                      ⚠️ Lưu sản phẩm trước, rồi mở lại để thêm công thức nguyên liệu.
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

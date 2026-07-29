@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { Product } from './product.entity';
+import { VariantIngredient } from '../inventory/entities/variant-ingredient.entity';
 
 export enum VariantStatus {
     ACTIVE = 'active',
@@ -52,4 +53,7 @@ export class ProductVariant {
 
     @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
     updatedAt: Date;
+
+    @OneToMany(() => VariantIngredient, (vi) => vi.variant)
+    variantIngredients: VariantIngredient[];
 }

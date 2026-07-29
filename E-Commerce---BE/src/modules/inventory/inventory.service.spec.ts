@@ -13,6 +13,7 @@ import { StockBatch, BatchStatus } from './entities/stock-batch.entity';
 import { InventoryTransaction, InventoryTransactionType } from './entities/inventory-transaction.entity';
 import { PurchaseOrder, PurchaseOrderStatus } from './entities/purchase-order.entity';
 import { PurchaseOrderItem } from './entities/purchase-order-item.entity';
+import { InventoryAdjustmentRequest, AdjustmentRequestStatus } from './entities/inventory-adjustment-request.entity';
 import { UserRole } from '../users/user.entity';
 
 describe('InventoryService', () => {
@@ -26,6 +27,7 @@ describe('InventoryService', () => {
   let transactionRepo: jest.Mocked<Repository<InventoryTransaction>>;
   let poRepo: jest.Mocked<Repository<PurchaseOrder>>;
   let poItemRepo: jest.Mocked<Repository<PurchaseOrderItem>>;
+  let adjustmentRepo: jest.Mocked<Repository<InventoryAdjustmentRequest>>;
   let dataSource: jest.Mocked<DataSource>;
 
   const mockQueryRunner: any = {
@@ -63,6 +65,7 @@ describe('InventoryService', () => {
         { provide: getRepositoryToken(InventoryTransaction), useValue: createMockRepo() },
         { provide: getRepositoryToken(PurchaseOrder), useValue: createMockRepo() },
         { provide: getRepositoryToken(PurchaseOrderItem), useValue: createMockRepo() },
+        { provide: getRepositoryToken(InventoryAdjustmentRequest), useValue: createMockRepo() },
         {
           provide: DataSource,
           useValue: {
@@ -81,11 +84,14 @@ describe('InventoryService', () => {
     transactionRepo = module.get(getRepositoryToken(InventoryTransaction));
     poRepo = module.get(getRepositoryToken(PurchaseOrder));
     poItemRepo = module.get(getRepositoryToken(PurchaseOrderItem));
+    adjustmentRepo = module.get(getRepositoryToken(InventoryAdjustmentRequest));
     dataSource = module.get(DataSource);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
+    mockQueryRunner.manager.save.mockReset();
+    mockQueryRunner.manager.save.mockImplementation((entityClassOrObj: any, obj?: any) => Promise.resolve(obj || entityClassOrObj));
   });
 
   describe('SP2-10: Master Data Ingredient Management', () => {
@@ -266,6 +272,123 @@ describe('InventoryService', () => {
 
       expect(result.totalAlerts).toBe(1);
       expect(result.lowStockIngredients[0].shortfall).toBe(8);
+    });
+  });
+
+  describe('Stock Adjustment Requests Approval Workflow', () => {
+    const mockBranchId = 'branch-uuid-hn1';
+    const mockStock = {
+      id: 'stock-uuid-01',
+      branchId: mockBranchId,
+      variantId: 'var-uuid-01',
+      quantity: 100,
+      minQuantity: 10,
+    } as any;
+
+    const mockRequest = {
+      id: 'req-uuid-01',
+      branchId: mockBranchId,
+      variantId: 'var-uuid-01',
+      currentQuantity: 100,
+      requestedQuantity: 120,
+      currentMinQuantity: 10,
+      requestedMinQuantity: 15,
+      status: AdjustmentRequestStatus.PENDING,
+      requestedById: 'user-manager-id',
+    } as any;
+
+    it('should allow Store Manager to request a stock adjustment (creates pending request)', async () => {
+      variantStockRepo.findOne.mockResolvedValue(mockStock);
+      adjustmentRepo.findOne.mockResolvedValue(null);
+      adjustmentRepo.save.mockResolvedValue({ ...mockRequest, id: 'new-req-uuid' });
+
+      const storeManager = {
+        id: 'user-manager-id',
+        role: UserRole.STORE_MANAGER,
+        branchId: mockBranchId,
+      };
+
+      const res = await service.updateVariantStock('stock-uuid-01', { quantity: 120, minQuantity: 15, reason: 'Hụt hàng thực tế', imageUrl: 'http://test.com/img.png' }, storeManager);
+
+      expect(res.pending).toBe(true);
+      expect(adjustmentRepo.create).toHaveBeenCalled();
+      expect(adjustmentRepo.save).toHaveBeenCalled();
+    });
+
+    it('should update pending request if one already exists for Store Manager', async () => {
+      variantStockRepo.findOne.mockResolvedValue(mockStock);
+      adjustmentRepo.findOne.mockResolvedValue(mockRequest);
+      adjustmentRepo.save.mockResolvedValue({ ...mockRequest, requestedQuantity: 130 });
+
+      const storeManager = {
+        id: 'user-manager-id',
+        role: UserRole.STORE_MANAGER,
+        branchId: mockBranchId,
+      };
+
+      const res = await service.updateVariantStock('stock-uuid-01', { quantity: 130, reason: 'Cập nhật lý do mới', imageUrl: 'http://test.com/img2.png' }, storeManager);
+
+      expect(res.pending).toBe(true);
+      expect(mockRequest.requestedQuantity).toBe(130);
+      expect(adjustmentRepo.save).toHaveBeenCalledWith(mockRequest);
+    });
+
+    it('should reject Store Manager adjustment request if branch isolation is violated', async () => {
+      variantStockRepo.findOne.mockResolvedValue(mockStock);
+
+      const otherBranchManager = {
+        id: 'user-manager-id',
+        role: UserRole.STORE_MANAGER,
+        branchId: 'other-branch-uuid',
+      };
+
+      await expect(
+        service.updateVariantStock('stock-uuid-01', { quantity: 120 }, otherBranchManager),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should allow Admin to directly update stock without pending request', async () => {
+      variantStockRepo.findOne.mockResolvedValue(mockStock);
+      variantStockRepo.save.mockResolvedValue({ ...mockStock, quantity: 120 });
+
+      const adminUser = {
+        id: 'admin-id',
+        role: UserRole.ADMIN,
+      };
+
+      const res: any = await service.updateVariantStock('stock-uuid-01', { quantity: 120 }, adminUser);
+
+      expect(res.pending).toBe(false);
+      expect(variantStockRepo.save).toHaveBeenCalled();
+      expect(res.quantity).toBe(120);
+    });
+
+    it('should allow Admin to approve a pending request', async () => {
+      adjustmentRepo.findOne.mockResolvedValue(mockRequest);
+
+      mockQueryRunner.manager.findOne.mockImplementation((entity: any) => {
+        if (entity === BranchVariantStock) return Promise.resolve(mockStock);
+        return Promise.resolve(null);
+      });
+
+      const res = await service.approveAdjustment('req-uuid-01', 'admin-id');
+
+      expect(mockQueryRunner.startTransaction).toHaveBeenCalled();
+      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
+      expect(mockRequest.status).toBe(AdjustmentRequestStatus.APPROVED);
+      expect(mockRequest.approvedById).toBe('admin-id');
+    });
+
+    it('should allow Admin to reject a pending request', async () => {
+      adjustmentRepo.findOne.mockResolvedValue(mockRequest);
+      // Reset status to pending
+      mockRequest.status = AdjustmentRequestStatus.PENDING;
+
+      const res = await service.rejectAdjustment('req-uuid-01', 'admin-id');
+
+      expect(adjustmentRepo.save).toHaveBeenCalled();
+      expect(mockRequest.status).toBe(AdjustmentRequestStatus.REJECTED);
+      expect(mockRequest.approvedById).toBe('admin-id');
     });
   });
 });

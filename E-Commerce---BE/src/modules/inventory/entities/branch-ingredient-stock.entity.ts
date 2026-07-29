@@ -22,7 +22,7 @@ export class BranchIngredientStock {
   @JoinColumn({ name: 'ingredient_id' })
   ingredient: Ingredient;
 
-  @Column({ type: 'numeric', precision: 12, scale: 3, default: 0 })
+  @Column({ name: 'current_stock', type: 'numeric', precision: 12, scale: 3, default: 0 })
   quantity: number;
 
   @Column({ name: 'min_stock_level', type: 'numeric', precision: 12, scale: 3, default: 0 })

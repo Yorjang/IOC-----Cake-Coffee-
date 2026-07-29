@@ -60,6 +60,10 @@ export class OrdersService {
         order.paidAt = new Date();
       }
 
+      if (status === OrderStatus.CANCELLED && previousStatus !== OrderStatus.CANCELLED) {
+        await this.restoreStocks(order.id, order.branchId, manager);
+      }
+
       const savedOrder = await orderRepository.save(order);
       await manager.getRepository(OrderStatusHistory).save({
         orderId: order.id,
@@ -353,7 +357,13 @@ export class OrdersService {
     const finalDiscount = calculatedDiscount > 0 ? calculatedDiscount : Number(discountAmount || 0);
     const finalTotalAmount = totalAmount !== undefined ? Number(totalAmount) : (finalSubtotal - finalDiscount + Number(shippingFee));
 
-    // 1. Validate stocks
+    // 1. Validate stocks (physical + ingredients)
+    const stockUpdates: Array<{
+      variantId: string;
+      usedPhysical: number;
+      usedIngredients: Array<{ ingredientId: string; qty: number }>;
+    }> = [];
+
     for (const item of items) {
       const stockRes = await this.orders.query(
         'SELECT quantity FROM branch_variant_stocks WHERE branch_id = $1 AND variant_id = $2',
@@ -362,23 +372,90 @@ export class OrdersService {
       if (stockRes.length === 0) {
         throw new BadRequestException(`Sản phẩm ${item.productName} hiện không khả dụng tại chi nhánh này (Chưa có dữ liệu kho).`);
       }
-      
-      const availableQty = Number(stockRes[0].quantity);
-      // BUG-002 FIX: Re-enable stock validation
-      if (availableQty < item.quantity) {
-        throw new BadRequestException(`Sản phẩm ${item.productName} (${item.variantName}) không đủ số lượng tồn kho (Còn lại: ${availableQty}).`);
+      const physicalQty = Number(stockRes[0].quantity || 0);
+
+      // Get recipe ingredients
+      const recipe = await this.orders.query(
+        'SELECT ingredient_id, quantity_required FROM variant_ingredients WHERE variant_id = $1',
+        [item.variantId]
+      );
+
+      if (recipe.length === 0) {
+        // No recipe: regular physical check
+        if (physicalQty < item.quantity) {
+          throw new BadRequestException(`Sản phẩm ${item.productName} (${item.variantName}) không đủ số lượng tồn kho (Còn lại: ${physicalQty}).`);
+        }
+        stockUpdates.push({
+          variantId: item.variantId,
+          usedPhysical: item.quantity,
+          usedIngredients: [],
+        });
+      } else {
+        // Has recipe: calculate max possible from ingredients
+        const ingredientIds = recipe.map((ri: any) => ri.ingredient_id);
+        const ingStocks = await this.orders.query(
+          'SELECT ingredient_id, current_stock FROM branch_ingredient_stocks WHERE branch_id = $1 AND ingredient_id = ANY($2)',
+          [branchId, ingredientIds]
+        );
+        const ingStockMap = new Map<string, number>(
+          ingStocks.map((s: any) => [s.ingredient_id, Number(s.current_stock || 0)])
+        );
+
+        let maxSellable = Infinity;
+        for (const ri of recipe) {
+          const availableIngQty = ingStockMap.get(ri.ingredient_id) || 0;
+          const reqQty = Number(ri.quantity_required || 0);
+          if (reqQty > 0) {
+            const possible = Math.floor(availableIngQty / reqQty);
+            if (possible < maxSellable) {
+              maxSellable = possible;
+            }
+          }
+        }
+        if (maxSellable === Infinity) maxSellable = 0;
+
+        const totalAvailable = physicalQty + maxSellable;
+        if (totalAvailable < item.quantity) {
+          throw new BadRequestException(`Sản phẩm ${item.productName} (${item.variantName}) không đủ số lượng tồn kho (Còn lại: ${totalAvailable}).`);
+        }
+
+        const usedPhysical = Math.min(physicalQty, item.quantity);
+        const remainingToDeduct = item.quantity - usedPhysical;
+        const usedIngredients = [];
+
+        if (remainingToDeduct > 0) {
+          for (const ri of recipe) {
+            const neededIngQty = Number(ri.quantity_required) * remainingToDeduct;
+            usedIngredients.push({
+              ingredientId: ri.ingredient_id,
+              qty: neededIngQty,
+            });
+          }
+        }
+
+        stockUpdates.push({
+          variantId: item.variantId,
+          usedPhysical,
+          usedIngredients,
+        });
       }
     }
 
-    // BUG-008: Update stocks in parallel (was serial N queries)
-    await Promise.all(
-      items.map((item: any) =>
-        this.orders.query(
+    // 2. Perform updates
+    for (const update of stockUpdates) {
+      if (update.usedPhysical > 0) {
+        await this.orders.query(
           'UPDATE branch_variant_stocks SET quantity = quantity - $1 WHERE branch_id = $2 AND variant_id = $3',
-          [item.quantity, branchId, item.variantId]
-        )
-      )
-    );
+          [update.usedPhysical, branchId, update.variantId]
+        );
+      }
+      for (const ingUse of update.usedIngredients) {
+        await this.orders.query(
+          'UPDATE branch_ingredient_stocks SET current_stock = current_stock - $1 WHERE branch_id = $2 AND ingredient_id = $3',
+          [ingUse.qty, branchId, ingUse.ingredientId]
+        );
+      }
+    }
 
     // BUG-006 FIX: Ensure unique constraint exists (safe migration)
     try {
@@ -490,37 +567,41 @@ export class OrdersService {
   }
 
   async cancelMyOrder(id: string, userId: string | null, sessionId: string | null, refundInfo?: any): Promise<Order> {
-    const order = await this.orders.findOne({ where: { id } });
-    if (!order) {
-      throw new BadRequestException('Order not found');
-    }
+    return this.dataSource.transaction(async (manager) => {
+      const orderRepository = manager.getRepository(Order);
+      const order = await orderRepository.findOne({ where: { id } });
+      if (!order) {
+        throw new BadRequestException('Order not found');
+      }
 
-    if (userId) {
-      if (order.userId !== userId) {
+      if (userId) {
+        if (order.userId !== userId) {
+          throw new BadRequestException('Không có quyền hủy đơn hàng này');
+        }
+      } else if (sessionId) {
+        if (order.sessionId !== sessionId) {
+          throw new BadRequestException('Không có quyền hủy đơn hàng này (sai session)');
+        }
+      } else {
         throw new BadRequestException('Không có quyền hủy đơn hàng này');
       }
-    } else if (sessionId) {
-      if (order.sessionId !== sessionId) {
-        throw new BadRequestException('Không có quyền hủy đơn hàng này (sai session)');
+
+      if (order.orderStatus !== OrderStatus.PENDING) {
+        throw new BadRequestException('Chỉ có thể hủy đơn hàng đang ở trạng thái chờ xác nhận');
       }
-    } else {
-      throw new BadRequestException('Không có quyền hủy đơn hàng này');
-    }
 
-    if (order.orderStatus !== OrderStatus.PENDING) {
-      throw new BadRequestException('Chỉ có thể hủy đơn hàng đang ở trạng thái chờ xác nhận');
-    }
-
-    if (order.paymentStatus === 'paid' as any) {
-      if (!refundInfo || !refundInfo.bankName || !refundInfo.accountNumber || !refundInfo.accountName) {
-        throw new BadRequestException('Vui lòng cung cấp đầy đủ thông tin ngân hàng để nhận hoàn tiền.');
+      if (order.paymentStatus === 'paid' as any) {
+        if (!refundInfo || !refundInfo.bankName || !refundInfo.accountNumber || !refundInfo.accountName) {
+          throw new BadRequestException('Vui lòng cung cấp đầy đủ thông tin ngân hàng để nhận hoàn tiền.');
+        }
+        order.paymentStatus = 'refund_pending' as any;
+        order.refundInfo = refundInfo;
       }
-      order.paymentStatus = 'refund_pending' as any;
-      order.refundInfo = refundInfo;
-    }
 
-    order.orderStatus = OrderStatus.CANCELLED;
-    return this.orders.save(order);
+      order.orderStatus = OrderStatus.CANCELLED;
+      await this.restoreStocks(order.id, order.branchId, manager);
+      return orderRepository.save(order);
+    });
   }
 
   async processRefund(id: string): Promise<Order> {
@@ -534,6 +615,33 @@ export class OrdersService {
     
     order.paymentStatus = 'refunded' as any;
     return this.orders.save(order);
+  }
+
+  private async restoreStocks(orderId: string, branchId: string, manager: any) {
+    const items = await manager.query(
+      'SELECT variant_id, quantity FROM order_items WHERE order_id = $1',
+      [orderId]
+    );
+    for (const item of items) {
+      const recipe = await manager.query(
+        'SELECT ingredient_id, quantity_required FROM variant_ingredients WHERE variant_id = $1',
+        [item.variant_id]
+      );
+      if (recipe.length > 0) {
+        for (const ri of recipe) {
+          const returnQty = Number(ri.quantity_required) * Number(item.quantity);
+          await manager.query(
+            'UPDATE branch_ingredient_stocks SET current_stock = current_stock + $1 WHERE branch_id = $2 AND ingredient_id = $3',
+            [returnQty, branchId, ri.ingredient_id]
+          );
+        }
+      } else {
+        await manager.query(
+          'UPDATE branch_variant_stocks SET quantity = quantity + $1 WHERE branch_id = $2 AND variant_id = $3',
+          [item.quantity, branchId, item.variant_id]
+        );
+      }
+    }
   }
 
   async hasPurchasedProduct(userId: string, productId: string): Promise<boolean> {

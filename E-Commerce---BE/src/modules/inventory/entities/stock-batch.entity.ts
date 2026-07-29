@@ -42,19 +42,19 @@ export class StockBatch {
   @JoinColumn({ name: 'variant_id' })
   variant: ProductVariant;
 
-  @Column({ name: 'initial_quantity', type: 'numeric', precision: 12, scale: 3 })
+  @Column({ name: 'quantity_imported', type: 'numeric', precision: 12, scale: 3 })
   initialQuantity: number;
 
-  @Column({ type: 'numeric', precision: 12, scale: 3 })
+  @Column({ name: 'remaining_quantity', type: 'numeric', precision: 12, scale: 3 })
   quantity: number;
 
-  @Column({ name: 'manufacture_date', type: 'timestamptz', nullable: true })
+  @Column({ name: 'manufactured_date', type: 'timestamptz', nullable: true })
   manufactureDate: Date;
 
   @Column({ name: 'expiry_date', type: 'timestamptz' })
   expiryDate: Date;
 
-  @Column({ name: 'received_date', type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ name: 'imported_at', type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   receivedDate: Date;
 
   @Column({ length: 255, nullable: true })
