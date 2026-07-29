@@ -1,5 +1,5 @@
+import { IsUUID, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
-import { IsEnum, IsNumber, IsOptional, IsString, IsUUID } from 'class-validator';
 import { InventoryTransactionType } from '../entities/inventory-transaction.entity';
 
 export class CreateInventoryTransactionDto {

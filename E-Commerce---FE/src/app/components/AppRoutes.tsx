@@ -1,6 +1,7 @@
 import { AdminPanel } from "./AdminPanel";
 import { AuthPage } from "./AuthPage";
 import { StaffPanel } from "./StaffPanel";
+import { AdminLoginPage } from "./AdminLoginPage";
 
 import { Cart } from "../pages/Cart";
 import { Checkout } from "../pages/Checkout";
@@ -30,11 +31,16 @@ export function AppRoutes({
 }: any) {
 
   if (view === VIEW_KEYS.ADMIN) {
-    if (!user || !getAccessToken()) {
-      return <ProtectedRouteRedirect message="Vui lòng đăng nhập từ trang chủ." redirect={setViewInternal} />;
-    }
-    if (!isAdminUser(user)) {
-      return <ProtectedRouteRedirect message="Bạn không có quyền truy cập trang quản trị." redirect={setViewInternal} />;
+    if (!user || !getAccessToken() || !isAdminUser(user)) {
+      return (
+        <AdminLoginPage
+          onSuccess={(u: any) => {
+            setUser(u);
+            setView(VIEW_KEYS.ADMIN);
+          }}
+          onBack={() => setView(VIEW_KEYS.HOME)}
+        />
+      );
     }
     return (
       <AdminErrorBoundary onExit={handleAdminLogout}>

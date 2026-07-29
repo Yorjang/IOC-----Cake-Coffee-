@@ -1,13 +1,13 @@
 import {
+  Entity,
+  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  Entity,
-  Index,
-  JoinColumn,
+  UpdateDateColumn,
   ManyToOne,
   OneToMany,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
+  JoinColumn,
+  Index,
 } from 'typeorm';
 import { Branch } from '../../branches/branch.entity';
 import { User } from '../../users/user.entity';

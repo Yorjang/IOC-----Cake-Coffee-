@@ -1,14 +1,16 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CreateReviewDto } from './dto/create-review.dto';
 import { Review } from './review.entity';
+import { CreateReviewDto } from './dto/create-review.dto';
+import { OrdersService } from '../orders/orders.service';
 
 @Injectable()
 export class ReviewsService {
   constructor(
     @InjectRepository(Review)
     private readonly reviews: Repository<Review>,
+    private readonly ordersService: OrdersService,
   ) {}
 
   async findAll(): Promise<Review[]> {
@@ -46,6 +48,12 @@ export class ReviewsService {
 
   async createReview(userId: string, dto: CreateReviewDto): Promise<Review> {
     const { productId, rating, comment } = dto;
+    
+    const hasPurchased = await this.ordersService.hasPurchasedProduct(userId, productId);
+    if (!hasPurchased) {
+      throw new BadRequestException('Bạn cần mua sản phẩm này và hoàn thành đơn hàng trước khi đánh giá.');
+    }
+
     if (rating < 1 || rating > 5) {
       throw new BadRequestException('Điểm đánh giá phải từ 1 đến 5 sao.');
     }
@@ -62,5 +70,10 @@ export class ReviewsService {
       where: { id: saved.id },
       relations: { user: true }
     });
+  }
+
+  async checkEligibility(userId: string, productId: string): Promise<{ eligible: boolean }> {
+    const hasPurchased = await this.ordersService.hasPurchasedProduct(userId, productId);
+    return { eligible: hasPurchased };
   }
 }

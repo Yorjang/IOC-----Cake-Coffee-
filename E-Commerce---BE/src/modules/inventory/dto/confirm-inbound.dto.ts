@@ -1,15 +1,16 @@
-import { Type } from 'class-transformer';
 import {
-  IsArray,
-  IsDateString,
   IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
   IsUUID,
+  IsNumber,
   Min,
+  IsArray,
   ValidateNested,
+  IsOptional,
+  IsDateString,
+  IsString,
+  IsBoolean,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class ConfirmInboundItemDto {
   @IsNotEmpty()
@@ -32,6 +33,14 @@ export class ConfirmInboundItemDto {
   @IsOptional()
   @IsString()
   batchCode?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isIngredient?: boolean;
+
+  @IsOptional()
+  @IsString()
+  unit?: string;
 }
 
 export class ConfirmInboundDto {

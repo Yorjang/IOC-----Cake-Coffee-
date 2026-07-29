@@ -1,5 +1,5 @@
+import { IsString, IsNotEmpty, IsNumber, IsOptional, IsBoolean, Min, MaxLength } from 'class-validator';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 export class CreateIngredientDto {
   @IsString()

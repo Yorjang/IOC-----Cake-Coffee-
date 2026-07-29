@@ -32,7 +32,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.VIEW_USERS,
     Permission.VIEW_BRANCHES,
     Permission.MANAGE_BRANCHES,
-    Permission.CREATE_PRODUCT,
     Permission.UPDATE_PRODUCT,
     Permission.DELETE_PRODUCT,
     Permission.VIEW_INVENTORY,

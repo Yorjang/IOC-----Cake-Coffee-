@@ -126,7 +126,17 @@ export function AdminCombos() {
   };
 
   return <div className="space-y-5">
-    <div className="flex items-center justify-between gap-3"><div><h2 className="text-2xl font-semibold text-foreground">Quản lý combo</h2><p className="mt-1 text-sm text-muted-foreground">Tạo gói sản phẩm và thiết lập giá bán chung.</p></div><AdminBtn onClick={openAdd}><span className="flex items-center gap-1"><Plus size={14} />Thêm combo</span></AdminBtn></div>
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <h2 className="text-2xl font-semibold text-foreground">Quản lý combo</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Tạo gói sản phẩm và thiết lập giá bán chung.</p>
+      </div>
+      {isAdmin && (
+        <AdminBtn onClick={openAdd}>
+          <span className="flex items-center gap-1"><Plus size={14} />Thêm combo</span>
+        </AdminBtn>
+      )}
+    </div>
     {loading ? <div className="py-10 text-center text-muted-foreground"><Loader2 className="mr-2 inline animate-spin" size={16} />Đang tải…</div> : <div className="overflow-auto rounded-2xl bg-sidebar"><table className="w-full text-sm"><TableHeader cols={["Combo", "Chi nhánh", "Giá", "Thành phần", "Trạng thái", "Thao tác"]} /><tbody>{combos.map(combo => <tr key={combo.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent"><td className="py-3 pr-4"><div className="flex items-center gap-3">{combo.imageUrl && <img src={combo.imageUrl} alt={combo.name} className="size-10 rounded-lg object-cover" />}<div><p className="font-medium text-foreground">{combo.name}</p><p className="font-mono text-xs text-muted-foreground">{combo.variants?.[0]?.sku}</p></div></div></td><td className="py-3 text-muted-foreground">{combo.branchId && combo.branch ? <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2.5 py-1 text-xs text-green-600 font-semibold">🏬 {combo.branch.name}</span> : <span className="text-xs text-muted-foreground">Toàn hệ thống</span>}</td><td className="py-3 font-semibold text-primary">{Number(combo.variants?.[0]?.price || 0).toLocaleString("vi-VN")}đ</td><td className="py-3 text-muted-foreground">{combo.items?.length || 0} sản phẩm</td><td className="py-3"><StatusBadge status={combo.isActive ? "Hiển thị" : "Ẩn"} /></td><td className="py-3"><div className="flex gap-2"><AdminBtn variant="ghost" onClick={() => openEdit(combo)}><Edit size={14} /></AdminBtn><AdminBtn variant="danger" onClick={() => remove(combo)}><Trash2 size={14} /></AdminBtn></div></td></tr>)}</tbody></table></div>}
     {showModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setShowModal(false)}><div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-sidebar p-6 shadow-2xl" onClick={event => event.stopPropagation()}>
       <h3 className="mb-4 text-lg font-semibold text-foreground">{editing ? "Sửa combo" : "Thêm combo mới"}</h3>

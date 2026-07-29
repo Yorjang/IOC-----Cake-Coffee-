@@ -1,11 +1,11 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
-import { Permission } from '../../common/constants/permissions';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Permissions } from '../../common/decorators/permissions.decorator';
+import { Controller, Get, Delete, Param, Patch, Post, Body, ParseUUIDPipe, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { CreateReviewDto } from './dto/create-review.dto';
+import { Permissions } from '../../common/decorators/permissions.decorator';
+import { Permission } from '../../common/constants/permissions';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ReviewsService } from './reviews.service';
+import { CreateReviewDto } from './dto/create-review.dto';
 
 @Controller(['admin/reviews', 'reviews'])
 export class ReviewsController {
@@ -14,6 +14,15 @@ export class ReviewsController {
   @Get('product/:productId')
   findByProduct(@Param('productId', ParseUUIDPipe) productId: string) {
     return this.reviewsService.findByProduct(productId);
+  }
+
+  @Get('check-eligibility/:productId')
+  @UseGuards(JwtAuthGuard)
+  checkEligibility(
+    @CurrentUser() user: any,
+    @Param('productId', ParseUUIDPipe) productId: string,
+  ) {
+    return this.reviewsService.checkEligibility(user.id, productId);
   }
 
   @Post()

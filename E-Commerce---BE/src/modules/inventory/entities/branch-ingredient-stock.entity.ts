@@ -1,4 +1,4 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Branch } from '../../branches/branch.entity';
 import { Ingredient } from './ingredient.entity';
 
@@ -22,7 +22,7 @@ export class BranchIngredientStock {
   @JoinColumn({ name: 'ingredient_id' })
   ingredient: Ingredient;
 
-  @Column({ type: 'numeric', precision: 12, scale: 3, default: 0 })
+  @Column({ name: 'current_stock', type: 'numeric', precision: 12, scale: 3, default: 0 })
   quantity: number;
 
   @Column({ name: 'min_stock_level', type: 'numeric', precision: 12, scale: 3, default: 0 })

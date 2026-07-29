@@ -1,5 +1,5 @@
+import { IsUUID, IsNumber, IsOptional, IsString, Min, ValidateNested, IsArray } from 'class-validator';
 import { Type } from 'class-transformer';
-import { IsArray, IsNumber, IsOptional, IsString, IsUUID, Min, ValidateNested } from 'class-validator';
 
 export class CreateVariantIngredientDto {
   @IsUUID()

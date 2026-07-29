@@ -1,31 +1,35 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Like, Repository } from 'typeorm';
-import { UserRole } from '../users/user.entity';
+import { Repository, DataSource, LessThanOrEqual, Between, Like } from 'typeorm';
+import { Branch } from '../branches/branch.entity';
+import { ProductVariant, VariantStatus } from '../products/product-variant.entity';
 import { BranchVariantStock } from './branch-variant-stock.entity';
-import { CreateBranchIngredientStockDto, UpdateBranchIngredientStockDto } from './dto/branch-ingredient-stock.dto';
-import { ConfirmInboundDto } from './dto/confirm-inbound.dto';
+import { Ingredient } from './entities/ingredient.entity';
+import { BranchIngredientStock } from './entities/branch-ingredient-stock.entity';
+import { VariantIngredient } from './entities/variant-ingredient.entity';
+import { StockBatch, BatchStatus } from './entities/stock-batch.entity';
+import { InventoryTransaction, InventoryTransactionType } from './entities/inventory-transaction.entity';
+import { PurchaseOrder, PurchaseOrderStatus } from './entities/purchase-order.entity';
+import { PurchaseOrderItem } from './entities/purchase-order-item.entity';
+import { InventoryAdjustmentRequest, AdjustmentRequestStatus } from './entities/inventory-adjustment-request.entity';
+import { UserRole } from '../users/user.entity';
+import { UpdateInventoryDto } from './dto/update-inventory.dto';
 import { CreateIngredientDto, UpdateIngredientDto } from './dto/create-ingredient.dto';
+import { CreateBranchIngredientStockDto, UpdateBranchIngredientStockDto } from './dto/branch-ingredient-stock.dto';
+import { CreateVariantIngredientDto, BulkSetVariantIngredientsDto } from './dto/variant-ingredient.dto';
+import { CreateStockBatchDto, UpdateStockBatchDto } from './dto/stock-batch.dto';
 import { CreateInventoryTransactionDto } from './dto/create-inventory-transaction.dto';
 import { CreatePurchaseOrderDto, QueryPurchaseOrderDto } from './dto/create-purchase-order.dto';
+import { ConfirmInboundDto } from './dto/confirm-inbound.dto';
+import { QueryAdjustmentDto } from './dto/query-adjustment.dto';
 import {
-  QueryExpiryWarningDto,
-  QueryIngredientStockDto,
-  QueryInventoryTransactionDto,
-  QueryLowStockDto,
-  QueryStockBatchDto,
   QueryVariantStockDto,
+  QueryIngredientStockDto,
+  QueryStockBatchDto,
+  QueryInventoryTransactionDto,
+  QueryExpiryWarningDto,
+  QueryLowStockDto,
 } from './dto/query-inventory.dto';
-import { CreateStockBatchDto, UpdateStockBatchDto } from './dto/stock-batch.dto';
-import { UpdateInventoryDto } from './dto/update-inventory.dto';
-import { BulkSetVariantIngredientsDto, CreateVariantIngredientDto } from './dto/variant-ingredient.dto';
-import { BranchIngredientStock } from './entities/branch-ingredient-stock.entity';
-import { Ingredient } from './entities/ingredient.entity';
-import { InventoryTransaction, InventoryTransactionType } from './entities/inventory-transaction.entity';
-import { PurchaseOrderItem } from './entities/purchase-order-item.entity';
-import { PurchaseOrder, PurchaseOrderStatus } from './entities/purchase-order.entity';
-import { BatchStatus, StockBatch } from './entities/stock-batch.entity';
-import { VariantIngredient } from './entities/variant-ingredient.entity';
 
 @Injectable()
 export class InventoryService {
@@ -46,6 +50,8 @@ export class InventoryService {
     private readonly poRepo: Repository<PurchaseOrder>,
     @InjectRepository(PurchaseOrderItem)
     private readonly poItemRepo: Repository<PurchaseOrderItem>,
+    @InjectRepository(InventoryAdjustmentRequest)
+    private readonly adjustmentRepo: Repository<InventoryAdjustmentRequest>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -53,20 +59,110 @@ export class InventoryService {
   // SP2-09: Tồn kho variant theo chi nhánh
   // ───────────────────────────────────────────────────────────────────────────
   async findVariantStocks(query: QueryVariantStockDto) {
+    const branchRepo = this.dataSource.getRepository(Branch);
+    const variantRepo = this.dataSource.getRepository(ProductVariant);
+
+    // 1. Get target branches
+    let targetBranches = [];
+    if (query.branchId) {
+      const b = await branchRepo.findOne({ where: { id: query.branchId } });
+      if (b) targetBranches = [b];
+    } else {
+      targetBranches = await branchRepo.find();
+    }
+
+    // 2. Get active variants (and their products to check branchId)
+    const variants = await variantRepo.find({
+      relations: { product: true },
+      where: { status: VariantStatus.ACTIVE },
+    });
+
+    // 3. Get existing stock combinations
+    const existingStocks = await this.variantStockRepo.find({
+      select: { branchId: true, variantId: true },
+    });
+    const existingKeys = new Set(existingStocks.map(s => `${s.branchId}_${s.variantId}`));
+
+    const newStocksToCreate = [];
+    for (const branch of targetBranches) {
+      for (const variant of variants) {
+        // A variant is allowed if product has no branch (null) or matches the branchId
+        const isAllowed = !variant.product?.branchId || variant.product.branchId === branch.id;
+        if (!isAllowed) continue;
+
+        const key = `${branch.id}_${variant.id}`;
+        if (!existingKeys.has(key)) {
+          newStocksToCreate.push(
+            this.variantStockRepo.create({
+              branchId: branch.id,
+              variantId: variant.id,
+              quantity: 0,
+              minQuantity: 0,
+              reservedQuantity: 0,
+            })
+          );
+        }
+      }
+    }
+
+    if (newStocksToCreate.length > 0) {
+      await this.variantStockRepo.save(newStocksToCreate);
+    }
+
     const where: any = {};
     if (query.branchId) where.branchId = query.branchId;
     if (query.variantId) where.variantId = query.variantId;
 
     const stocks = await this.variantStockRepo.find({
       where,
-      relations: { branch: true, variant: { product: true } },
+      relations: { branch: true, variant: { product: true, variantIngredients: { ingredient: true } } },
       order: { updatedAt: 'DESC' },
     });
 
-    return stocks.map((stock) => ({
-      ...stock,
-      availableQuantity: stock.quantity - stock.reservedQuantity,
-    }));
+    const pendingRequests = await this.adjustmentRepo.find({
+      where: { status: AdjustmentRequestStatus.PENDING },
+    });
+
+    const ingStocks = await this.branchIngredientStockRepo.find();
+    const ingStockMap = new Map(ingStocks.map(s => [`${s.branchId}_${s.ingredientId}`, s.quantity]));
+
+    return stocks.map((stock) => {
+      const pending = pendingRequests.find(
+        (r) => r.branchId === stock.branchId && r.variantId === stock.variantId,
+      );
+
+      const recipe = stock.variant?.variantIngredients || [];
+      let maxSellableQuantity = null;
+      if (recipe.length > 0) {
+        let maxSellable = Infinity;
+        for (const ri of recipe) {
+          const key = `${stock.branchId}_${ri.ingredientId}`;
+          const availableIngQty = Number(ingStockMap.get(key) || 0);
+          const reqQty = Number(ri.quantityRequired || 0);
+          if (reqQty > 0) {
+            const possible = Math.floor(availableIngQty / reqQty);
+            if (possible < maxSellable) {
+              maxSellable = possible;
+            }
+          }
+        }
+        maxSellableQuantity = maxSellable === Infinity ? 0 : maxSellable;
+      }
+
+      return {
+        ...stock,
+        availableQuantity: stock.quantity - stock.reservedQuantity,
+        maxSellableQuantity,
+        pendingAdjustment: pending
+          ? {
+              id: pending.id,
+              requestedQuantity: pending.requestedQuantity,
+              requestedMinQuantity: pending.requestedMinQuantity,
+              createdAt: pending.createdAt,
+            }
+          : null,
+      };
+    });
   }
 
   async findVariantStockById(id: string) {
@@ -77,19 +173,84 @@ export class InventoryService {
     if (!stock) {
       throw new NotFoundException('Mặt hàng tồn kho không tồn tại.');
     }
+    const pending = await this.adjustmentRepo.findOne({
+      where: {
+        branchId: stock.branchId,
+        variantId: stock.variantId,
+        status: AdjustmentRequestStatus.PENDING,
+      },
+    });
     return {
       ...stock,
       availableQuantity: stock.quantity - stock.reservedQuantity,
+      pendingAdjustment: pending
+        ? {
+            id: pending.id,
+            requestedQuantity: pending.requestedQuantity,
+            requestedMinQuantity: pending.requestedMinQuantity,
+            createdAt: pending.createdAt,
+          }
+        : null,
     };
   }
 
-  async updateVariantStock(id: string, dto: UpdateInventoryDto) {
+  async updateVariantStock(id: string, dto: UpdateInventoryDto, user?: any) {
     const stock = await this.variantStockRepo.findOne({
       where: { id },
       relations: { branch: true, variant: { product: true } },
     });
     if (!stock) {
       throw new NotFoundException('Mặt hàng tồn kho không tồn tại.');
+    }
+
+    if (user?.role === UserRole.STORE_MANAGER) {
+      if (user.branchId && stock.branchId !== user.branchId) {
+        throw new ForbiddenException(
+          'Store Manager chỉ có quyền yêu cầu điều chỉnh tồn kho tại chi nhánh mình quản lý.',
+        );
+      }
+
+      if (!dto.reason || !dto.imageUrl) {
+        throw new BadRequestException(
+          'Khi quản lý yêu cầu điều chỉnh tồn kho, bắt buộc phải cung cấp lý do và ảnh minh họa.',
+        );
+      }
+
+      let request = await this.adjustmentRepo.findOne({
+        where: {
+          branchId: stock.branchId,
+          variantId: stock.variantId,
+          status: AdjustmentRequestStatus.PENDING,
+        },
+      });
+
+      if (request) {
+        if (dto.quantity !== undefined) request.requestedQuantity = Number(dto.quantity);
+        if (dto.minQuantity !== undefined) request.requestedMinQuantity = Number(dto.minQuantity);
+        request.reason = dto.reason;
+        request.imageUrl = dto.imageUrl;
+        request.requestedById = user.id;
+      } else {
+        request = this.adjustmentRepo.create({
+          branchId: stock.branchId,
+          variantId: stock.variantId,
+          currentQuantity: stock.quantity,
+          requestedQuantity: dto.quantity !== undefined ? Number(dto.quantity) : stock.quantity,
+          currentMinQuantity: stock.minQuantity,
+          requestedMinQuantity: dto.minQuantity !== undefined ? Number(dto.minQuantity) : stock.minQuantity,
+          status: AdjustmentRequestStatus.PENDING,
+          reason: dto.reason,
+          imageUrl: dto.imageUrl,
+          requestedById: user.id,
+        });
+      }
+
+      const savedRequest = await this.adjustmentRepo.save(request);
+      return {
+        message: 'Đã gửi yêu cầu điều chỉnh tồn kho, chờ Admin xác nhận.',
+        pending: true,
+        request: savedRequest,
+      };
     }
 
     if (dto.quantity !== undefined) {
@@ -103,7 +264,200 @@ export class InventoryService {
     return {
       ...saved,
       availableQuantity: saved.quantity - saved.reservedQuantity,
+      pending: false,
     };
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // SP2-10: API quản lý nguyên liệu (Master Data)
+  // ───────────────────────────────────────────────────────────────────────────
+  async createIngredient(dto: CreateIngredientDto): Promise<Ingredient> {
+    const existing = await this.ingredientRepo.findOne({ where: { code: dto.code } });
+    if (existing) {
+      throw new BadRequestException(`Mã nguyên liệu '${dto.code}' đã tồn tại.`);
+    }
+
+    const ingredient = this.ingredientRepo.create({
+      name: dto.name,
+      code: dto.code,
+      unit: dto.unit,
+      costPerUnit: dto.costPerUnit ?? 0,
+      description: dto.description,
+      isActive: dto.isActive ?? true,
+    });
+
+    return this.ingredientRepo.save(ingredient);
+  }
+
+  async findAllIngredients(search?: string, isActive?: boolean): Promise<Ingredient[]> {
+    const where: any = {};
+    if (search) {
+      where.name = Like(`%${search}%`);
+    }
+    if (isActive !== undefined) {
+      where.isActive = isActive;
+    }
+
+    return this.ingredientRepo.find({
+      where,
+      order: { name: 'ASC' },
+    });
+  }
+
+  async findIngredientById(id: string): Promise<Ingredient> {
+    const ingredient = await this.ingredientRepo.findOne({ where: { id } });
+    if (!ingredient) {
+      throw new NotFoundException('Nguyên liệu không tồn tại.');
+    }
+    return ingredient;
+  }
+
+  async updateIngredient(id: string, dto: UpdateIngredientDto): Promise<Ingredient> {
+    const ingredient = await this.findIngredientById(id);
+
+    if (dto.code && dto.code !== ingredient.code) {
+      const existing = await this.ingredientRepo.findOne({ where: { code: dto.code } });
+      if (existing) {
+        throw new BadRequestException(`Mã nguyên liệu '${dto.code}' đã tồn tại.`);
+      }
+    }
+
+    Object.assign(ingredient, dto);
+    return this.ingredientRepo.save(ingredient);
+  }
+
+  async deleteIngredient(id: string): Promise<{ message: string }> {
+    const ingredient = await this.findIngredientById(id);
+    ingredient.isActive = false;
+    await this.ingredientRepo.save(ingredient);
+    return { message: 'Đã hủy kích hoạt nguyên liệu thành công.' };
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // SP2-11: API tồn kho nguyên liệu theo chi nhánh
+  // ───────────────────────────────────────────────────────────────────────────
+  async findBranchIngredientStocks(query: QueryIngredientStockDto) {
+    const where: any = {};
+    if (query.branchId) where.branchId = query.branchId;
+    if (query.ingredientId) where.ingredientId = query.ingredientId;
+
+    const stocks = await this.branchIngredientStockRepo.find({
+      where,
+      relations: { branch: true, ingredient: true },
+      order: { updatedAt: 'DESC' },
+    });
+
+    const pendingRequests = await this.adjustmentRepo.find({
+      where: { status: AdjustmentRequestStatus.PENDING },
+    });
+
+    return stocks.map((stock) => {
+      const pending = pendingRequests.find(
+        (r) => r.branchId === stock.branchId && r.ingredientId === stock.ingredientId,
+      );
+      return {
+        ...stock,
+        pendingAdjustment: pending
+          ? {
+              id: pending.id,
+              requestedQuantity: pending.requestedQuantity,
+              requestedMinQuantity: pending.requestedMinQuantity,
+              createdAt: pending.createdAt,
+            }
+          : null,
+      };
+    });
+  }
+
+  async upsertBranchIngredientStock(dto: CreateBranchIngredientStockDto) {
+    let stock = await this.branchIngredientStockRepo.findOne({
+      where: { branchId: dto.branchId, ingredientId: dto.ingredientId },
+    });
+
+    if (stock) {
+      stock.quantity = Number(dto.quantity);
+      if (dto.minStockLevel !== undefined) {
+        stock.minStockLevel = Number(dto.minStockLevel);
+      }
+    } else {
+      stock = this.branchIngredientStockRepo.create({
+        branchId: dto.branchId,
+        ingredientId: dto.ingredientId,
+        quantity: Number(dto.quantity),
+        minStockLevel: Number(dto.minStockLevel ?? 0),
+      });
+    }
+
+    return this.branchIngredientStockRepo.save(stock);
+  }
+
+  async updateBranchIngredientStock(id: string, dto: UpdateBranchIngredientStockDto, user?: any) {
+    const stock = await this.branchIngredientStockRepo.findOne({
+      where: { id },
+      relations: { branch: true, ingredient: true },
+    });
+    if (!stock) {
+      throw new NotFoundException('Bản ghi tồn kho nguyên liệu chi nhánh không tồn tại.');
+    }
+
+    if (user?.role === UserRole.STORE_MANAGER) {
+      if (user.branchId && stock.branchId !== user.branchId) {
+        throw new ForbiddenException(
+          'Store Manager chỉ có quyền yêu cầu điều chỉnh tồn kho tại chi nhánh mình quản lý.',
+        );
+      }
+
+      if (!dto.reason || !dto.imageUrl) {
+        throw new BadRequestException(
+          'Khi quản lý yêu cầu điều chỉnh tồn kho, bắt buộc phải cung cấp lý do và ảnh minh họa.',
+        );
+      }
+
+      let request = await this.adjustmentRepo.findOne({
+        where: {
+          branchId: stock.branchId,
+          ingredientId: stock.ingredientId,
+          status: AdjustmentRequestStatus.PENDING,
+        },
+      });
+
+      if (request) {
+        if (dto.quantity !== undefined) request.requestedQuantity = Number(dto.quantity);
+        if (dto.minStockLevel !== undefined) request.requestedMinQuantity = Number(dto.minStockLevel);
+        request.reason = dto.reason;
+        request.imageUrl = dto.imageUrl;
+        request.requestedById = user.id;
+      } else {
+        request = this.adjustmentRepo.create({
+          branchId: stock.branchId,
+          ingredientId: stock.ingredientId,
+          currentQuantity: Math.round(Number(stock.quantity)),
+          requestedQuantity: dto.quantity !== undefined ? Number(dto.quantity) : Math.round(Number(stock.quantity)),
+          currentMinQuantity: Math.round(Number(stock.minStockLevel || 0)),
+          requestedMinQuantity: dto.minStockLevel !== undefined ? Number(dto.minStockLevel) : Math.round(Number(stock.minStockLevel || 0)),
+          status: AdjustmentRequestStatus.PENDING,
+          reason: dto.reason,
+          imageUrl: dto.imageUrl,
+          requestedById: user.id,
+        });
+      }
+
+      const savedRequest = await this.adjustmentRepo.save(request);
+      return {
+        message: 'Đã gửi yêu cầu điều chỉnh tồn kho, chờ Admin xác nhận.',
+        pending: true,
+        request: savedRequest,
+      };
+    }
+
+    if (dto.quantity !== undefined) {
+      stock.quantity = Number(dto.quantity);
+    }
+    if (dto.minStockLevel !== undefined) {
+      stock.minStockLevel = Number(dto.minStockLevel);
+    }
+
+    return this.branchIngredientStockRepo.save(stock);
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -548,4 +902,417 @@ export class InventoryService {
 
   // ───────────────────────────────────────────────────────────────────────────
   // Purchase Order & Inbound Barcode Scan Workflow
+  // ───────────────────────────────────────────────────────────────────────────
+  async createPurchaseOrder(dto: CreatePurchaseOrderDto, userId?: string) {
+    const existing = await this.poRepo.findOne({ where: { poCode: dto.poCode } });
+    if (existing) {
+      throw new BadRequestException(`Mã đơn hàng '${dto.poCode}' đã tồn tại.`);
+    }
+
+    const items = dto.items.map((item) =>
+      this.poItemRepo.create({
+        ingredientId: item.ingredientId,
+        variantId: item.variantId,
+        orderedQuantity: Number(item.orderedQuantity),
+        receivedQuantity: 0,
+        unitPrice: Number(item.unitPrice ?? 0),
+      }),
+    );
+
+    const po = this.poRepo.create({
+      poCode: dto.poCode,
+      branchId: dto.branchId,
+      supplierId: dto.supplierId,
+      supplierName: dto.supplierName,
+      createdById: userId,
+      status: PurchaseOrderStatus.PENDING,
+      expectedDelivery: dto.expectedDelivery ? new Date(dto.expectedDelivery) : undefined,
+      notes: dto.notes,
+      items,
+    });
+
+    return this.poRepo.save(po);
+  }
+
+  async findPurchaseOrders(query: QueryPurchaseOrderDto) {
+    const where: any = {};
+    if (query.branchId) where.branchId = query.branchId;
+    if (query.status) where.status = query.status;
+    if (query.poCode) where.poCode = Like(`%${query.poCode}%`);
+
+    return this.poRepo.find({
+      where,
+      relations: {
+        branch: true,
+        createdBy: true,
+        items: { ingredient: true, variant: { product: true } },
+      },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findPurchaseOrderById(id: string) {
+    const po = await this.poRepo.findOne({
+      where: { id },
+      relations: {
+        branch: true,
+        createdBy: true,
+        items: { ingredient: true, variant: { product: true } },
+      },
+    });
+    if (!po) {
+      throw new NotFoundException('Phiếu đặt hàng không tồn tại.');
+    }
+    return po;
+  }
+
+  async scanInboundBarcode(poCode: string, user: any) {
+    if (!poCode) {
+      throw new BadRequestException('Mã barcode đơn hàng (po_code) là bắt buộc.');
+    }
+
+    const po = await this.poRepo.findOne({
+      where: { poCode },
+      relations: {
+        branch: true,
+        createdBy: true,
+        items: { ingredient: true, variant: { product: true } },
+      },
+    });
+
+    if (!po) {
+      throw new NotFoundException(`Không tìm thấy phiếu đặt hàng với mã '${poCode}'.`);
+    }
+
+    // Branch isolation for Store Manager
+    if (user?.role === UserRole.STORE_MANAGER && user?.branchId && po.branchId !== user.branchId) {
+      throw new ForbiddenException('Store Manager chỉ có quyền kiểm kê/nhập hàng tại chi nhánh mình quản lý.');
+    }
+
+    if (po.status === PurchaseOrderStatus.RECEIVED) {
+      throw new BadRequestException(`Phiếu đặt hàng '${poCode}' đã hoàn thành nhập kho trước đó.`);
+    }
+
+    if (po.status === PurchaseOrderStatus.CANCELLED) {
+      throw new BadRequestException(`Phiếu đặt hàng '${poCode}' đã bị hủy.`);
+    }
+
+    return {
+      status: 'success',
+      data: {
+        po_id: po.id,
+        po_code: po.poCode,
+        branch_id: po.branchId,
+        branch_name: po.branch?.name,
+        supplier: {
+          id: po.supplierId || null,
+          name: po.supplierName || 'N/A',
+        },
+        status: po.status,
+        expected_delivery: po.expectedDelivery,
+        created_at: po.createdAt,
+        items: po.items.map((item) => ({
+          po_item_id: item.id,
+          ingredient_id: item.ingredientId,
+          variant_id: item.variantId,
+          name: item.ingredient ? item.ingredient.name : `${item.variant?.product?.name || ''} - ${item.variant?.variantName || ''}`,
+          unit: item.ingredient ? item.ingredient.unit : 'Cái',
+          ordered_quantity: Number(item.orderedQuantity),
+          received_quantity: Number(item.receivedQuantity),
+          unit_price: Number(item.unitPrice),
+        })),
+      },
+    };
+  }
+
+  async confirmInbound(dto: ConfirmInboundDto, user: any) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const po = await queryRunner.manager.findOne(PurchaseOrder, {
+        where: { id: dto.poId },
+        relations: { items: { ingredient: true, variant: true } },
+      });
+
+      if (!po) {
+        throw new NotFoundException('Phiếu đặt hàng không tồn tại.');
+      }
+
+      if (user?.role === UserRole.STORE_MANAGER && user?.branchId && po.branchId !== user.branchId) {
+        throw new ForbiddenException('Store Manager chỉ có quyền nhập hàng tại chi nhánh mình quản lý.');
+      }
+
+      if (po.status === PurchaseOrderStatus.RECEIVED) {
+        throw new BadRequestException('Phiếu đặt hàng này đã được xác nhận nhập kho.');
+      }
+
+      if (po.status === PurchaseOrderStatus.CANCELLED) {
+        throw new BadRequestException('Phiếu đặt hàng đã bị hủy.');
+      }
+
+      for (const itemDto of dto.items) {
+        const poItem = po.items.find((i) => i.id === itemDto.poItemId);
+        if (!poItem) {
+          throw new BadRequestException(`Chi tiết đơn hàng ID '${itemDto.poItemId}' không thuộc PO này.`);
+        }
+
+        const receivedQty = Number(itemDto.receivedQuantity);
+        poItem.receivedQuantity = receivedQty;
+        await queryRunner.manager.save(PurchaseOrderItem, poItem);
+
+        let isIng = poItem.ingredientId ? true : false;
+        if (itemDto.isIngredient !== undefined) {
+          isIng = itemDto.isIngredient;
+        }
+
+        let unitSelected = itemDto.unit;
+        if (!unitSelected) {
+          unitSelected = poItem.ingredient ? poItem.ingredient.unit : 'Cái';
+        }
+
+        let stockQty = receivedQty;
+        if (isIng) {
+          const lowerUnit = unitSelected?.toLowerCase();
+          if (lowerUnit === 'kg' || lowerUnit === 'l') {
+            stockQty = receivedQty * 1000;
+          }
+        }
+
+        if (stockQty > 0) {
+          const batchCode = itemDto.batchCode || `${po.poCode}-LOT-${Date.now()}`;
+          const batch = queryRunner.manager.create(StockBatch, {
+            batchCode,
+            branchId: po.branchId,
+            ingredientId: isIng ? poItem.ingredientId : null,
+            variantId: !isIng ? poItem.variantId : null,
+            initialQuantity: stockQty,
+            quantity: stockQty,
+            manufactureDate: itemDto.manufactureDate ? new Date(itemDto.manufactureDate) : undefined,
+            expiryDate: new Date(itemDto.expiryDate),
+            supplier: po.supplierName || undefined,
+            status: BatchStatus.ACTIVE,
+          });
+
+          const savedBatch = await queryRunner.manager.save(StockBatch, batch);
+
+          // Update stock table
+          if (isIng && poItem.ingredientId) {
+            let stock = await queryRunner.manager.findOne(BranchIngredientStock, {
+              where: { branchId: po.branchId, ingredientId: poItem.ingredientId },
+            });
+            if (!stock) {
+              stock = queryRunner.manager.create(BranchIngredientStock, {
+                branchId: po.branchId,
+                ingredientId: poItem.ingredientId,
+                quantity: stockQty,
+                minStockLevel: 0,
+              });
+            } else {
+              stock.quantity = Number(stock.quantity) + stockQty;
+            }
+            await queryRunner.manager.save(BranchIngredientStock, stock);
+          }
+
+          if (!isIng && poItem.variantId) {
+            let stock = await queryRunner.manager.findOne(BranchVariantStock, {
+              where: { branchId: po.branchId, variantId: poItem.variantId },
+            });
+            if (!stock) {
+              stock = queryRunner.manager.create(BranchVariantStock, {
+                branchId: po.branchId,
+                variantId: poItem.variantId,
+                quantity: Math.round(stockQty),
+                minQuantity: 0,
+              });
+            } else {
+              stock.quantity = Math.round(Number(stock.quantity) + stockQty);
+            }
+            await queryRunner.manager.save(BranchVariantStock, stock);
+          }
+
+          // Log InventoryTransaction (IMPORT)
+          const tx = queryRunner.manager.create(InventoryTransaction, {
+            branchId: po.branchId,
+            transactionType: InventoryTransactionType.IMPORT,
+            ingredientId: isIng ? poItem.ingredientId : null,
+            variantId: !isIng ? poItem.variantId : null,
+            batchId: savedBatch.id,
+            quantityChange: stockQty,
+            reason: `Scan nhập kho từ PO ${po.poCode}`,
+            referenceId: po.id,
+            performedById: user?.id,
+          });
+          await queryRunner.manager.save(InventoryTransaction, tx);
+        }
+      }
+
+      po.status = PurchaseOrderStatus.RECEIVED;
+      await queryRunner.manager.save(PurchaseOrder, po);
+
+      await queryRunner.commitTransaction();
+
+      return {
+        message: `Xác nhận nhập kho thành công cho đơn hàng ${po.poCode}`,
+        poId: po.id,
+        poCode: po.poCode,
+        status: po.status,
+      };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Stock Adjustment Requests Approval Workflow
+  // ───────────────────────────────────────────────────────────────────────────
+  async findAllAdjustments(query: QueryAdjustmentDto, user: any) {
+    const where: any = {};
+
+    if (user?.role === UserRole.STORE_MANAGER && user?.branchId) {
+      where.branchId = user.branchId;
+    } else if (query.branchId) {
+      where.branchId = query.branchId;
+    }
+
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    return this.adjustmentRepo.find({
+      where,
+      relations: {
+        branch: true,
+        variant: { product: true },
+        ingredient: true,
+        requestedBy: true,
+        approvedBy: true,
+      },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async approveAdjustment(id: string, adminId: string) {
+    const request = await this.adjustmentRepo.findOne({
+      where: { id },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Yêu cầu điều chỉnh không tồn tại.');
+    }
+
+    if (request.status !== AdjustmentRequestStatus.PENDING) {
+      throw new BadRequestException('Yêu cầu này đã được xử lý.');
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      let qtyDiff = 0;
+
+      if (request.ingredientId) {
+        let stock = await queryRunner.manager.findOne(BranchIngredientStock, {
+          where: { branchId: request.branchId, ingredientId: request.ingredientId },
+        });
+
+        const oldQty = stock ? Number(stock.quantity) : 0;
+        qtyDiff = request.requestedQuantity - oldQty;
+
+        if (!stock) {
+          stock = queryRunner.manager.create(BranchIngredientStock, {
+            branchId: request.branchId,
+            ingredientId: request.ingredientId,
+            quantity: request.requestedQuantity,
+            minStockLevel: request.requestedMinQuantity,
+          });
+        } else {
+          stock.quantity = request.requestedQuantity;
+          stock.minStockLevel = request.requestedMinQuantity;
+        }
+
+        await queryRunner.manager.save(BranchIngredientStock, stock);
+      } else {
+        let stock = await queryRunner.manager.findOne(BranchVariantStock, {
+          where: { branchId: request.branchId, variantId: request.variantId },
+        });
+
+        const oldQty = stock ? Number(stock.quantity) : 0;
+        qtyDiff = request.requestedQuantity - oldQty;
+
+        if (!stock) {
+          stock = queryRunner.manager.create(BranchVariantStock, {
+            branchId: request.branchId,
+            variantId: request.variantId,
+            quantity: request.requestedQuantity,
+            minQuantity: request.requestedMinQuantity,
+          });
+        } else {
+          stock.quantity = request.requestedQuantity;
+          stock.minQuantity = request.requestedMinQuantity;
+        }
+
+        await queryRunner.manager.save(BranchVariantStock, stock);
+      }
+
+      // Log transaction
+      const tx = queryRunner.manager.create(InventoryTransaction, {
+        branchId: request.branchId,
+        transactionType: InventoryTransactionType.ADJUSTMENT,
+        variantId: request.variantId || undefined,
+        ingredientId: request.ingredientId || undefined,
+        quantityChange: qtyDiff,
+        reason: `Phê duyệt yêu cầu điều chỉnh từ quản lý.`,
+        referenceId: request.id,
+        performedById: request.requestedById,
+      });
+      await queryRunner.manager.save(InventoryTransaction, tx);
+
+      // Update request status
+      request.status = AdjustmentRequestStatus.APPROVED;
+      request.approvedById = adminId;
+      await queryRunner.manager.save(InventoryAdjustmentRequest, request);
+
+      await queryRunner.commitTransaction();
+
+      return {
+        message: 'Đã phê duyệt và cập nhật tồn kho thành công.',
+        request,
+      };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async rejectAdjustment(id: string, adminId: string) {
+    const request = await this.adjustmentRepo.findOne({
+      where: { id },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Yêu cầu điều chỉnh không tồn tại.');
+    }
+
+    if (request.status !== AdjustmentRequestStatus.PENDING) {
+      throw new BadRequestException('Yêu cầu này đã được xử lý.');
+    }
+
+    request.status = AdjustmentRequestStatus.REJECTED;
+    request.approvedById = adminId;
+
+    await this.adjustmentRepo.save(request);
+
+    return {
+      message: 'Đã từ chối yêu cầu điều chỉnh tồn kho.',
+      request,
+    };
+  }
 }

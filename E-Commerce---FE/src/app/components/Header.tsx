@@ -20,7 +20,8 @@ export function Header({
 }: any) {
   const [showFilters, setShowFilters] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+
   // Use navPages as categories
   const categories = navPages || [];
 
@@ -145,25 +146,59 @@ export function Header({
       </div>
 
       {/* Category tabs */}
-      <div className="border-t border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 flex items-center gap-1 overflow-x-auto scrollbar-hide">
-          {categories.map((cat: string) => {
-            const isActive = view === cat || (view === VIEW_KEYS.HOME && cat === categories[0]);
-            return (
-              <button
-                key={cat}
-                onClick={() => setView(cat)}
-                className={`flex-shrink-0 px-4 py-3 text-[11px] tracking-[0.2em] uppercase font-medium border-b-2 transition-colors ${isActive
+      <div className="border-t border-border relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 flex items-center justify-between gap-1">
+          {/* Desktop Categories */}
+          <div className="hidden md:flex items-center gap-1">
+            {categories.map((cat: string) => {
+              const isActive = view === cat || (view === VIEW_KEYS.HOME && cat === categories[0]);
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setView(cat)}
+                  className={`flex-shrink-0 px-4 py-3 text-[11px] tracking-[0.2em] uppercase font-medium border-b-2 transition-colors ${isActive
                     ? "border-foreground text-foreground"
                     : "border-transparent text-muted-foreground hover:text-foreground"
-                  }`}
-              >
-                {cat}
-              </button>
-            )
-          })}
+                    }`}
+                >
+                  {cat}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Mobile Categories Dropdown */}
+          <div className="md:hidden flex items-center">
+            <button
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="flex items-center gap-1.5 px-2 py-3 text-[11px] tracking-[0.2em] uppercase font-medium text-foreground transition-colors"
+            >
+              DANH MỤC <ChevronDown size={14} className={`transition-transform duration-200 ${showMobileMenu ? "rotate-180" : ""}`} />
+            </button>
+
+            <div className={`absolute top-full left-4 sm:left-6 mt-1 w-56 bg-card border border-border shadow-xl rounded-xl overflow-hidden z-50 transition-all duration-200 origin-top ${showMobileMenu ? "opacity-100 scale-100 visible" : "opacity-0 scale-95 invisible"}`}>
+              <div className="py-1">
+                {categories.map((cat: string) => {
+                  const isActive = view === cat || (view === VIEW_KEYS.HOME && cat === categories[0]);
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => { setView(cat); setShowMobileMenu(false); }}
+                      className={`block w-full text-left px-4 py-3 text-[11px] tracking-[0.2em] uppercase font-medium transition-colors ${isActive
+                        ? "bg-secondary text-foreground font-semibold"
+                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                        }`}
+                    >
+                      {cat}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
           <div className="flex-1" />
-          
+
           <div className="flex items-center flex-shrink-0">
             <button
               onClick={onChooseStore}

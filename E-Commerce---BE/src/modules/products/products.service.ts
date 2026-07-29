@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull, FindOptionsWhere } from 'typeorm';
+import { User, UserRole } from '../users/user.entity';
 import { Category } from './category.entity';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/create-product.dto';
@@ -124,10 +125,31 @@ export class ProductsService {
         };
     }
 
-    async findAllProducts(tagSlug?: string): Promise<Product[]> {
+    async findAllProducts(tagSlug?: string, user?: User, isAdminPath?: boolean, branchId?: string): Promise<Product[]> {
+        const baseWhere: FindOptionsWhere<Product> = {};
+        if (tagSlug) {
+            baseWhere.tags = { slug: tagSlug };
+        }
+        if (isAdminPath && user?.role === UserRole.STORE_MANAGER && user.branchId) {
+            baseWhere.branchId = user.branchId;
+        }
+        const where: FindOptionsWhere<Product> | FindOptionsWhere<Product>[] | undefined =
+            !isAdminPath && branchId
+                ? [
+                    { ...baseWhere, branchId },
+                    { ...baseWhere, branchId: IsNull() },
+                ]
+                : Object.keys(baseWhere).length > 0 ? baseWhere : undefined;
         return this.products.find({
-            where: tagSlug ? { tags: { slug: tagSlug } } : undefined,
-            relations: { category: true, variants: true, toppings: true, tags: true },
+            where,
+            relations: {
+                category: true,
+                variants: { variantIngredients: { ingredient: true } },
+                toppings: true,
+                tags: true,
+                branch: true,
+                items: { childProduct: { category: true, toppings: true }, childVariant: true },
+            },
             order: { name: 'ASC' },
         });
     }
@@ -135,7 +157,14 @@ export class ProductsService {
     async findProductById(id: string): Promise<Product> {
         const prod = await this.products.findOne({
             where: { id },
-            relations: { category: true, variants: true, toppings: true, tags: true },
+            relations: {
+                category: true,
+                variants: { variantIngredients: { ingredient: true } },
+                toppings: true,
+                tags: true,
+                branch: true,
+                items: { childProduct: { category: true, toppings: true }, childVariant: true },
+            },
         });
         if (!prod) throw new NotFoundException('Không tìm thấy sản phẩm');
         return prod;

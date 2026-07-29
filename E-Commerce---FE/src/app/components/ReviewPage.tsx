@@ -48,6 +48,7 @@ export function ReviewPage({ product, onBack, isEmbedded = false }: any) {
   const [reviewsList, setReviewsList] = useState<any[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isEligible, setIsEligible] = useState<boolean | null>(null);
 
   const toggleTag = (tag: string) => {
     if (selectedTags.includes(tag)) {
@@ -94,6 +95,29 @@ export function ReviewPage({ product, onBack, isEmbedded = false }: any) {
 
   useEffect(() => {
     loadReviews();
+
+    const checkEligible = async () => {
+      if (!productId) return;
+      const token = getAccessToken();
+      if (!token) {
+        setIsEligible(false);
+        return;
+      }
+      try {
+        const res = await fetch(`${env.API_URL}/reviews/check-eligibility/${productId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setIsEligible(data.eligible);
+        } else {
+          setIsEligible(false);
+        }
+      } catch (err) {
+        setIsEligible(false);
+      }
+    };
+    checkEligible();
   }, [productId]);
 
   const avgRating = reviewsList.length > 0
@@ -290,7 +314,19 @@ export function ReviewPage({ product, onBack, isEmbedded = false }: any) {
                 </div>
             </div>
 
-            {submitted ? (
+            {!getAccessToken() ? (
+              <div className="rounded-2xl bg-[#F3EFEA] border border-[#8C6D53]/20 p-8 text-center text-[#8C6D53] mb-4">
+                <p className="font-semibold text-sm mb-1">Đăng nhập để đánh giá</p>
+                <p className="text-xs">Bạn cần đăng nhập và đã từng mua sản phẩm này để có thể viết đánh giá.</p>
+              </div>
+            ) : isEligible === null ? (
+              <div className="animate-pulse h-64 bg-gray-50 rounded-2xl mb-4"></div>
+            ) : isEligible === false ? (
+              <div className="rounded-2xl bg-[#F3EFEA] border border-[#8C6D53]/20 p-8 text-center text-[#8C6D53] mb-4">
+                <p className="font-semibold text-sm mb-1">Chưa thể đánh giá sản phẩm</p>
+                <p className="text-xs">Bạn cần mua và hoàn thành đơn hàng cho sản phẩm này để có thể viết đánh giá.</p>
+              </div>
+            ) : submitted ? (
               <div className="rounded-2xl bg-[#eef7ed] p-5 text-sm text-[#355c31] text-center mb-4">
                 <p className="font-semibold mb-2">Cảm ơn bạn đã gửi đánh giá!</p>
                 <p className="text-xs mb-4">Nhận xét sẽ được hiển thị ngay bên dưới.</p>

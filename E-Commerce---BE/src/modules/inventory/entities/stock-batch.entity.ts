@@ -1,7 +1,7 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Branch } from '../../branches/branch.entity';
-import { ProductVariant } from '../../products/product-variant.entity';
 import { Ingredient } from './ingredient.entity';
+import { ProductVariant } from '../../products/product-variant.entity';
 
 export enum BatchStatus {
   ACTIVE = 'ACTIVE',
@@ -42,19 +42,19 @@ export class StockBatch {
   @JoinColumn({ name: 'variant_id' })
   variant: ProductVariant;
 
-  @Column({ name: 'initial_quantity', type: 'numeric', precision: 12, scale: 3 })
+  @Column({ name: 'quantity_imported', type: 'numeric', precision: 12, scale: 3 })
   initialQuantity: number;
 
-  @Column({ type: 'numeric', precision: 12, scale: 3 })
+  @Column({ name: 'remaining_quantity', type: 'numeric', precision: 12, scale: 3 })
   quantity: number;
 
-  @Column({ name: 'manufacture_date', type: 'timestamptz', nullable: true })
+  @Column({ name: 'manufactured_date', type: 'timestamptz', nullable: true })
   manufactureDate: Date;
 
   @Column({ name: 'expiry_date', type: 'timestamptz' })
   expiryDate: Date;
 
-  @Column({ name: 'received_date', type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ name: 'imported_at', type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   receivedDate: Date;
 
   @Column({ length: 255, nullable: true })

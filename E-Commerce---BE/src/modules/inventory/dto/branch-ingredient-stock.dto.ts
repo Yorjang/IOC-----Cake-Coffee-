@@ -1,5 +1,5 @@
+import { IsUUID, IsNumber, IsOptional, Min, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
-import { IsNumber, IsOptional, IsUUID, Min } from 'class-validator';
 
 export class CreateBranchIngredientStockDto {
   @IsUUID()
@@ -32,4 +32,12 @@ export class UpdateBranchIngredientStockDto {
   @IsNumber()
   @Min(0)
   minStockLevel?: number;
+
+  @IsOptional()
+  @IsString()
+  reason?: string;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }
