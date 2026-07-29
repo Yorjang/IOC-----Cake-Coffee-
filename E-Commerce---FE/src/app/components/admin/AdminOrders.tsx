@@ -1,17 +1,14 @@
 import { parseRes } from '../../../utils/api';
 
-import React, { useState, useEffect } from "react";
 import {
-  LayoutDashboard, Package, Tag, Settings, ShoppingBag, Users, Star,
-  BarChart2, Image, Edit, Trash2, Eye, Plus, CheckCircle, XCircle,
-  TrendingUp, AlertCircle, Loader2, ToggleLeft, Search, Filter,
-  ArrowUpRight, DollarSign, Clock, ChevronDown, Store, MapPin, Boxes,
-  ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
+  Eye,
+  Loader2,
+  Search
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { env } from "../../../config/env";
-import { supabase } from "../../../config/supabase";
-import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
+import { AdminBtn, TableHeader } from "./AdminShared";
 
 import { getAccessToken } from "../authSession";
 
@@ -78,7 +75,7 @@ export function AdminOrders() {
         toast.success("Đã đánh dấu hoàn tiền thành công.");
         loadOrders();
       } else {
-        const errData = await res.json();
+        const errData = await parseRes(res);
         toast.error(errData.message || "Lỗi khi xử lý hoàn tiền.");
       }
     } catch (err) {

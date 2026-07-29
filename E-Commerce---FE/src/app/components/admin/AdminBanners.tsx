@@ -1,14 +1,18 @@
 import { parseRes } from '../../../utils/api';
 
-import React, { useState, useEffect } from "react";
 import {
-  Edit, Trash2, Plus, CheckCircle, XCircle, Loader2
+  CheckCircle,
+  Edit,
+  Loader2,
+  Plus,
+  Trash2,
+  XCircle
 } from "lucide-react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { getAccessToken, getStoredUser } from "../authSession";
 import { env } from "../../../config/env";
-import { supabase } from "../../../config/supabase";
-import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
+import { getAccessToken, getStoredUser } from "../authSession";
+import { AdminBtn, ImageUploader, StatusBadge } from "./AdminShared";
 
 export function AdminBanners() {
   const user = getStoredUser();
@@ -98,7 +102,7 @@ export function AdminBanners() {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa banner này không?")) return;
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     const banner = bannersList.find((b: any) => b.id === id);
     try {
       const res = await fetch(`${env.API_URL}/admin/banners/${id}`, {
@@ -124,7 +128,7 @@ export function AdminBanners() {
       toast.error("Vui lòng nhập tên và link ảnh banner.");
       return;
     }
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     const isEditing = Boolean(editingBanner);
     setSaving(true);
     try {
@@ -189,7 +193,7 @@ export function AdminBanners() {
       </div>
 
       {showAddForm && (
-        <form onSubmit={handleCreate} className="rounded-2xl bg-sidebar p-5 space-y-4">
+        <form onSubmit={handleCreate} className="rounded-2xl bg-card border border-border shadow-sm p-5 space-y-4">
           <h3 className="text-sm font-semibold text-foreground">Thêm banner mới</h3>
           <div className="grid gap-3 sm:grid-cols-2">
             <input

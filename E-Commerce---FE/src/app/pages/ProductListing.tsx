@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
-import { ProductCard } from "../components/shared";
-import { CATEGORY_GROUPS, VIEW_KEYS } from "../../config/appConfig";
 import { SlidersHorizontal } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CATEGORY_GROUPS, VIEW_KEYS } from "../../config/appConfig";
+import { ProductCard } from "../components/shared";
+import { getCategoryChildren, isProductInCategoryGroup } from "../features/categories/categoryHierarchy";
 
 // Helper utilities for prices
 const parsePrice = (priceStr: string): number => {
@@ -9,7 +10,8 @@ const parsePrice = (priceStr: string): number => {
   return parseInt(priceStr.replace(/[^0-9]/g, ""), 10);
 };
 
-export function ProductListing({ category, setView, onSelectProduct, onAddToCart, wishlist, onToggleWishlist, searchQuery, products = [] }: any) {
+export function ProductListing({ category, setView, onSelectProduct, onAddToCart, wishlist, onToggleWishlist, searchQuery, products: rawProducts = [], categories = [] }: any) {
+  const products = Array.isArray(rawProducts) ? rawProducts : (Array.isArray(rawProducts?.data) ? rawProducts.data : []);
   // Filter States
   const [selectedSubCat, setSelectedSubCat] = useState<string>("Tất cả");
   const [selectedPriceRange, setSelectedPriceRange] = useState<string>("Tất cả");
@@ -24,14 +26,16 @@ export function ProductListing({ category, setView, onSelectProduct, onAddToCart
 
   // Determine subcategories to show in sidebar
   let subCategories: string[] = [];
-  if (category === VIEW_KEYS.DRINKS) {
-    subCategories = ["Cafe", "Trà", "Đồ uống khác"];
+  if (category === VIEW_KEYS.DRINKS || CATEGORY_GROUPS.DRINKS.includes(category as any)) {
+    subCategories = ["Cafe", "Cà phê", "Trà", "Đồ uống khác"];
   } else if (category === VIEW_KEYS.SWEETS) {
     subCategories = ["Bánh sinh nhật", "Bánh mousse", "Bánh tart", "Bánh quy"];
   } else if (category === "Tìm kiếm") {
-    subCategories = ["Bánh sinh nhật", "Bánh mousse", "Bánh tart", "Bánh quy", "Cafe", "Trà", "Đồ uống khác", "Combo"];
+    subCategories = ["Bánh sinh nhật", "Bánh mousse", "Bánh tart", "Bánh quy", "Cafe", "Cà phê", "Trà", "Đồ uống khác", "Combo"];
   } else if (category === VIEW_KEYS.ALL_PRODUCTS) {
-    subCategories = ["Bánh sinh nhật", "Bánh mousse", "Bánh tart", "Bánh quy", "Cafe", "Trà", "Đồ uống khác"];
+    subCategories = ["Bánh sinh nhật", "Bánh mousse", "Bánh tart", "Bánh quy", "Cafe", "Cà phê", "Trà", "Đồ uống khác"];
+  } else {
+    subCategories = getCategoryChildren(category, categories).map(child => child.name);
   }
 
   // 1. Base list filtered by Main Category
@@ -47,13 +51,13 @@ export function ProductListing({ category, setView, onSelectProduct, onAddToCart
   } else if (category === VIEW_KEYS.ALL_PRODUCTS) {
     baseList = products.filter(p => p[2] !== "Combo");
   } else {
-    baseList = products.filter(p => p[2] === category);
+    baseList = products.filter(p => isProductInCategoryGroup(p, category, categories));
   }
 
   // 2. Apply Sub-category filter
   let filtered = baseList;
   if (selectedSubCat !== "Tất cả") {
-    filtered = filtered.filter(p => p[2] === selectedSubCat);
+    filtered = filtered.filter(p => isProductInCategoryGroup(p, selectedSubCat, categories));
   }
 
   // 3. Apply Price Range filter

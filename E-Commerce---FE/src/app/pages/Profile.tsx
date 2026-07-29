@@ -1,8 +1,9 @@
-import { parseRes } from '../../utils/api';
-import { useState, useRef, useEffect } from "react";
-import { LogOut, User, Lock, Phone, Upload, Image as ImageIcon, History, Save, ShieldAlert, Check } from "lucide-react";
+import { Check, History, Image as ImageIcon, Lock, Phone, Save, Upload, User } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { env } from "../../config/env";
+import { parseRes } from '../../utils/api';
+import { ProfileOrders } from '../features/profile/ui/ProfileOrders';
 import { getAccessToken } from "../components/authSession";
 
 const PRESET_AVATARS = [

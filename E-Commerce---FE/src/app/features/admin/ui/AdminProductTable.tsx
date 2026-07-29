@@ -1,5 +1,4 @@
-import React from 'react';
-import { Loader2, Edit, Trash2 } from 'lucide-react';
+import { Edit, Loader2, Trash2 } from 'lucide-react';
 import { AdminBtn, TableHeader } from '../../../components/admin/AdminShared';
 
 export function AdminProductTable({

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { env } from "../../../config/env";
-import { getAccessToken } from "../authSession";
 import { parseRes } from "../../../utils/api";
+import { getAccessToken } from "../authSession";
 
 export function AdminRevenue() {
   const [revenueData, setRevenueData] = useState<any[]>([]);

@@ -1,7 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
-import { Product } from '../products/product.entity';
-import { Category } from '../products/category.entity';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Branch } from '../branches/branch.entity';
+import { Category } from '../products/category.entity';
+import { Product } from '../products/product.entity';
 
 export enum DiscountType {
   PERCENT = 'percent',

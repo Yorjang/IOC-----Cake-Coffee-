@@ -1,7 +1,7 @@
-import { Injectable, BadRequestException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Coupon, CouponStatus, DiscountType, CouponScope } from './coupon.entity';
+import { Coupon, CouponScope, CouponStatus, DiscountType } from './coupon.entity';
 import { CreateCouponDto } from './dto/create-coupon.dto';
 import { UpdateCouponDto } from './dto/update-coupon.dto';
 

@@ -1,10 +1,10 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
-import { DashboardService } from './dashboard.service';
-import { OrdersService } from '../orders/orders.service';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { Roles } from '../../common/decorators/roles.decorator';
+import { OrdersService } from '../orders/orders.service';
 import { UserRole } from '../users/user.entity';
+import { DashboardService } from './dashboard.service';
 
 @Controller(['admin/dashboard', 'dashboard'])
 export class DashboardController {

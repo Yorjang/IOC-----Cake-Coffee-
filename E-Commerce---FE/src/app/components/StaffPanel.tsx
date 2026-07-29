@@ -1,4 +1,3 @@
-import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   Banknote,
@@ -20,6 +19,7 @@ import {
   Truck,
   XCircle,
 } from "lucide-react";
+import { useMemo, useState } from "react";
 
 type StaffPanelProps = {
   onExit: () => void;
@@ -144,14 +144,7 @@ export function StaffPanel({ onExit, staffUser, products = [] }: StaffPanelProps
   const [cart, setCart] = useState<PosItem[]>([]);
 
   const posProducts = useMemo(() => {
-    const source = products.length > 0 ? products : [
-      ["Cafe Latte", "55.000đ", "Cafe", "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=220&h=160&fit=crop&auto=format", "4.8", "Còn hàng"],
-      ["Cold Brew", "60.000đ", "Cafe", "https://images.unsplash.com/photo-1517959105821-eaf2591984ca?w=220&h=160&fit=crop&auto=format", "4.8", "Còn hàng"],
-      ["Tiramisu lát", "45.000đ", "Bánh", "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=220&h=160&fit=crop&auto=format", "4.9", "Còn hàng"],
-      ["Bánh tart trứng", "25.000đ", "Bánh", "https://images.unsplash.com/photo-1621743478914-cc8a86d7e7b5?w=220&h=160&fit=crop&auto=format", "4.7", "Còn hàng"],
-      ["Combo Tiramisu + Latte", "89.000đ", "Combo", "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=220&h=160&fit=crop&auto=format", "4.9", "Combo"],
-    ];
-
+    const source = products || [];
     const keyword = query.trim().toLowerCase();
     if (!keyword) return source.slice(0, 12);
     return source.filter((item: any[]) => `${item[0]} ${item[2]}`.toLowerCase().includes(keyword)).slice(0, 12);

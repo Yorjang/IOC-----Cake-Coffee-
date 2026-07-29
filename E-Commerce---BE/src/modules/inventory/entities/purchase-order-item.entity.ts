@@ -1,14 +1,14 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
-  ManyToOne,
-  JoinColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
-import { PurchaseOrder } from './purchase-order.entity';
-import { Ingredient } from './ingredient.entity';
 import { ProductVariant } from '../../products/product-variant.entity';
+import { Ingredient } from './ingredient.entity';
+import { PurchaseOrder } from './purchase-order.entity';
 
 @Entity('purchase_order_items')
 @Index(['poId'])

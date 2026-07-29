@@ -16,12 +16,17 @@ export interface AvailableCoupon {
   perCustomerLimit?: number | null;
 }
 
-export async function getAvailableCoupons(): Promise<AvailableCoupon[]> {
+export async function getAvailableCoupons(branchId?: string): Promise<AvailableCoupon[]> {
   const token = getAccessToken();
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetch(`${env.API_URL}/coupons/public`, { headers });
+  let url = `${env.API_URL}/coupons/public`;
+  if (branchId) {
+    url += `?branchId=${encodeURIComponent(branchId)}`;
+  }
+
+  const response = await fetch(url, { headers });
   const data = await parseRes(response);
   if (!response.ok) throw new Error(data?.message ?? 'Không thể tải danh sách voucher.');
   return Array.isArray(data) ? data : [];

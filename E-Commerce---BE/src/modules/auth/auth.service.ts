@@ -1,16 +1,16 @@
-import { Injectable, BadRequestException, Logger, InternalServerErrorException } from '@nestjs/common';
-import { UsersService } from '../users/users.service';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
-import { MailService } from '../mail/mail.service';
+import { BadRequestException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import * as jwt from 'jsonwebtoken';
-import { User } from '../users/user.entity';
 import * as crypto from 'crypto';
+import * as jwt from 'jsonwebtoken';
 import { DataSource } from 'typeorm';
+import { MailService } from '../mail/mail.service';
+import { User } from '../users/user.entity';
+import { UsersService } from '../users/users.service';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
 export class AuthService {

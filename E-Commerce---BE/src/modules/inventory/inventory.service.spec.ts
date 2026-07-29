@@ -1,19 +1,19 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 
-import { InventoryService } from './inventory.service';
-import { BranchVariantStock } from './branch-variant-stock.entity';
-import { Ingredient } from './entities/ingredient.entity';
-import { BranchIngredientStock } from './entities/branch-ingredient-stock.entity';
-import { VariantIngredient } from './entities/variant-ingredient.entity';
-import { StockBatch, BatchStatus } from './entities/stock-batch.entity';
-import { InventoryTransaction, InventoryTransactionType } from './entities/inventory-transaction.entity';
-import { PurchaseOrder, PurchaseOrderStatus } from './entities/purchase-order.entity';
-import { PurchaseOrderItem } from './entities/purchase-order-item.entity';
 import { UserRole } from '../users/user.entity';
+import { BranchVariantStock } from './branch-variant-stock.entity';
+import { BranchIngredientStock } from './entities/branch-ingredient-stock.entity';
+import { Ingredient } from './entities/ingredient.entity';
+import { InventoryTransaction } from './entities/inventory-transaction.entity';
+import { PurchaseOrderItem } from './entities/purchase-order-item.entity';
+import { PurchaseOrder, PurchaseOrderStatus } from './entities/purchase-order.entity';
+import { StockBatch } from './entities/stock-batch.entity';
+import { VariantIngredient } from './entities/variant-ingredient.entity';
+import { InventoryService } from './inventory.service';
 
 describe('InventoryService', () => {
   let service: InventoryService;

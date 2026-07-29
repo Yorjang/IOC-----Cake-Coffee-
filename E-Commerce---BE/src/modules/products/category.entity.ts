@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('categories')
 export class Category {
@@ -6,7 +6,7 @@ export class Category {
     id: string;
 
     @Column({ name: 'parent_id', type: 'uuid', nullable: true })
-    parentId: string;
+    parentId: string | null;
 
     @Column({ unique: true, length: 200 })
     name: string;

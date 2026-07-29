@@ -1,7 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Branch } from '../../branches/branch.entity';
-import { Ingredient } from './ingredient.entity';
 import { ProductVariant } from '../../products/product-variant.entity';
+import { Ingredient } from './ingredient.entity';
 
 export enum BatchStatus {
   ACTIVE = 'ACTIVE',

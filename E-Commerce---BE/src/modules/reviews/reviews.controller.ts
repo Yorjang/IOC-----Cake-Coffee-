@@ -1,11 +1,11 @@
-import { Controller, Get, Delete, Param, Patch, Post, Body, ParseUUIDPipe, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { Permissions } from '../../common/decorators/permissions.decorator';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import { Permission } from '../../common/constants/permissions';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { ReviewsService } from './reviews.service';
+import { Permissions } from '../../common/decorators/permissions.decorator';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { ReviewsService } from './reviews.service';
 
 @Controller(['admin/reviews', 'reviews'])
 export class ReviewsController {

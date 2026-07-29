@@ -1,18 +1,16 @@
 import { parseRes } from '../../../utils/api';
 
-import React, { useState, useEffect } from "react";
 import {
-  LayoutDashboard, Package, Tag, Settings, ShoppingBag, Users, Star,
-  BarChart2, Image, Edit, Trash2, Eye, Plus, CheckCircle, XCircle,
-  TrendingUp, AlertCircle, Loader2, ToggleLeft, Search, Filter,
-  ArrowUpRight, DollarSign, Clock, ChevronDown, Store, MapPin, Boxes,
-  ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
+  CheckCircle,
+  Edit,
+  Loader2,
+  Trash2
 } from "lucide-react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { env } from "../../../config/env";
 import { getAccessToken, getStoredUser } from "../authSession";
-import { supabase } from "../../../config/supabase";
-import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
+import { StatusBadge, TableHeader } from "./AdminShared";
 
 export function AdminVouchers() {
   const user = getStoredUser();
@@ -44,7 +42,7 @@ export function AdminVouchers() {
   const [branchId, setBranchId] = useState(isManager ? user?.branchId || "" : "");
 
   const loadCoupons = async () => {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/admin/vouchers`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -118,7 +116,7 @@ export function AdminVouchers() {
       toast.error("Giá trị giảm giá theo phần trăm phải lớn hơn 0%.");
       return;
     }
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     setSaving(true);
     try {
       const isEditing = !!editingVoucher;
@@ -224,7 +222,7 @@ export function AdminVouchers() {
     const couponObj = coupons.find(c => c.id === id);
     const actionLabel = couponObj?.isPendingDelete ? "duyệt xóa" : "phê duyệt";
     if (!window.confirm(`Bạn có chắc chắn muốn ${actionLabel} voucher này không?`)) return;
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/admin/vouchers/${id}/approve`, {
         method: "PATCH",
@@ -245,7 +243,7 @@ export function AdminVouchers() {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa voucher này không?")) return;
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     try {
       const res = await fetch(`${env.API_URL}/admin/vouchers/${id}`, {
         method: "DELETE",

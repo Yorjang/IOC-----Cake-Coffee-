@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { parseRes } from "../../../../utils/api";
 import { env } from "../../../../config/env";
-import { VIEW_KEYS } from "../../../../config/appConfig";
+import { parseRes } from "../../../../utils/api";
 
 
 export function useCheckout({ cart, setView, onPlaceOrder, user }: any) {

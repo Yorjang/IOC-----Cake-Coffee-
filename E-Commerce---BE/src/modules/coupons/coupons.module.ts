@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Coupon } from './coupon.entity';
-import { CouponsService } from './coupons.service';
-import { CouponsController } from './coupons.controller';
 import { UsersModule } from '../users/users.module';
+import { Coupon } from './coupon.entity';
+import { CouponsController } from './coupons.controller';
+import { CouponsService } from './coupons.service';
 
 @Module({
   imports: [

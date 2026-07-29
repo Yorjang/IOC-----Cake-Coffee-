@@ -1,8 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Review } from './review.entity';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { Review } from './review.entity';
 
 @Injectable()
 export class ReviewsService {

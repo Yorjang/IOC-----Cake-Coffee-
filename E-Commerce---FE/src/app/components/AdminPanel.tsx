@@ -1,29 +1,73 @@
-import { useState, useEffect } from "react";
-import { PanelLeftClose, PanelLeftOpen, Menu, X } from "lucide-react";
-import { Dashboard } from "./admin/Dashboard";
-import { AdminOrders } from "./admin/AdminOrders";
-import { AdminBranches } from "./admin/AdminBranches";
-import { AdminStoreMap } from "./admin/AdminStoreMap";
-import { AdminProducts } from "./admin/AdminProducts";
-import { AdminCombos } from "./admin/AdminCombos";
-import { AdminCategories } from "./admin/AdminCategories";
-import { AdminProductTags } from "./admin/AdminProductTags";
-import { AdminInventory } from "./admin/AdminInventory";
-import { AdminUsers } from "./admin/AdminUsers";
-import { AdminReviews } from "./admin/AdminReviews";
-import { AdminVouchers } from "./admin/AdminVouchers";
-import { AdminBanners } from "./admin/AdminBanners";
-import { AdminRevenue } from "./admin/AdminRevenue";
-import { AdminSettings } from "./admin/AdminSettings";
-import { navItems, ROLE_LABEL, type AdminRole } from "./admin/AdminShared";
+import {
+  BarChart2,
+  Boxes,
+  Image,
+  LayoutDashboard,
+  MapPin,
+  Menu,
+  Package,
+  PanelLeftClose, PanelLeftOpen,
+  Settings, ShoppingBag,
+  Star,
+  Store,
+  Tag,
+  Users,
+  X
+} from "lucide-react";
+import { useEffect, useState } from "react";
 
-const KEY_TO_PATH: Record<string, string> = {
+import { AdminBanners } from './admin/AdminBanners';
+import { AdminBranches } from './admin/AdminBranches';
+import { AdminCategories } from './admin/AdminCategories';
+import { AdminInventory } from './admin/AdminInventory';
+import { AdminOrders } from './admin/AdminOrders';
+import { AdminProducts } from './admin/AdminProducts';
+import { AdminProductTags } from './admin/AdminProductTags';
+import { AdminRevenue } from './admin/AdminRevenue';
+import { AdminReviews } from './admin/AdminReviews';
+import { AdminSettings } from './admin/AdminSettings';
+import { AdminStoreMap } from './admin/AdminStoreMap';
+import { AdminUsers } from './admin/AdminUsers';
+import { AdminVouchers } from './admin/AdminVouchers';
+import { Dashboard } from './admin/Dashboard';
+
+type AdminRole = "admin" | "store_manager" | "staff" | "cashier";
+
+const ROLE_LABEL: Record<AdminRole, string> = {
+  admin: "Quản trị viên",
+  store_manager: "Quản lý cửa hàng",
+  staff: "Nhân viên",
+  cashier: "Thu ngân",
+};
+
+const navItems = [
+  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, allowedRoles: ["admin", "store_manager", "staff", "cashier"] },
+  { key: "orders", label: "Đơn hàng", icon: ShoppingBag, allowedRoles: ["admin", "store_manager", "staff", "cashier"] },
+  { key: "branches", label: "Chi nhánh", icon: Store, allowedRoles: ["admin", "store_manager"] },
+  { key: "storeMap", label: "Bản đồ", icon: MapPin, allowedRoles: ["admin", "store_manager"] },
+  { key: "products", label: "Sản phẩm", icon: Package, allowedRoles: ["admin", "store_manager", "staff"] },
+  { key: "categories", label: "Danh mục", icon: Tag, allowedRoles: ["admin", "store_manager", "staff"] },
+  { key: "productTags", label: "Tag sản phẩm", icon: Tag, allowedRoles: ["admin", "store_manager", "staff"] },
+  { key: "inventory", label: "Tồn kho", icon: Boxes, allowedRoles: ["admin", "store_manager", "staff"] },
+  { key: "users", label: "Người dùng", icon: Users, allowedRoles: ["admin"] },
+  { key: "reviews", label: "Đánh giá", icon: Star, allowedRoles: ["admin", "store_manager", "staff"] },
+  { key: "vouchers", label: "Voucher", icon: Tag, allowedRoles: ["admin", "store_manager"] },
+  { key: "banners", label: "Banner", icon: Image, allowedRoles: ["admin", "store_manager"] },
+  { key: "revenue", label: "Thống kê", icon: BarChart2, allowedRoles: ["admin", "store_manager"] },
+  { key: "settings", label: "Cài đặt", icon: Settings, allowedRoles: ["admin"] },
+] satisfies Array<{
+  key: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  allowedRoles: AdminRole[];
+}>;
+
+const ADMIN_TAB_PATHS: Record<string, string> = {
   dashboard: "/admin/dashboard",
   orders: "/admin/orders",
   branches: "/admin/branches",
   storeMap: "/admin/map",
   products: "/admin/products",
-  combos: "/admin/combos",
   categories: "/admin/categories",
   productTags: "/admin/tags",
   inventory: "/admin/inventory",
@@ -35,57 +79,44 @@ const KEY_TO_PATH: Record<string, string> = {
   settings: "/admin/settings",
 };
 
-const PATH_TO_KEY: Record<string, string> = {
-  "/admin": "dashboard",
-  "/admin/": "dashboard",
-  "/admin/dashboard": "dashboard",
-  "/admin/orders": "orders",
-  "/admin/branches": "branches",
-  "/admin/map": "storeMap",
-  "/admin/products": "products",
-  "/admin/combos": "combos",
-  "/admin/categories": "categories",
-  "/admin/tags": "productTags",
-  "/admin/inventory": "inventory",
-  "/admin/users": "users",
-  "/admin/reviews": "reviews",
-  "/admin/vouchers": "vouchers",
-  "/admin/banners": "banners",
-  "/admin/statistics": "revenue",
-  "/admin/settings": "settings",
-};
+const ADMIN_PATH_TABS: Record<string, string> = Object.fromEntries(
+  Object.entries(ADMIN_TAB_PATHS).map(([tab, path]) => [path, tab]),
+);
 
 export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUser?: any }) {
   const role = (adminUser?.role ?? "admin") as AdminRole;
   const visibleNav = navItems.filter(item => item.allowedRoles.includes(role));
-
-  const getInitialActive = () => {
-    const currentKey = PATH_TO_KEY[window.location.pathname];
-    if (currentKey && visibleNav.some(item => item.key === currentKey)) {
-      return currentKey;
-    }
-    return visibleNav[0]?.key ?? "dashboard";
+  const getTabFromPath = () => {
+    const requestedTab = window.location.pathname === "/admin"
+      ? "dashboard"
+      : ADMIN_PATH_TABS[window.location.pathname];
+    return visibleNav.some(item => item.key === requestedTab)
+      ? requestedTab
+      : visibleNav[0]?.key ?? "dashboard";
   };
-
-  const [active, setActive] = useState(getInitialActive);
+  const [active, setActive] = useState(getTabFromPath);
   const [mobileNav, setMobileNav] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("sb_admin_sidebar_collapsed") === "true");
 
   useEffect(() => {
-    const handlePopState = () => {
-      const key = PATH_TO_KEY[window.location.pathname];
-      if (key && visibleNav.some(item => item.key === key)) {
-        setActive(key);
+    const syncTabWithPath = () => {
+      const nextTab = getTabFromPath();
+      if (window.location.pathname === "/admin") {
+        window.history.replaceState(null, "", ADMIN_TAB_PATHS[nextTab] ?? "/admin/dashboard");
       }
+      setActive(nextTab);
+      setMobileNav(false);
     };
+    syncTabWithPath();
+    const handlePopState = () => syncTabWithPath();
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [visibleNav]);
+  }, [role]);
 
   const selectTab = (key: string) => {
     setActive(key);
     setMobileNav(false);
-    const targetPath = KEY_TO_PATH[key] || "/admin/dashboard";
+    const targetPath = ADMIN_TAB_PATHS[key] ?? "/admin/dashboard";
     if (window.location.pathname !== targetPath) {
       window.history.pushState(null, "", targetPath);
     }
@@ -105,7 +136,6 @@ export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUse
     branches: <AdminBranches adminUser={adminUser} />,
     storeMap: <AdminStoreMap />,
     products: <AdminProducts />,
-    combos: <AdminCombos />,
     categories: <AdminCategories />,
     productTags: <AdminProductTags />,
     inventory: <AdminInventory />,

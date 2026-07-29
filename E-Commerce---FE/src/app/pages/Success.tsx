@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
-import { ClipboardList, Check, Loader2, Copy, PackageCheck } from "lucide-react";
+import { Check, ClipboardList, Copy, Loader2, PackageCheck } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { parseRes } from "../../utils/api";
+import { VIEW_KEYS } from "../../config/appConfig";
 import { env } from "../../config/env";
+import { parseRes } from "../../utils/api";
 import { getAccessToken } from "../components/authSession";
 import { Btn } from "../components/shared";
-import { VIEW_KEYS } from "../../config/appConfig";
 import { VnpayPayment } from "../features/checkout/ui/VnpayPayment";
 
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
@@ -31,11 +31,7 @@ export function Success({ setView, order, orderId: orderIdProp }: any) {
     }
   }, [order, orderIdProp]);
 
-  useEffect(() => {
-    if (!resolvedOrder && !orderIdProp) {
-      setView(VIEW_KEYS.HOME);
-    }
-  }, [resolvedOrder, orderIdProp, setView]);
+  // Bỏ tự động redirect sang HOME để tránh lỗi chớp tắt state khi React chưa cập nhật kịp order
 
   if (!resolvedOrder && !orderIdProp) return null;
 

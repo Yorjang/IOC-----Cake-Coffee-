@@ -1,10 +1,10 @@
-import { parseRes } from '../../utils/api';
-import { useState, useEffect } from "react";
-import { Package, X, ChevronRight } from "lucide-react";
+import { ChevronRight, Package, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { env } from "../../config/env";
+import { parseRes } from '../../utils/api';
 import { getAccessToken } from "./authSession";
 
-export function ActiveOrderBanner({ lastCreatedOrder, onClick, onPayment, isHidden }: { lastCreatedOrder?: any, onClick: (orderId: string) => void, onPayment?: (orderId: string) => void, isHidden?: boolean }) {
+export function ActiveOrderBanner({ lastCreatedOrder, onClick, onPayment, isHidden }: { lastCreatedOrder?: any, onClick: (order: any) => void, onPayment?: (orderId: string) => void, isHidden?: boolean }) {
   const [activeOrder, setActiveOrder] = useState<any>(null);
   const [dismissed, setDismissed] = useState(false);
 
@@ -66,6 +66,9 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, onPayment, isHidd
             // Auto dismiss after a few seconds when completed
             setTimeout(() => setDismissed(true), 5000);
           }
+        } else if (res.status === 404 || res.status === 400) {
+          // Đơn hàng đã bị xóa khỏi database hoặc không hợp lệ
+          setDismissed(true);
         }
       } catch (err) {
         // ignore
@@ -113,7 +116,7 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, onPayment, isHidd
     if (needsPayment && onPayment) {
       onPayment(activeOrder.id);
     } else {
-      onClick(activeOrder.id);
+      onClick(activeOrder);
     }
   };
 
