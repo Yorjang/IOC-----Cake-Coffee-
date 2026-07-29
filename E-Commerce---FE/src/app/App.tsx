@@ -103,23 +103,25 @@ export default function App() {
     }
     const payload = {
       branchId: selectedStore?.id,
-      customerName: customerInfo.name,
-      customerPhone: customerInfo.phone,
-      shippingAddress: customerInfo.address,
+      shippingRecipientName: customerInfo.name,
+      shippingAddressPhone: customerInfo.phone,
+      shippingAddressStreet: customerInfo.address,
       paymentMethod: customerInfo.paymentMethod,
+      fulfillmentType: "delivery",
       note: customerInfo.note || "",
       couponCode: appliedCoupon?.code || null,
-      items: cart.map((item: any) => ({
-        cartItemId: item.cartItemId,
-        productId: item.productId || (item.product?.raw?.isCombo ? null : item.product?.raw?.id),
-        comboId: item.comboId || (item.product?.raw?.isCombo ? item.product?.raw?.id : null),
-        variantId: item.variantId,
-        quantity: item.quantity,
-        size: item.size,
-        note: item.note,
-        price: item.price || parsePrice(item.product[1]),
-        extraOptions: item.extraOptions || []
-      }))
+      items: cart.map((item: any) => {
+        const unitPrice = item.price || parsePrice(item.product[1]);
+        return {
+          productId: item.productId || item.product?.raw?.id,
+          variantId: item.variantId,
+          productName: item.product[0],
+          variantName: item.size || "M",
+          quantity: item.quantity,
+          unitPrice,
+          totalPrice: unitPrice * item.quantity
+        };
+      })
     };
     try {
       const headers = cartHeaders(true);

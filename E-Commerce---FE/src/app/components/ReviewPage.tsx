@@ -71,8 +71,9 @@ export function ReviewPage({ product, onBack, isEmbedded = false }: any) {
     try {
       const res = await fetch(`${env.API_URL}/reviews/product/${productId}`);
       if (res.ok) {
-        const data = await res.json();
-        const mapped = data.map((r: any) => ({
+        const json = await res.json();
+        const dataArray = Array.isArray(json) ? json : (json.data || []);
+        const mapped = dataArray.map((r: any) => ({
           user: r.user?.fullName || "Khách hàng",
           avatar: (r.user?.fullName || "K").charAt(0).toUpperCase(),
           rating: r.rating,

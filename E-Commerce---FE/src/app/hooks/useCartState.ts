@@ -89,37 +89,39 @@ export function useCartState(user: any, selectedStore: any) {
     }
   };
 
-  const handleAddToCart = async (product: any, quantity: number = 1, size: string = "M", note: string = "", extraOptions: any[] = []) => {
+  const handleAddToCart = async (product: any, size: string = "M", quantity: number = 1, options: any = {}, price?: number, variantId?: string) => {
     if (!selectedStore) {
       toast.error("Vui lòng chọn cửa hàng trước");
       return;
     }
     const realId = product.raw?.id || product[0];
     const isCombo = !!product.raw?.isCombo;
-    let actualPrice = parsePrice(product[1]);
+    let actualPrice = price || parsePrice(product[1]);
     let finalSize = size;
+    let finalVariantId = variantId;
+
     let productVariants = product.raw?.variants || product.raw?.productVariants || [];
     if (!productVariants.length && product.raw?.product?.variants) productVariants = product.raw.product.variants;
-    if (productVariants.length > 0) {
+
+    if (!finalVariantId && productVariants.length > 0) {
       const matched = productVariants.find((v: any) => matchSize(v.size, size));
       if (matched) {
-        actualPrice = Number(matched.price);
         finalSize = matched.size;
+        finalVariantId = matched.id;
+      } else {
+        finalVariantId = productVariants[0].id;
       }
     }
 
     const payload = {
-      productId: isCombo ? null : realId,
-      comboId: isCombo ? realId : null,
-      variantId: productVariants.length > 0 ? productVariants.find((v: any) => matchSize(v.size, finalSize))?.id : null,
+      productId: realId,
+      variantId: finalVariantId,
       quantity,
-      size: finalSize,
-      note,
-      extraOptions: extraOptions.map(opt => ({ name: opt.name, price: opt.price }))
+      note: options ? (typeof options === 'object' ? JSON.stringify(options) : options) : "",
     };
 
     try {
-      const res = await fetch(cartUrl("/items"), {
+      const res = await fetch(cartUrl(""), {
         method: "POST",
         headers: cartHeaders(true),
         body: JSON.stringify(payload),
@@ -135,16 +137,15 @@ export function useCartState(user: any, selectedStore: any) {
     }
   };
 
-  const handleUpdateCartQty = async (index: number, delta: number) => {
+  const handleUpdateCartQty = async (index: number, newQty: number) => {
     const item = cart[index];
-    const newQty = item.quantity + delta;
     if (newQty < 1) {
       handleRemoveCartItem(index);
       return;
     }
-    if (item.cartItemId) {
+    if (item.dbId) {
       try {
-        const res = await fetch(cartUrl(`/items/${item.cartItemId}`), {
+        const res = await fetch(cartUrl(`/${item.dbId}`), {
           method: "PATCH",
           headers: cartHeaders(true),
           body: JSON.stringify({ quantity: newQty }),
@@ -169,9 +170,9 @@ export function useCartState(user: any, selectedStore: any) {
 
   const handleRemoveCartItem = async (index: number) => {
     const item = cart[index];
-    if (item.cartItemId) {
+    if (item.dbId) {
       try {
-        const res = await fetch(cartUrl(`/items/${item.cartItemId}`), {
+        const res = await fetch(cartUrl(`/${item.dbId}`), {
           method: "DELETE",
           headers: cartHeaders(),
         });
