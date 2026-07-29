@@ -8,10 +8,11 @@ import { ProductTag } from './product-tag.entity';
 import { ProductsService } from './products.service';
 import { ProductsController } from './products.controller';
 import { UsersModule } from '../users/users.module';
+import { OrderItem } from '../orders/order-item.entity';
 
 @Module({
     imports: [
-        TypeOrmModule.forFeature([Category, Product, ProductVariant, ProductTopping, ProductTag]),
+        TypeOrmModule.forFeature([Category, Product, ProductVariant, ProductTopping, ProductTag, OrderItem]),
         UsersModule,
     ],
     controllers: [ProductsController],

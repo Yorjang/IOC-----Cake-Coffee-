@@ -99,7 +99,7 @@ export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUse
     combos: <AdminCombos />,
     categories: <AdminCategories />,
     productTags: <AdminProductTags />,
-    inventory: <AdminInventory />,
+    inventory: <AdminInventory adminUser={adminUser} />,
     users: <AdminUsers />,
     reviews: <AdminReviews />,
     vouchers: <AdminVouchers />,

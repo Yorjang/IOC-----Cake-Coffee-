@@ -34,9 +34,13 @@ export function AdminProductTable({
                     {p.imageUrl && <img src={p.imageUrl} alt={p.name} className="size-10 rounded-lg object-cover" />}
                     <div>
                       <span className="text-foreground font-medium">{p.name}</span>
-                      {p.branchId && p.branch && (
+                      {p.branchId && p.branch ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2.5 py-0.5 text-[10px] text-green-600 font-semibold ml-1.5">
                           🏬 {p.branch.name}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2.5 py-0.5 text-[10px] text-blue-500 font-semibold ml-1.5">
+                          🌐 Toàn hệ thống
                         </span>
                       )}
                     </div>

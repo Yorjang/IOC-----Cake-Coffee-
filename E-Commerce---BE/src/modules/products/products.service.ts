@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, FindOptionsWhere } from 'typeorm';
+import { Repository, IsNull, FindOptionsWhere, DataSource } from 'typeorm';
 import { User, UserRole } from '../users/user.entity';
 import { Category } from './category.entity';
 import { Product, ProductType } from './product.entity';
@@ -12,6 +12,7 @@ import { CreateProductDto, UpdateProductDto } from './dto/create-product.dto';
 import { CreateProductVariantDto, UpdateProductVariantDto } from './dto/product-variant.dto';
 import { ProductTag } from './product-tag.entity';
 import { CreateProductTagDto, ReplaceProductTagsDto, UpdateProductTagDto } from './dto/product-tag.dto';
+import { OrderItem } from '../orders/order-item.entity';
 
 // Utility helper to generate slug
 function generateSlug(name: string): string {
@@ -45,6 +46,11 @@ export class ProductsService {
 
         @InjectRepository(ProductTag)
         private readonly tags: Repository<ProductTag>,
+
+        @InjectRepository(OrderItem)
+        private readonly orderItems: Repository<OrderItem>,
+
+        private readonly dataSource: DataSource,
     ) {}
 
     // ── Categories CRUD ──────────────────────────────────────────────────────
@@ -229,12 +235,34 @@ export class ProductsService {
         }
 
         Object.assign(prod, dto);
+
+        // TypeORM gotcha: when both the FK column (branchId) and the relation object (branch)
+        // are set on a loaded entity, TypeORM may use the relation object to determine the FK value,
+        // ignoring the explicit null/new FK. We must clear the relation cache so TypeORM
+        // uses branchId column value directly.
+        if ('branchId' in dto) {
+            prod.branchId = (dto.branchId && dto.branchId !== '') ? dto.branchId : null as any;
+            (prod as any).branch = undefined;
+        }
+
         await this.products.save(prod);
         return this.findProductById(id);
     }
 
     async deleteProduct(id: string): Promise<void> {
         const prod = await this.findProductById(id);
+
+        // Check if any order items reference this product
+        const orderItemCount = await this.orderItems.count({ where: { productId: id } });
+        if (orderItemCount > 0) {
+            // Soft-delete: hide product instead of deleting to preserve order history
+            prod.isActive = false;
+            await this.products.save(prod);
+            throw new BadRequestException(
+                `Sản phẩm "${prod.name}" đang được tham chiếu bởi ${orderItemCount} đơn hàng. Sản phẩm đã được ẩn khỏi cửa hàng thay vì xóa để bảo toàn lịch sử đơn hàng.`,
+            );
+        }
+
         await this.products.remove(prod);
     }
 
