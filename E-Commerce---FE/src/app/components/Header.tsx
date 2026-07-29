@@ -1,4 +1,4 @@
-import { Heart, LogOut, MapPin, Search, Settings, ShoppingBag, User, X } from "lucide-react";
+import { Heart, LogOut, MapPin, Search, Settings, ShoppingBag, User, X, ChevronDown, Menu } from "lucide-react";
 import { useState } from "react";
 import { VIEW_KEYS } from "../../config/appConfig";
 
