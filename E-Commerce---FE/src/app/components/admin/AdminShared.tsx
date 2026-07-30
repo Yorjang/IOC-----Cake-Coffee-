@@ -1,12 +1,21 @@
+import { Loader2, UploadCloud } from "lucide-react";
 import React, { useState } from "react";
-import { UploadCloud, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../../config/supabase";
 
 
 import {
-  LayoutDashboard, Package, Tag, Settings, ShoppingBag, Users, Star,
-  BarChart2, Image, Store, MapPin, Boxes
+  BarChart2,
+  Boxes,
+  Image,
+  LayoutDashboard,
+  MapPin,
+  Package,
+  Settings, ShoppingBag,
+  Star,
+  Store,
+  Tag,
+  Users
 } from "lucide-react";
 
 export type AdminRole = "admin" | "store_manager" | "staff" | "cashier";

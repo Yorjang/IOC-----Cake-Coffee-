@@ -1,5 +1,5 @@
-import { ProductCard } from "../components/shared";
 import { VIEW_KEYS } from "../../config/appConfig";
+import { ProductCard } from "../components/shared";
 
 export function Favorites({ wishlist, onToggleWishlist, onAddToCart, onSelectProduct, setView }: any) {
   return (

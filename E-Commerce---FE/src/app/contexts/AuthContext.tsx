@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { env } from '../../config/env';
-import { clearAuthSession, getAccessToken, refreshAuthSession, getStoredUser } from '../components/authSession';
+import { clearAuthSession, getAccessToken } from '../components/authSession';
 
 interface AuthContextType {
   user: any;

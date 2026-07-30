@@ -1,9 +1,9 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
+import * as crypto from 'crypto';
 import * as jwt from 'jsonwebtoken';
 import { UsersService } from '../../modules/users/users.service';
-import * as crypto from 'crypto';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()

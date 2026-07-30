@@ -1,10 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany, ManyToMany, JoinTable } from 'typeorm';
-import { Category } from './category.entity';
-import { ProductVariant } from './product-variant.entity';
-import { ProductTopping } from './product-topping.entity';
-import { ProductTag } from './product-tag.entity';
+import { Column, CreateDateColumn, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Branch } from '../branches/branch.entity';
 import { ComboItem } from '../combos/combo-item.entity';
+import { Category } from './category.entity';
+import { ProductTag } from './product-tag.entity';
+import { ProductTopping } from './product-topping.entity';
+import { ProductVariant } from './product-variant.entity';
 
 export enum ProductType {
     CAKE = 'cake',

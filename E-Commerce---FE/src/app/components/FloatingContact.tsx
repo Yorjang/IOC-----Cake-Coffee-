@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Facebook, Instagram, Youtube, Twitter, ChevronUp } from "lucide-react";
+import { ChevronUp, Facebook, Instagram, Twitter, Youtube } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export function FloatingContact() {
   const [showTop, setShowTop] = useState(false);

@@ -1,19 +1,19 @@
 "use client";
 
-import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
-import { cva } from "class-variance-authority";
 import type { VariantProps } from "class-variance-authority";
+import { cva } from "class-variance-authority";
+import * as React from "react";
 
-import { cn } from "./utils";
-import { useSidebar } from "./sidebar-context";
 import { Button } from "./button";
 import { Input } from "./input";
 import { Separator } from "./separator";
+import { useSidebar } from "./sidebar-context";
 import { Skeleton } from "./skeleton";
 import {
   Tooltip, TooltipContent, TooltipTrigger,
 } from "./tooltip";
+import { cn } from "./utils";
 
 // ── SidebarTrigger ────────────────────────────────────────────────────────────
 import { PanelLeftIcon } from "lucide-react";
@@ -124,10 +124,6 @@ function SidebarMenuSubButton({ asChild = false, size = "md", isActive = false, 
 }
 
 export {
-  SidebarTrigger, SidebarRail, SidebarInset, SidebarInput,
-  SidebarHeader, SidebarFooter, SidebarSeparator, SidebarContent,
-  SidebarGroup, SidebarGroupLabel, SidebarGroupAction, SidebarGroupContent,
-  SidebarMenu, SidebarMenuItem, SidebarMenuButton, sidebarMenuButtonVariants,
-  SidebarMenuAction, SidebarMenuBadge, SidebarMenuSkeleton,
-  SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
+  SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarInput, SidebarInset, SidebarMenu, SidebarMenuAction, SidebarMenuBadge, SidebarMenuButton, sidebarMenuButtonVariants, SidebarMenuItem, SidebarMenuSkeleton,
+  SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem, SidebarRail, SidebarSeparator, SidebarTrigger
 };

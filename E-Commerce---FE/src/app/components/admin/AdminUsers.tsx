@@ -1,7 +1,6 @@
-import React from "react";
 import { useAdminUsers } from "../../features/admin/hooks/useAdminUsers";
-import { AdminUserTable } from "../../features/admin/ui/AdminUserTable";
 import { AdminUserModal } from "../../features/admin/ui/AdminUserModal";
+import { AdminUserTable } from "../../features/admin/ui/AdminUserTable";
 
 export function AdminUsers() {
   const {

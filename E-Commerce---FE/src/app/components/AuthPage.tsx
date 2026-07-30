@@ -1,13 +1,12 @@
-import { parseRes } from '../../utils/api';
-import { useState, useEffect, useRef } from "react";
-import { CakeSlice, Eye, EyeOff, Mail, Lock, User, Phone, X } from "lucide-react";
+import { CakeSlice, Eye, EyeOff, Lock, Mail, Phone, User, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { AUTH_CONTENT } from "../../constants/authContent";
-import { env } from "../../config/env";
-import { policyContentMap } from "../pages/PolicyPage";
-import type { AuthMode, AuthErrors } from "./authUtils";
-import { validateRegisterFields, apiRegister, apiLogin, apiForgotPassword, apiResetPassword, apiGoogleLogin } from "./authUtils";
 import { VIEW_KEYS } from "../../config/appConfig";
+import { env } from "../../config/env";
+import { AUTH_CONTENT } from "../../constants/authContent";
+import { policyContentMap } from "../pages/PolicyPage";
+import type { AuthErrors, AuthMode } from "./authUtils";
+import { apiForgotPassword, apiGoogleLogin, apiLogin, apiRegister, apiResetPassword, validateRegisterFields } from "./authUtils";
 
 declare global {
   interface Window {

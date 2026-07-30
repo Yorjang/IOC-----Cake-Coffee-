@@ -1,9 +1,8 @@
-import React from "react";
 import { Plus, Search } from "lucide-react";
-import { AdminBtn } from "./AdminShared";
 import { useAdminProducts } from "../../features/admin/hooks/useAdminProducts";
-import { AdminProductTable } from "../../features/admin/ui/AdminProductTable";
 import { AdminProductModal } from "../../features/admin/ui/AdminProductModal";
+import { AdminProductTable } from "../../features/admin/ui/AdminProductTable";
+import { AdminBtn } from "./AdminShared";
 
 export function AdminProducts() {
   const {

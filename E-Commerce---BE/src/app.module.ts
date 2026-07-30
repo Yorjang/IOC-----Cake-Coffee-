@@ -1,26 +1,25 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './modules/auth/auth.module';
-import { UsersModule } from './modules/users/users.module';
-import { BranchesModule } from './modules/branches/branches.module';
-import { ProductsModule } from './modules/products/products.module';
-import { OrdersModule } from './modules/orders/orders.module';
-import { CouponsModule } from './modules/coupons/coupons.module';
-import { ReviewsModule } from './modules/reviews/reviews.module';
 import { BannersModule } from './modules/banners/banners.module';
-import { InventoryModule } from './modules/inventory/inventory.module';
+import { BranchesModule } from './modules/branches/branches.module';
 import { CartModule } from './modules/cart/cart.module';
-import { PaymentsModule } from './modules/payments/payments.module';
 import { CombosModule } from './modules/combos/combos.module';
+import { CouponsModule } from './modules/coupons/coupons.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
+import { OrdersModule } from './modules/orders/orders.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { ProductsModule } from './modules/products/products.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
+import { UsersModule } from './modules/users/users.module';
 
 import { CategoriesModule } from './modules/categories/categories.module';
-import { TagsModule } from './modules/tags/tags.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { MapModule } from './modules/map/map.module';
-import { StatisticsModule } from './modules/statistics/statistics.module';
 import { SettingsModule } from './modules/settings/settings.module';
-import { NotificationsModule } from './modules/notifications/notifications.module';
+import { StatisticsModule } from './modules/statistics/statistics.module';
+import { TagsModule } from './modules/tags/tags.module';
 
 @Module({
   imports: [
@@ -58,7 +57,6 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     MapModule,
     StatisticsModule,
     SettingsModule,
-    NotificationsModule,
   ],
   controllers: [],
   providers: [],

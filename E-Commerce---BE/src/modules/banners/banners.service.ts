@@ -1,9 +1,9 @@
-import { Injectable, BadRequestException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { User, UserRole } from '../users/user.entity';
 import { Banner } from './banner.entity';
 import { CreateBannerDto } from './dto/create-banner.dto';
-import { User, UserRole } from '../users/user.entity';
 
 @Injectable()
 export class BannersService implements OnModuleInit {

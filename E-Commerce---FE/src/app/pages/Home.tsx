@@ -1,77 +1,14 @@
+import { ChevronLeft, ChevronRight, Coffee, Gift, RefreshCw, Tag, Truck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Truck, Gift, RefreshCw, Coffee, Tag, ChevronRight, ChevronLeft } from "lucide-react";
-import { ProductCard, HorizontalProductCard, Section } from "../components/shared";
-import { MESSAGES } from "../../constants/messages";
-import { env } from "../../config/env";
 import { HOME_CONFIG, VIEW_KEYS } from "../../config/appConfig";
+import { env } from "../../config/env";
+import { MESSAGES } from "../../constants/messages";
+import { ProductCard, Section } from "../components/shared";
+import { VoucherDetailModal } from '../features/home/ui/VoucherDetailModal';
+import { ScrollingBestSellers } from '../features/home/ui/HomeBestSellers';
+import { VoucherRow } from '../features/home/ui/VoucherRow';
 import { getFeaturedParentCategories } from "../features/categories/categoryHierarchy";
 
-function VoucherRow({ code, title, sub, onClick }: any) {
-  return (
-    <div
-      onClick={onClick}
-      className="group cursor-pointer flex items-center justify-between rounded-xl border border-border/80 bg-background/60 p-3.5 transition hover:border-primary/50 hover:bg-background"
-    >
-      <div className="flex flex-col">
-        <span className="text-xs font-bold text-primary font-mono">{code}</span>
-        <span className="text-xs font-semibold text-foreground mt-0.5">{title}</span>
-        <span className="text-[11px] text-muted-foreground">{sub}</span>
-      </div>
-      <button className="rounded-full bg-secondary px-3 py-1 text-[11px] font-semibold text-secondary-foreground transition group-hover:bg-primary group-hover:text-primary-foreground">
-        Chi tiết
-      </button>
-    </div>
-  );
-}
-
-function VoucherDetailModal({ voucher, products, onSelectProduct, setView, onClose }: any) {
-  if (!voucher) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
-        <button onClick={onClose} className="absolute right-4 top-4 text-muted-foreground hover:text-foreground">✕</button>
-        <span className="text-xs font-bold text-primary font-mono">{voucher.code}</span>
-        <h3 className="text-lg font-bold text-foreground mt-1">{voucher.title}</h3>
-        <p className="text-xs text-muted-foreground mt-1">{voucher.sub}</p>
-        <div className="mt-6 flex justify-end">
-          <button onClick={onClose} className="rounded-full bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground">Đóng</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ScrollingBestSellers({ products: rawProducts = [], onSelectProduct, onAddToCart }: any) {
-  const products = Array.isArray(rawProducts) ? rawProducts : (Array.isArray(rawProducts?.data) ? rawProducts.data : []);
-  const displayProducts = [...products, ...products, ...products, ...products];
-
-  return (
-    <section className="py-20 overflow-hidden bg-[#f4f2ec]">
-      <style>{`
-        @keyframes custom-marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .animate-marquee-infinite {
-          animation: custom-marquee 40s linear infinite;
-        }
-        .animate-marquee-infinite:hover {
-          animation-play-state: paused;
-        }
-      `}</style>
-      <h2 className="text-center text-[36px] md:text-[46px] text-[#3d2314] mb-12 tracking-wide font-bold uppercase" style={{ fontFamily: "'Bodoni Moda', serif" }}>
-        Best Seller
-      </h2>
-      <div className="relative w-full flex">
-        <div className="flex gap-4 md:gap-6 min-w-max px-6 animate-marquee-infinite will-change-transform">
-          {displayProducts.map((p, i) => (
-            <HorizontalProductCard key={`bs-${i}`} p={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
 
 export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggleWishlist, products: rawProducts = [], categories: rawCategories = [], publicCoupons: rawCoupons = [] }: any) {
   const products = Array.isArray(rawProducts) ? rawProducts : (Array.isArray(rawProducts?.data) ? rawProducts.data : (Array.isArray(rawProducts?.products) ? rawProducts.products : []));
@@ -82,7 +19,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
   );
   const publicCoupons = Array.isArray(rawCoupons) ? rawCoupons : (Array.isArray(rawCoupons?.data) ? rawCoupons.data : (Array.isArray(rawCoupons?.coupons) ? rawCoupons.coupons : []));
   const [activeBanner, setActiveBanner] = useState(0);
-  const [banners, setBanners] = useState<Array<{ src: string; alt: string; title?: string; subtitle?: string; linkUrl?: string; position?: string }>>(() => {
+  const [banners, setBanners] = useState<Array<{ src: string; alt: string; title?: string; subtitle?: string; linkUrl?: string }>>(() => {
     try {
       const cached = localStorage.getItem("sb_cached_banners");
       if (cached) {
@@ -95,7 +32,18 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
     } catch (_) {}
     return [];
   });
+  const [storeSearch, setStoreSearch] = useState("");
   const [selectedVoucher, setSelectedVoucher] = useState<any>(null);
+  const taggedSections = Array.from(
+    products.reduce((sections: Map<string, { tag: any; products: any[] }>, product: any) => {
+      for (const tag of product.raw?.tags || []) {
+        const section = sections.get(tag.id) || { tag, products: [] };
+        section.products.push(product);
+        sections.set(tag.id, section);
+      }
+      return sections;
+    }, new Map()).values(),
+  ) as Array<{ tag: any; products: any[] }>;
 
   const displayVouchers = publicCoupons.slice(0, 3).map((c: any) => ({
     code: c.code,
@@ -116,15 +64,16 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
               alt: banner.title || "Sweet Bean promotion", 
               title: banner.title, 
               subtitle: banner.subtitle, 
-              linkUrl: banner.linkUrl,
-              position: banner.position 
+              linkUrl: banner.linkUrl 
             })) 
           : []; 
         if (!cancelled && next.length) { 
+          // Save to localStorage for instant 0ms reload next time
           try {
             localStorage.setItem("sb_cached_banners", JSON.stringify(next));
           } catch (_) {}
 
+          // Preload images immediately in browser cache
           next.forEach(b => {
             const img = new Image();
             img.src = b.src;
@@ -136,25 +85,38 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
     return () => { cancelled = true; }; 
   }, []);
 
-  const heroBanners = useMemo(() => banners.filter(b => !b.position || b.position === 'home_main'), [banners]);
-  const promoBanner = useMemo(() => banners.find(b => b.position === 'promotions'), [banners]);
-  const introBanner = useMemo(() => banners.find(b => b.position === 'store_intro'), [banners]);
-
   useEffect(() => {
-    if (!heroBanners.length) return;
+    if (!banners.length) return;
     const timer = window.setInterval(() => {
-      setActiveBanner((current) => (current + 1) % heroBanners.length);
+      setActiveBanner((current) => (current + 1) % banners.length);
     }, HOME_CONFIG.HERO_ROTATION_MS);
     return () => window.clearInterval(timer);
-  }, [heroBanners.length]);
+  }, [banners.length]);
 
+  const currentBanner = banners[activeBanner];
   return (
     <>
       {/* ── Hero banner ── */}
-      {heroBanners.length > 0 && (
+      {banners.length > 0 && (
         <section className="relative w-full overflow-hidden bg-black group">
+          <style>{`
+            @keyframes slideUpFade {
+              0% { opacity: 0; transform: translateY(40px); }
+              100% { opacity: 1; transform: translateY(0); }
+            }
+            .slide-up-fade {
+              animation: slideUpFade 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+              opacity: 0;
+            }
+            .delay-100 { animation-delay: 0.1s; }
+            .delay-200 { animation-delay: 0.2s; }
+            .delay-300 { animation-delay: 0.3s; }
+            .delay-400 { animation-delay: 0.4s; }
+            .delay-500 { animation-delay: 0.5s; }
+          `}</style>
+
           <div className="relative w-full h-[240px] sm:h-[340px] md:h-[440px] lg:h-[480px] overflow-hidden">
-            {heroBanners.map((banner, index) => (
+            {banners.map((banner, index) => (
               <div
                 key={banner.src}
                 className={`absolute inset-0 h-full w-full transition-opacity duration-300 ease-out ${activeBanner === index ? "opacity-100 z-10" : "opacity-0 z-0"}`}
@@ -163,6 +125,8 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
                   src={banner.src} 
                   alt={banner.alt} 
                   loading={index === 0 ? "eager" : "lazy"}
+                  // @ts-ignore
+                  fetchpriority={index === 0 ? "high" : "low"}
                   decoding="async"
                   className="absolute inset-0 h-full w-full object-cover object-center select-none pointer-events-none" 
                 />
@@ -170,21 +134,22 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
             ))}
             
             <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-3 w-full z-20">
-              {heroBanners.map((banner, index) => (
+              {banners.map((banner, index) => (
                 <button key={banner.alt} type="button" aria-label={`Chuyển sang banner ${index + 1}`} onClick={() => setActiveBanner(index)}
                   className={`h-2 rounded-full transition-all duration-500 shadow-sm ${activeBanner === index ? "w-10 bg-[#fca5a5]" : "w-3 bg-white hover:bg-white/80"}`} />
               ))}
             </div>
           </div>
 
+          {/* Prev/Next Navigation (SugarTown style) */}
           <button
-            onClick={() => setActiveBanner((prev) => (prev - 1 + heroBanners.length) % heroBanners.length)}
+            onClick={() => setActiveBanner((prev) => (prev - 1 + banners.length) % banners.length)}
             className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 size-12 rounded-full bg-white text-[#5b4539] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 shadow-lg z-30"
           >
             <ChevronLeft size={24} strokeWidth={2.5} />
           </button>
           <button
-            onClick={() => setActiveBanner((prev) => (prev + 1) % heroBanners.length)}
+            onClick={() => setActiveBanner((prev) => (prev + 1) % banners.length)}
             className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 size-12 rounded-full bg-white text-[#5b4539] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 shadow-lg z-30"
           >
             <ChevronRight size={24} strokeWidth={2.5} />
@@ -192,7 +157,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
         </section>
       )}
 
-      {/* ── Value Propositions Strip ── */}
+      {/* ── Value Propositions Strip (SugarTown style) ── */}
       <div className="relative bg-transparent text-[#2d1a13] py-6 md:py-8">
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-10">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-4">
@@ -233,42 +198,33 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
         </div>
       </div>
 
-      {/* ── Promo Banner ── */}
-      {promoBanner && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-12">
-          <div className="relative w-full h-[260px] md:h-[320px] overflow-hidden rounded-[20px] bg-[#2d1a13]">
-            <img src={promoBanner.src} alt="Promo" className="absolute inset-0 h-full w-full object-cover opacity-60 mix-blend-overlay" />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#2d1a13]/90 to-transparent" />
-            <div className="absolute inset-0 flex items-center justify-between px-8 md:px-16">
-              <div>
-                {promoBanner.subtitle && <p className="text-[11px] font-semibold tracking-[0.3em] text-[#d5b89f] uppercase mb-3">{promoBanner.subtitle}</p>}
-                <h2 className="text-5xl md:text-[64px] text-white leading-tight mb-8" style={{ fontFamily: "'Bodoni Moda', serif" }}>
-                  {promoBanner.title ? (
-                    promoBanner.title.split(/\\n|\n/).map((line, i) => (
-                      <span key={i} className={i === 0 ? "font-normal" : "italic font-light"}>{line}<br /></span>
-                    ))
-                  ) : (
-                    <><span className="font-normal">Khuyến Mãi</span><br /><span className="italic font-light">Đặc Biệt</span></>
-                  )}
-                </h2>
-                <div className="flex items-center gap-6">
-                  <button onClick={() => setView(VIEW_KEYS.SWEETS)} className="bg-white text-black px-8 py-3.5 text-sm font-semibold tracking-wider flex items-center gap-2 hover:bg-white/90 transition shadow-lg">
-                    XEM NGAY <span className="text-xl leading-none">&rsaquo;</span>
-                  </button>
-                  <span className="text-white/60 text-sm hidden sm:inline-block">Đặt trước 48 giờ</span>
-                </div>
+      {/* ── Promo Banner (Image 2) ── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-12">
+        <div className="relative w-full h-[260px] md:h-[320px] overflow-hidden rounded-[20px] bg-[#2d1a13]">
+          <img src="https://images.unsplash.com/photo-1495147466023-2ce660b86a88?w=1800&h=600&fit=crop&auto=format" alt="Promo" className="absolute inset-0 h-full w-full object-cover opacity-60 mix-blend-overlay" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#2d1a13]/90 to-transparent" />
+          <div className="absolute inset-0 flex items-center justify-between px-8 md:px-16">
+            <div>
+              <p className="text-[11px] font-semibold tracking-[0.3em] text-[#d5b89f] uppercase mb-3">Collection Mới</p>
+              <h2 className="text-5xl md:text-[64px] text-white leading-tight mb-8" style={{ fontFamily: "'Bodoni Moda', serif" }}>
+                <span className="font-normal">Entremet</span><br />
+                <span className="italic font-light">Mùa Hè 2024</span>
+              </h2>
+              <div className="flex items-center gap-6">
+                <button onClick={() => setView(VIEW_KEYS.SWEETS)} className="bg-white text-black px-8 py-3.5 text-sm font-semibold tracking-wider flex items-center gap-2 hover:bg-white/90 transition shadow-lg">
+                  XEM NGAY <span className="text-xl leading-none">&rsaquo;</span>
+                </button>
+                <span className="text-white/60 text-sm hidden sm:inline-block">Đặt trước 48 giờ</span>
               </div>
+            </div>
 
-              {promoBanner.linkUrl && (
-                <div className="hidden md:flex flex-col items-center justify-center size-[140px] rounded-full bg-[#d5b89f] text-[#2d1a13] border-4 border-[#2d1a13]/10">
-                  <span className="text-4xl font-bold tracking-tighter" style={{ fontFamily: "'Bodoni Moda', serif" }}>{promoBanner.linkUrl}</span>
-                  <span className="text-[11px] font-bold tracking-widest mt-1">ĐƠN ĐẦU</span>
-                </div>
-              )}
+            <div className="hidden md:flex size-[130px] rounded-full bg-[#d5b89f] items-center justify-center flex-col shadow-2xl mr-4 border-4 border-[#2d1a13]/20">
+              <span className="text-4xl font-bold text-[#2d1a13] leading-none" style={{ fontFamily: "'Bodoni Moda', serif" }}>-10%</span>
+              <span className="text-[11px] font-bold text-[#2d1a13] tracking-widest mt-1">ĐƠN ĐẦU</span>
             </div>
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
       {/* ── Featured categories ── */}
       <Section title={MESSAGES.SECTION_CATEGORIES_TITLE}>
@@ -367,7 +323,7 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
       {/* ── New + combos ── */}
       <Section title={MESSAGES.SECTION_NEW_COMBOS_TITLE} onViewAll={() => setView(VIEW_KEYS.COMBO)}>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {products.slice(HOME_CONFIG.NEW_COMBOS_START, HOME_CONFIG.NEW_COMBOS_END).map(p => (
+          {products.slice(0, HOME_CONFIG.NEW_COMBOS_LIMIT).map((p: any) => (
             <ProductCard key={p[0]} p={p} onSelect={onSelectProduct} isWishlisted={wishlist.some((w: any) => w[0] === p[0])} onToggleWishlist={onToggleWishlist} onAddToCart={onAddToCart} />
           ))}
         </div>
@@ -379,10 +335,12 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
           Về Chúng Tôi
         </h2>
         <div className="grid gap-12 md:grid-cols-2 items-start">
+          {/* Left image */}
           <div className="w-full h-[400px] md:h-[700px] overflow-hidden rounded-xl shadow-sm">
-            <img src={introBanner?.src || "https://images.unsplash.com/photo-1556910103-1c02745a872f?w=1200&h=1600&fit=crop"} alt="Về Chúng Tôi" className="w-full h-full object-cover" />
+            <img src="https://images.unsplash.com/photo-1556910103-1c02745a872f?w=1200&h=1600&fit=crop" alt="Về Chúng Tôi" className="w-full h-full object-cover" />
           </div>
 
+          {/* Right content */}
           <div className="flex flex-col justify-center px-2 md:px-6">
             <div className="text-center mb-8 mt-2 md:mt-10">
               <p className="text-[#b99368] text-[12px] md:text-[13px] font-bold tracking-[0.15em] uppercase mb-2">
@@ -415,6 +373,8 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
           </div>
         </div>
       </section>
+
+
 
       <VoucherDetailModal
         voucher={selectedVoucher}

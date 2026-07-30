@@ -1,8 +1,9 @@
-import { parseRes } from '../../utils/api';
-import { useState, useRef, useEffect } from "react";
-import { LogOut, User, Lock, Phone, Upload, Image as ImageIcon, History, Save, ShieldAlert, Check, Star } from "lucide-react";
+import { Check, History, Image as ImageIcon, Lock, Phone, Save, Upload, User } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { env } from "../../config/env";
+import { parseRes } from '../../utils/api';
+import { ProfileOrders } from '../features/profile/ui/ProfileOrders';
 import { getAccessToken } from "../components/authSession";
 
 const PRESET_AVATARS = [
@@ -18,9 +19,6 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
 
   // Tabs: 'info' | 'password' | 'orders'
   const [activeTab, setActiveTab] = useState<"info" | "password" | "orders">("info");
-
-  // Tabs: 'info' | 'password' | 'orders'
-
 
   // Profile Form States
   const [fullName, setFullName] = useState(displayUser.fullName || displayUser.name || "");
@@ -582,64 +580,51 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
                       return (
                         <div
                           key={o.id}
-                          className="border bg-secondary/20 py-3 px-4 rounded-xl text-sm flex flex-col gap-3 transition hover:bg-secondary/40"
+                          className="border bg-secondary/20 py-2.5 px-3.5 rounded-lg text-sm flex flex-col sm:flex-row justify-between sm:items-center gap-2 transition hover:bg-secondary/40"
                         >
-                          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                            <div className="space-y-0.5">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-primary">{o.orderCode}</span>
-                                <span className="text-muted-foreground text-xs">• {dateStr}</span>
-                              </div>
-                              <p className="text-foreground/90 font-medium">{itemsStr}</p>
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-primary">{o.orderCode}</span>
+                              <span className="text-muted-foreground text-xs">• {dateStr}</span>
                             </div>
-                            <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-1">
-                              <p className="font-bold text-foreground">{priceStr}</p>
-                              <span
-                                className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                                  statusColors[o.orderStatus] || "bg-gray-100 text-gray-700"
-                                }`}
-                              >
-                                {getStatusLabel(o.orderStatus)}
-                              </span>
-                              {o.orderStatus !== 'cancelled' && (() => {
-                                const needsPayment = 
-                                  o.paymentStatus === 'pending' && 
-                                  !['cod', 'cash'].includes(o.paymentMethod);
-                                
-                                if (needsPayment) {
-                                  return (
-                                    <button
-                                      onClick={() => setView("Thanh toán đơn hàng", o.id)}
-                                      className="mt-1 text-xs font-semibold text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-1"
-                                    >
-                                      <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                                      Thanh toán đơn hàng
-                                    </button>
-                                  );
-                                }
-                                return (
-                                  <div className="flex gap-4">
-                                    <button
-                                      onClick={() => setView("Theo dõi", o.id)}
-                                      className="mt-1 text-xs font-semibold text-primary hover:underline"
-                                    >
-                                      Theo dõi đơn
-                                    </button>
-                                    {o.orderStatus === 'completed' && o.items?.some((item: any) => !item.isReviewed) && (
-                                      <button
-                                        onClick={() => setView("Theo dõi", o.id)}
-                                        className="mt-1 text-xs font-semibold text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-1"
-                                      >
-                                        ⭐ Đánh giá sản phẩm
-                                      </button>
-                                    )}
-                                  </div>
-                                );
-                              })()}
-                            </div>
+                            <p className="text-foreground/90 font-medium">{itemsStr}</p>
                           </div>
+                          <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-1">
+                            <p className="font-bold text-foreground">{priceStr}</p>
+                            <span
+                              className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                                statusColors[o.orderStatus] || "bg-gray-100 text-gray-700"
+                              }`}
+                            >
+                              {getStatusLabel(o.orderStatus)}
+                            </span>
+                            {o.orderStatus !== 'cancelled' && (() => {
+                              const needsPayment = 
+                                o.paymentStatus === 'pending' && 
+                                !['cod', 'cash'].includes(o.paymentMethod);
+                              
+                              if (needsPayment) {
+                                return (
+                                  <button
+                                    onClick={() => setView("Thanh toán đơn hàng", o.id)}
+                                    className="mt-2 text-xs font-semibold text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-1"
+                                  >
+                                    <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                                    Thanh toán đơn hàng
+                                  </button>
+                                );
+                              }
+                              return (
+                                <button
+                                  onClick={() => setView("Theo dõi", o.id)}
+                                  className="mt-2 text-xs font-semibold text-primary hover:underline"
+                                >
+                                  Theo dõi đơn
+                                </button>
+                              );
+                            })()}
 
-
+                          </div>
                         </div>
                       );
                     })}
@@ -676,7 +661,6 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
           </div>
         </div>
       </div>
-
     </div>
   );
 }

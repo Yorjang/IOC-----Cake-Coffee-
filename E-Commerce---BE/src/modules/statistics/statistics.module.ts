@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { Branch } from '../branches/branch.entity';
+import { OrderItem } from '../orders/order-item.entity';
+import { Order } from '../orders/order.entity';
+import { UsersModule } from '../users/users.module';
 import { StatisticsController } from './statistics.controller';
 import { StatisticsService } from './statistics.service';
-import { Order } from '../orders/order.entity';
-import { OrderItem } from '../orders/order-item.entity';
-import { Branch } from '../branches/branch.entity';
-import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [

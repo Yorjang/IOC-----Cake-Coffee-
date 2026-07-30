@@ -1,9 +1,6 @@
+import { Heart, LogOut, MapPin, Search, Settings, ShoppingBag, User, X, ChevronDown, Menu } from "lucide-react";
 import { useState } from "react";
-import { Search, Heart, ShoppingBag, SlidersHorizontal, User, ChevronDown, Settings, LogOut, MapPin, X, Bell } from "lucide-react";
 import { VIEW_KEYS } from "../../config/appConfig";
-import { useNotifications } from "../features/notifications/hooks/useNotifications";
-import { NotificationDropdown } from "../features/notifications/ui/NotificationDropdown";
-import { NotificationsModal } from "../features/notifications/ui/NotificationsModal";
 
 export function Header({
   view,
@@ -24,21 +21,6 @@ export function Header({
   const [showFilters, setShowFilters] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
-  const [notifModalOpen, setNotifModalOpen] = useState(false);
-
-  const {
-    notifications,
-    unreadCount,
-    loading: notifLoading,
-    page: notifPage,
-    totalPages: notifTotalPages,
-    total: notifTotal,
-    loadNotifications,
-    markRead,
-    markAllRead,
-  } = useNotifications(isLoggedIn);
-
 
   // Use navPages as categories
   const categories = navPages || [];
@@ -88,12 +70,12 @@ export function Header({
 
         {/* Right actions */}
         <div className="flex-1 flex items-center justify-end gap-5">
-          {/* Avatar / User Profile */}
           {isLoggedIn ? (
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setProfileOpen(!profileOpen)}
+                onBlur={() => setTimeout(() => setProfileOpen(false), 200)}
                 className="relative flex items-center justify-center hover:opacity-70 transition"
               >
                 {user?.avatarUrl || user?.avatar ? (
@@ -132,50 +114,10 @@ export function Header({
             <button
               onClick={() => setView(VIEW_KEYS.LOGIN)}
               className="flex items-center hover:opacity-70 transition-opacity"
-              title="Đăng nhập"
             >
               <User size={22} strokeWidth={1.5} className="text-gray-700" />
             </button>
           )}
-
-          {/* Bell Notifications (Right next to Avatar) */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                if (isLoggedIn) {
-                  setNotifDropdownOpen(!notifDropdownOpen);
-                } else {
-                  setView(VIEW_KEYS.LOGIN);
-                }
-              }}
-              className="flex items-center hover:opacity-70 transition-opacity relative text-gray-700"
-              title="Thông báo"
-            >
-              <Bell size={22} strokeWidth={1.5} />
-              {isLoggedIn && unreadCount > 0 && (
-                <span className="absolute -top-1.5 -right-2 bg-rose-500 text-white text-[9px] font-bold w-[16px] h-[16px] flex items-center justify-center rounded-full border-2 border-background">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
-              )}
-            </button>
-
-            {isLoggedIn && (
-              <NotificationDropdown
-                isOpen={notifDropdownOpen}
-                onClose={() => setNotifDropdownOpen(false)}
-                notifications={notifications}
-                unreadCount={unreadCount}
-                loading={notifLoading}
-                onMarkRead={markRead}
-                onMarkAllRead={markAllRead}
-                onSelectOrder={(orderId) => {
-                  setView(VIEW_KEYS.TRACKING);
-                }}
-                onOpenAllModal={() => setNotifModalOpen(true)}
-              />
-            )}
-          </div>
 
           <button
             onClick={() => setView(VIEW_KEYS.FAVORITES)}
@@ -269,25 +211,6 @@ export function Header({
           </div>
         </div>
       </div>
-
-      {/* Notifications Full History Modal */}
-      <NotificationsModal
-        isOpen={notifModalOpen}
-        onClose={() => setNotifModalOpen(false)}
-        notifications={notifications}
-        unreadCount={unreadCount}
-        loading={notifLoading}
-        page={notifPage}
-        totalPages={notifTotalPages}
-        total={notifTotal}
-        onLoadNotifications={loadNotifications}
-        onMarkRead={markRead}
-        onMarkAllRead={markAllRead}
-        onSelectOrder={(orderId) => {
-          setView(VIEW_KEYS.TRACKING);
-        }}
-      />
     </header>
   );
 }
-

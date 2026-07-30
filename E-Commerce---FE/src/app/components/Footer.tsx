@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
-import { Facebook, Instagram, MapPin, Mail, Phone } from "lucide-react";
-import { MESSAGES } from "../../constants/messages";
+import { Mail, MapPin, Phone } from "lucide-react";
+import { useEffect, useState } from "react";
 import { VIEW_KEYS } from "../../config/appConfig";
 import { env } from "../../config/env";
+import { MESSAGES } from "../../constants/messages";
 
 export function Footer({ setView }: { setView?: (view: string) => void }) {
   const [bgImage, setBgImage] = useState(() => {

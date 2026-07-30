@@ -1,10 +1,8 @@
-import { ArrowLeft, Clock, CreditCard, Loader2, MapPin, Package, Phone, Store, Truck, Check, Star } from 'lucide-react';
-import { useOrderTracking } from '../features/order-tracking/hooks/useOrderTracking';
-import { OrderTimeline } from '../features/order-tracking/ui/OrderTimeline';
-import { OrderList } from '../features/order-tracking/ui/OrderList';
+import { ArrowLeft, Clock, CreditCard, Loader2, MapPin, Package, Phone, Store, Truck } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { CreateReviewModal } from '../features/reviews/ui/CreateReviewModal';
-
+import { useOrderTracking } from '../features/order-tracking/hooks/useOrderTracking';
+import { OrderList } from '../features/order-tracking/ui/OrderList';
+import { OrderTimeline } from '../features/order-tracking/ui/OrderTimeline';
 
 interface OrderTrackingProps {
   orderId?: string | null;
@@ -43,14 +41,7 @@ export function OrderTracking({ orderId, onBack }: OrderTrackingProps) {
 }
 
 function OrderTrackingDetail({ orderId, onBack }: { orderId: string; onBack: () => void }) {
-  const { order, loading, cancelOrder, refetch } = useOrderTracking(orderId);
-  const [selectedReviewItem, setSelectedReviewItem] = useState<{
-    orderId: string;
-    productId: string;
-    productName: string;
-    variantName?: string;
-    productImage?: string;
-  } | null>(null);
+  const { order, loading, cancelOrder } = useOrderTracking(orderId);
 
   if (loading) return <div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="animate-spin text-primary" size={44} /></div>;
   if (!order) return <div className="mx-auto max-w-lg p-10 text-center"><p className="text-muted-foreground">Không tìm thấy đơn hàng.</p><button onClick={onBack} className="mt-5 rounded-xl bg-primary px-6 py-2 font-semibold text-primary-foreground">Quay lại</button></div>;
@@ -75,55 +66,9 @@ function OrderTrackingDetail({ orderId, onBack }: { orderId: string; onBack: () 
         <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
           <div className="mb-5 flex items-center gap-3"><div className="rounded-full bg-orange-100 p-2 text-orange-600"><Package size={20} /></div><div><h2 className="font-semibold">Chi tiết sản phẩm</h2><p className="text-sm text-muted-foreground">{order.items.length} sản phẩm trong đơn</p></div></div>
           <div className="divide-y divide-border">
-            {order.items?.map((item: any) => <div key={item.id} className="border-b border-border/50 py-4 last:border-0">
-              <div className="flex flex-col sm:flex-row justify-between gap-4">
-                <div className="flex-1">
-                  <p className="font-medium">{item.quantity} × {item.productName}</p>
-                  {item.variantName && <p className="mt-1 text-sm text-muted-foreground">Phân loại: {item.variantName}</p>}
-                  <p className="mt-1 text-sm text-muted-foreground">Đơn giá: {money(item.unitPrice)}</p>
-                </div>
-                <div className="flex sm:flex-col items-start sm:items-end justify-between gap-2">
-                  <p className="shrink-0 font-semibold">{money(item.totalPrice)}</p>
-                  {order.orderStatus === 'completed' && (
-                    (item as any).isReviewed ? (
-                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                        <Check size={12} /> Đã đánh giá
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSelectedReviewItem({
-                            orderId: order.id,
-                            productId: item.productId,
-                            productName: item.productName,
-                            variantName: item.variantName,
-                            productImage: (item as any).productImage,
-                          })
-                        }
-                        className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100/90 dark:bg-amber-950/90 hover:bg-amber-200 dark:hover:bg-amber-900 px-2.5 py-1 rounded-full border border-amber-300 flex items-center gap-1 transition-transform hover:scale-105 shadow-2xs"
-                      >
-                        <span>⭐ Đánh giá nhận voucher</span>
-                      </button>
-                    )
-                  )}
-                </div>
-              </div>
-              {item.review && (
-                <div className="mt-4 p-3.5 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/50 text-sm">
-                  <div className="flex items-center gap-1 mb-2 text-amber-500">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star key={i} size={14} className={i < item.review.rating ? "fill-current" : "text-muted-foreground/30"} />
-                    ))}
-                  </div>
-                  {item.review.comment && (
-                    <p className="text-foreground/90 italic">"{item.review.comment}"</p>
-                  )}
-                  {item.review.imageUrl && (
-                    <img src={item.review.imageUrl} alt="Review" className="mt-3 w-24 h-24 object-cover rounded-xl border border-border shadow-sm" />
-                  )}
-                </div>
-              )}
+            {order.items.map(item => <div key={item.id} className="flex items-start justify-between gap-4 py-4 first:pt-0">
+              <div className="min-w-0"><p className="font-medium">{item.quantity} × {item.productName}</p>{item.variantName && <p className="mt-1 text-sm text-muted-foreground">Phân loại: {item.variantName}</p>}<p className="mt-1 text-sm text-muted-foreground">Đơn giá: {money(item.unitPrice)}</p></div>
+              <p className="shrink-0 font-semibold">{money(item.totalPrice)}</p>
             </div>)}
           </div>
           {order.note && <div className="mt-4 rounded-xl bg-muted/50 p-4 text-sm"><span className="font-medium">Ghi chú:</span> {order.note}</div>}
@@ -148,22 +93,6 @@ function OrderTrackingDetail({ orderId, onBack }: { orderId: string; onBack: () 
       </div>
 
       {order.orderStatus === 'pending' && <div className="mt-6 flex justify-end"><button onClick={() => window.confirm('Bạn có chắc muốn hủy đơn hàng này?') && void cancelOrder()} className="rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-600 hover:bg-red-100">Hủy đơn hàng</button></div>}
-
-      {/* Review Modal */}
-      {selectedReviewItem && (
-        <CreateReviewModal
-          isOpen={!!selectedReviewItem}
-          onClose={() => setSelectedReviewItem(null)}
-          orderId={selectedReviewItem.orderId}
-          productId={selectedReviewItem.productId}
-          productName={selectedReviewItem.productName}
-          variantName={selectedReviewItem.variantName}
-          productImage={selectedReviewItem.productImage}
-          onSuccess={() => {
-            refetch();
-          }}
-        />
-      )}
     </div>
   );
 }

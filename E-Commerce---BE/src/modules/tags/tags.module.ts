@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { TagsController } from './tags.controller';
-import { TagsService } from './tags.service';
 import { ProductsModule } from '../products/products.module';
 import { UsersModule } from '../users/users.module';
+import { TagsController } from './tags.controller';
+import { TagsService } from './tags.service';
 
 @Module({
   imports: [ProductsModule, UsersModule],

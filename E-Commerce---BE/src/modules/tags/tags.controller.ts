@@ -9,12 +9,12 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { TagsService } from './tags.service';
+import { Permission } from '../../common/constants/permissions';
+import { Permissions } from '../../common/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { Permissions } from '../../common/decorators/permissions.decorator';
-import { Permission } from '../../common/constants/permissions';
 import { CreateProductTagDto, UpdateProductTagDto } from '../products/dto/product-tag.dto';
+import { TagsService } from './tags.service';
 
 @Controller(['admin/tags', 'tags'])
 export class TagsController {

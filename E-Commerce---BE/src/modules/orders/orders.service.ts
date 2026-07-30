@@ -1,14 +1,12 @@
-import { Injectable, BadRequestException, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { FulfillmentType, Order, OrderStatus, PaymentStatus } from './order.entity';
-import { PaymentsService } from '../payments/payments.service';
 import { CartService } from '../cart/cart.service';
-import { CreateOrderDto } from './dto/create-order.dto';
+import { PaymentsService } from '../payments/payments.service';
 import { User, UserRole } from '../users/user.entity';
+import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatusHistory } from './order-status-history.entity';
-import { NotificationsService } from '../notifications/notifications.service';
-import { NotificationType } from '../notifications/notification.entity';
+import { FulfillmentType, Order, OrderStatus, PaymentStatus } from './order.entity';
 
 const PICKUP_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
   [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
@@ -30,10 +28,8 @@ export class OrdersService {
     private readonly orders: Repository<Order>,
     private readonly paymentsService: PaymentsService,
     private readonly cartService: CartService,
-    private readonly notificationsService: NotificationsService,
     private readonly dataSource: DataSource,
   ) {}
-
 
 
   async findAll(): Promise<Order[]> {
@@ -76,16 +72,6 @@ export class OrdersService {
         changedBy: user.id,
         note: null,
       });
-
-      if (status === OrderStatus.COMPLETED && order.userId) {
-        this.notificationsService.createNotification(order.userId, {
-          orderId: order.id,
-          type: NotificationType.ORDER_DELIVERED,
-          title: 'Đơn hàng đã giao thành công',
-          message: `Đơn hàng #${order.orderCode} đã được giao thành công.`,
-        }).catch(err => console.error('Failed to create delivered notification:', err));
-      }
-
       return savedOrder;
     });
   }
@@ -549,19 +535,10 @@ export class OrdersService {
     this.cartService.clearCart(userId || undefined, sessionId || undefined, branchId)
       .catch(err => console.error('Failed to clear cart after order:', err));
 
-    if (userId) {
-      this.notificationsService.createNotification(userId, {
-        orderId,
-        type: NotificationType.ORDER_PLACED,
-        title: 'Đặt hàng thành công',
-        message: `Đơn hàng #${orderCode} đã được đặt thành công.`,
-      }).catch(err => console.error('Failed to create order placed notification:', err));
-    }
-
-    return this.orders.findOne({
-      where: { id: orderId },
-      relations: { items: { product: true }, branch: true }
-    });
+      return this.orders.findOne({
+        where: { id: orderId },
+        relations: { items: true, branch: true }
+      });
     } catch (error: any) {
       if (error instanceof BadRequestException) {
         throw error;
@@ -570,80 +547,23 @@ export class OrdersService {
     }
   }
 
-  async findMyOrders(userId: string): Promise<any[]> {
-    const orders = await this.orders.find({
+  async findMyOrders(userId: string): Promise<Order[]> {
+    return this.orders.find({
       where: { userId },
-      relations: { items: { product: true }, branch: true },
-      order: { updatedAt: 'DESC' }
-    });
-
-    const reviews = await this.orders.query(
-      `SELECT order_id, product_id, rating, comment, image_url as "imageUrl" FROM reviews WHERE user_id = $1 AND order_id IS NOT NULL`,
-      [userId]
-    );
-    const reviewMap = new Map();
-    for (const r of reviews) {
-      reviewMap.set(`${r.order_id}_${r.product_id}`, {
-        rating: r.rating,
-        comment: r.comment,
-        imageUrl: r.imageUrl,
-      });
-    }
-
-    return orders.map((order) => {
-      const items = (order.items || []).map((item) => {
-        const review = reviewMap.get(`${order.id}_${item.productId}`);
-        return {
-          ...item,
-          isReviewed: !!review,
-          review: review || null,
-          productImage: item.product?.imageUrl || null,
-        };
-      });
-      return { ...order, items };
+      relations: { items: true, branch: true },
+      order: { createdAt: 'DESC' }
     });
   }
 
-  async findPublicOrder(id: string): Promise<any> {
+  async findPublicOrder(id: string): Promise<Order> {
     const order = await this.orders.findOne({
       where: { id },
-      relations: { items: { product: true }, branch: true }
+      relations: { items: true, branch: true }
     });
     if (!order) {
       throw new BadRequestException('Order not found');
     }
-
-    if (order.userId) {
-      const reviews = await this.orders.query(
-        `SELECT product_id, rating, comment, image_url as "imageUrl" FROM reviews WHERE user_id = $1 AND order_id = $2`,
-        [order.userId, order.id]
-      );
-      const reviewMap = new Map();
-      for (const r of reviews) {
-        reviewMap.set(r.product_id, {
-          rating: r.rating,
-          comment: r.comment,
-          imageUrl: r.imageUrl,
-        });
-      }
-      
-      const items = (order.items || []).map((item) => {
-        const review = reviewMap.get(item.productId);
-        return {
-          ...item,
-          isReviewed: !!review,
-          review: review || null,
-          productImage: item.product?.imageUrl || null,
-        };
-      });
-      return { ...order, items };
-    }
-
-    const items = (order.items || []).map((item) => ({
-      ...item,
-      productImage: item.product?.imageUrl || null,
-    }));
-    return { ...order, items };
+    return order;
   }
 
   async cancelMyOrder(id: string, userId: string | null, sessionId: string | null, refundInfo?: any): Promise<Order> {
