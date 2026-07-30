@@ -1,7 +1,8 @@
-import { CheckCircle2, Clock, CreditCard, Crosshair, Loader2, MapPin, ShieldAlert, Store, Truck } from "lucide-react";
+import { CheckCircle2, Clock, CreditCard, Crosshair, Loader2, MapPin, Navigation, ShieldAlert, Store, Truck } from "lucide-react";
 import { CHECKOUT_CONFIG } from "../../config/appConfig";
 import { Btn } from "../components/shared";
 import { useCheckout } from "../features/checkout/hooks/useCheckout";
+import { DeliveryAddressField } from "../features/checkout/ui/DeliveryAddressField";
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
 export function Checkout(props: any) {
@@ -10,6 +11,7 @@ export function Checkout(props: any) {
     name, setName,
     phone, setPhone,
     address, setAddress,
+    addressDetail, setAddressDetail,
     selectedBranchId, setSelectedBranchId,
     note, setNote,
     paymentMethodText, setPaymentMethodText,
@@ -17,10 +19,16 @@ export function Checkout(props: any) {
     loadingBranches,
     hasCustomerLocation,
     checkoutError, setCheckoutError,
+    deliveryAddress,
+    deliveryQuote,
+    loadingDeliveryQuote,
+    deliveryQuoteError,
+    shipping,
+    grandTotal,
     handleCheckout
   } = useCheckout(props);
 
-  const { cart, subtotal, discount, shipping, grandTotal } = props;
+  const { cart, subtotal, discount } = props;
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-8 sm:px-6 lg:px-10">
@@ -79,9 +87,59 @@ export function Checkout(props: any) {
             </div>
 
             {fulfillmentType === "delivery" ? (
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Địa chỉ giao hàng</label>
-                <textarea required placeholder="Địa chỉ chi tiết (Số nhà, Tên đường, Phường/Xã, Quận/Huyện...)" value={address} onChange={e => setAddress(e.target.value)} rows={3} className="w-full rounded-xl border bg-input px-4 py-2.5 outline-none focus:border-primary text-sm"></textarea>
+              <div className="space-y-3">
+                <DeliveryAddressField
+                  address={address}
+                  onAddressChange={setAddress}
+                  addressDetail={addressDetail}
+                  onAddressDetailChange={setAddressDetail}
+                  suggestions={deliveryAddress.suggestions}
+                  coordinates={deliveryAddress.coordinates}
+                  isSearching={deliveryAddress.isSearching}
+                  isLocating={deliveryAddress.isLocating}
+                  addressError={deliveryAddress.addressError}
+                  isSuggestionOpen={deliveryAddress.isSuggestionOpen}
+                  onSuggestionOpenChange={deliveryAddress.setIsSuggestionOpen}
+                  onSelectSuggestion={deliveryAddress.selectSuggestion}
+                  onUseCurrentLocation={deliveryAddress.useCurrentLocation}
+                />
+                {loadingDeliveryQuote && (
+                  <div className="flex items-center gap-2 rounded-xl border bg-muted/30 p-3 text-xs text-muted-foreground">
+                    <Loader2 className="animate-spin" size={15} />
+                    Đang tìm chi nhánh gần nhất và tính phí giao hàng...
+                  </div>
+                )}
+                {deliveryQuote && !loadingDeliveryQuote && (
+                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+                    <div className="flex items-start gap-3">
+                      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
+                        <Navigation size={16} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-muted-foreground">Giao từ chi nhánh gần nhất</p>
+                        <p className="mt-0.5 text-sm font-semibold">{deliveryQuote.branch.name}</p>
+                        <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                          <span className="rounded-full bg-background px-2.5 py-1 font-medium text-primary">
+                            {deliveryQuote.distanceKm.toFixed(1)} km đường đi
+                          </span>
+                          {deliveryQuote.durationMinutes && (
+                            <span className="rounded-full bg-background px-2.5 py-1 font-medium text-muted-foreground">
+                              Khoảng {deliveryQuote.durationMinutes} phút
+                            </span>
+                          )}
+                          <span className="rounded-full bg-background px-2.5 py-1 font-semibold text-primary">
+                            Phí ship {formatPrice(deliveryQuote.shippingFee)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {deliveryQuoteError && (
+                  <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
+                    {deliveryQuoteError}
+                  </p>
+                )}
               </div>
             ) : (
               <div>

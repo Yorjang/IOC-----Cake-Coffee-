@@ -103,12 +103,15 @@ export default function App() {
       return;
     }
     const payload = {
-      branchId: selectedStore?.id,
-      shippingRecipientName: customerInfo.name,
-      shippingAddressPhone: customerInfo.phone,
-      shippingAddressStreet: customerInfo.address,
+      branchId: customerInfo.branchId || selectedStore?.id,
+      shippingRecipientName: customerInfo.shippingRecipientName,
+      shippingAddressPhone: customerInfo.shippingAddressPhone,
+      shippingAddressStreet: customerInfo.shippingAddressStreet,
+      shippingLatitude: customerInfo.shippingLatitude,
+      shippingLongitude: customerInfo.shippingLongitude,
+      shippingFee: customerInfo.shippingFee,
       paymentMethod: customerInfo.paymentMethod,
-      fulfillmentType: "delivery",
+      fulfillmentType: customerInfo.fulfillmentType,
       note: customerInfo.note || "",
       couponCode: appliedCoupon?.code || null,
       items: cart.map((item: any) => {

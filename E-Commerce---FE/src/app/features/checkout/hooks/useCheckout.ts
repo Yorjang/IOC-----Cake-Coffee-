@@ -2,13 +2,16 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { env } from "../../../../config/env";
 import { parseRes } from "../../../../utils/api";
+import { useDeliveryAddress } from "./useDeliveryAddress";
+import { getDeliveryQuote } from "../services/deliveryQuoteService";
+import type { DeliveryQuote } from "../types";
 
-
-export function useCheckout({ cart, setView, onPlaceOrder, user }: any) {
+export function useCheckout({ cart, setView, onPlaceOrder, user, subtotal, discount }: any) {
   const [fulfillmentType, setFulfillmentType] = useState<"delivery" | "pickup">("delivery");
   const [name, setName] = useState(user?.fullName || user?.name || "");
   const [phone, setPhone] = useState(user?.phone || "");
   const [address, setAddress] = useState(user?.address || "");
+  const [addressDetail, setAddressDetail] = useState("");
   const [selectedBranchId, setSelectedBranchId] = useState("");
   const [note, setNote] = useState("");
   const [paymentMethodText, setPaymentMethodText] = useState("Thanh toán khi nhận hàng (COD)");
@@ -17,6 +20,38 @@ export function useCheckout({ cart, setView, onPlaceOrder, user }: any) {
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [hasCustomerLocation, setHasCustomerLocation] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuote | null>(null);
+  const [loadingDeliveryQuote, setLoadingDeliveryQuote] = useState(false);
+  const [deliveryQuoteError, setDeliveryQuoteError] = useState<string | null>(null);
+  const deliveryAddress = useDeliveryAddress({ address, setAddress });
+
+  useEffect(() => {
+    if (!deliveryAddress.coordinates) {
+      setDeliveryQuote(null);
+      setDeliveryQuoteError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    setLoadingDeliveryQuote(true);
+    setDeliveryQuoteError(null);
+    getDeliveryQuote(deliveryAddress.coordinates, controller.signal)
+      .then((quote) => {
+        setDeliveryQuote(quote);
+        setSelectedBranchId(quote.branch.id);
+      })
+      .catch((error: unknown) => {
+        if ((error as Error).name !== "AbortError") {
+          setDeliveryQuote(null);
+          setDeliveryQuoteError((error as Error).message);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingDeliveryQuote(false);
+      });
+
+    return () => controller.abort();
+  }, [deliveryAddress.coordinates?.latitude, deliveryAddress.coordinates?.longitude]);
 
   // useEffect(() => {
   //   if (!cart || cart.length === 0) {
@@ -86,6 +121,27 @@ export function useCheckout({ cart, setView, onPlaceOrder, user }: any) {
       return;
     }
 
+    if (fulfillmentType === "delivery" && !deliveryAddress.coordinates) {
+      const err = "Vui lòng chọn một địa chỉ trong danh sách gợi ý để xác định tọa độ giao hàng!";
+      setCheckoutError(err);
+      toast.error(err);
+      return;
+    }
+
+    if (fulfillmentType === "delivery" && !addressDetail.trim()) {
+      const err = "Vui lòng nhập số nhà hoặc mô tả vị trí giao hàng chi tiết!";
+      setCheckoutError(err);
+      toast.error(err);
+      return;
+    }
+
+    if (fulfillmentType === "delivery" && !deliveryQuote) {
+      const err = "Chưa thể tính phí giao hàng. Vui lòng kiểm tra lại địa chỉ!";
+      setCheckoutError(err);
+      toast.error(err);
+      return;
+    }
+
     if (!selectedBranchId) {
       const err = "Hiện không có chi nhánh đang mở để tiếp nhận đơn hàng!";
       setCheckoutError(err);
@@ -109,7 +165,13 @@ export function useCheckout({ cart, setView, onPlaceOrder, user }: any) {
         fulfillmentType,
         shippingRecipientName: name,
         shippingAddressPhone: phone,
-        shippingAddressStreet: fulfillmentType === "delivery" ? address : "",
+        shippingAddressStreet:
+          fulfillmentType === "delivery"
+            ? `${addressDetail.trim()}, ${address.trim()}`
+            : "",
+        shippingLatitude: fulfillmentType === "delivery" ? deliveryAddress.coordinates?.latitude : undefined,
+        shippingLongitude: fulfillmentType === "delivery" ? deliveryAddress.coordinates?.longitude : undefined,
+        shippingFee: fulfillmentType === "delivery" ? deliveryQuote?.shippingFee : 0,
         paymentMethod,
         note
       });
@@ -118,12 +180,16 @@ export function useCheckout({ cart, setView, onPlaceOrder, user }: any) {
     }
   };
 
+  const shipping =
+    fulfillmentType === "delivery" ? deliveryQuote?.shippingFee ?? 0 : 0;
+  const grandTotal = Math.max(0, Number(subtotal) - Number(discount) + shipping);
 
   return {
     fulfillmentType, setFulfillmentType,
     name, setName,
     phone, setPhone,
     address, setAddress,
+    addressDetail, setAddressDetail,
     selectedBranchId, setSelectedBranchId,
     note, setNote,
     paymentMethodText, setPaymentMethodText,
@@ -131,6 +197,12 @@ export function useCheckout({ cart, setView, onPlaceOrder, user }: any) {
     loadingBranches,
     hasCustomerLocation,
     checkoutError, setCheckoutError,
+    deliveryAddress,
+    deliveryQuote,
+    loadingDeliveryQuote,
+    deliveryQuoteError,
+    shipping,
+    grandTotal,
     handleCheckout
   };
 }
