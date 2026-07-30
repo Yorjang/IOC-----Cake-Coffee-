@@ -20,8 +20,9 @@ export function Footer({ setView }: { setView?: (view: string) => void }) {
         const res = await fetch(`${env.API_URL}/banners/public`);
         if (!res.ok) return;
         const data = await res.json();
-        if (!cancelled && Array.isArray(data)) {
-          const footerBanner = data.find((b: any) =>
+        const rawBanners = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
+        if (!cancelled && rawBanners.length > 0) {
+          const footerBanner = rawBanners.find((b: any) =>
             b.position === 'footer' && b.imageUrl
           );
           if (footerBanner) {

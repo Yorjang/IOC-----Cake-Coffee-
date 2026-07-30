@@ -20,6 +20,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { MapModule } from './modules/map/map.module';
 import { StatisticsModule } from './modules/statistics/statistics.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { SettingsModule } from './modules/settings/settings.module';
     MapModule,
     StatisticsModule,
     SettingsModule,
+    NotificationsModule,
   ],
   controllers: [],
   providers: [],

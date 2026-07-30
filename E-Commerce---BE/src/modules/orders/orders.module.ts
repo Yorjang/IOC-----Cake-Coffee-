@@ -8,6 +8,7 @@ import { UsersModule } from '../users/users.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { CartModule } from '../cart/cart.module';
 import { OrderStatusHistory } from './order-status-history.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -15,9 +16,11 @@ import { OrderStatusHistory } from './order-status-history.entity';
     UsersModule,
     PaymentsModule,
     CartModule,
+    NotificationsModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],
   exports: [OrdersService],
 })
 export class OrdersModule {}
+
