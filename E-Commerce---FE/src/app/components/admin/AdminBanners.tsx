@@ -22,7 +22,7 @@ export function AdminBanners() {
   const [bannersList, setBannersList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [branches, setBranches] = useState<any[]>([]);
-  const [branchId, setBranchId] = useState(isManager ? user?.branchId || "" : "");
+  const [position, setPosition] = useState("home_main");
 
   const [subtitle, setSubtitle] = useState("");
   // Form states
@@ -58,7 +58,7 @@ export function AdminBanners() {
     setImageUrl(banner.imageUrl || ""); 
     setLinkUrl(banner.linkUrl || ""); 
     setSortOrder(String(banner.sortOrder ?? 0)); 
-    setBranchId(banner.branchId || (isManager ? user?.branchId || "" : ""));
+    setPosition(banner.position || "home_main");
     setShowAddForm(true); 
   };
   
@@ -145,7 +145,7 @@ export function AdminBanners() {
           linkUrl,
           sortOrder: Number(sortOrder),
           isActive: editingBanner?.isActive ?? true,
-          branchId: branchId || null,
+          position: position,
         }),
       });
       const data = await parseRes(res);
@@ -156,7 +156,7 @@ export function AdminBanners() {
         setSubtitle("");
         setLinkUrl("");
         setSortOrder("1");
-        setBranchId(isManager ? user?.branchId || "" : "");
+        setPosition("home_main");
         setShowAddForm(false);
         setEditingBanner(null);
         loadBanners();
@@ -224,20 +224,17 @@ export function AdminBanners() {
               value={sortOrder}
               onChange={e => setSortOrder(e.target.value)}
             />
-            {isAdmin && (
-              <select
-                className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
-                value={branchId}
-                onChange={e => setBranchId(e.target.value)}
-              >
-                <option value="">Chi nhánh áp dụng: Tất cả</option>
-                {branches.map(b => (
-                  <option key={b.id} value={b.id}>
-                    🏬 {b.name}
-                  </option>
-                ))}
-              </select>
-            )}
+            <select
+              className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none border border-sidebar-accent"
+              value={position}
+              onChange={e => setPosition(e.target.value)}
+            >
+              <option value="home_main">Vị trí: Trang chủ - Banner chính</option>
+              <option value="promotions">Vị trí: Trang chủ - Banner khuyến mãi</option>
+              <option value="store_intro">Vị trí: Trang chủ - Giới thiệu cửa hàng</option>
+              <option value="sidebar">Vị trí: Sidebar dọc</option>
+              <option value="footer">Vị trí: Footer cuối trang</option>
+            </select>
           </div>
           <div className="flex justify-end gap-3">
             <button
@@ -261,11 +258,9 @@ export function AdminBanners() {
                   <p className="font-semibold text-foreground text-base">{b.title}</p>
                   {b.linkUrl && <p className="text-xs text-primary truncate max-w-[200px] mt-0.5">{b.linkUrl}</p>}
                   <p className="mt-1 text-xs text-muted-foreground">Thứ tự hiển thị: {b.sortOrder}</p>
-                  {b.branchId && b.branch && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2.5 py-1 text-xs text-green-600 font-semibold mt-1">
-                      🏬 {b.branch.name}
-                    </span>
-                  )}
+                  <div className="flex gap-2 text-xs mb-2 mt-1">
+                    <span className="font-medium text-foreground">Vị trí: {b.position === 'promotions' ? 'Khuyến mãi' : b.position === 'sidebar' ? 'Sidebar' : b.position === 'store_intro' ? 'Giới thiệu' : b.position === 'footer' ? 'Footer' : 'Trang chủ'}</span>
+                  </div>
                 </div>
                 <StatusBadge status={b.isActive ? "Hiển thị" : "Ẩn"} />
               </div>

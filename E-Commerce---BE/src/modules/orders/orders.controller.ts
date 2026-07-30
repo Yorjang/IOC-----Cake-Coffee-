@@ -10,7 +10,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { OrdersService } from './orders.service';
 
-@Controller(['admin/orders', 'orders'])
+@Controller(['admin/orders', 'orders', 'api/orders'])
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}

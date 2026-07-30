@@ -6,8 +6,9 @@ import { Permission } from '../../common/constants/permissions';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { CreateOrderReviewDto } from './dto/create-order-review.dto';
 
-@Controller(['admin/reviews', 'reviews'])
+@Controller(['admin/reviews', 'reviews', 'api/reviews'])
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
@@ -16,13 +17,10 @@ export class ReviewsController {
     return this.reviewsService.findByProduct(productId);
   }
 
-  @Get('check-eligibility/:productId')
+  @Post('order')
   @UseGuards(JwtAuthGuard)
-  checkEligibility(
-    @CurrentUser() user: any,
-    @Param('productId', ParseUUIDPipe) productId: string,
-  ) {
-    return this.reviewsService.checkEligibility(user.id, productId);
+  createOrderReview(@CurrentUser() user: any, @Body() dto: CreateOrderReviewDto) {
+    return this.reviewsService.createOrderReview(user.id, dto);
   }
 
   @Post()
