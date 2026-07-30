@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, InternalServerErro
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { CartService } from '../cart/cart.service';
+import { BranchesService } from '../branches/branches.service';
 import { PaymentsService } from '../payments/payments.service';
 import { User, UserRole } from '../users/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -28,6 +29,7 @@ export class OrdersService {
     private readonly orders: Repository<Order>,
     private readonly paymentsService: PaymentsService,
     private readonly cartService: CartService,
+    private readonly branchesService: BranchesService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -204,7 +206,7 @@ export class OrdersService {
   async createOrder(userId: string | null, sessionId: string | null, dto: CreateOrderDto): Promise<Order> {
 
     const {
-      branchId,
+      branchId: requestedBranchId,
       subtotal,
       discountAmount = 0,
       shippingFee = 0,
@@ -215,16 +217,32 @@ export class OrdersService {
       shippingAddressWard,
       shippingAddressDistrict,
       shippingAddressProvince,
+      shippingLatitude,
+      shippingLongitude,
       shippingAddressPhone,
       shippingRecipientName,
       note,
       couponCode,
       items
     } = dto;
+    let branchId = requestedBranchId;
+    let calculatedShippingFee = 0;
 
     try {
       if (!items || items.length === 0) {
         throw new BadRequestException('Đơn hàng phải có ít nhất một sản phẩm');
+      }
+
+      if (fulfillmentType === FulfillmentType.DELIVERY) {
+        if (shippingLatitude === undefined || shippingLongitude === undefined) {
+          throw new BadRequestException('Đơn giao hàng phải có tọa độ nhận hàng');
+        }
+        const deliveryQuote = await this.branchesService.getDeliveryQuote(
+          shippingLatitude,
+          shippingLongitude,
+        );
+        branchId = deliveryQuote.branch.id;
+        calculatedShippingFee = deliveryQuote.shippingFee;
       }
 
     if (!userId && Number(discountAmount) > 0) {
@@ -355,7 +373,9 @@ export class OrdersService {
 
     const finalSubtotal = subtotal !== undefined ? Number(subtotal) : calculatedSubtotal;
     const finalDiscount = calculatedDiscount > 0 ? calculatedDiscount : Number(discountAmount || 0);
-    const finalTotalAmount = totalAmount !== undefined ? Number(totalAmount) : (finalSubtotal - finalDiscount + Number(shippingFee));
+    const finalShippingFee =
+      fulfillmentType === FulfillmentType.DELIVERY ? calculatedShippingFee : 0;
+    const finalTotalAmount = finalSubtotal - finalDiscount + finalShippingFee;
 
     // 1. Validate stocks (physical + ingredients)
     const stockUpdates: Array<{
@@ -479,14 +499,14 @@ export class OrdersService {
             order_code, user_id, branch_id, subtotal, discount_amount, shipping_fee, total_amount, 
             payment_method, payment_status, order_status, order_type, fulfillment_type, 
             shipping_address_street, shipping_address_ward, shipping_address_district, shipping_address_province,
-            shipping_address_phone, shipping_recipient_name, note, coupon_code, session_id
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+            shipping_latitude, shipping_longitude, shipping_address_phone, shipping_recipient_name, note, coupon_code, session_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
           RETURNING id
         `, [
-          orderCode, userId || null, branchId, finalSubtotal, finalDiscount, shippingFee, finalTotalAmount,
+          orderCode, userId || null, branchId, finalSubtotal, finalDiscount, finalShippingFee, finalTotalAmount,
           paymentMethod, 'pending', 'pending', 'online', fulfillmentType,
           shippingAddressStreet, shippingAddressWard, shippingAddressDistrict, shippingAddressProvince,
-          shippingAddressPhone, shippingRecipientName, note,
+          shippingLatitude, shippingLongitude, shippingAddressPhone, shippingRecipientName, note,
           couponCode ? couponCode.toUpperCase().trim() : null, sessionId || null
         ]);
         
@@ -600,7 +620,11 @@ export class OrdersService {
 
       order.orderStatus = OrderStatus.CANCELLED;
       await this.restoreStocks(order.id, order.branchId, manager);
-      return orderRepository.save(order);
+      await orderRepository.save(order);
+      return orderRepository.findOneOrFail({
+        where: { id },
+        relations: { items: true, branch: true },
+      });
     });
   }
 

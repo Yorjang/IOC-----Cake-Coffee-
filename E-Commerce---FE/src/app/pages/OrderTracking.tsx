@@ -92,7 +92,10 @@ function OrderTrackingDetail({ orderId, onBack }: { orderId: string; onBack: () 
         </div>
       </div>
 
-      {order.orderStatus === 'pending' && <div className="mt-6 flex justify-end"><button onClick={() => window.confirm('Bạn có chắc muốn hủy đơn hàng này?') && void cancelOrder()} className="rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-600 hover:bg-red-100">Hủy đơn hàng</button></div>}
+      {order.orderStatus === 'pending' && <div className="mt-6 flex justify-end"><button onClick={async () => {
+        if (!window.confirm('Bạn có chắc muốn hủy đơn hàng này?')) return;
+        if (await cancelOrder()) onBack();
+      }} className="rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-600 hover:bg-red-100">Hủy đơn hàng</button></div>}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsNumber, IsOptional, IsString, IsUUID, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsNumber, IsOptional, IsString, IsUUID, Max, Min, ValidateNested } from 'class-validator';
 
 export class CreateOrderItemDto {
   @IsUUID()
@@ -68,6 +68,18 @@ export class CreateOrderDto {
   @IsString()
   @IsOptional()
   shippingAddressProvince?: string;
+
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  @IsOptional()
+  shippingLatitude?: number;
+
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  @IsOptional()
+  shippingLongitude?: number;
 
   @IsString()
   @IsOptional()

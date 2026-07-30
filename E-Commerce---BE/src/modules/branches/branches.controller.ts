@@ -49,6 +49,11 @@ export class BranchesController {
     return this.branchesService.findNearby(Number(lat), Number(lng));
   }
 
+  @Get("delivery-quote")
+  getDeliveryQuote(@Query("lat") lat: string, @Query("lng") lng: string) {
+    return this.branchesService.getDeliveryQuote(Number(lat), Number(lng));
+  }
+
   @Get(":id/opening-hours")
   getOpeningHours(@Param("id", ParseUUIDPipe) id: string) {
     return this.branchesService.getOpeningHours(id);
