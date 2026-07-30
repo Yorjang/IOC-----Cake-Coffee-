@@ -3,6 +3,8 @@ import { CHECKOUT_CONFIG } from "../../config/appConfig";
 import { Btn } from "../components/shared";
 import { useCheckout } from "../features/checkout/hooks/useCheckout";
 import { DeliveryAddressField } from "../features/checkout/ui/DeliveryAddressField";
+import { useCheckoutCoupons } from "../features/checkout/hooks/useCheckoutCoupons";
+import { CheckoutCouponSelector } from "../features/checkout/ui/CheckoutCouponSelector";
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
 export function Checkout(props: any) {
@@ -29,6 +31,14 @@ export function Checkout(props: any) {
   } = useCheckout(props);
 
   const { cart, subtotal, discount } = props;
+  const couponState = useCheckoutCoupons({
+    coupons: Array.isArray(props.publicCoupons) ? props.publicCoupons : [],
+    cart: Array.isArray(cart) ? cart : [],
+    subtotal,
+    user: props.user,
+    appliedCoupon: props.appliedCoupon ?? null,
+    setAppliedCoupon: props.setAppliedCoupon,
+  });
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-8 sm:px-6 lg:px-10">
@@ -207,6 +217,15 @@ export function Checkout(props: any) {
               <input type="text" placeholder="VD: Giao giờ hành chính, ít ngọt..." value={note} onChange={e => setNote(e.target.value)} className="w-full rounded-xl border bg-input px-4 py-2.5 outline-none focus:border-primary text-sm" />
             </div>
           </section>
+
+          <CheckoutCouponSelector
+            isOpen={couponState.isOpen}
+            onOpenChange={couponState.setIsOpen}
+            couponOptions={couponState.couponOptions}
+            appliedCoupon={couponState.appliedCoupon}
+            onSelectCoupon={couponState.selectCoupon}
+            onRemoveCoupon={couponState.removeCoupon}
+          />
 
           {/* Payment Methods */}
           <section className="rounded-2xl border bg-card p-6">
