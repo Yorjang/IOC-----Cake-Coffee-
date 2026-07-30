@@ -1,16 +1,16 @@
-import { Controller, Get, Post, Put, Patch, Delete, Param, Body, UseGuards, ParseUUIDPipe, Query } from '@nestjs/common';
-import { ProductsService } from './products.service';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Permission } from '../../common/constants/permissions';
+import { Permissions } from '../../common/decorators/permissions.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { Permissions } from '../../common/decorators/permissions.decorator';
-import { Permission } from '../../common/constants/permissions';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/create-product.dto';
-import { CreateProductVariantDto, UpdateProductVariantDto } from './dto/product-variant.dto';
-import { ReplaceProductToppingsDto } from './dto/product-topping.dto';
-import { CreateProductTagDto, ReplaceProductTagsDto, UpdateProductTagDto } from './dto/product-tag.dto';
-import { Public } from '../../common/decorators/public.decorator';
 import { FindProductsQueryDto } from './dto/find-products-query.dto';
+import { CreateProductTagDto, ReplaceProductTagsDto, UpdateProductTagDto } from './dto/product-tag.dto';
+import { ReplaceProductToppingsDto } from './dto/product-topping.dto';
+import { CreateProductVariantDto, UpdateProductVariantDto } from './dto/product-variant.dto';
+import { ProductsService } from './products.service';
 
 @Controller(['admin/products', 'products'])
 export class ProductsController {

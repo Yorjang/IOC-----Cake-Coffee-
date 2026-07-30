@@ -1,9 +1,9 @@
+import { Check, ChevronRight, Minus, Plus, Ticket, Trash2, X } from "lucide-react";
 import { useState } from "react";
-import { Minus, Plus, Trash2, Ticket, X, ChevronRight, Check } from "lucide-react";
-import { Btn } from "../components/shared";
-import { VIEW_KEYS } from "../../config/appConfig";
 import { toast } from "sonner";
-import { matchSize } from "../App";
+import { VIEW_KEYS } from "../../config/appConfig";
+import { matchSize } from "../../utils/appUtils";
+import { Btn } from "../components/shared";
 
 const parsePrice = (priceStr: string) => parseInt(priceStr.replace(/[^0-9]/g, ""), 10);
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";

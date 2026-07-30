@@ -1,10 +1,10 @@
-import { Controller, Get, Post, Param, Body, ParseUUIDPipe, UseGuards, Headers, Ip, Query, Res } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Ip, Param, ParseUUIDPipe, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
-import { PaymentsService } from './payments.service';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { SepayWebhookDto } from './dto/sepay-webhook.dto';
 import { Public } from '../../common/decorators/public.decorator';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CreateVnpayPaymentDto } from './dto/create-vnpay-payment.dto';
+import { SepayWebhookDto } from './dto/sepay-webhook.dto';
+import { PaymentsService } from './payments.service';
 
 @Controller('payments')
 export class PaymentsController {

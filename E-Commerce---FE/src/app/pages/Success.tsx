@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
-import { ClipboardList, Check, Loader2, Copy, PackageCheck } from "lucide-react";
+import { Check, ClipboardList, Copy, Loader2, PackageCheck } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { parseRes } from "../../utils/api";
+import { VIEW_KEYS } from "../../config/appConfig";
 import { env } from "../../config/env";
+import { parseRes } from "../../utils/api";
 import { getAccessToken } from "../components/authSession";
 import { Btn } from "../components/shared";
-import { VIEW_KEYS } from "../../config/appConfig";
 import { VnpayPayment } from "../features/checkout/ui/VnpayPayment";
 
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";

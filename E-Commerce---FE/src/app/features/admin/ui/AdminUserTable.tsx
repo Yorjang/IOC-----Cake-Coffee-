@@ -1,6 +1,5 @@
-import React from 'react';
-import { Search, Edit, Trash2 } from 'lucide-react';
-import { TableHeader, StatusBadge, AdminBtn } from '../../../components/admin/AdminShared';
+import { Edit, Search, Trash2 } from 'lucide-react';
+import { AdminBtn, StatusBadge, TableHeader } from '../../../components/admin/AdminShared';
 
 export function AdminUserTable({
   filteredUsers,

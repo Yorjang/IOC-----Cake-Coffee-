@@ -1,12 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { TooltipProvider } from "./tooltip";
-import { useIsMobile } from "./use-mobile";
-import { cn } from "./utils";
 import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
 } from "./sheet";
+import { TooltipProvider } from "./tooltip";
+import { useIsMobile } from "./use-mobile";
+import { cn } from "./utils";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;

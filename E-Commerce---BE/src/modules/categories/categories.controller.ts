@@ -9,12 +9,12 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { CategoriesService } from './categories.service';
+import { Permission } from '../../common/constants/permissions';
+import { Permissions } from '../../common/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { Permissions } from '../../common/decorators/permissions.decorator';
-import { Permission } from '../../common/constants/permissions';
 import { CreateCategoryDto, UpdateCategoryDto } from '../products/dto/category.dto';
+import { CategoriesService } from './categories.service';
 
 @Controller(['admin/categories', 'categories'])
 export class CategoriesController {

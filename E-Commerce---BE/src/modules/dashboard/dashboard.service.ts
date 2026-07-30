@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Branch } from '../branches/branch.entity';
+import { Coupon, CouponStatus } from '../coupons/coupon.entity';
 import { Order, OrderStatus } from '../orders/order.entity';
 import { Product } from '../products/product.entity';
-import { Branch } from '../branches/branch.entity';
-import { User } from '../users/user.entity';
 import { Review } from '../reviews/review.entity';
-import { Coupon, CouponStatus } from '../coupons/coupon.entity';
+import { User } from '../users/user.entity';
 
 @Injectable()
 export class DashboardService {

@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, Min, IsEnum, IsUUID } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { VariantStatus } from '../product-variant.entity';
 
 export class CreateProductVariantDto {

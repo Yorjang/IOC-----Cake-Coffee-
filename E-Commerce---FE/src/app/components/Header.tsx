@@ -1,5 +1,5 @@
+import { Heart, LogOut, MapPin, Search, Settings, ShoppingBag, User, X, ChevronDown, Menu } from "lucide-react";
 import { useState } from "react";
-import { Search, Heart, ShoppingBag, SlidersHorizontal, User, ChevronDown, Settings, LogOut, MapPin, X } from "lucide-react";
 import { VIEW_KEYS } from "../../config/appConfig";
 
 export function Header({

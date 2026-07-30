@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { env } from "../../../config/env";
-import { getAccessToken } from "../authSession";
 import { parseRes } from "../../../utils/api";
+import { getAccessToken } from "../authSession";
 import { AdminBtn } from "./AdminShared";
 
 export function AdminSettings() {

@@ -1,18 +1,18 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, FindOptionsWhere, DataSource } from 'typeorm';
 import { User, UserRole } from '../users/user.entity';
 import { Category } from './category.entity';
-import { Product, ProductType } from './product.entity';
-import { ProductVariant, VariantStatus } from './product-variant.entity';
-import { ProductTopping } from './product-topping.entity';
-import { ReplaceProductToppingsDto } from './dto/product-topping.dto';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/create-product.dto';
-import { CreateProductVariantDto, UpdateProductVariantDto } from './dto/product-variant.dto';
-import { ProductTag } from './product-tag.entity';
 import { CreateProductTagDto, ReplaceProductTagsDto, UpdateProductTagDto } from './dto/product-tag.dto';
+import { ReplaceProductToppingsDto } from './dto/product-topping.dto';
+import { CreateProductVariantDto, UpdateProductVariantDto } from './dto/product-variant.dto';
 import { OrderItem } from '../orders/order-item.entity';
+import { ProductTag } from './product-tag.entity';
+import { ProductTopping } from './product-topping.entity';
+import { ProductVariant, VariantStatus } from './product-variant.entity';
+import { Product, ProductType } from './product.entity';
 
 // Utility helper to generate slug
 function generateSlug(name: string): string {

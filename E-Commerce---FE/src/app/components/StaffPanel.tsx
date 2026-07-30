@@ -1,4 +1,3 @@
-import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   Banknote,
@@ -20,6 +19,7 @@ import {
   Truck,
   XCircle,
 } from "lucide-react";
+import { useMemo, useState } from "react";
 
 type StaffPanelProps = {
   onExit: () => void;

@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-import { Product } from '../products/product.entity';
 import { ProductVariant } from '../products/product-variant.entity';
+import { Product } from '../products/product.entity';
 
 @Entity('combo_items')
 @Index(['comboProductId', 'sortOrder'])

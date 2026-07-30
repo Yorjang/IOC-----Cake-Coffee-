@@ -1,10 +1,10 @@
+import { Check, Heart, Minus, Plus, Star } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Heart, Minus, Plus, Star, Check } from "lucide-react";
-import { Btn, ProductCard, getDiscountedPrice } from "../components/shared";
-import { ReviewPage } from "../components/ReviewPage";
+import { toast } from "sonner";
 import { CATEGORY_GROUPS, VIEW_KEYS } from "../../config/appConfig";
 import { env } from "../../config/env";
-import { toast } from "sonner";
+import { ReviewPage } from "../components/ReviewPage";
+import { Btn, ProductCard, getDiscountedPrice } from "../components/shared";
 
 const formatPrice = (priceNum: number): string => {
   return priceNum.toLocaleString("vi-VN") + "đ";
