@@ -219,7 +219,7 @@ export function useCartState(user: any, selectedStore: any) {
     }
   }
 
-  const shipping = subtotal >= 300000 || subtotal === 0 ? 0 : 15000;
+  const shipping = 0;
   const grandTotal = Math.max(0, subtotal - discount + shipping);
 
   return {

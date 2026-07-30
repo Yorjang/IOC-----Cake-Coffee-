@@ -239,7 +239,16 @@ export function Checkout(props: any) {
               {discount > 0 && (
                 <div className="flex justify-between text-green-600"><span>Giảm giá</span><span>-{formatPrice(discount)}</span></div>
               )}
-              <div className="flex justify-between"><span>Phí giao hàng</span><span>{shipping === 0 ? "Miễn phí" : formatPrice(shipping)}</span></div>
+              <div className="flex justify-between">
+                <span>Phí giao hàng</span>
+                <span className={!deliveryQuote && fulfillmentType === "delivery" ? "text-muted-foreground" : ""}>
+                  {fulfillmentType === "pickup"
+                    ? "Miễn phí"
+                    : deliveryQuote
+                      ? formatPrice(shipping)
+                      : "Đang tính"}
+                </span>
+              </div>
               <hr className="my-2 border-border" />
               <div className="flex justify-between font-bold text-lg"><span>Tổng cộng</span><span className="text-primary">{formatPrice(grandTotal)}</span></div>
             </div>
