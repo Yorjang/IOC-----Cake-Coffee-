@@ -10,7 +10,6 @@ import { LoadingScreen } from "./components/LoadingScreen";
 import { SalesNotification } from "./components/SalesNotification";
 import { StoreSelectionModal } from "./components/StoreSelectionModal";
 import { AppRoutes } from "./components/AppRoutes";
-import { ActiveOrderBanner } from "./components/ActiveOrderBanner";
 import { useAppState } from "./hooks/useAppState";
 import { useCartState } from "./hooks/useCartState";
 import { NAV_PAGES, VIEW_KEYS } from "../config/appConfig";
@@ -190,11 +189,6 @@ export default function App() {
             handleSelectStore={handleSelectStore} handleAdminLogout={handleLogout}
           />
         </main>
-        <ActiveOrderBanner 
-          lastCreatedOrder={lastCreatedOrder} 
-          onClick={(order) => setView(VIEW_KEYS.TRACKING, order.id)} 
-          isHidden={view === VIEW_KEYS.TRACKING}
-        />
         <FloatingContact />
         {view === VIEW_KEYS.HOME && <SalesNotification products={products} onSelectProduct={handleSelectProduct} />}
         <Footer setView={setView} />

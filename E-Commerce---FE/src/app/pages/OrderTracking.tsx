@@ -82,9 +82,24 @@ function OrderTrackingDetail({ orderId, onBack }: { orderId: string; onBack: () 
                   </button>
                 )}
                 {order.orderStatus === 'completed' && item.isReviewed && (
-                  <p className="mt-3 text-xs font-medium text-green-600 flex items-center gap-1">
-                    ✓ Đã đánh giá
-                  </p>
+                  <div className="mt-3 rounded-lg bg-green-50/50 p-3 border border-green-100">
+                    <p className="text-xs font-medium text-green-600 flex items-center gap-1 mb-1">
+                      ✓ Bạn đã đánh giá
+                    </p>
+                    {item.review && (
+                      <div className="mt-2">
+                        <div className="text-amber-500 text-xs tracking-widest mb-1.5">
+                          {'★'.repeat(item.review.rating || 5)}{'☆'.repeat(5 - (item.review.rating || 5))}
+                        </div>
+                        {item.review.comment && (
+                          <p className="text-sm text-muted-foreground italic">"{item.review.comment}"</p>
+                        )}
+                        {item.review.image_url && (
+                          <img src={item.review.image_url} alt="Review" className="mt-2 h-16 w-16 object-cover rounded-md border border-border" />
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
               <p className="shrink-0 font-semibold">{money(item.totalPrice)}</p>
