@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useOrderTracking } from '../features/order-tracking/hooks/useOrderTracking';
 import { OrderList } from '../features/order-tracking/ui/OrderList';
 import { OrderTimeline } from '../features/order-tracking/ui/OrderTimeline';
+import { CreateReviewModal } from '../features/reviews/ui/CreateReviewModal';
 
 interface OrderTrackingProps {
   orderId?: string | null;
@@ -42,6 +43,7 @@ export function OrderTracking({ orderId, onBack }: OrderTrackingProps) {
 
 function OrderTrackingDetail({ orderId, onBack }: { orderId: string; onBack: () => void }) {
   const { order, loading, cancelOrder } = useOrderTracking(orderId);
+  const [reviewingItem, setReviewingItem] = useState<any>(null);
 
   if (loading) return <div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="animate-spin text-primary" size={44} /></div>;
   if (!order) return <div className="mx-auto max-w-lg p-10 text-center"><p className="text-muted-foreground">Không tìm thấy đơn hàng.</p><button onClick={onBack} className="mt-5 rounded-xl bg-primary px-6 py-2 font-semibold text-primary-foreground">Quay lại</button></div>;
@@ -66,8 +68,25 @@ function OrderTrackingDetail({ orderId, onBack }: { orderId: string; onBack: () 
         <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
           <div className="mb-5 flex items-center gap-3"><div className="rounded-full bg-orange-100 p-2 text-orange-600"><Package size={20} /></div><div><h2 className="font-semibold">Chi tiết sản phẩm</h2><p className="text-sm text-muted-foreground">{order.items.length} sản phẩm trong đơn</p></div></div>
           <div className="divide-y divide-border">
-            {order.items.map(item => <div key={item.id} className="flex items-start justify-between gap-4 py-4 first:pt-0">
-              <div className="min-w-0"><p className="font-medium">{item.quantity} × {item.productName}</p>{item.variantName && <p className="mt-1 text-sm text-muted-foreground">Phân loại: {item.variantName}</p>}<p className="mt-1 text-sm text-muted-foreground">Đơn giá: {money(item.unitPrice)}</p></div>
+            {order.items.map((item: any) => <div key={item.id} className="flex items-start justify-between gap-4 py-4 first:pt-0">
+              <div className="min-w-0">
+                <p className="font-medium">{item.quantity} × {item.productName}</p>
+                {item.variantName && <p className="mt-1 text-sm text-muted-foreground">Phân loại: {item.variantName}</p>}
+                <p className="mt-1 text-sm text-muted-foreground">Đơn giá: {money(item.unitPrice)}</p>
+                {order.orderStatus === 'completed' && !item.isReviewed && (
+                  <button 
+                    onClick={() => setReviewingItem(item)}
+                    className="mt-3 text-xs font-semibold text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-1 bg-amber-50 px-2.5 py-1.5 rounded-lg w-max transition-colors"
+                  >
+                    ⭐ Đánh giá ngay
+                  </button>
+                )}
+                {order.orderStatus === 'completed' && item.isReviewed && (
+                  <p className="mt-3 text-xs font-medium text-green-600 flex items-center gap-1">
+                    ✓ Đã đánh giá
+                  </p>
+                )}
+              </div>
               <p className="shrink-0 font-semibold">{money(item.totalPrice)}</p>
             </div>)}
           </div>
@@ -93,6 +112,22 @@ function OrderTrackingDetail({ orderId, onBack }: { orderId: string; onBack: () 
       </div>
 
       {order.orderStatus === 'pending' && <div className="mt-6 flex justify-end"><button onClick={() => window.confirm('Bạn có chắc muốn hủy đơn hàng này?') && void cancelOrder()} className="rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-600 hover:bg-red-100">Hủy đơn hàng</button></div>}
+
+      {reviewingItem && (
+        <CreateReviewModal
+          isOpen={true}
+          onClose={() => setReviewingItem(null)}
+          orderId={order.id}
+          productId={reviewingItem.productId}
+          productName={reviewingItem.productName}
+          variantName={reviewingItem.variantName}
+          productImage={reviewingItem.product?.imageUrl || reviewingItem.productImage || ''}
+          onSuccess={() => {
+            order.items = order.items.map((i: any) => i.id === reviewingItem.id ? { ...i, isReviewed: true } : i);
+            setReviewingItem(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -34,7 +34,7 @@ export class OrdersService {
 
   async findAll(): Promise<Order[]> {
     return this.orders.find({
-      relations: { user: true, branch: true, items: true },
+      relations: { user: true, branch: true, items: { product: true } },
       order: { createdAt: 'DESC' },
     });
   }
@@ -158,7 +158,7 @@ export class OrdersService {
         ORDER BY d.day_date
       `),
       this.orders.find({
-        relations: { user: true, items: true },
+        relations: { user: true, items: { product: true } },
         order: { createdAt: 'DESC' },
         take: 5,
       }),
@@ -537,7 +537,7 @@ export class OrdersService {
 
       return this.orders.findOne({
         where: { id: orderId },
-        relations: { items: true, branch: true }
+        relations: { items: { product: true }, branch: true }
       });
     } catch (error: any) {
       if (error instanceof BadRequestException) {
@@ -550,7 +550,7 @@ export class OrdersService {
   async findMyOrders(userId: string): Promise<Order[]> {
     return this.orders.find({
       where: { userId },
-      relations: { items: true, branch: true },
+      relations: { items: { product: true }, branch: true },
       order: { createdAt: 'DESC' }
     });
   }

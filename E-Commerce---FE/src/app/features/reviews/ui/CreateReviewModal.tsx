@@ -120,7 +120,7 @@ export function CreateReviewModal({
 
     setSubmitting(true);
     try {
-      const res = await fetch(`${env.API_URL}/api/reviews/order`, {
+      const res = await fetch(`${env.API_URL}/reviews/order`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -168,8 +168,11 @@ export function CreateReviewModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in">
-      <div className="bg-card text-foreground border border-border w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in" onClick={onClose}>
+      <div 
+        className="bg-card text-foreground border border-border w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-secondary/30">
           <div className="flex items-center gap-2.5">

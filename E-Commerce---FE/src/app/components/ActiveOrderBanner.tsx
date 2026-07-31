@@ -1,5 +1,6 @@
 import { ChevronRight, Package, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { env } from "../../config/env";
 import { parseRes } from '../../utils/api';
 import { getAccessToken } from "./authSession";
@@ -55,17 +56,16 @@ export function ActiveOrderBanner({ lastCreatedOrder, onClick, onPayment, isHidd
     
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`${env.API_URL}/orders/public/${activeOrder.id}`);
         if (res.ok) {
           const updated = await parseRes(res);
-          setActiveOrder(updated);
-          if (updated.orderStatus === 'cancelled') {
-            // Hide immediately when order is cancelled
-            setDismissed(true);
-          } else if (updated.orderStatus === 'completed') {
+          if (updated.orderStatus === 'completed') {
             // Auto dismiss after a few seconds when completed
             setTimeout(() => setDismissed(true), 5000);
+          } else if (updated.orderStatus === 'cancelled') {
+            // Hide immediately when order is cancelled
+            setDismissed(true);
           }
+          setActiveOrder(updated);
         } else if (res.status === 404 || res.status === 400) {
           // Đơn hàng đã bị xóa khỏi database hoặc không hợp lệ
           setDismissed(true);
