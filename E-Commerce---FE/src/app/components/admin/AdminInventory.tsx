@@ -49,11 +49,184 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
   const [activePO, setActivePO] = useState<any>(null);
   const [inboundItems, setInboundItems] = useState<any[]>([]);
   const [confirmingInbound, setConfirmingInbound] = useState(false);
+  const [itemBarcodeScanInput, setItemBarcodeScanInput] = useState("");
+
+  // PR (Purchase Request) flow states
+  const [prs, setPrs] = useState<any[]>([]);
+  const [loadingPrs, setLoadingPrs] = useState(false);
+  const [showPrModal, setShowPrModal] = useState(false);
+  const [prNote, setPrNote] = useState("");
+  const [prItems, setPrItems] = useState<any[]>([
+    { ingredientId: "", variantId: "", requestedQuantity: "10", note: "" },
+  ]);
+  const [submittingPr, setSubmittingPr] = useState(false);
 
   // Batch details states
   const [selectedStockForBatches, setSelectedStockForBatches] = useState<any>(null);
   const [batchesList, setBatchesList] = useState<any[]>([]);
   const [loadingBatches, setLoadingBatches] = useState(false);
+
+  const getStockStatus = (stock: any) => {
+    if (!stock) {
+      return {
+        status: 'NORMAL',
+        emoji: '🟢',
+        colorClass: 'text-emerald-500',
+        bgBadge: 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30 font-medium',
+        qty: 0,
+        min: 0,
+      };
+    }
+    const qty = Number(stock.quantity || 0);
+    const min = Number(stock.isIngredient ? (stock.minStockLevel || 0) : (stock.minQuantity || 0));
+
+    if (qty <= min) {
+      return {
+        status: 'CRITICAL',
+        emoji: '🔴',
+        colorClass: 'text-red-500 font-bold',
+        bgBadge: 'bg-red-500/15 text-red-500 border-red-500/30 font-bold',
+        qty,
+        min,
+      };
+    } else if (min > 0 && qty <= min * 1.5) {
+      return {
+        status: 'WARNING',
+        emoji: '🟡',
+        colorClass: 'text-amber-500 font-bold',
+        bgBadge: 'bg-amber-500/15 text-amber-500 border-amber-500/30 font-bold',
+        qty,
+        min,
+      };
+    } else {
+      return {
+        status: 'NORMAL',
+        emoji: '🟢',
+        colorClass: 'text-emerald-500 font-semibold',
+        bgBadge: 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30 font-medium',
+        qty,
+        min,
+      };
+    }
+  };
+
+  const loadPrs = async () => {
+    const token = getAccessToken();
+    try {
+      setLoadingPrs(true);
+      const res = await fetch(`${env.API_URL}/admin/inventory/purchase-requests`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await parseRes(res);
+      if (res.ok) {
+        setPrs(data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingPrs(false);
+    }
+  };
+
+  const handleCreatePr = async () => {
+    if (!currentUser?.branchId && isStoreManager) {
+      toast.error("Quản lý chưa được gán chi nhánh.");
+      return;
+    }
+    const validItems = prItems.filter(i => (i.ingredientId || i.variantId) && Number(i.requestedQuantity) > 0);
+    if (validItems.length === 0) {
+      toast.error("Vui lòng chọn ít nhất 1 mặt hàng và nhập số lượng yêu cầu.");
+      return;
+    }
+
+    setSubmittingPr(true);
+    const token = getAccessToken();
+    try {
+      const body = {
+        branchId: currentUser?.branchId || branches[0]?.id,
+        note: prNote.trim() || undefined,
+        items: validItems.map(i => ({
+          ingredientId: i.ingredientId || undefined,
+          variantId: i.variantId || undefined,
+          requestedQuantity: Number(i.requestedQuantity),
+          note: i.note || undefined,
+        })),
+      };
+
+      const res = await fetch(`${env.API_URL}/admin/inventory/purchase-requests`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      const data = await parseRes(res);
+      if (res.ok) {
+        toast.success(`Tạo phiếu yêu cầu đặt hàng (PR) ${data.prCode || ''} thành công!`);
+        setShowPrModal(false);
+        setPrNote("");
+        setPrItems([{ ingredientId: "", variantId: "", requestedQuantity: "10", note: "" }]);
+        loadPrs();
+      } else {
+        toast.error(data.message || "Lỗi khi tạo PR.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi kết nối.");
+    } finally {
+      setSubmittingPr(false);
+    }
+  };
+
+  const handleApprovePr = async (prId: string) => {
+    if (!confirm("Xác nhận DUYỆT phiếu Yêu cầu này và tự động sinh Đơn Đặt hàng (PO) gửi nhà cung cấp?")) return;
+    const token = getAccessToken();
+    try {
+      const res = await fetch(`${env.API_URL}/admin/inventory/purchase-requests/${prId}/approve-to-pos`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await parseRes(res);
+      if (res.ok) {
+        toast.success(data.message || "Đã duyệt PR thành công!");
+        loadPrs();
+        loadInventory();
+      } else {
+        toast.error(data.message || "Lỗi khi duyệt PR.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi kết nối.");
+    }
+  };
+
+  const handleCancelPr = async (prId: string) => {
+    const reason = prompt("Nhập lý do hủy phiếu yêu cầu đặt hàng (PR):");
+    if (!reason || !reason.trim()) return;
+
+    const token = getAccessToken();
+    try {
+      const res = await fetch(`${env.API_URL}/admin/inventory/purchase-requests/${prId}/cancel`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ cancelReason: reason.trim() }),
+      });
+      const data = await parseRes(res);
+      if (res.ok) {
+        toast.success("Đã hủy phiếu Yêu cầu (PR).");
+        loadPrs();
+      } else {
+        toast.error(data.message || "Lỗi khi hủy PR.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi kết nối.");
+    }
+  };
 
   const loadInventory = async () => {
     const token = getAccessToken();
@@ -130,6 +303,7 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
   useEffect(() => {
     loadInventory();
     loadBranches();
+    loadPrs();
     if (currentUser?.role === "admin") {
       loadAdjustments();
     }
@@ -421,15 +595,26 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
             Cảnh báo sắp hết, hết hàng và sản phẩm gần hạn để nhân viên xử lý kịp thời.
           </p>
         </div>
-        {isStoreManager && (
-          <button
-            onClick={() => setShowInboundModal(true)}
-            className="flex w-fit items-center gap-1.5 rounded-xl bg-primary hover:bg-primary/80 text-primary-foreground px-4 py-2.5 text-sm font-semibold transition shadow-md cursor-pointer self-start md:self-auto"
-          >
-            <UploadCloud size={16} />
-            Nhập hàng (PO)
-          </button>
-        )}
+        <div className="flex gap-2 self-start md:self-auto">
+          {isStoreManager && (
+            <button
+              onClick={() => setShowPrModal(true)}
+              className="flex items-center gap-1.5 rounded-xl bg-sidebar-accent hover:bg-sidebar-accent/80 text-foreground px-4 py-2.5 text-sm font-semibold transition shadow-sm cursor-pointer"
+            >
+              <ClipboardList size={16} />
+              Tạo Yêu cầu (PR)
+            </button>
+          )}
+          {isStoreManager && (
+            <button
+              onClick={() => setShowInboundModal(true)}
+              className="flex items-center gap-1.5 rounded-xl bg-primary hover:bg-primary/80 text-primary-foreground px-4 py-2.5 text-sm font-semibold transition shadow-md cursor-pointer"
+            >
+              <UploadCloud size={16} />
+              Nhập hàng (PO)
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 bg-card p-4 rounded-2xl border border-sidebar-accent">
@@ -489,6 +674,75 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
           </div>
         ))}
       </div>
+
+      {/* PR (Purchase Request) List Section */}
+      {prs.length > 0 && (
+        <div className="rounded-2xl bg-sidebar p-5 border border-sidebar-accent space-y-3">
+          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <ClipboardList className="text-primary" size={18} />
+            Phiếu Yêu cầu Đặt hàng (PR) từ chi nhánh ({prs.length})
+          </h3>
+          <div className="overflow-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-sidebar-accent text-left text-xs uppercase tracking-wider text-muted-foreground">
+                  <th className="pb-2 pr-4">Mã PR</th>
+                  <th className="pb-2 pr-4">Chi nhánh</th>
+                  <th className="pb-2 pr-4">Người đề xuất</th>
+                  <th className="pb-2 pr-4">Mặt hàng cần nhập</th>
+                  <th className="pb-2 pr-4">Trạng thái</th>
+                  <th className="pb-2 pr-4">Thời gian</th>
+                  <th className="pb-2">Tác vụ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {prs.map((pr: any) => (
+                  <tr key={pr.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent/50 transition">
+                    <td className="py-2.5 pr-4 font-mono font-bold text-primary">{pr.prCode}</td>
+                    <td className="py-2.5 pr-4 text-foreground font-medium">{pr.branch?.name}</td>
+                    <td className="py-2.5 pr-4 text-muted-foreground text-xs">{pr.requestedBy?.fullName || "Quản lý"}</td>
+                    <td className="py-2.5 pr-4 text-xs text-muted-foreground max-w-[280px]">
+                      {pr.items?.map((it: any) => (
+                        <div key={it.id}>
+                          • {it.ingredient ? it.ingredient.name : it.variant?.product?.name}: <strong>{it.requestedQuantity}</strong> {it.ingredient?.unit || "Cái"}
+                        </div>
+                      ))}
+                    </td>
+                    <td className="py-2.5 pr-4">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        pr.status === 'PENDING_APPROVAL' ? 'bg-amber-500/10 text-amber-500' :
+                        pr.status === 'APPROVED' ? 'bg-green-500/10 text-green-500' :
+                        'bg-red-500/10 text-red-500'
+                      }`}>
+                        {pr.status === 'PENDING_APPROVAL' ? 'Chờ Admin duyệt' : pr.status === 'APPROVED' ? 'Đã duyệt (PO)' : pr.status}
+                      </span>
+                    </td>
+                    <td className="py-2.5 pr-4 text-xs text-muted-foreground">{new Date(pr.createdAt).toLocaleString("vi-VN")}</td>
+                    <td className="py-2.5">
+                      {isAdmin && pr.status === 'PENDING_APPROVAL' && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleApprovePr(pr.id)}
+                            className="rounded bg-primary hover:bg-primary/80 text-white px-2.5 py-1 text-xs font-semibold transition cursor-pointer"
+                          >
+                            Duyệt PR & Sinh PO
+                          </button>
+                          <button
+                            onClick={() => handleCancelPr(pr.id)}
+                            className="rounded bg-red-500 hover:bg-red-600 text-white px-2.5 py-1 text-xs font-semibold transition cursor-pointer"
+                          >
+                            Hủy
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {isAdmin && adjustments.length > 0 && (
         <div className="rounded-2xl bg-sidebar p-5 border border-sidebar-accent space-y-3">
@@ -830,18 +1084,53 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
                     <strong className="text-foreground">{activePO.status}</strong>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Hạn dự kiến: </span>
-                    <strong className="text-foreground">
-                      {activePO.expected_delivery ? new Date(activePO.expected_delivery).toLocaleDateString("vi-VN") : "N/A"}
+                    <span className="text-muted-foreground">Hạn chót SLA: </span>
+                    <strong className="text-amber-500 font-mono">
+                      {activePO.expired_at ? new Date(activePO.expired_at).toLocaleDateString("vi-VN") : "7 ngày từ giao hàng"}
                     </strong>
                   </div>
+                </div>
+
+                {/* Item Barcode / SKU Scan counter */}
+                <div className="flex gap-2 items-center bg-sidebar-accent/30 p-2.5 rounded-xl border border-sidebar-accent">
+                  <Search size={16} className="text-primary" />
+                  <input
+                    type="text"
+                    placeholder="Bắn/Quét Barcode hoặc SKU thùng/hộp để tự động cộng dồn số lượng thực nhận..."
+                    value={itemBarcodeScanInput}
+                    onChange={(e) => setItemBarcodeScanInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (!itemBarcodeScanInput.trim()) return;
+                        const code = itemBarcodeScanInput.trim().toLowerCase();
+                        const foundIdx = inboundItems.findIndex((it: any) =>
+                          (it.barcode && it.barcode.toLowerCase() === code) ||
+                          (it.name && it.name.toLowerCase().includes(code))
+                        );
+                        if (foundIdx !== -1) {
+                          const updated = [...inboundItems];
+                          updated[foundIdx].receivedQuantity = Number(updated[foundIdx].receivedQuantity || 0) + 1;
+                          setInboundItems(updated);
+                          toast.success(`Đã quét +1 cho: ${updated[foundIdx].name}`);
+                          setItemBarcodeScanInput("");
+                        } else {
+                          toast.error(`Mã vạch/SKU '${itemBarcodeScanInput}' không thuộc sản phẩm nào trong PO này.`);
+                        }
+                      }
+                    }}
+                    className="flex-1 bg-transparent text-xs text-foreground outline-none font-mono"
+                  />
                 </div>
 
                 <div className="max-h-96 overflow-y-auto space-y-4 pr-1">
                   {inboundItems.map((item, idx) => (
                     <div key={item.poItemId} className="p-4 rounded-xl border border-sidebar-accent bg-sidebar-accent/20 space-y-3">
                       <div className="flex justify-between items-start gap-2">
-                        <h4 className="font-semibold text-sm text-foreground">{item.name}</h4>
+                        <div>
+                          <h4 className="font-semibold text-sm text-foreground">{item.name}</h4>
+                          {item.barcode && <p className="text-[10px] text-muted-foreground font-mono">Barcode: {item.barcode}</p>}
+                        </div>
                         <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded font-mono">
                           Yêu cầu: {item.orderedQuantity} {item.unit}
                         </span>
@@ -893,7 +1182,7 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-muted-foreground mb-1">Số lượng thực nhận</label>
+                          <label className="block text-muted-foreground mb-1 font-medium">Số lượng thực nhận</label>
                           <input
                             type="number"
                             min="0"
@@ -903,7 +1192,21 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
                               updated[idx].receivedQuantity = e.target.value;
                               setInboundItems(updated);
                             }}
-                            className="w-full rounded-lg bg-sidebar px-2 py-1.5 text-foreground border border-sidebar-accent outline-none"
+                            className="w-full rounded-lg bg-sidebar px-2 py-1.5 text-foreground border border-sidebar-accent outline-none font-semibold text-primary"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-red-400 mb-1 font-medium">Số lượng bị hỏng/từ chối</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={item.rejectedQuantity || 0}
+                            onChange={(e) => {
+                              const updated = [...inboundItems];
+                              updated[idx].rejectedQuantity = e.target.value;
+                              setInboundItems(updated);
+                            }}
+                            className="w-full rounded-lg bg-sidebar px-2 py-1.5 text-red-400 border border-red-500/30 outline-none"
                           />
                         </div>
                         <div>
@@ -915,19 +1218,6 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
                             onChange={(e) => {
                               const updated = [...inboundItems];
                               updated[idx].batchCode = e.target.value;
-                              setInboundItems(updated);
-                            }}
-                            className="w-full rounded-lg bg-sidebar px-2 py-1.5 text-foreground border border-sidebar-accent outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-muted-foreground mb-1">Ngày sản xuất</label>
-                          <input
-                            type="date"
-                            value={item.manufactureDate}
-                            onChange={(e) => {
-                              const updated = [...inboundItems];
-                              updated[idx].manufactureDate = e.target.value;
                               setInboundItems(updated);
                             }}
                             className="w-full rounded-lg bg-sidebar px-2 py-1.5 text-foreground border border-sidebar-accent outline-none"
@@ -972,6 +1262,233 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
           </div>
         </div>
       )}
+
+      {showPrModal && (() => {
+        const activeBranchId = currentUser?.branchId || (branchFilter !== "ALL" ? branchFilter : undefined);
+        const branchStocks = stocks.filter(s => !activeBranchId || s.branchId === activeBranchId);
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 overflow-y-auto animate-fade-in">
+            <div className="w-full max-w-3xl rounded-3xl border border-sidebar-accent bg-sidebar p-6 md:p-8 shadow-2xl space-y-5 my-8">
+              
+              {/* Modal Header */}
+              <div className="flex justify-between items-start border-b border-sidebar-accent pb-4">
+                <div>
+                  <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                    <ClipboardList className="text-primary" size={22} />
+                    Tạo Phiếu Yêu cầu Đặt hàng (PR)
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Lập danh sách nguyên liệu/sản phẩm thiếu để gửi Admin duyệt & tự động sinh đơn hàng PO với nhà cung cấp.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowPrModal(false)}
+                  className="text-muted-foreground hover:text-foreground hover:bg-sidebar-accent p-2 rounded-full transition cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Stock Legend Banner */}
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-sidebar-accent/30 p-3 rounded-2xl border border-sidebar-accent/60 text-xs">
+                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                  <Boxes size={15} className="text-primary" /> Hướng dẫn màu sắc tồn kho:
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-500/10 text-red-500 border border-red-500/20 font-medium text-[11px]">
+                    🔴 Chạm / Dưới tối thiểu
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 font-medium text-[11px]">
+                    🟡 Gần chạm tối thiểu
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-medium text-[11px]">
+                    🟢 Tồn kho an toàn
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-5 text-xs">
+                {/* Note Field */}
+                <div>
+                  <label className="block text-xs font-semibold text-foreground mb-1.5">
+                    Ghi chú gửi Ban Quản Lý (Admin)
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Nhập lý do cần nhập hàng khẩn cấp (ví dụ: Nguyên liệu pha chế sắp hết trong ngày, bánh ngọt sắp hết kho...)"
+                    value={prNote}
+                    onChange={(e) => setPrNote(e.target.value)}
+                    className="w-full rounded-2xl bg-sidebar-accent/50 px-4 py-2.5 text-foreground outline-none border border-sidebar-accent focus:border-primary text-xs resize-none transition"
+                  />
+                </div>
+
+                {/* Items Section Header */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center border-b border-sidebar-accent pb-2">
+                    <span className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                      Danh sách mặt hàng đặt ({prItems.length})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPrItems([...prItems, { ingredientId: "", variantId: "", requestedQuantity: "10", note: "" }])}
+                      className="inline-flex items-center gap-1 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer"
+                    >
+                      <Plus size={14} /> Thêm dòng mặt hàng
+                    </button>
+                  </div>
+
+                  {/* List of Item Cards */}
+                  <div className="max-h-80 overflow-y-auto space-y-3.5 pr-1">
+                    {prItems.map((item, idx) => {
+                      const selectedStock = branchStocks.find(s =>
+                        (item.ingredientId && s.isIngredient && s.ingredient?.id === item.ingredientId) ||
+                        (item.variantId && !s.isIngredient && s.variant?.id === item.variantId)
+                      );
+                      const st = getStockStatus(selectedStock);
+                      const selectedUnit = selectedStock?.isIngredient ? selectedStock.ingredient?.unit : "cái";
+
+                      return (
+                        <div key={idx} className="rounded-2xl border border-sidebar-accent bg-sidebar-accent/20 p-4 shadow-sm space-y-3 transition hover:border-primary/40">
+                          
+                          {/* Card Header */}
+                          <div className="flex items-center justify-between gap-2 border-b border-sidebar-accent/40 pb-2">
+                            <span className="font-bold text-xs text-foreground/80 flex items-center gap-2">
+                              <span className="size-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[11px] font-bold">
+                                {idx + 1}
+                              </span>
+                              Mặt hàng #{idx + 1}
+                            </span>
+
+                            <div className="flex items-center gap-2">
+                              {selectedStock && (
+                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono border ${st.bgBadge}`}>
+                                  <span>{st.emoji}</span>
+                                  <span>Tồn: <strong className="font-bold">{st.qty}</strong> {selectedUnit}</span>
+                                  <span className="opacity-40">|</span>
+                                  <span>Min: <strong>{st.min}</strong> {selectedUnit}</span>
+                                </span>
+                              )}
+
+                              {prItems.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setPrItems(prItems.filter((_, i) => i !== idx))}
+                                  className="text-muted-foreground hover:text-red-500 hover:bg-red-500/10 p-1.5 rounded-lg transition cursor-pointer"
+                                  title="Xóa dòng này"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Card Form Grid */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="md:col-span-2">
+                              <label className="block text-[11px] font-medium text-muted-foreground mb-1">
+                                Chọn Nguyên liệu / Sản phẩm
+                              </label>
+                              <select
+                                value={item.ingredientId ? `ING:${item.ingredientId}` : item.variantId ? `VAR:${item.variantId}` : ""}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  const updated = [...prItems];
+                                  if (val.startsWith("ING:")) {
+                                    updated[idx].ingredientId = val.replace("ING:", "");
+                                    updated[idx].variantId = "";
+                                  } else if (val.startsWith("VAR:")) {
+                                    updated[idx].variantId = val.replace("VAR:", "");
+                                    updated[idx].ingredientId = "";
+                                  } else {
+                                    updated[idx].ingredientId = "";
+                                    updated[idx].variantId = "";
+                                  }
+                                  setPrItems(updated);
+                                }}
+                                className="w-full rounded-xl bg-sidebar px-3 py-2 text-xs text-foreground outline-none border border-sidebar-accent focus:border-primary font-medium"
+                              >
+                                <option value="">-- Click chọn Nguyên liệu / Sản phẩm --</option>
+                                <optgroup label="🧪 NGUYÊN LIỆU (PHA CHẾ / CHẾ BIẾN)">
+                                  {branchStocks.filter(s => s.isIngredient && s.ingredient).map(s => {
+                                    const itemSt = getStockStatus(s);
+                                    const unit = s.ingredient.unit ? ` ${s.ingredient.unit}` : "";
+                                    return (
+                                      <option key={`ING:${s.ingredient.id}`} value={`ING:${s.ingredient.id}`}>
+                                        {itemSt.emoji} {s.ingredient.name} — [Tồn: {itemSt.qty}{unit} | Min: {itemSt.min}{unit}]
+                                      </option>
+                                    );
+                                  })}
+                                </optgroup>
+                                <optgroup label="📦 SẢN PHẨM BÁN LẺ / BÁNH">
+                                  {branchStocks.filter(s => !s.isIngredient && s.variant).map(s => {
+                                    const itemSt = getStockStatus(s);
+                                    const vName = s.variant.variantName === "Biến thể mặc định" ? "" : ` (${s.variant.variantName})`;
+                                    const fullName = `${s.variant.product?.name || ''}${vName}`;
+                                    return (
+                                      <option key={`VAR:${s.variant.id}`} value={`VAR:${s.variant.id}`}>
+                                        {itemSt.emoji} {fullName} — [Tồn: {itemSt.qty} | Min: {itemSt.min}]
+                                      </option>
+                                    );
+                                  })}
+                                </optgroup>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-medium text-muted-foreground mb-1">
+                                Số lượng cần đặt
+                              </label>
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  min="0.1"
+                                  placeholder="Số lượng"
+                                  value={item.requestedQuantity}
+                                  onChange={(e) => {
+                                    const updated = [...prItems];
+                                    updated[idx].requestedQuantity = e.target.value;
+                                    setPrItems(updated);
+                                  }}
+                                  className="w-full rounded-xl bg-sidebar px-3 py-2 pr-12 text-xs text-foreground outline-none border border-sidebar-accent focus:border-primary font-bold text-primary"
+                                />
+                                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground uppercase bg-sidebar-accent px-1.5 py-0.5 rounded">
+                                  {selectedUnit}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-3 pt-3 border-t border-sidebar-accent">
+                <button
+                  type="button"
+                  onClick={() => setShowPrModal(false)}
+                  className="rounded-full border border-sidebar-accent px-5 py-2.5 text-xs font-semibold text-muted-foreground hover:bg-sidebar-accent transition cursor-pointer"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreatePr}
+                  disabled={submittingPr}
+                  className="rounded-full bg-primary hover:bg-primary/80 px-6 py-2.5 text-xs font-semibold text-primary-foreground shadow-md disabled:opacity-50 flex items-center gap-2 transition cursor-pointer"
+                >
+                  {submittingPr ? <Loader2 className="animate-spin" size={15} /> : null}
+                  Gửi Yêu cầu (PR)
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {selectedStockForBatches && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in">

@@ -14,13 +14,26 @@ import { Type } from 'class-transformer';
 
 export class ConfirmInboundItemDto {
   @IsNotEmpty()
-  @IsUUID()
+  @IsUUID('4')
   poItemId: string;
 
   @IsNotEmpty()
   @IsNumber()
   @Min(0)
   receivedQuantity: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  rejectedQuantity?: number;
+
+  @IsOptional()
+  @IsString()
+  rejectReason?: string;
+
+  @IsOptional()
+  @IsString()
+  barcode?: string;
 
   @IsOptional()
   @IsDateString()
@@ -45,7 +58,7 @@ export class ConfirmInboundItemDto {
 
 export class ConfirmInboundDto {
   @IsNotEmpty()
-  @IsUUID()
+  @IsUUID('4')
   poId: string;
 
   @IsNotEmpty()

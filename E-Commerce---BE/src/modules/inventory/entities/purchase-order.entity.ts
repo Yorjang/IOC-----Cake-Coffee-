@@ -12,12 +12,19 @@ import {
 import { Branch } from '../../branches/branch.entity';
 import { User } from '../../users/user.entity';
 import { PurchaseOrderItem } from './purchase-order-item.entity';
+import { PurchaseRequest } from './purchase-request.entity';
 
 export enum PurchaseOrderStatus {
+  DRAFT = 'DRAFT',
+  PENDING_APPROVAL = 'PENDING_APPROVAL',
   PENDING = 'PENDING',
+  ORDERED = 'ORDERED',
   SHIPPED = 'SHIPPED',
+  PARTIALLY_RECEIVED = 'PARTIALLY_RECEIVED',
   RECEIVED = 'RECEIVED',
+  COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
+  EXPIRED = 'EXPIRED',
 }
 
 @Entity('purchase_orders')
@@ -29,6 +36,13 @@ export class PurchaseOrder {
 
   @Column({ name: 'po_code', length: 50, unique: true })
   poCode: string;
+
+  @Column({ name: 'pr_id', type: 'uuid', nullable: true })
+  prId: string;
+
+  @ManyToOne(() => PurchaseRequest, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'pr_id' })
+  purchaseRequest: PurchaseRequest;
 
   @Column({ name: 'branch_id', type: 'uuid' })
   branchId: string;
@@ -59,6 +73,22 @@ export class PurchaseOrder {
 
   @Column({ name: 'expected_delivery', type: 'timestamptz', nullable: true })
   expectedDelivery: Date;
+
+  @Column({ name: 'expired_at', type: 'timestamptz', nullable: true })
+  expiredAt: Date;
+
+  @Column({ name: 'cancelled_by_id', type: 'uuid', nullable: true })
+  cancelledById: string;
+
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'cancelled_by_id' })
+  cancelledBy: User;
+
+  @Column({ name: 'cancelled_at', type: 'timestamptz', nullable: true })
+  cancelledAt: Date;
+
+  @Column({ name: 'cancel_reason', type: 'text', nullable: true })
+  cancelReason: string;
 
   @Column({ type: 'text', nullable: true })
   notes: string;
