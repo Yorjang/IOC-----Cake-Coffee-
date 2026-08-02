@@ -63,6 +63,10 @@ export class CreatePurchaseOrderDto {
   expectedDelivery?: string;
 
   @IsOptional()
+  @IsString()
+  deliveryTimeframe?: string;
+
+  @IsOptional()
   @IsDateString()
   expiredAt?: string;
 

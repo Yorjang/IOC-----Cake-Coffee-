@@ -39,9 +39,9 @@ export class ConfirmInboundItemDto {
   @IsDateString()
   manufactureDate?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsDateString()
-  expiryDate: string;
+  expiryDate?: string;
 
   @IsOptional()
   @IsString()
@@ -66,4 +66,8 @@ export class ConfirmInboundDto {
   @ValidateNested({ each: true })
   @Type(() => ConfirmInboundItemDto)
   items: ConfirmInboundItemDto[];
+
+  @IsOptional()
+  @IsBoolean()
+  completePo?: boolean;
 }

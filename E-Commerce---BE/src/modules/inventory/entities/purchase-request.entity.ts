@@ -12,6 +12,7 @@ import {
 import { Branch } from '../../branches/branch.entity';
 import { User } from '../../users/user.entity';
 import { PurchaseRequestItem } from './purchase-request-item.entity';
+import { PurchaseOrder } from './purchase-order.entity';
 
 export enum PurchaseRequestStatus {
   DRAFT = 'DRAFT',
@@ -62,6 +63,12 @@ export class PurchaseRequest {
   @Column({ type: 'text', nullable: true })
   note: string;
 
+  @Column({ name: 'delivery_timeframe', type: 'varchar', length: 10, nullable: true })
+  deliveryTimeframe: string;
+
+  @Column({ name: 'preferred_delivery_date', type: 'date', nullable: true })
+  preferredDeliveryDate: Date;
+
   @Column({ name: 'cancelled_by_id', type: 'uuid', nullable: true })
   cancelledById: string;
 
@@ -79,6 +86,9 @@ export class PurchaseRequest {
     cascade: true,
   })
   items: PurchaseRequestItem[];
+
+  @OneToMany(() => PurchaseOrder, (po) => po.purchaseRequest)
+  purchaseOrders: PurchaseOrder[];
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

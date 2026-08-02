@@ -74,6 +74,9 @@ export class PurchaseOrder {
   @Column({ name: 'expected_delivery', type: 'timestamptz', nullable: true })
   expectedDelivery: Date;
 
+  @Column({ name: 'delivery_timeframe', type: 'varchar', length: 10, nullable: true })
+  deliveryTimeframe: string;
+
   @Column({ name: 'expired_at', type: 'timestamptz', nullable: true })
   expiredAt: Date;
 

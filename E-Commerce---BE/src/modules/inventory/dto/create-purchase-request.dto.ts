@@ -8,6 +8,7 @@ import {
   IsNumber,
   Min,
   IsEnum,
+  IsDateString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PurchaseRequestStatus } from '../entities/purchase-request.entity';
@@ -39,6 +40,14 @@ export class CreatePurchaseRequestDto {
   @IsOptional()
   @IsString()
   note?: string;
+
+  @IsOptional()
+  @IsString()
+  deliveryTimeframe?: string;
+
+  @IsOptional()
+  @IsDateString({}, { message: 'Ngày nhận hàng không hợp lệ' })
+  preferredDeliveryDate?: string;
 
   @IsNotEmpty({ message: 'Danh sách món cần đặt không được để trống' })
   @IsArray()

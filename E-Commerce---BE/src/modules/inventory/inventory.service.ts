@@ -128,7 +128,7 @@ export class InventoryService {
 
     const stocks = await this.variantStockRepo.find({
       where,
-      relations: { branch: true, variant: { product: true, variantIngredients: { ingredient: true } } },
+      relations: { branch: true, variant: { product: { category: true }, variantIngredients: { ingredient: true } } },
       order: { updatedAt: 'DESC' },
     });
 
@@ -822,7 +822,7 @@ export class InventoryService {
     });
 
     const lowStockIngredients = ingStocks
-      .filter((item) => Number(item.quantity) <= Number(item.minStockLevel))
+      .filter((item) => Number(item.quantity) <= Number(item.minStockLevel || 0) * 1.1)
       .map((item) => ({
         type: 'INGREDIENT',
         id: item.id,
@@ -838,7 +838,7 @@ export class InventoryService {
       }));
 
     const lowStockVariants = varStocks
-      .filter((item) => Number(item.quantity) <= Number(item.minQuantity))
+      .filter((item) => Number(item.quantity) <= Number(item.minQuantity || 0) * 1.1)
       .map((item) => ({
         type: 'VARIANT',
         id: item.id,
@@ -928,6 +928,32 @@ export class InventoryService {
     const rand = Math.floor(1000 + Math.random() * 9000);
     const prCode = `PR-${branchPrefix}-${dateStr}-${rand}`;
 
+    // Xác định trạng thái PR: Chỉ cần admin duyệt khi đặt sản phẩm/nguyên liệu vượt quá 200% (2 lần) lượng tối thiểu (min stock)
+    let status = PurchaseRequestStatus.APPROVED;
+    const branchIngStockRepo = this.dataSource.getRepository(BranchIngredientStock);
+    const branchVarStockRepo = this.dataSource.getRepository(BranchVariantStock);
+
+    for (const item of dto.items) {
+      let minStock = 0;
+      if (item.ingredientId) {
+        const stock = await branchIngStockRepo.findOne({
+          where: { branchId: dto.branchId, ingredientId: item.ingredientId }
+        });
+        minStock = stock ? Number(stock.minStockLevel || 0) : 0;
+      } else if (item.variantId) {
+        const stock = await branchVarStockRepo.findOne({
+          where: { branchId: dto.branchId, variantId: item.variantId }
+        });
+        minStock = stock ? Number(stock.minQuantity || 0) : 0;
+      }
+
+      // Chỉ bắt duyệt khi lượng tối thiểu > 0 và lượng đặt > lượng tối thiểu * 2 (tức là quá 200%)
+      if (minStock > 0 && Number(item.requestedQuantity) > minStock * 2) {
+        status = PurchaseRequestStatus.PENDING_APPROVAL;
+        break;
+      }
+    }
+
     const items = dto.items.map((item) =>
       this.prItemRepo.create({
         ingredientId: item.ingredientId,
@@ -941,12 +967,74 @@ export class InventoryService {
       prCode,
       branchId: dto.branchId,
       requestedById: userId,
-      status: PurchaseRequestStatus.PENDING_APPROVAL,
+      status,
       note: dto.note,
+      deliveryTimeframe: dto.deliveryTimeframe,
+      preferredDeliveryDate: dto.preferredDeliveryDate ? new Date(dto.preferredDeliveryDate) : null,
       items,
     });
 
-    return this.prRepo.save(pr);
+    const savedPr = await this.prRepo.save(pr);
+
+    // Tự động duyệt và sinh PO nếu status là APPROVED
+    if (status === PurchaseRequestStatus.APPROVED) {
+      const poCode = `PO-${branchPrefix}-${dateStr}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const defaultExpiredAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      const poItems = [];
+      const ingRepo = this.dataSource.getRepository(Ingredient);
+      const varRepo = this.dataSource.getRepository(ProductVariant);
+
+      for (const item of savedPr.items) {
+        let barcode = '';
+        if (item.ingredientId) {
+          const ing = await ingRepo.findOne({ where: { id: item.ingredientId } });
+          barcode = ing ? ing.code : '';
+        } else if (item.variantId) {
+          const v = await varRepo.findOne({ where: { id: item.variantId } });
+          barcode = v ? v.sku : '';
+        }
+
+        poItems.push(
+          this.poItemRepo.create({
+            ingredientId: item.ingredientId,
+            variantId: item.variantId,
+            barcode,
+            orderedQuantity: Number(item.requestedQuantity),
+            receivedQuantity: 0,
+            rejectedQuantity: 0,
+            unitPrice: 0,
+          })
+        );
+      }
+
+      const expectedDelivery = pr.preferredDeliveryDate
+        ? new Date(pr.preferredDeliveryDate)
+        : new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+      if (pr.deliveryTimeframe === '18PM') {
+        expectedDelivery.setHours(18, 0, 0, 0);
+      } else {
+        expectedDelivery.setHours(2, 0, 0, 0);
+      }
+
+      const po = this.poRepo.create({
+        poCode,
+        prId: savedPr.id,
+        branchId: savedPr.branchId,
+        supplierName: 'Nhà cung cấp Sweet Bean Central',
+        createdById: userId,
+        status: PurchaseOrderStatus.SHIPPED,
+        expectedDelivery,
+        deliveryTimeframe: pr.deliveryTimeframe,
+        expiredAt: defaultExpiredAt,
+        notes: `Đơn hàng tự động duyệt và sinh từ PR ${savedPr.prCode}`,
+        items: poItems,
+      });
+
+      await this.poRepo.save(po);
+    }
+
+    return savedPr;
   }
 
   async findPurchaseRequests(query: QueryPurchaseRequestDto, user?: any) {
@@ -968,6 +1056,7 @@ export class InventoryService {
         requestedBy: true,
         approvedBy: true,
         cancelledBy: true,
+        purchaseOrders: true,
         items: { ingredient: true, variant: { product: true } },
       },
       order: { createdAt: 'DESC' },
@@ -1007,6 +1096,15 @@ export class InventoryService {
       }),
     );
 
+    const expectedDelivery = pr.preferredDeliveryDate
+      ? new Date(pr.preferredDeliveryDate)
+      : new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    if (pr.deliveryTimeframe === '18PM') {
+      expectedDelivery.setHours(18, 0, 0, 0);
+    } else {
+      expectedDelivery.setHours(2, 0, 0, 0);
+    }
+
     const po = this.poRepo.create({
       poCode,
       prId: pr.id,
@@ -1014,7 +1112,8 @@ export class InventoryService {
       supplierName: 'Nhà cung cấp Sweet Bean Central',
       createdById: adminId,
       status: PurchaseOrderStatus.SHIPPED,
-      expectedDelivery: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+      expectedDelivery,
+      deliveryTimeframe: pr.deliveryTimeframe,
       expiredAt: defaultExpiredAt,
       notes: `Đơn hàng tự động sinh từ PR ${pr.prCode}`,
       items: poItems,
@@ -1102,6 +1201,7 @@ export class InventoryService {
       createdById: userId,
       status: PurchaseOrderStatus.SHIPPED,
       expectedDelivery: dto.expectedDelivery ? new Date(dto.expectedDelivery) : undefined,
+      deliveryTimeframe: dto.deliveryTimeframe,
       expiredAt: defaultExpiredAt,
       notes: dto.notes,
       items,
@@ -1231,6 +1331,7 @@ export class InventoryService {
         },
         status: po.status,
         expected_delivery: po.expectedDelivery,
+        delivery_timeframe: po.deliveryTimeframe,
         expired_at: po.expiredAt,
         created_at: po.createdAt,
         items: po.items.map((item) => ({
@@ -1288,18 +1389,28 @@ export class InventoryService {
           throw new BadRequestException(`Chi tiết đơn hàng ID '${itemDto.poItemId}' không thuộc PO này.`);
         }
 
-        const receivedQty = Number(itemDto.receivedQuantity || 0);
-        const rejectedQty = Number(itemDto.rejectedQuantity || 0);
+        const prevReceived = Number(poItem.receivedQuantity || 0);
+        const prevRejected = Number(poItem.rejectedQuantity || 0);
+        const currentReceived = Number(itemDto.receivedQuantity || 0);
+        const currentRejected = Number(itemDto.rejectedQuantity || 0);
 
-        poItem.receivedQuantity = receivedQty;
-        poItem.rejectedQuantity = rejectedQty;
+        const totalPlanned = prevReceived + prevRejected + currentReceived + currentRejected;
+
+        if (totalPlanned > Number(poItem.orderedQuantity)) {
+          throw new BadRequestException(
+            `Tổng số lượng (đã nhận trước đó: ${prevReceived + prevRejected}, lần này nhận: ${currentReceived}, hỏng: ${currentRejected}) là ${totalPlanned}, vượt quá số lượng đặt (${poItem.orderedQuantity}) của mặt hàng '${poItem.ingredient ? poItem.ingredient.name : poItem.variant?.product?.name}'. Vui lòng liên hệ và báo cáo Admin để xử lý.`
+          );
+        }
+
+        poItem.receivedQuantity = prevReceived + currentReceived;
+        poItem.rejectedQuantity = prevRejected + currentRejected;
         if (itemDto.barcode) {
           poItem.barcode = itemDto.barcode;
         }
 
         await queryRunner.manager.save(PurchaseOrderItem, poItem);
 
-        if (receivedQty + rejectedQty < Number(poItem.orderedQuantity)) {
+        if (prevReceived + prevRejected + currentReceived + currentRejected < Number(poItem.orderedQuantity)) {
           allItemsFullyHandled = false;
         }
 
@@ -1313,11 +1424,11 @@ export class InventoryService {
           unitSelected = poItem.ingredient ? poItem.ingredient.unit : 'Cái';
         }
 
-        let stockQty = receivedQty;
+        let stockQty = currentReceived;
         if (isIng) {
           const lowerUnit = unitSelected?.toLowerCase();
           if (lowerUnit === 'kg' || lowerUnit === 'l') {
-            stockQty = receivedQty * 1000;
+            stockQty = currentReceived * 1000;
           }
         }
 
@@ -1381,7 +1492,7 @@ export class InventoryService {
             variantId: !isIng ? poItem.variantId : null,
             batchId: savedBatch.id,
             quantityChange: stockQty,
-            reason: `Scan nhập kho từ PO ${po.poCode}${rejectedQty > 0 ? ` (Từ chối hỏng: ${rejectedQty})` : ''}`,
+            reason: `Scan nhập kho từ PO ${po.poCode}${currentRejected > 0 ? ` (Từ chối hỏng: ${currentRejected})` : ''}`,
             referenceId: po.id,
             performedById: user?.id,
           });
@@ -1389,7 +1500,7 @@ export class InventoryService {
         }
       }
 
-      po.status = allItemsFullyHandled ? PurchaseOrderStatus.COMPLETED : PurchaseOrderStatus.PARTIALLY_RECEIVED;
+      po.status = (allItemsFullyHandled || dto.completePo) ? PurchaseOrderStatus.RECEIVED : PurchaseOrderStatus.PARTIALLY_RECEIVED;
       await queryRunner.manager.save(PurchaseOrder, po);
 
       await queryRunner.commitTransaction();
