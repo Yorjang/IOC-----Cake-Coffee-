@@ -28,7 +28,7 @@ export default function App() {
     selectedStore, setSelectedStore, availableStores,
     showStorePopup, setShowStorePopup, manualLocationRequired,
     lastCreatedOrder, setLastCreatedOrder, selectedOrderId,
-    products, categories, publicCoupons
+    products, categories, publicCoupons, refreshPublicCoupons
   } = appState;
 
   const {
@@ -143,6 +143,7 @@ export default function App() {
       if (resData?.id) rememberTrackingOrder(resData.id);
       setCart([]);
       setAppliedCoupon(null);
+      refreshPublicCoupons();
       toast.success("Đặt hàng thành công!");
       setView(VIEW_KEYS.SUCCESS);
     } catch (err: any) {

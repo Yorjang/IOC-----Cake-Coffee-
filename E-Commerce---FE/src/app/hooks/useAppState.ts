@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getProductFromPath, getViewFromPath, apiProductToArray, apiCategoryToLegacy, STORE_STORAGE_KEY } from "../../utils/appUtils";
 import { storeLocations as fallbackStoreLocations, type StoreLocation } from "../../data/storeLocations";
 import { getStoredUser } from "../components/authSession";
 import { env } from "../../config/env";
 import { parseRes } from "../../utils/api";
 import { getActiveStores, getCustomerCoordinates, getNearbyStores } from "../features/stores/services/storeService";
+import { getAvailableCoupons } from "../features/coupons/services/couponService";
 
 export function useAppState() {
   const [view, setViewInternal] = useState<any>(() => getViewFromPath(window.location.pathname));
@@ -29,6 +30,11 @@ export function useAppState() {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [publicCoupons, setPublicCoupons] = useState<any[]>([]);
+  const [couponRefreshKey, setCouponRefreshKey] = useState(0);
+
+  const refreshPublicCoupons = useCallback(() => {
+    setCouponRefreshKey((currentKey) => currentKey + 1);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -84,12 +90,8 @@ export function useAppState() {
       try {
         let couponsList: any[] = [];
         try {
-          const couponRes = await fetch(`${env.API_URL}/coupons/public`);
-          if (couponRes.ok) {
-            const raw = await parseRes(couponRes);
-            couponsList = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw?.coupons) ? raw.coupons : []));
-            setPublicCoupons(couponsList);
-          }
+          couponsList = await getAvailableCoupons(selectedStore?.id);
+          setPublicCoupons(couponsList);
         } catch (err) {
           console.error("Lỗi khi tải vouchers:", err);
         }
@@ -112,7 +114,7 @@ export function useAppState() {
         // Keep empty fallback data if the API is unavailable.
       }
     })();
-  }, []);
+  }, [couponRefreshKey, selectedStore?.id, user?.id]);
 
   return {
     view, setViewInternal, isLoading, setIsLoading,
@@ -121,6 +123,7 @@ export function useAppState() {
     selectedStore, setSelectedStore, availableStores, setAvailableStores,
     showStorePopup, setShowStorePopup, manualLocationRequired, setManualLocationRequired,
     lastCreatedOrder, setLastCreatedOrder, selectedOrderId, setSelectedOrderId,
-    products, setProducts, categories, setCategories, publicCoupons, setPublicCoupons
+    products, setProducts, categories, setCategories, publicCoupons, setPublicCoupons,
+    refreshPublicCoupons,
   };
 }
