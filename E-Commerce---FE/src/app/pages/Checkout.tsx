@@ -13,7 +13,6 @@ export function Checkout(props: any) {
     name, setName,
     phone, setPhone,
     address, setAddress,
-    addressDetail, setAddressDetail,
     selectedBranchId, setSelectedBranchId,
     note, setNote,
     paymentMethodText, setPaymentMethodText,
@@ -101,8 +100,6 @@ export function Checkout(props: any) {
                 <DeliveryAddressField
                   address={address}
                   onAddressChange={setAddress}
-                  addressDetail={addressDetail}
-                  onAddressDetailChange={setAddressDetail}
                   suggestions={deliveryAddress.suggestions}
                   coordinates={deliveryAddress.coordinates}
                   isSearching={deliveryAddress.isSearching}
@@ -126,7 +123,7 @@ export function Checkout(props: any) {
                         <Navigation size={16} />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs text-muted-foreground">Giao từ chi nhánh gần nhất</p>
+                        <p className="text-xs text-muted-foreground">Giao từ chi nhánh gần nhất còn đủ hàng</p>
                         <p className="mt-0.5 text-sm font-semibold">{deliveryQuote.branch.name}</p>
                         <div className="mt-2 flex flex-wrap gap-2 text-xs">
                           <span className="rounded-full bg-background px-2.5 py-1 font-medium text-primary">

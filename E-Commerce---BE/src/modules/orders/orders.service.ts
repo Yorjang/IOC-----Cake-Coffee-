@@ -240,6 +240,10 @@ export class OrdersService {
         const deliveryQuote = await this.branchesService.getDeliveryQuote(
           shippingLatitude,
           shippingLongitude,
+          items.map((item: any) => ({
+            variantId: item.variantId,
+            quantity: item.quantity,
+          })),
         );
         branchId = deliveryQuote.branch.id;
         calculatedShippingFee = deliveryQuote.shippingFee;
