@@ -4,6 +4,7 @@ import { storeLocations as fallbackStoreLocations, type StoreLocation } from "..
 import { getStoredUser } from "../components/authSession";
 import { env } from "../../config/env";
 import { parseRes } from "../../utils/api";
+import { getActiveStores, getCustomerCoordinates, getNearbyStores } from "../features/stores/services/storeService";
 
 export function useAppState() {
   const [view, setViewInternal] = useState<any>(() => getViewFromPath(window.location.pathname));
@@ -28,6 +29,55 @@ export function useAppState() {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [publicCoupons, setPublicCoupons] = useState<any[]>([]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchAvailableStores = async () => {
+      // Capture this before geolocation resolves because App persists the temporary
+      // fallback store while the real branch list is still loading.
+      const previouslySavedStoreId = localStorage.getItem(STORE_STORAGE_KEY);
+      try {
+        let stores: StoreLocation[];
+        let locationWasDetected = false;
+        try {
+          const coordinates = await getCustomerCoordinates();
+          stores = await getNearbyStores(coordinates, controller.signal);
+          locationWasDetected = true;
+          setManualLocationRequired(false);
+        } catch (locationError) {
+          if (controller.signal.aborted) return;
+          console.info("Không thể xác định vị trí khách hàng:", locationError);
+          stores = await getActiveStores(controller.signal);
+          setManualLocationRequired(true);
+        }
+        if (stores.length === 0) return;
+
+        setAvailableStores(stores);
+        setSelectedStore((currentStore) => {
+          const nearestOpenStore = stores.find((store) => store.isOpenNow);
+
+          if (locationWasDetected && nearestOpenStore) {
+            return nearestOpenStore;
+          }
+
+          return (
+            stores.find((store) => store.id === previouslySavedStoreId) ??
+            nearestOpenStore ??
+            stores.find((store) => store.id === currentStore?.id) ??
+            stores[0]
+          );
+        });
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          console.error("Lỗi khi tải danh sách chi nhánh:", error);
+        }
+      }
+    };
+
+    void fetchAvailableStores();
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     (async () => {
