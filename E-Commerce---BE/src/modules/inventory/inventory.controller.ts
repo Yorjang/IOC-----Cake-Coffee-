@@ -26,6 +26,8 @@ import { CreateVariantIngredientDto, BulkSetVariantIngredientsDto } from './dto/
 import { CreateStockBatchDto, UpdateStockBatchDto } from './dto/stock-batch.dto';
 import { CreateInventoryTransactionDto } from './dto/create-inventory-transaction.dto';
 import { CreatePurchaseOrderDto, QueryPurchaseOrderDto } from './dto/create-purchase-order.dto';
+import { CreatePurchaseRequestDto, QueryPurchaseRequestDto } from './dto/create-purchase-request.dto';
+import { CancelReasonDto } from './dto/cancel-dto';
 import { ConfirmInboundDto } from './dto/confirm-inbound.dto';
 import { QueryAdjustmentDto } from './dto/query-adjustment.dto';
 import {
@@ -134,10 +136,7 @@ export class InventoryController {
   // ───────────────────────────────────────────────────────────────────────────
   @Get('branch-ingredients')
   @Permissions(Permission.VIEW_INVENTORY)
-  findBranchIngredientStocks(@Query() query: QueryIngredientStockDto, @CurrentUser() user: any) {
-    if (user?.role === UserRole.STORE_MANAGER && user?.branchId) {
-      query.branchId = user.branchId;
-    }
+  findBranchIngredientStocks(@Query() query: QueryIngredientStockDto) {
     return this.inventoryService.findBranchIngredientStocks(query);
   }
 
@@ -204,10 +203,7 @@ export class InventoryController {
 
   @Get('batches')
   @Permissions(Permission.VIEW_INVENTORY)
-  findStockBatches(@Query() query: QueryStockBatchDto, @CurrentUser() user: any) {
-    if (user?.role === UserRole.STORE_MANAGER && user?.branchId) {
-      query.branchId = user.branchId;
-    }
+  findStockBatches(@Query() query: QueryStockBatchDto) {
     return this.inventoryService.findStockBatches(query);
   }
 
@@ -263,6 +259,46 @@ export class InventoryController {
   }
 
   // ───────────────────────────────────────────────────────────────────────────
+  // Purchase Request (PR) Workflow Endpoints
+  // ───────────────────────────────────────────────────────────────────────────
+  @Post('purchase-requests')
+  @Permissions(Permission.MANAGE_INVENTORY)
+  createPurchaseRequest(
+    @Body() dto: CreatePurchaseRequestDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.inventoryService.createPurchaseRequest(dto, user?.id);
+  }
+
+  @Get('purchase-requests')
+  @Permissions(Permission.VIEW_INVENTORY)
+  findPurchaseRequests(
+    @Query() query: QueryPurchaseRequestDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.inventoryService.findPurchaseRequests(query, user);
+  }
+
+  @Post('purchase-requests/:id/approve-to-pos')
+  @Permissions(Permission.MANAGE_INVENTORY)
+  approvePrToPos(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.inventoryService.approvePrToPos(id, user?.id);
+  }
+
+  @Post('purchase-requests/:id/cancel')
+  @Permissions(Permission.MANAGE_INVENTORY)
+  cancelPurchaseRequest(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CancelReasonDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.inventoryService.cancelPurchaseRequest(id, dto, user);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
   // Inbound Workflow & Purchase Orders (Scan Barcode & FEFO Confirmation)
   // ───────────────────────────────────────────────────────────────────────────
   @Post('purchase-orders')
@@ -284,6 +320,25 @@ export class InventoryController {
   @Permissions(Permission.VIEW_INVENTORY)
   findPurchaseOrderById(@Param('id', ParseUUIDPipe) id: string) {
     return this.inventoryService.findPurchaseOrderById(id);
+  }
+
+  @Post('purchase-orders/:id/ship')
+  @Permissions(Permission.MANAGE_INVENTORY)
+  markPoAsShipped(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.inventoryService.markPoAsShipped(id, user);
+  }
+
+  @Post('purchase-orders/:id/cancel')
+  @Permissions(Permission.MANAGE_INVENTORY)
+  cancelPurchaseOrder(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CancelReasonDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.inventoryService.cancelPurchaseOrder(id, dto, user);
   }
 
   @Get('inbound/scan')

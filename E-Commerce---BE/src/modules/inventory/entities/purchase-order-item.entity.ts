@@ -37,11 +37,17 @@ export class PurchaseOrderItem {
   @JoinColumn({ name: 'variant_id' })
   variant: ProductVariant;
 
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  barcode: string;
+
   @Column({ name: 'ordered_quantity', type: 'numeric', precision: 10, scale: 3 })
   orderedQuantity: number;
 
   @Column({ name: 'received_quantity', type: 'numeric', precision: 10, scale: 3, default: 0 })
   receivedQuantity: number;
+
+  @Column({ name: 'rejected_quantity', type: 'numeric', precision: 10, scale: 3, default: 0 })
+  rejectedQuantity: number;
 
   @Column({ name: 'unit_price', type: 'numeric', precision: 15, scale: 2, default: 0 })
   unitPrice: number;
