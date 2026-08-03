@@ -20,6 +20,7 @@ import { env } from "../../../config/env";
 import { AdminBtn, StatusBadge, TableHeader } from "./AdminShared";
 
 export function AdminInventory({ adminUser }: { adminUser?: any }) {
+  const currentUser = adminUser;
   const isAdmin = adminUser?.role === "admin";
   const isStoreManager = adminUser?.role === "store_manager";
 
@@ -318,6 +319,7 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
   useEffect(() => {
     loadInventory();
     loadBranches();
+    loadPrs();
     if (adminUser?.role === "admin") {
       loadAdjustments();
     }
