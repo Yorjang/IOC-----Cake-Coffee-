@@ -16,6 +16,7 @@ import {
   UpsertOpeningHourDto,
 } from "./dto/upsert-opening-hour.dto";
 import { calculateShippingFee } from "./shipping-fee.util";
+import { DeliveryQuoteItemDto } from "./dto/delivery-quote.dto";
 
 export type BranchWithDistance = Branch & {
   distanceKm: number;
@@ -96,9 +97,13 @@ export class BranchesService {
     return nearestOpenBranch;
   }
 
-  async getDeliveryQuote(latitude: number, longitude: number) {
+  async getDeliveryQuote(
+    latitude: number,
+    longitude: number,
+    items: DeliveryQuoteItemDto[] = [],
+  ) {
     this.validateCoordinates(latitude, longitude);
-    const openBranches = (await this.findActive()).filter(
+    let openBranches = (await this.findActive()).filter(
       (branch) =>
         branch.isOpenNow &&
         branch.latitude !== null &&
@@ -106,6 +111,15 @@ export class BranchesService {
     );
     if (openBranches.length === 0) {
       throw new BadRequestException("No branch is open at this time");
+    }
+
+    if (items.length > 0) {
+      openBranches = await this.filterBranchesWithStock(openBranches, items);
+      if (openBranches.length === 0) {
+        throw new BadRequestException(
+          "Hiện không có chi nhánh đang mở nào đủ hàng cho toàn bộ giỏ hàng.",
+        );
+      }
     }
 
     const routes = await this.getDrivingRoutes(
@@ -131,6 +145,41 @@ export class BranchesService {
       durationMinutes: nearestRoute.durationMinutes,
       shippingFee: calculateShippingFee(nearestRoute.distanceKm),
     };
+  }
+
+  private async filterBranchesWithStock(
+    branches: BranchWithOpenStatus[],
+    items: DeliveryQuoteItemDto[],
+  ): Promise<BranchWithOpenStatus[]> {
+    const requiredByVariant = new Map<string, number>();
+    for (const item of items) {
+      requiredByVariant.set(
+        item.variantId,
+        (requiredByVariant.get(item.variantId) ?? 0) + item.quantity,
+      );
+    }
+
+    const stocks = await this.branches.query(
+      `SELECT branch_id, variant_id, quantity, reserved_quantity
+       FROM branch_variant_stocks
+       WHERE branch_id = ANY($1::uuid[]) AND variant_id = ANY($2::uuid[])`,
+      [branches.map((branch) => branch.id), [...requiredByVariant.keys()]],
+    );
+    const availableByBranchVariant = new Map<string, number>();
+    for (const stock of stocks) {
+      availableByBranchVariant.set(
+        `${stock.branch_id}:${stock.variant_id}`,
+        Math.max(0, Number(stock.quantity) - Number(stock.reserved_quantity ?? 0)),
+      );
+    }
+
+    return branches.filter((branch) =>
+      [...requiredByVariant.entries()].every(
+        ([variantId, requiredQuantity]) =>
+          (availableByBranchVariant.get(`${branch.id}:${variantId}`) ?? 0) >=
+          requiredQuantity,
+      ),
+    );
   }
 
   private async getDrivingRoutes(

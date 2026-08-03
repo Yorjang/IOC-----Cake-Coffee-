@@ -20,6 +20,7 @@ import { MapModule } from './modules/map/map.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { StatisticsModule } from './modules/statistics/statistics.module';
 import { TagsModule } from './modules/tags/tags.module';
+import { GeocodingModule } from './modules/geocoding/geocoding.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { TagsModule } from './modules/tags/tags.module';
     MapModule,
     StatisticsModule,
     SettingsModule,
+    GeocodingModule,
   ],
   controllers: [],
   providers: [],

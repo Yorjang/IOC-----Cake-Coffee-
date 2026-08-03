@@ -16,7 +16,7 @@ export function StoreSelectionModal({
   onClose,
 }: StoreSelectionModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [openOnly, setOpenOnly] = useState(true);
+  const [openOnly, setOpenOnly] = useState(false);
   const storeRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const filteredStores = useMemo(() => {

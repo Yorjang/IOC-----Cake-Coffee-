@@ -4,8 +4,6 @@ import type { AddressSuggestion, DeliveryCoordinates } from "../types";
 interface DeliveryAddressFieldProps {
   address: string;
   onAddressChange: (address: string) => void;
-  addressDetail: string;
-  onAddressDetailChange: (addressDetail: string) => void;
   suggestions: AddressSuggestion[];
   coordinates: DeliveryCoordinates | null;
   isSearching: boolean;
@@ -20,8 +18,6 @@ interface DeliveryAddressFieldProps {
 export function DeliveryAddressField({
   address,
   onAddressChange,
-  addressDetail,
-  onAddressDetailChange,
   suggestions,
   coordinates,
   isSearching,
@@ -36,7 +32,7 @@ export function DeliveryAddressField({
     <div>
       <div className="mb-1 flex items-center justify-between gap-3">
         <label htmlFor="delivery-address" className="text-xs font-semibold text-muted-foreground">
-          Tìm đường, phường/xã, quận/huyện
+          Địa chỉ giao hàng cụ thể
         </label>
         <button
           type="button"
@@ -60,7 +56,7 @@ export function DeliveryAddressField({
             value={address}
             onFocus={() => onSuggestionOpenChange(true)}
             onChange={(event) => onAddressChange(event.target.value)}
-            placeholder="VD: Đường Nguyễn Trãi, Thanh Xuân, Hà Nội"
+            placeholder="VD: Số 25 ngõ 68 Nguyễn Trãi, Thanh Xuân, Hà Nội"
             className="w-full rounded-xl border bg-input py-2.5 pl-10 pr-10 text-sm outline-none focus:border-primary"
           />
           {isSearching && <Loader2 className="absolute right-3 top-3 animate-spin text-primary" size={17} />}
@@ -96,23 +92,6 @@ export function DeliveryAddressField({
       )}
       {addressError && <p className="mt-2 text-xs font-medium text-red-600">{addressError}</p>}
 
-      <div className="mt-4">
-        <label htmlFor="delivery-address-detail" className="mb-1 block text-xs font-semibold text-muted-foreground">
-          Địa chỉ chi tiết
-        </label>
-        <input
-          id="delivery-address-detail"
-          required
-          maxLength={120}
-          value={addressDetail}
-          onChange={(event) => onAddressDetailChange(event.target.value)}
-          placeholder="VD: Số 25, ngõ 68, tầng 3, căn 302..."
-          className="w-full rounded-xl border bg-input px-4 py-2.5 text-sm outline-none focus:border-primary"
-        />
-        <p className="mt-1.5 text-xs text-muted-foreground">
-          Nhập số nhà, ngõ/hẻm, tòa nhà hoặc hướng dẫn giúp tài xế tìm đúng nơi.
-        </p>
-      </div>
     </div>
   );
 }
