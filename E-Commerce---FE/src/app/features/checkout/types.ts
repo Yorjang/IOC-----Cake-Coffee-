@@ -3,11 +3,14 @@ export interface DeliveryCoordinates {
   longitude: number;
 }
 
-export interface AddressSuggestion extends DeliveryCoordinates {
+export interface AddressSuggestion {
   id: string;
+  refId?: string;
   label: string;
   primaryText: string;
   secondaryText: string;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export interface DeliveryQuote {

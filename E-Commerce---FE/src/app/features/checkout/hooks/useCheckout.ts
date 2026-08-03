@@ -11,7 +11,6 @@ export function useCheckout({ cart, setView, onPlaceOrder, user, subtotal, disco
   const [name, setName] = useState(user?.fullName || user?.name || "");
   const [phone, setPhone] = useState(user?.phone || "");
   const [address, setAddress] = useState(user?.address || "");
-  const [addressDetail, setAddressDetail] = useState("");
   const [selectedBranchId, setSelectedBranchId] = useState("");
   const [note, setNote] = useState("");
   const [paymentMethodText, setPaymentMethodText] = useState("Thanh toán khi nhận hàng (COD)");
@@ -35,7 +34,7 @@ export function useCheckout({ cart, setView, onPlaceOrder, user, subtotal, disco
     const controller = new AbortController();
     setLoadingDeliveryQuote(true);
     setDeliveryQuoteError(null);
-    getDeliveryQuote(deliveryAddress.coordinates, controller.signal)
+    getDeliveryQuote(deliveryAddress.coordinates, cart, controller.signal)
       .then((quote) => {
         setDeliveryQuote(quote);
         setSelectedBranchId(quote.branch.id);
@@ -51,7 +50,7 @@ export function useCheckout({ cart, setView, onPlaceOrder, user, subtotal, disco
       });
 
     return () => controller.abort();
-  }, [deliveryAddress.coordinates?.latitude, deliveryAddress.coordinates?.longitude]);
+  }, [cart, deliveryAddress.coordinates?.latitude, deliveryAddress.coordinates?.longitude]);
 
   // useEffect(() => {
   //   if (!cart || cart.length === 0) {
@@ -128,13 +127,6 @@ export function useCheckout({ cart, setView, onPlaceOrder, user, subtotal, disco
       return;
     }
 
-    if (fulfillmentType === "delivery" && !addressDetail.trim()) {
-      const err = "Vui lòng nhập số nhà hoặc mô tả vị trí giao hàng chi tiết!";
-      setCheckoutError(err);
-      toast.error(err);
-      return;
-    }
-
     if (fulfillmentType === "delivery" && !deliveryQuote) {
       const err = "Chưa thể tính phí giao hàng. Vui lòng kiểm tra lại địa chỉ!";
       setCheckoutError(err);
@@ -167,7 +159,7 @@ export function useCheckout({ cart, setView, onPlaceOrder, user, subtotal, disco
         shippingAddressPhone: phone,
         shippingAddressStreet:
           fulfillmentType === "delivery"
-            ? `${addressDetail.trim()}, ${address.trim()}`
+            ? address.trim()
             : "",
         shippingLatitude: fulfillmentType === "delivery" ? deliveryAddress.coordinates?.latitude : undefined,
         shippingLongitude: fulfillmentType === "delivery" ? deliveryAddress.coordinates?.longitude : undefined,
@@ -189,7 +181,6 @@ export function useCheckout({ cart, setView, onPlaceOrder, user, subtotal, disco
     name, setName,
     phone, setPhone,
     address, setAddress,
-    addressDetail, setAddressDetail,
     selectedBranchId, setSelectedBranchId,
     note, setNote,
     paymentMethodText, setPaymentMethodText,

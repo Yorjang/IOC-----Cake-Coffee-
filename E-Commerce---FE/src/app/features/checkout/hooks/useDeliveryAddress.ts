@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { reverseGeocodeAddress, searchVietnameseAddresses } from "../services/addressSearchService";
+import { resolveVietnameseAddress, reverseGeocodeAddress, searchVietnameseAddresses } from "../services/addressSearchService";
 import type { AddressSuggestion, DeliveryCoordinates } from "../types";
 
 interface UseDeliveryAddressParams {
@@ -49,16 +49,28 @@ export function useDeliveryAddress({ address, setAddress }: UseDeliveryAddressPa
     };
   }, [address]);
 
-  const selectSuggestion = (suggestion: AddressSuggestion) => {
-    selectedAddressRef.current = suggestion.label;
-    setAddress(suggestion.label);
+  const selectSuggestion = async (suggestion: AddressSuggestion) => {
+    setIsSearching(true);
+    setAddressError(null);
+    try {
+      const resolvedSuggestion = await resolveVietnameseAddress(suggestion);
+      if (resolvedSuggestion.latitude === null || resolvedSuggestion.longitude === null) {
+        throw new Error("Địa chỉ chưa có tọa độ");
+      }
+      selectedAddressRef.current = resolvedSuggestion.label;
+      setAddress(resolvedSuggestion.label);
     setCoordinates({
-      latitude: suggestion.latitude,
-      longitude: suggestion.longitude,
+        latitude: resolvedSuggestion.latitude,
+        longitude: resolvedSuggestion.longitude,
     });
     setSuggestions([]);
     setIsSuggestionOpen(false);
-    setAddressError(null);
+    } catch {
+      setCoordinates(null);
+      setAddressError("Không thể xác định chính xác địa chỉ này. Vui lòng chọn gợi ý khác.");
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const useCurrentLocation = () => {

@@ -6,6 +6,7 @@ import {
   IsArray,
   ValidateNested,
   IsNumber,
+  IsInt,
   Min,
   IsEnum,
   IsDateString,
@@ -23,8 +24,8 @@ export class CreatePurchaseRequestItemDto {
   variantId?: string;
 
   @IsNotEmpty({ message: 'Số lượng yêu cầu không được để trống' })
-  @IsNumber({}, { message: 'Số lượng phải là số' })
-  @Min(0.001, { message: 'Số lượng phải lớn hơn 0' })
+  @IsInt({ message: 'Số lượng yêu cầu phải là số nguyên' })
+  @Min(1, { message: 'Số lượng yêu cầu phải lớn hơn hoặc bằng 1' })
   requestedQuantity: number;
 
   @IsOptional()

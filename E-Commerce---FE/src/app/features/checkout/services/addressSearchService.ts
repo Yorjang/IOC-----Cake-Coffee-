@@ -65,6 +65,24 @@ export const searchVietnameseAddresses = (
   query: string,
   signal?: AbortSignal,
 ): Promise<AddressSuggestion[]> => {
+  const vietMapUrl = new URL("/geocoding/autocomplete", env.API_URL);
+  vietMapUrl.searchParams.set("text", query);
+  return fetch(vietMapUrl, { signal })
+    .then(async (response) => {
+      if (!response.ok) throw new Error("VietMap unavailable");
+      const payload = await response.json();
+      return Array.isArray(payload?.data) ? payload.data : [];
+    })
+    .catch((error: Error) => {
+      if (error.name === "AbortError") throw error;
+      return searchWithPhoton(query, signal);
+    });
+};
+
+const searchWithPhoton = (
+  query: string,
+  signal?: AbortSignal,
+): Promise<AddressSuggestion[]> => {
   const url = new URL("/api", env.GEOCODING_API_URL);
   url.searchParams.set("q", query);
   url.searchParams.set("limit", "6");
@@ -72,11 +90,37 @@ export const searchVietnameseAddresses = (
   return fetchPhoton(url, signal);
 };
 
+export const resolveVietnameseAddress = async (
+  suggestion: AddressSuggestion,
+  signal?: AbortSignal,
+): Promise<AddressSuggestion> => {
+  if (suggestion.latitude !== null && suggestion.longitude !== null) return suggestion;
+  if (!suggestion.refId) throw new Error("Địa chỉ chưa có tọa độ");
+
+  const url = new URL("/geocoding/place", env.API_URL);
+  url.searchParams.set("refId", suggestion.refId);
+  const response = await fetch(url, { signal });
+  const payload = await response.json();
+  if (!response.ok || !payload?.data) throw new Error(payload?.message || "Không thể xác định tọa độ địa chỉ");
+  return payload.data as AddressSuggestion;
+};
+
 export const reverseGeocodeAddress = async (
   latitude: number,
   longitude: number,
   signal?: AbortSignal,
 ): Promise<AddressSuggestion | null> => {
+  try {
+    const vietMapUrl = new URL("/geocoding/reverse", env.API_URL);
+    vietMapUrl.searchParams.set("lat", String(latitude));
+    vietMapUrl.searchParams.set("lng", String(longitude));
+    const response = await fetch(vietMapUrl, { signal });
+    const payload = await response.json();
+    if (response.ok && payload?.data) return payload.data as AddressSuggestion;
+  } catch (error) {
+    if ((error as Error).name === "AbortError") throw error;
+  }
+
   const url = new URL("/reverse", env.GEOCODING_API_URL);
   url.searchParams.set("lat", String(latitude));
   url.searchParams.set("lon", String(longitude));

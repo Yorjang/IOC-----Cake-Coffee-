@@ -22,6 +22,7 @@ import { BranchesService } from "./branches.service";
 import { CreateBranchDto } from "./dto/create-branch.dto";
 import { UpdateBranchDto } from "./dto/update-branch.dto";
 import { UpdateOpeningHoursDto } from "./dto/upsert-opening-hour.dto";
+import { DeliveryQuoteDto } from "./dto/delivery-quote.dto";
 
 @Controller(["admin/branches", "branches"])
 export class BranchesController {
@@ -52,6 +53,15 @@ export class BranchesController {
   @Get("delivery-quote")
   getDeliveryQuote(@Query("lat") lat: string, @Query("lng") lng: string) {
     return this.branchesService.getDeliveryQuote(Number(lat), Number(lng));
+  }
+
+  @Post("delivery-quote")
+  createDeliveryQuote(@Body() dto: DeliveryQuoteDto) {
+    return this.branchesService.getDeliveryQuote(
+      dto.latitude,
+      dto.longitude,
+      dto.items,
+    );
   }
 
   @Get(":id/opening-hours")
