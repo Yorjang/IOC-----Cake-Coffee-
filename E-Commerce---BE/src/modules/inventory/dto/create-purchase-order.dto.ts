@@ -15,16 +15,20 @@ import { PurchaseOrderStatus } from '../entities/purchase-order.entity';
 
 export class CreatePurchaseOrderItemDto {
   @IsOptional()
-  @IsUUID()
+  @IsUUID('4')
   ingredientId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsUUID('4')
   variantId?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
+  @IsString()
+  barcode?: string;
+
+  @IsNotEmpty({ message: 'Số lượng đặt không được để trống' })
   @IsNumber()
-  @Min(0.001)
+  @Min(0.001, { message: 'Số lượng đặt phải lớn hơn 0' })
   orderedQuantity: number;
 
   @IsOptional()
@@ -34,16 +38,20 @@ export class CreatePurchaseOrderItemDto {
 }
 
 export class CreatePurchaseOrderDto {
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Mã đơn hàng PO không được để trống' })
   @IsString()
   poCode: string;
 
-  @IsNotEmpty()
-  @IsUUID()
+  @IsOptional()
+  @IsUUID('4')
+  prId?: string;
+
+  @IsNotEmpty({ message: 'Mã chi nhánh không được để trống' })
+  @IsUUID('4')
   branchId: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsUUID('4')
   supplierId?: string;
 
   @IsOptional()
@@ -56,9 +64,17 @@ export class CreatePurchaseOrderDto {
 
   @IsOptional()
   @IsString()
+  deliveryTimeframe?: string;
+
+  @IsOptional()
+  @IsDateString()
+  expiredAt?: string;
+
+  @IsOptional()
+  @IsString()
   notes?: string;
 
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Danh sách sản phẩm nhập không được để trống' })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreatePurchaseOrderItemDto)
@@ -67,7 +83,7 @@ export class CreatePurchaseOrderDto {
 
 export class QueryPurchaseOrderDto {
   @IsOptional()
-  @IsUUID()
+  @IsUUID('4')
   branchId?: string;
 
   @IsOptional()

@@ -11,6 +11,8 @@ import { StockBatch, BatchStatus } from './entities/stock-batch.entity';
 import { InventoryTransaction, InventoryTransactionType } from './entities/inventory-transaction.entity';
 import { PurchaseOrder, PurchaseOrderStatus } from './entities/purchase-order.entity';
 import { PurchaseOrderItem } from './entities/purchase-order-item.entity';
+import { PurchaseRequest, PurchaseRequestStatus } from './entities/purchase-request.entity';
+import { PurchaseRequestItem } from './entities/purchase-request-item.entity';
 import { InventoryAdjustmentRequest, AdjustmentRequestStatus } from './entities/inventory-adjustment-request.entity';
 import { UserRole } from '../users/user.entity';
 import { UpdateInventoryDto } from './dto/update-inventory.dto';
@@ -20,6 +22,8 @@ import { CreateVariantIngredientDto, BulkSetVariantIngredientsDto } from './dto/
 import { CreateStockBatchDto, UpdateStockBatchDto } from './dto/stock-batch.dto';
 import { CreateInventoryTransactionDto } from './dto/create-inventory-transaction.dto';
 import { CreatePurchaseOrderDto, QueryPurchaseOrderDto } from './dto/create-purchase-order.dto';
+import { CreatePurchaseRequestDto, QueryPurchaseRequestDto } from './dto/create-purchase-request.dto';
+import { CancelReasonDto } from './dto/cancel-dto';
 import { ConfirmInboundDto } from './dto/confirm-inbound.dto';
 import { QueryAdjustmentDto } from './dto/query-adjustment.dto';
 import {
@@ -50,6 +54,10 @@ export class InventoryService {
     private readonly poRepo: Repository<PurchaseOrder>,
     @InjectRepository(PurchaseOrderItem)
     private readonly poItemRepo: Repository<PurchaseOrderItem>,
+    @InjectRepository(PurchaseRequest)
+    private readonly prRepo: Repository<PurchaseRequest>,
+    @InjectRepository(PurchaseRequestItem)
+    private readonly prItemRepo: Repository<PurchaseRequestItem>,
     @InjectRepository(InventoryAdjustmentRequest)
     private readonly adjustmentRepo: Repository<InventoryAdjustmentRequest>,
     private readonly dataSource: DataSource,
@@ -92,6 +100,7 @@ export class InventoryService {
 
         const key = `${branch.id}_${variant.id}`;
         if (!existingKeys.has(key)) {
+          existingKeys.add(key);
           newStocksToCreate.push(
             this.variantStockRepo.create({
               branchId: branch.id,
@@ -106,7 +115,11 @@ export class InventoryService {
     }
 
     if (newStocksToCreate.length > 0) {
-      await this.variantStockRepo.save(newStocksToCreate);
+      try {
+        await this.variantStockRepo.save(newStocksToCreate);
+      } catch (err) {
+        // Ignore duplicate key race condition from concurrent requests
+      }
     }
 
     const where: any = {};
@@ -115,7 +128,7 @@ export class InventoryService {
 
     const stocks = await this.variantStockRepo.find({
       where,
-      relations: { branch: true, variant: { product: true, variantIngredients: { ingredient: true } } },
+      relations: { branch: true, variant: { product: { category: true }, variantIngredients: { ingredient: true } } },
       order: { updatedAt: 'DESC' },
     });
 
@@ -809,7 +822,7 @@ export class InventoryService {
     });
 
     const lowStockIngredients = ingStocks
-      .filter((item) => Number(item.quantity) <= Number(item.minStockLevel))
+      .filter((item) => Number(item.quantity) <= Number(item.minStockLevel || 0) * 1.1)
       .map((item) => ({
         type: 'INGREDIENT',
         id: item.id,
@@ -825,7 +838,7 @@ export class InventoryService {
       }));
 
     const lowStockVariants = varStocks
-      .filter((item) => Number(item.quantity) <= Number(item.minQuantity))
+      .filter((item) => Number(item.quantity) <= Number(item.minQuantity || 0) * 1.1)
       .map((item) => ({
         type: 'VARIANT',
         id: item.id,
@@ -901,8 +914,262 @@ export class InventoryService {
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Purchase Order & Inbound Barcode Scan Workflow
+  // Purchase Request (PR) Workflow
   // ───────────────────────────────────────────────────────────────────────────
+  async createPurchaseRequest(dto: CreatePurchaseRequestDto, userId: string) {
+    const branchRepo = this.dataSource.getRepository(Branch);
+    const branch = await branchRepo.findOne({ where: { id: dto.branchId } });
+    if (!branch) {
+      throw new NotFoundException('Chi nhánh không tồn tại.');
+    }
+
+    const branchPrefix = branch.name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4) || 'CH';
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const rand = Math.floor(1000 + Math.random() * 9000);
+    const prCode = `PR-${branchPrefix}-${dateStr}-${rand}`;
+
+    // Xác định trạng thái PR: Chỉ cần admin duyệt khi đặt sản phẩm/nguyên liệu vượt quá 200% (2 lần) lượng tối thiểu (min stock)
+    let status = PurchaseRequestStatus.APPROVED;
+    const branchIngStockRepo = this.dataSource.getRepository(BranchIngredientStock);
+    const branchVarStockRepo = this.dataSource.getRepository(BranchVariantStock);
+
+    for (const item of dto.items) {
+      let minStock = 0;
+      if (item.ingredientId) {
+        const stock = await branchIngStockRepo.findOne({
+          where: { branchId: dto.branchId, ingredientId: item.ingredientId }
+        });
+        minStock = stock ? Number(stock.minStockLevel || 0) : 0;
+      } else if (item.variantId) {
+        const stock = await branchVarStockRepo.findOne({
+          where: { branchId: dto.branchId, variantId: item.variantId }
+        });
+        minStock = stock ? Number(stock.minQuantity || 0) : 0;
+      }
+
+      // Chỉ bắt duyệt khi lượng tối thiểu > 0 và lượng đặt > lượng tối thiểu * 2 (tức là quá 200%)
+      if (minStock > 0 && Number(item.requestedQuantity) > minStock * 2) {
+        status = PurchaseRequestStatus.PENDING_APPROVAL;
+        break;
+      }
+    }
+
+    const items = dto.items.map((item) =>
+      this.prItemRepo.create({
+        ingredientId: item.ingredientId,
+        variantId: item.variantId,
+        requestedQuantity: Number(item.requestedQuantity),
+        note: item.note,
+      }),
+    );
+
+    const pr = this.prRepo.create({
+      prCode,
+      branchId: dto.branchId,
+      requestedById: userId,
+      status,
+      note: dto.note,
+      deliveryTimeframe: dto.deliveryTimeframe,
+      preferredDeliveryDate: dto.preferredDeliveryDate ? new Date(dto.preferredDeliveryDate) : null,
+      items,
+    });
+
+    const savedPr = await this.prRepo.save(pr);
+
+    // Tự động duyệt và sinh PO nếu status là APPROVED
+    if (status === PurchaseRequestStatus.APPROVED) {
+      const poCode = `PO-${branchPrefix}-${dateStr}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const defaultExpiredAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      const poItems = [];
+      const ingRepo = this.dataSource.getRepository(Ingredient);
+      const varRepo = this.dataSource.getRepository(ProductVariant);
+
+      for (const item of savedPr.items) {
+        let barcode = '';
+        if (item.ingredientId) {
+          const ing = await ingRepo.findOne({ where: { id: item.ingredientId } });
+          barcode = ing ? ing.code : '';
+        } else if (item.variantId) {
+          const v = await varRepo.findOne({ where: { id: item.variantId } });
+          barcode = v ? v.sku : '';
+        }
+
+        poItems.push(
+          this.poItemRepo.create({
+            ingredientId: item.ingredientId,
+            variantId: item.variantId,
+            barcode,
+            orderedQuantity: Number(item.requestedQuantity),
+            receivedQuantity: 0,
+            rejectedQuantity: 0,
+            unitPrice: 0,
+          })
+        );
+      }
+
+      const expectedDelivery = pr.preferredDeliveryDate
+        ? new Date(pr.preferredDeliveryDate)
+        : new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+      if (pr.deliveryTimeframe === '18PM') {
+        expectedDelivery.setHours(18, 0, 0, 0);
+      } else {
+        expectedDelivery.setHours(2, 0, 0, 0);
+      }
+
+      const po = this.poRepo.create({
+        poCode,
+        prId: savedPr.id,
+        branchId: savedPr.branchId,
+        supplierName: 'Nhà cung cấp Sweet Bean Central',
+        createdById: userId,
+        status: PurchaseOrderStatus.SHIPPED,
+        expectedDelivery,
+        deliveryTimeframe: pr.deliveryTimeframe,
+        expiredAt: defaultExpiredAt,
+        notes: `Đơn hàng tự động duyệt và sinh từ PR ${savedPr.prCode}`,
+        items: poItems,
+      });
+
+      await this.poRepo.save(po);
+    }
+
+    return savedPr;
+  }
+
+  async findPurchaseRequests(query: QueryPurchaseRequestDto, user?: any) {
+    const where: any = {};
+    if (user?.role === UserRole.STORE_MANAGER && user?.branchId) {
+      where.branchId = user.branchId;
+    } else if (query.branchId) {
+      where.branchId = query.branchId;
+    }
+
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    return this.prRepo.find({
+      where,
+      relations: {
+        branch: true,
+        requestedBy: true,
+        approvedBy: true,
+        cancelledBy: true,
+        purchaseOrders: true,
+        items: { ingredient: true, variant: { product: true } },
+      },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async approvePrToPos(prId: string, adminId: string) {
+    const pr = await this.prRepo.findOne({
+      where: { id: prId },
+      relations: { branch: true, items: { ingredient: true, variant: { product: true } } },
+    });
+
+    if (!pr) {
+      throw new NotFoundException('Phiếu yêu cầu đặt hàng (PR) không tồn tại.');
+    }
+
+    if (pr.status !== PurchaseRequestStatus.PENDING_APPROVAL) {
+      throw new BadRequestException('Phiếu PR này không ở trạng thái chờ duyệt.');
+    }
+
+    const createdPOs: PurchaseOrder[] = [];
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const branchPrefix = pr.branch?.name?.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4) || 'CH';
+
+    const poCode = `PO-${branchPrefix}-${dateStr}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const defaultExpiredAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    const poItems = pr.items.map((item) =>
+      this.poItemRepo.create({
+        ingredientId: item.ingredientId,
+        variantId: item.variantId,
+        barcode: item.ingredient ? item.ingredient.code : item.variant?.sku,
+        orderedQuantity: Number(item.requestedQuantity),
+        receivedQuantity: 0,
+        rejectedQuantity: 0,
+        unitPrice: 0,
+      }),
+    );
+
+    const expectedDelivery = pr.preferredDeliveryDate
+      ? new Date(pr.preferredDeliveryDate)
+      : new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    if (pr.deliveryTimeframe === '18PM') {
+      expectedDelivery.setHours(18, 0, 0, 0);
+    } else {
+      expectedDelivery.setHours(2, 0, 0, 0);
+    }
+
+    const po = this.poRepo.create({
+      poCode,
+      prId: pr.id,
+      branchId: pr.branchId,
+      supplierName: 'Nhà cung cấp Sweet Bean Central',
+      createdById: adminId,
+      status: PurchaseOrderStatus.SHIPPED,
+      expectedDelivery,
+      deliveryTimeframe: pr.deliveryTimeframe,
+      expiredAt: defaultExpiredAt,
+      notes: `Đơn hàng tự động sinh từ PR ${pr.prCode}`,
+      items: poItems,
+    });
+
+    const savedPo = await this.poRepo.save(po);
+    createdPOs.push(savedPo);
+
+    pr.status = PurchaseRequestStatus.APPROVED;
+    pr.approvedById = adminId;
+    await this.prRepo.save(pr);
+
+    return {
+      message: `Đã duyệt PR thành công và tự động sinh đơn đặt hàng PO: ${poCode}`,
+      pr,
+      purchaseOrders: createdPOs,
+    };
+  }
+
+  async cancelPurchaseRequest(prId: string, dto: CancelReasonDto, user: any) {
+    const pr = await this.prRepo.findOne({ where: { id: prId } });
+    if (!pr) {
+      throw new NotFoundException('Phiếu Yêu cầu PR không tồn tại.');
+    }
+
+    if (pr.status === PurchaseRequestStatus.CANCELLED) {
+      throw new BadRequestException('Phiếu PR đã ở trạng thái bị hủy trước đó.');
+    }
+
+    pr.status = PurchaseRequestStatus.CANCELLED;
+    pr.cancelledById = user?.id;
+    pr.cancelledAt = new Date();
+    pr.cancelReason = dto.cancelReason;
+
+    await this.prRepo.save(pr);
+    return { message: 'Đã hủy phiếu yêu cầu đặt hàng (PR) thành công.', pr };
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Purchase Order & Inbound Barcode Scan Workflow (With SLA Expiration)
+  // ───────────────────────────────────────────────────────────────────────────
+  async checkExpiredPurchaseOrders() {
+    const now = new Date();
+    const expiredPOs = await this.poRepo.find({
+      where: {
+        status: PurchaseOrderStatus.SHIPPED,
+        expiredAt: LessThanOrEqual(now),
+      },
+    });
+
+    for (const po of expiredPOs) {
+      po.status = PurchaseOrderStatus.EXPIRED;
+      await this.poRepo.save(po);
+    }
+  }
+
   async createPurchaseOrder(dto: CreatePurchaseOrderDto, userId?: string) {
     const existing = await this.poRepo.findOne({ where: { poCode: dto.poCode } });
     if (existing) {
@@ -913,20 +1180,29 @@ export class InventoryService {
       this.poItemRepo.create({
         ingredientId: item.ingredientId,
         variantId: item.variantId,
+        barcode: item.barcode,
         orderedQuantity: Number(item.orderedQuantity),
         receivedQuantity: 0,
+        rejectedQuantity: 0,
         unitPrice: Number(item.unitPrice ?? 0),
       }),
     );
 
+    const defaultExpiredAt = dto.expiredAt
+      ? new Date(dto.expiredAt)
+      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
     const po = this.poRepo.create({
       poCode: dto.poCode,
+      prId: dto.prId,
       branchId: dto.branchId,
       supplierId: dto.supplierId,
       supplierName: dto.supplierName,
       createdById: userId,
-      status: PurchaseOrderStatus.PENDING,
+      status: PurchaseOrderStatus.SHIPPED,
       expectedDelivery: dto.expectedDelivery ? new Date(dto.expectedDelivery) : undefined,
+      deliveryTimeframe: dto.deliveryTimeframe,
+      expiredAt: defaultExpiredAt,
       notes: dto.notes,
       items,
     });
@@ -934,7 +1210,41 @@ export class InventoryService {
     return this.poRepo.save(po);
   }
 
+  async markPoAsShipped(id: string, user: any) {
+    const po = await this.poRepo.findOne({ where: { id } });
+    if (!po) {
+      throw new NotFoundException('Phiếu PO không tồn tại.');
+    }
+    po.status = PurchaseOrderStatus.SHIPPED;
+    if (!po.expiredAt) {
+      po.expiredAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    }
+    await this.poRepo.save(po);
+    return { message: 'Đã cập nhật trạng thái đơn PO sang SHIPPED (Đang giao hàng).', po };
+  }
+
+  async cancelPurchaseOrder(id: string, dto: CancelReasonDto, user: any) {
+    const po = await this.poRepo.findOne({ where: { id } });
+    if (!po) {
+      throw new NotFoundException('Phiếu PO không tồn tại.');
+    }
+
+    if (po.status === PurchaseOrderStatus.COMPLETED || po.status === PurchaseOrderStatus.RECEIVED) {
+      throw new BadRequestException('Không thể hủy đơn PO đã hoàn thành nhập kho.');
+    }
+
+    po.status = PurchaseOrderStatus.CANCELLED;
+    po.cancelledById = user?.id;
+    po.cancelledAt = new Date();
+    po.cancelReason = dto.cancelReason;
+
+    await this.poRepo.save(po);
+    return { message: 'Đã hủy đơn đặt hàng PO thành công (Audit logged).', po };
+  }
+
   async findPurchaseOrders(query: QueryPurchaseOrderDto) {
+    await this.checkExpiredPurchaseOrders();
+
     const where: any = {};
     if (query.branchId) where.branchId = query.branchId;
     if (query.status) where.status = query.status;
@@ -945,6 +1255,8 @@ export class InventoryService {
       relations: {
         branch: true,
         createdBy: true,
+        cancelledBy: true,
+        purchaseRequest: true,
         items: { ingredient: true, variant: { product: true } },
       },
       order: { createdAt: 'DESC' },
@@ -952,11 +1264,15 @@ export class InventoryService {
   }
 
   async findPurchaseOrderById(id: string) {
+    await this.checkExpiredPurchaseOrders();
+
     const po = await this.poRepo.findOne({
       where: { id },
       relations: {
         branch: true,
         createdBy: true,
+        cancelledBy: true,
+        purchaseRequest: true,
         items: { ingredient: true, variant: { product: true } },
       },
     });
@@ -971,6 +1287,8 @@ export class InventoryService {
       throw new BadRequestException('Mã barcode đơn hàng (po_code) là bắt buộc.');
     }
 
+    await this.checkExpiredPurchaseOrders();
+
     const po = await this.poRepo.findOne({
       where: { poCode },
       relations: {
@@ -984,17 +1302,20 @@ export class InventoryService {
       throw new NotFoundException(`Không tìm thấy phiếu đặt hàng với mã '${poCode}'.`);
     }
 
-    // Branch isolation for Store Manager
     if (user?.role === UserRole.STORE_MANAGER && user?.branchId && po.branchId !== user.branchId) {
       throw new ForbiddenException('Store Manager chỉ có quyền kiểm kê/nhập hàng tại chi nhánh mình quản lý.');
     }
 
-    if (po.status === PurchaseOrderStatus.RECEIVED) {
+    if (po.status === PurchaseOrderStatus.EXPIRED) {
+      throw new BadRequestException(`Phiếu PO '${poCode}' đã QUÁ HẠN NHẬP KHO (SLA Expired lúc ${po.expiredAt ? new Date(po.expiredAt).toLocaleString('vi-VN') : 'N/A'}).`);
+    }
+
+    if (po.status === PurchaseOrderStatus.COMPLETED || po.status === PurchaseOrderStatus.RECEIVED) {
       throw new BadRequestException(`Phiếu đặt hàng '${poCode}' đã hoàn thành nhập kho trước đó.`);
     }
 
     if (po.status === PurchaseOrderStatus.CANCELLED) {
-      throw new BadRequestException(`Phiếu đặt hàng '${poCode}' đã bị hủy.`);
+      throw new BadRequestException(`Phiếu đặt hàng '${poCode}' đã bị hủy (Lý do: ${po.cancelReason || 'N/A'}).`);
     }
 
     return {
@@ -1010,15 +1331,19 @@ export class InventoryService {
         },
         status: po.status,
         expected_delivery: po.expectedDelivery,
+        delivery_timeframe: po.deliveryTimeframe,
+        expired_at: po.expiredAt,
         created_at: po.createdAt,
         items: po.items.map((item) => ({
           po_item_id: item.id,
           ingredient_id: item.ingredientId,
           variant_id: item.variantId,
+          barcode: item.barcode || (item.ingredient ? item.ingredient.code : item.variant?.sku),
           name: item.ingredient ? item.ingredient.name : `${item.variant?.product?.name || ''} - ${item.variant?.variantName || ''}`,
           unit: item.ingredient ? item.ingredient.unit : 'Cái',
           ordered_quantity: Number(item.orderedQuantity),
           received_quantity: Number(item.receivedQuantity),
+          rejected_quantity: Number(item.rejectedQuantity || 0),
           unit_price: Number(item.unitPrice),
         })),
       },
@@ -1044,7 +1369,11 @@ export class InventoryService {
         throw new ForbiddenException('Store Manager chỉ có quyền nhập hàng tại chi nhánh mình quản lý.');
       }
 
-      if (po.status === PurchaseOrderStatus.RECEIVED) {
+      if (po.status === PurchaseOrderStatus.EXPIRED) {
+        throw new BadRequestException('Phiếu PO này đã quá hạn nhập kho.');
+      }
+
+      if (po.status === PurchaseOrderStatus.COMPLETED || po.status === PurchaseOrderStatus.RECEIVED) {
         throw new BadRequestException('Phiếu đặt hàng này đã được xác nhận nhập kho.');
       }
 
@@ -1052,15 +1381,38 @@ export class InventoryService {
         throw new BadRequestException('Phiếu đặt hàng đã bị hủy.');
       }
 
+      let allItemsFullyHandled = true;
+
       for (const itemDto of dto.items) {
         const poItem = po.items.find((i) => i.id === itemDto.poItemId);
         if (!poItem) {
           throw new BadRequestException(`Chi tiết đơn hàng ID '${itemDto.poItemId}' không thuộc PO này.`);
         }
 
-        const receivedQty = Number(itemDto.receivedQuantity);
-        poItem.receivedQuantity = receivedQty;
+        const prevReceived = Number(poItem.receivedQuantity || 0);
+        const prevRejected = Number(poItem.rejectedQuantity || 0);
+        const currentReceived = Number(itemDto.receivedQuantity || 0);
+        const currentRejected = Number(itemDto.rejectedQuantity || 0);
+
+        const totalPlanned = prevReceived + prevRejected + currentReceived + currentRejected;
+
+        if (totalPlanned > Number(poItem.orderedQuantity)) {
+          throw new BadRequestException(
+            `Tổng số lượng (đã nhận trước đó: ${prevReceived + prevRejected}, lần này nhận: ${currentReceived}, hỏng: ${currentRejected}) là ${totalPlanned}, vượt quá số lượng đặt (${poItem.orderedQuantity}) của mặt hàng '${poItem.ingredient ? poItem.ingredient.name : poItem.variant?.product?.name}'. Vui lòng liên hệ và báo cáo Admin để xử lý.`
+          );
+        }
+
+        poItem.receivedQuantity = prevReceived + currentReceived;
+        poItem.rejectedQuantity = prevRejected + currentRejected;
+        if (itemDto.barcode) {
+          poItem.barcode = itemDto.barcode;
+        }
+
         await queryRunner.manager.save(PurchaseOrderItem, poItem);
+
+        if (prevReceived + prevRejected + currentReceived + currentRejected < Number(poItem.orderedQuantity)) {
+          allItemsFullyHandled = false;
+        }
 
         let isIng = poItem.ingredientId ? true : false;
         if (itemDto.isIngredient !== undefined) {
@@ -1072,11 +1424,11 @@ export class InventoryService {
           unitSelected = poItem.ingredient ? poItem.ingredient.unit : 'Cái';
         }
 
-        let stockQty = receivedQty;
+        let stockQty = currentReceived;
         if (isIng) {
           const lowerUnit = unitSelected?.toLowerCase();
           if (lowerUnit === 'kg' || lowerUnit === 'l') {
-            stockQty = receivedQty * 1000;
+            stockQty = currentReceived * 1000;
           }
         }
 
@@ -1140,7 +1492,7 @@ export class InventoryService {
             variantId: !isIng ? poItem.variantId : null,
             batchId: savedBatch.id,
             quantityChange: stockQty,
-            reason: `Scan nhập kho từ PO ${po.poCode}`,
+            reason: `Scan nhập kho từ PO ${po.poCode}${currentRejected > 0 ? ` (Từ chối hỏng: ${currentRejected})` : ''}`,
             referenceId: po.id,
             performedById: user?.id,
           });
@@ -1148,7 +1500,7 @@ export class InventoryService {
         }
       }
 
-      po.status = PurchaseOrderStatus.RECEIVED;
+      po.status = (allItemsFullyHandled || dto.completePo) ? PurchaseOrderStatus.RECEIVED : PurchaseOrderStatus.PARTIALLY_RECEIVED;
       await queryRunner.manager.save(PurchaseOrder, po);
 
       await queryRunner.commitTransaction();
