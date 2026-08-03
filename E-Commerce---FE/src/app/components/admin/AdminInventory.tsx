@@ -1,29 +1,23 @@
 import { parseRes } from '../../../utils/api';
 
+import React, { useState, useEffect } from "react";
 import {
-  AlertCircle,
-  Boxes,
-  ClipboardList,
-  Clock,
-  Edit,
-  Eye,
-  Loader2,
-  Plus,
-  Search,
-  Trash2,
-  UploadCloud,
-  X,
+  LayoutDashboard, Package, Tag, Settings, ShoppingBag, Users, Star,
+  BarChart2, Image, Edit, Trash2, Eye, Plus, CheckCircle, XCircle,
+  TrendingUp, AlertCircle, Loader2, ToggleLeft, Search, Filter,
+  ArrowUpRight, DollarSign, Clock, ChevronDown, Store, MapPin, Boxes,
+  ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X
 } from "lucide-react";
-import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { getAccessToken } from "../authSession";
+import { getAccessToken, getStoredUser } from "../authSession";
 import { env } from "../../../config/env";
-import { AdminBtn, StatusBadge, TableHeader } from "./AdminShared";
+import { supabase } from "../../../config/supabase";
+import { ImageUploader, StatusBadge, AdminBtn, TableHeader } from "./AdminShared";
 
 export function AdminInventory({ adminUser }: { adminUser?: any }) {
-  const currentUser = adminUser;
-  const isAdmin = adminUser?.role === "admin";
-  const isStoreManager = adminUser?.role === "store_manager";
+  const currentUser = adminUser || getStoredUser();
+  const isAdmin = currentUser?.role === "admin";
+  const isStoreManager = currentUser?.role === "store_manager";
 
   const [stocks, setStocks] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
@@ -41,8 +35,8 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
   const [branchFilter, setBranchFilter] = useState(() => {
-    if (adminUser?.role === "store_manager" && adminUser?.branchId) {
-      return adminUser.branchId;
+    if (currentUser?.role === "store_manager" && currentUser?.branchId) {
+      return currentUser.branchId;
     }
     return "ALL";
   });
@@ -321,10 +315,10 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
     loadInventory();
     loadBranches();
     loadPrs();
-    if (adminUser?.role === "admin") {
+    if (currentUser?.role === "admin") {
       loadAdjustments();
     }
-  }, [adminUser]);
+  }, [currentUser?.id, currentUser?.role]);
 
   const handleEdit = (stock: any) => {
     setEditingStock(stock);
