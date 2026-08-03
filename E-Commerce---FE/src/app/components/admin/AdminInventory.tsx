@@ -157,7 +157,7 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
         items: validItems.map(i => ({
           ingredientId: i.ingredientId || undefined,
           variantId: i.variantId || undefined,
-          requestedQuantity: Number(i.requestedQuantity),
+          requestedQuantity: Math.floor(Math.abs(Number(i.requestedQuantity))) || 1,
           note: i.note || undefined,
         })),
       };
@@ -1802,12 +1802,14 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
                               <div className="relative">
                                 <input
                                   type="number"
-                                  min="0.1"
+                                  min="1"
+                                  step="1"
                                   placeholder="Số lượng"
                                   value={item.requestedQuantity}
                                   onChange={(e) => {
+                                    const val = e.target.value.replace(/[^0-9]/g, '');
                                     const updated = [...prItems];
-                                    updated[idx].requestedQuantity = e.target.value;
+                                    updated[idx].requestedQuantity = val;
                                     setPrItems(updated);
                                   }}
                                   className="w-full rounded-xl bg-sidebar px-3 py-2 pr-12 text-xs text-foreground outline-none border border-sidebar-accent focus:border-primary font-bold text-primary"
@@ -1960,7 +1962,7 @@ export function AdminInventory({ adminUser }: { adminUser?: any }) {
                               {fullName}
                             </td>
                             <td className="p-3 text-right font-bold text-foreground">
-                              {Number(it.requestedQuantity)}
+                              {Math.round(Number(it.requestedQuantity))}
                             </td>
                             <td className="p-3 text-center text-muted-foreground">
                               {it.ingredient?.unit || "Cái"}
