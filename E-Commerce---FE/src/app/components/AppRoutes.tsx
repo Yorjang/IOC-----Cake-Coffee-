@@ -59,7 +59,10 @@ export function AppRoutes({
     return <StaffPanel onExit={handleAdminLogout} staffUser={user} products={products} />;
   }
 
-  if (view === VIEW_KEYS.LOGIN) return <AuthPage onSuccess={handleLoginSuccess} setView={setView} />;
+  if (view === VIEW_KEYS.LOGIN || view === VIEW_KEYS.REGISTER || view === VIEW_KEYS.FORGOT_PASSWORD) {
+    const mode = view === VIEW_KEYS.REGISTER ? "register" : view === VIEW_KEYS.FORGOT_PASSWORD ? "forgot" : "login";
+    return <AuthPage onSuccess={handleLoginSuccess} setView={setView} initialMode={mode} />;
+  }
   if (view === VIEW_KEYS.RESET_PASSWORD) {
     const token = new URLSearchParams(window.location.search).get("token") || "";
     return <AuthPage onSuccess={handleLoginSuccess} initialMode="reset" resetToken={token} />;

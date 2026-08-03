@@ -151,7 +151,7 @@ export default function App() {
     }
   };
 
-  if ([VIEW_KEYS.ADMIN, VIEW_KEYS.STAFF, VIEW_KEYS.LOGIN, VIEW_KEYS.RESET_PASSWORD].includes(view)) {
+  if ([VIEW_KEYS.ADMIN, VIEW_KEYS.STAFF, VIEW_KEYS.LOGIN, VIEW_KEYS.REGISTER, VIEW_KEYS.FORGOT_PASSWORD, VIEW_KEYS.RESET_PASSWORD].includes(view)) {
     return (
       <>
         <Toaster richColors position="top-center" />
