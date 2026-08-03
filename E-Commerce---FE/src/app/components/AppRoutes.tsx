@@ -1,6 +1,7 @@
 import { AdminPanel } from "./AdminPanel";
 import { AuthPage } from "./AuthPage";
 import { StaffPanel } from "./StaffPanel";
+import { ShipperPanel } from "./ShipperPanel";
 import { AdminLoginPage } from "./AdminLoginPage";
 
 import { Cart } from "../pages/Cart";
@@ -57,6 +58,15 @@ export function AppRoutes({
       return <ProtectedRouteRedirect message="Bạn không có quyền truy cập trang nhân viên." redirect={setViewInternal} />;
     }
     return <StaffPanel onExit={handleAdminLogout} staffUser={user} products={products} />;
+  }
+
+  if (view === VIEW_KEYS.SHIPPER) {
+    return (
+      <ShipperPanel
+        onExit={() => setView(VIEW_KEYS.HOME)}
+        onLoginRedirect={() => setView(VIEW_KEYS.LOGIN)}
+      />
+    );
   }
 
   if (view === VIEW_KEYS.LOGIN) return <AuthPage onSuccess={handleLoginSuccess} setView={setView} />;

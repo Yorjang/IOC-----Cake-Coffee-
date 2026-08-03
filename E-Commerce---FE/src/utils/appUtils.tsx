@@ -68,6 +68,7 @@ export const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.DETAIL]: "/chi-tiet",
   [VIEW_KEYS.ADMIN]: "/admin",
   [VIEW_KEYS.STAFF]: "/nhan-vien",
+  [VIEW_KEYS.SHIPPER]: "/giao-hang",
   [VIEW_KEYS.LOGIN]: "/dang-nhap",
   [VIEW_KEYS.FAVORITES]: "/yeu-thich",
   [VIEW_KEYS.PROFILE]: "/ho-so",
