@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   ArrowUpRight,
   Bike,
   CheckCircle,
@@ -13,6 +14,7 @@ import {
   Navigation,
   PackageCheck,
   Phone,
+  Search,
   Truck,
   Wallet,
   X,
@@ -73,6 +75,14 @@ const statusTone: Record<string, string> = {
 const TABS = [
   { key: "queue", label: "Hàng đợi giao hàng", icon: ListChecks },
   { key: "settlement", label: "Đối soát tiền COD", icon: Wallet },
+];
+
+// Ordered by urgency, not by pipeline order: orders already out for delivery need
+// action first, then ones waiting for pickup, then ones still with the kitchen.
+const QUEUE_SECTIONS = [
+  { status: "shipping", label: "Đang giao" },
+  { status: "preparing", label: "Đang chuẩn bị" },
+  { status: "confirmed", label: "Đã xác nhận" },
 ];
 
 const formatMoney = (value: number) => `${value.toLocaleString("vi-VN")}đ`;
@@ -269,6 +279,91 @@ function ConfirmDeliveryModal({
   );
 }
 
+const QUICK_FAIL_REASONS = [
+  "Tai nạn khi giao hàng",
+  "Món ăn bị rơi, hỏng, không thể sử dụng",
+  "Va chạm/đổ vỡ trên đường đi",
+];
+
+function FailDeliveryModal({
+  order,
+  submitting,
+  onClose,
+  onSubmit,
+}: {
+  order: ShipperOrder;
+  submitting: boolean;
+  onClose: () => void;
+  onSubmit: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState("");
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-2xl border bg-card p-5 shadow-xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-mono text-xs text-primary">{order.id}</p>
+            <h2 className="mt-1 flex items-center gap-2 font-sans text-lg text-destructive">
+              <AlertTriangle size={18} />
+              Không thể giao đơn hàng này
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">{order.customer} · {order.address}</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-full border p-2 transition hover:bg-secondary">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="mt-4 rounded-xl bg-secondary p-3 text-xs text-muted-foreground">
+          Đơn này sẽ được huỷ và cửa hàng sẽ cần làm lại một đơn mới để giao cho khách. Khách hàng sẽ phải chờ lâu hơn dự kiến.
+        </div>
+
+        <div className="mt-4">
+          <label className="mb-1 block text-xs font-semibold text-muted-foreground">Lý do</label>
+          <div className="flex flex-wrap gap-2">
+            {QUICK_FAIL_REASONS.map((quickReason) => (
+              <button
+                key={quickReason}
+                type="button"
+                onClick={() => setReason(quickReason)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${reason === quickReason ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-accent"}`}
+              >
+                {quickReason}
+              </button>
+            ))}
+          </div>
+          <textarea
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            rows={3}
+            className="mt-2 w-full rounded-xl border bg-input-background p-3 text-sm outline-none focus:border-primary"
+            placeholder="Mô tả chi tiết lý do không thể giao đơn hàng..."
+          />
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-full border px-4 py-2 text-sm transition hover:bg-secondary">
+            Đóng
+          </button>
+          <button
+            type="button"
+            disabled={!reason.trim() || submitting}
+            onClick={() => onSubmit(reason.trim())}
+            className="inline-flex items-center gap-2 rounded-full bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground transition hover:bg-destructive/80 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {submitting ? <Loader2 size={14} className="animate-spin" /> : <AlertTriangle size={14} />}
+            Xác nhận không thể giao
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ShipperPanel({ onExit, onLoginRedirect }: ShipperPanelProps) {
   const [rawOrders, setRawOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -277,6 +372,9 @@ export function ShipperPanel({ onExit, onLoginRedirect }: ShipperPanelProps) {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [detailOrder, setDetailOrder] = useState<ShipperOrder | null>(null);
   const [deliveringOrder, setDeliveringOrder] = useState<ShipperOrder | null>(null);
+  const [failingOrder, setFailingOrder] = useState<ShipperOrder | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState<"oldest" | "newest">("oldest");
 
   const loadOrders = async () => {
     const token = getAccessToken();
@@ -314,6 +412,36 @@ export function ShipperPanel({ onExit, onLoginRedirect }: ShipperPanelProps) {
         .filter((o: any) => o.fulfillmentType === "delivery" && QUEUE_STATUSES.includes(o.orderStatus))
         .map(mapOrder),
     [rawOrders],
+  );
+
+  const filteredQueueOrders = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const digitsQuery = query.replace(/\D/g, "");
+    const filtered = query
+      ? queueOrders.filter((order) => {
+          const phoneDigits = order.phone.replace(/\D/g, "");
+          return (
+            order.customer.toLowerCase().includes(query) ||
+            order.id.toLowerCase().includes(query) ||
+            (digitsQuery && phoneDigits.includes(digitsQuery))
+          );
+        })
+      : queueOrders;
+
+    return [...filtered].sort((a, b) =>
+      sortOrder === "oldest"
+        ? a.orderedAt.getTime() - b.orderedAt.getTime()
+        : b.orderedAt.getTime() - a.orderedAt.getTime(),
+    );
+  }, [queueOrders, searchQuery, sortOrder]);
+
+  const sectionedQueueOrders = useMemo(
+    () =>
+      QUEUE_SECTIONS.map((section) => ({
+        ...section,
+        orders: filteredQueueOrders.filter((order) => order.rawStatus === section.status),
+      })),
+    [filteredQueueOrders],
   );
 
   const settlementOrders = useMemo(
@@ -385,6 +513,121 @@ export function ShipperPanel({ onExit, onLoginRedirect }: ShipperPanelProps) {
       setDeliveringOrder(null);
     }
   };
+
+  const handleFailDelivery = async (reason: string) => {
+    if (!failingOrder) return;
+    const ok = await changeStatus(failingOrder, "cancelled", { note: reason, cancelReason: reason });
+    if (ok) {
+      toast.success("Đã huỷ đơn do sự cố giao hàng. Hãy báo cửa hàng chuẩn bị lại đơn mới cho khách.");
+      setFailingOrder(null);
+    }
+  };
+
+  const renderOrderCard = (order: ShipperOrder) => (
+    <article key={order.id} className="rounded-2xl border bg-card p-4 transition hover:shadow-md">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="font-mono text-sm text-primary">{order.id}</p>
+          <h3 className="mt-1 font-sans text-lg font-semibold">{order.customer}</h3>
+          <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-base text-muted-foreground">
+            <a
+              href={`tel:${order.phone.replace(/\s+/g, "")}`}
+              onClick={(event) => event.stopPropagation()}
+              className="inline-flex items-center gap-1 hover:text-primary"
+            >
+              <Phone size={15} />{order.phone}
+            </a>
+            <span className="inline-flex items-center gap-1">
+              <MapPin size={15} />{order.address}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Clock size={15} />Đặt lúc {order.orderedAt.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-2">
+          <ShipperBadge status={order.status} />
+          <div className="flex flex-wrap items-center justify-end gap-1">
+            <button
+              type="button"
+              onClick={() => setDetailOrder(order)}
+              className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-primary transition hover:bg-secondary"
+            >
+              <Eye size={12} />
+              Chi tiết
+            </button>
+            <button
+              type="button"
+              onClick={() => window.open(getDirectionsUrl(order.originAddress, order.address), "_blank")}
+              className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-primary transition hover:bg-secondary"
+            >
+              <Navigation size={12} />
+              Chỉ đường từ {order.originName}
+              <ArrowUpRight size={12} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 rounded-xl bg-secondary p-3 md:grid-cols-[1fr_auto]">
+        <div>
+          <p className="text-base font-medium">{order.items.join(" · ")}</p>
+          {order.note && <p className="mt-1 text-sm text-muted-foreground">{order.note}</p>}
+        </div>
+        <div className="text-left md:text-right">
+          <p className="text-lg font-semibold text-primary">{order.total}</p>
+          <p className="text-sm text-muted-foreground">
+            {order.payment === "COD" ? `COD · ${formatMoney(order.codAmount)}` : order.payment}
+          </p>
+        </div>
+      </div>
+
+      {order.rawStatus === "preparing" && (
+        <div className="mt-3 flex justify-end">
+          <button
+            type="button"
+            disabled={updatingId === order.orderId}
+            onClick={(event) => handleMarkPickedUp(event, order)}
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {updatingId === order.orderId ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <PackageCheck size={14} />
+            )}
+            Đã lấy hàng, bắt đầu giao
+          </button>
+        </div>
+      )}
+
+      {order.rawStatus === "shipping" && (
+        <div className="mt-3 flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setFailingOrder(order);
+            }}
+            className="inline-flex items-center gap-2 rounded-full border border-destructive/30 px-4 py-2 text-sm font-semibold text-destructive transition hover:bg-destructive/10"
+          >
+            <AlertTriangle size={14} />
+            Tôi không thể giao đơn này
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setDeliveringOrder(order);
+            }}
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80"
+          >
+            <CheckCircle size={14} />
+            Xác nhận đã giao
+          </button>
+        </div>
+      )}
+    </article>
+  );
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -461,105 +704,57 @@ export function ShipperPanel({ onExit, onLoginRedirect }: ShipperPanelProps) {
                     Không có đơn nào cần giao lúc này.
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {queueOrders.map((order) => (
-                      <article
-                        key={order.id}
-                        className="rounded-2xl border bg-card p-4 transition hover:shadow-md"
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                          <div>
-                            <p className="font-mono text-xs text-primary">{order.id}</p>
-                            <h3 className="mt-1 font-sans text-base">{order.customer}</h3>
-                            <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                              <a
-                                href={`tel:${order.phone.replace(/\s+/g, "")}`}
-                                onClick={(event) => event.stopPropagation()}
-                                className="inline-flex items-center gap-1 hover:text-primary"
-                              >
-                                <Phone size={13} />{order.phone}
-                              </a>
-                              <span className="inline-flex items-center gap-1">
-                                <MapPin size={13} />{order.address}
-                              </span>
-                              <span className="inline-flex items-center gap-1">
-                                <Clock size={13} />Đặt lúc {order.orderedAt.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
-                              </span>
-                            </p>
-                          </div>
-                          <div className="flex flex-col items-end gap-2">
-                            <ShipperBadge status={order.status} />
-                            <div className="flex flex-wrap items-center justify-end gap-1">
-                              <button
-                                type="button"
-                                onClick={() => setDetailOrder(order)}
-                                className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-primary transition hover:bg-secondary"
-                              >
-                                <Eye size={12} />
-                                Chi tiết
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => window.open(getDirectionsUrl(order.originAddress, order.address), "_blank")}
-                                className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-primary transition hover:bg-secondary"
-                              >
-                                <Navigation size={12} />
-                                Chỉ đường từ {order.originName}
-                                <ArrowUpRight size={12} />
-                              </button>
+                  <>
+                    <div className="mb-5 flex flex-wrap items-center gap-2">
+                      <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-full border bg-input-background px-3 py-2">
+                        <Search size={15} className="text-muted-foreground" />
+                        <input
+                          value={searchQuery}
+                          onChange={(event) => setSearchQuery(event.target.value)}
+                          placeholder="Tìm theo tên khách, SĐT hoặc mã đơn..."
+                          className="flex-1 bg-transparent text-sm outline-none"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSortOrder("oldest")}
+                          className={`rounded-full px-3 py-2 text-xs font-semibold transition ${sortOrder === "oldest" ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-accent"}`}
+                        >
+                          Cũ nhất trước
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSortOrder("newest")}
+                          className={`rounded-full px-3 py-2 text-xs font-semibold transition ${sortOrder === "newest" ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-accent"}`}
+                        >
+                          Mới nhất trước
+                        </button>
+                      </div>
+                    </div>
+
+                    {filteredQueueOrders.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">
+                        Không tìm thấy đơn phù hợp.
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {sectionedQueueOrders.map((section) =>
+                          section.orders.length === 0 ? null : (
+                            <div key={section.status}>
+                              <h2 className="mb-3 flex items-center gap-2 text-xl font-semibold">
+                                {section.label}
+                                <span className="text-base font-normal text-muted-foreground">({section.orders.length})</span>
+                              </h2>
+                              <div className="space-y-3">
+                                {section.orders.map((order) => renderOrderCard(order))}
+                              </div>
                             </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 grid gap-3 rounded-xl bg-secondary p-3 md:grid-cols-[1fr_auto]">
-                          <div>
-                            <p className="text-sm font-medium">{order.items.join(" · ")}</p>
-                            {order.note && <p className="mt-1 text-xs text-muted-foreground">{order.note}</p>}
-                          </div>
-                          <div className="text-left md:text-right">
-                            <p className="font-semibold text-primary">{order.total}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {order.payment === "COD" ? `COD · ${formatMoney(order.codAmount)}` : order.payment}
-                            </p>
-                          </div>
-                        </div>
-
-                        {order.rawStatus === "preparing" && (
-                          <div className="mt-3 flex justify-end">
-                            <button
-                              type="button"
-                              disabled={updatingId === order.orderId}
-                              onClick={(event) => handleMarkPickedUp(event, order)}
-                              className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {updatingId === order.orderId ? (
-                                <Loader2 size={14} className="animate-spin" />
-                              ) : (
-                                <PackageCheck size={14} />
-                              )}
-                              Đã lấy hàng, bắt đầu giao
-                            </button>
-                          </div>
+                          ),
                         )}
-
-                        {order.rawStatus === "shipping" && (
-                          <div className="mt-3 flex justify-end">
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setDeliveringOrder(order);
-                              }}
-                              className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80"
-                            >
-                              <CheckCircle size={14} />
-                              Xác nhận đã giao
-                            </button>
-                          </div>
-                        )}
-                      </article>
-                    ))}
-                  </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             )}
@@ -621,6 +816,15 @@ export function ShipperPanel({ onExit, onLoginRedirect }: ShipperPanelProps) {
           submitting={updatingId === deliveringOrder.orderId}
           onClose={() => setDeliveringOrder(null)}
           onSubmit={handleConfirmDelivery}
+        />
+      )}
+
+      {failingOrder && (
+        <FailDeliveryModal
+          order={failingOrder}
+          submitting={updatingId === failingOrder.orderId}
+          onClose={() => setFailingOrder(null)}
+          onSubmit={handleFailDelivery}
         />
       )}
     </div>
