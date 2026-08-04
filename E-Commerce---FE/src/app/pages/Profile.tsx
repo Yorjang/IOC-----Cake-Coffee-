@@ -5,6 +5,7 @@ import { env } from "../../config/env";
 import { parseRes } from '../../utils/api';
 import { ProfileOrders } from '../features/profile/ui/ProfileOrders';
 import { getAccessToken } from "../components/authSession";
+import { getTrackingOrders } from "../features/order-tracking/services/orderTrackingService";
 
 const PRESET_AVATARS = [
   { name: "Coffee", url: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=150&auto=format&fit=crop&q=60" },
@@ -44,6 +45,27 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
 
+  const fetchMyOrders = async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    setLoadingOrders(true);
+    try {
+      const data = await getTrackingOrders();
+      setOrders(data);
+      setCurrentPage(1);
+    } catch (err) {
+      console.error("Error fetching my orders:", err);
+      toast.error(err instanceof Error ? err.message : "Không thể tải danh sách đơn hàng");
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "orders") {
+      fetchMyOrders();
+    }
+  }, [activeTab]);
 
   // Sync state if user prop updates
   useEffect(() => {

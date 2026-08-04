@@ -106,6 +106,12 @@ export class Order {
   @Column({ name: 'shipping_address_province', length: 100, nullable: true })
   shippingAddressProvince: string;
 
+  @Column({ name: 'shipping_latitude', type: 'numeric', precision: 10, scale: 7, nullable: true })
+  shippingLatitude: string;
+
+  @Column({ name: 'shipping_longitude', type: 'numeric', precision: 10, scale: 7, nullable: true })
+  shippingLongitude: string;
+
   @Column({ name: 'shipping_address_phone', length: 20, nullable: true })
   shippingAddressPhone: string;
 

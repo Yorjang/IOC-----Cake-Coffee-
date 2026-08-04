@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CartModule } from '../cart/cart.module';
+import { BranchesModule } from '../branches/branches.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { UsersModule } from '../users/users.module';
 import { OrderItem } from './order-item.entity';
@@ -15,6 +16,7 @@ import { OrdersService } from './orders.service';
     UsersModule,
     PaymentsModule,
     CartModule,
+    BranchesModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

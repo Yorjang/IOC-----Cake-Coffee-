@@ -126,23 +126,10 @@ function OrderTrackingDetail({ orderId, onBack }: { orderId: string; onBack: () 
         </div>
       </div>
 
-      {order.orderStatus === 'pending' && <div className="mt-6 flex justify-end"><button onClick={() => window.confirm('Bạn có chắc muốn hủy đơn hàng này?') && void cancelOrder()} className="rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-600 hover:bg-red-100">Hủy đơn hàng</button></div>}
-
-      {reviewingItem && (
-        <CreateReviewModal
-          isOpen={true}
-          onClose={() => setReviewingItem(null)}
-          orderId={order.id}
-          productId={reviewingItem.productId}
-          productName={reviewingItem.productName}
-          variantName={reviewingItem.variantName}
-          productImage={reviewingItem.product?.imageUrl || reviewingItem.productImage || ''}
-          onSuccess={() => {
-            order.items = order.items.map((i: any) => i.id === reviewingItem.id ? { ...i, isReviewed: true } : i);
-            setReviewingItem(null);
-          }}
-        />
-      )}
+      {order.orderStatus === 'pending' && <div className="mt-6 flex justify-end"><button onClick={async () => {
+        if (!window.confirm('Bạn có chắc muốn hủy đơn hàng này?')) return;
+        if (await cancelOrder()) onBack();
+      }} className="rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-600 hover:bg-red-100">Hủy đơn hàng</button></div>}
     </div>
   );
 }

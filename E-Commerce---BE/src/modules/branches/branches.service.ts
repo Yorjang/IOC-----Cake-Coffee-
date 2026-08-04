@@ -15,6 +15,8 @@ import {
   UpdateOpeningHoursDto,
   UpsertOpeningHourDto,
 } from "./dto/upsert-opening-hour.dto";
+import { calculateShippingFee } from "./shipping-fee.util";
+import { DeliveryQuoteItemDto } from "./dto/delivery-quote.dto";
 
 export type BranchWithDistance = Branch & {
   distanceKm: number;
@@ -35,6 +37,13 @@ export type BranchOpenStatus = {
   closingTime: string | null;
   isClosed: boolean;
 };
+
+interface OsrmTableResponse {
+  code: string;
+  distances?: Array<Array<number | null>>;
+  durations?: Array<Array<number | null>>;
+  message?: string;
+}
 
 const DAYS_OF_WEEK = Object.values(DayOfWeek);
 
@@ -86,6 +95,146 @@ export class BranchesService {
       throw new BadRequestException("No branch is open at this time");
     }
     return nearestOpenBranch;
+  }
+
+  async getDeliveryQuote(
+    latitude: number,
+    longitude: number,
+    items: DeliveryQuoteItemDto[] = [],
+  ) {
+    this.validateCoordinates(latitude, longitude);
+    let openBranches = (await this.findActive()).filter(
+      (branch) =>
+        branch.isOpenNow &&
+        branch.latitude !== null &&
+        branch.longitude !== null,
+    );
+    if (openBranches.length === 0) {
+      throw new BadRequestException("No branch is open at this time");
+    }
+
+    if (items.length > 0) {
+      openBranches = await this.filterBranchesWithStock(openBranches, items);
+      if (openBranches.length === 0) {
+        throw new BadRequestException(
+          "Hiện không có chi nhánh đang mở nào đủ hàng cho toàn bộ giỏ hàng.",
+        );
+      }
+    }
+
+    const routes = await this.getDrivingRoutes(
+      latitude,
+      longitude,
+      openBranches,
+    );
+    const nearestRoute = routes
+      .filter((route) => route.distanceKm !== null)
+      .sort(
+        (left, right) =>
+          (left.distanceKm as number) - (right.distanceKm as number),
+      )[0];
+    if (!nearestRoute || nearestRoute.distanceKm === null) {
+      throw new BadRequestException(
+        "Không tìm thấy tuyến đường giao hàng phù hợp",
+      );
+    }
+
+    return {
+      branch: nearestRoute.branch,
+      distanceKm: nearestRoute.distanceKm,
+      durationMinutes: nearestRoute.durationMinutes,
+      shippingFee: calculateShippingFee(nearestRoute.distanceKm),
+    };
+  }
+
+  private async filterBranchesWithStock(
+    branches: BranchWithOpenStatus[],
+    items: DeliveryQuoteItemDto[],
+  ): Promise<BranchWithOpenStatus[]> {
+    const requiredByVariant = new Map<string, number>();
+    for (const item of items) {
+      requiredByVariant.set(
+        item.variantId,
+        (requiredByVariant.get(item.variantId) ?? 0) + item.quantity,
+      );
+    }
+
+    const stocks = await this.branches.query(
+      `SELECT branch_id, variant_id, quantity, reserved_quantity
+       FROM branch_variant_stocks
+       WHERE branch_id = ANY($1::uuid[]) AND variant_id = ANY($2::uuid[])`,
+      [branches.map((branch) => branch.id), [...requiredByVariant.keys()]],
+    );
+    const availableByBranchVariant = new Map<string, number>();
+    for (const stock of stocks) {
+      availableByBranchVariant.set(
+        `${stock.branch_id}:${stock.variant_id}`,
+        Math.max(0, Number(stock.quantity) - Number(stock.reserved_quantity ?? 0)),
+      );
+    }
+
+    return branches.filter((branch) =>
+      [...requiredByVariant.entries()].every(
+        ([variantId, requiredQuantity]) =>
+          (availableByBranchVariant.get(`${branch.id}:${variantId}`) ?? 0) >=
+          requiredQuantity,
+      ),
+    );
+  }
+
+  private async getDrivingRoutes(
+    customerLatitude: number,
+    customerLongitude: number,
+    branches: BranchWithOpenStatus[],
+  ) {
+    const coordinates = [
+      `${customerLongitude},${customerLatitude}`,
+      ...branches.map(
+        (branch) => `${Number(branch.longitude)},${Number(branch.latitude)}`,
+      ),
+    ].join(";");
+    const sourceIndexes = branches.map((_, index) => index + 1).join(";");
+    const routingApiUrl =
+      process.env.ROUTING_API_URL || "https://router.project-osrm.org";
+    const url = new URL(
+      `/table/v1/driving/${coordinates}`,
+      routingApiUrl,
+    );
+    url.searchParams.set("sources", sourceIndexes);
+    url.searchParams.set("destinations", "0");
+    url.searchParams.set("annotations", "distance,duration");
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      const data = (await response.json()) as OsrmTableResponse;
+      if (!response.ok || data.code !== "Ok") {
+        throw new Error(data.message || "Routing service returned an error");
+      }
+
+      return branches.map((branch, index) => {
+        const distanceMeters = data.distances?.[index]?.[0] ?? null;
+        const durationSeconds = data.durations?.[index]?.[0] ?? null;
+        return {
+          branch,
+          distanceKm:
+            distanceMeters === null
+              ? null
+              : Number((distanceMeters / 1000).toFixed(2)),
+          durationMinutes:
+            durationSeconds === null
+              ? null
+              : Math.max(1, Math.ceil(durationSeconds / 60)),
+        };
+      });
+    } catch {
+      throw new BadRequestException(
+        "Chưa thể tính quãng đường giao hàng. Vui lòng thử lại.",
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   async findNearby(

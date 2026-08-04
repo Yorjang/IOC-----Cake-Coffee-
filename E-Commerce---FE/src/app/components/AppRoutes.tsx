@@ -59,7 +59,10 @@ export function AppRoutes({
     return <StaffPanel onExit={handleAdminLogout} staffUser={user} products={products} />;
   }
 
-  if (view === VIEW_KEYS.LOGIN) return <AuthPage onSuccess={handleLoginSuccess} setView={setView} />;
+  if (view === VIEW_KEYS.LOGIN || view === VIEW_KEYS.REGISTER || view === VIEW_KEYS.FORGOT_PASSWORD) {
+    const mode = view === VIEW_KEYS.REGISTER ? "register" : view === VIEW_KEYS.FORGOT_PASSWORD ? "forgot" : "login";
+    return <AuthPage onSuccess={handleLoginSuccess} setView={setView} initialMode={mode} />;
+  }
   if (view === VIEW_KEYS.RESET_PASSWORD) {
     const token = new URLSearchParams(window.location.search).get("token") || "";
     return <AuthPage onSuccess={handleLoginSuccess} initialMode="reset" resetToken={token} />;
@@ -69,7 +72,7 @@ export function AppRoutes({
     <div className="animate-page-change" key={view}>
       {view === VIEW_KEYS.HOME && <Home setView={setView} onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} products={products} categories={categories} publicCoupons={publicCoupons} />}
       {view === VIEW_KEYS.CART && <Cart cart={cart} onUpdateQty={handleUpdateCartQty} onRemoveItem={handleRemoveCartItem} setView={setView} publicCoupons={publicCoupons} appliedCoupon={appliedCoupon} setAppliedCoupon={setAppliedCoupon} user={user} />}
-      {view === VIEW_KEYS.CHECKOUT && <Checkout cart={cart} setView={setView} onPlaceOrder={handlePlaceOrder} subtotal={subtotal} discount={discount} shipping={shipping} grandTotal={grandTotal} user={user} />}
+      {view === VIEW_KEYS.CHECKOUT && <Checkout cart={cart} setView={setView} onPlaceOrder={handlePlaceOrder} subtotal={subtotal} discount={discount} shipping={shipping} grandTotal={grandTotal} user={user} publicCoupons={publicCoupons} appliedCoupon={appliedCoupon} setAppliedCoupon={setAppliedCoupon} />}
       {view === VIEW_KEYS.SUCCESS && <Success setView={setView} order={lastCreatedOrder} />}
       {view === VIEW_KEYS.DETAIL && <ProductDetail product={selectedProduct} setView={setView} onAddToCart={handleAddToCart} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onSelectProduct={handleSelectProduct} products={products} publicCoupons={publicCoupons} />}
       {view === VIEW_KEYS.FAVORITES && <Favorites wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onAddToCart={handleAddToCart} onSelectProduct={handleSelectProduct} setView={setView} />}

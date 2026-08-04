@@ -8,6 +8,8 @@ import { StockBatch } from './entities/stock-batch.entity';
 import { InventoryTransaction } from './entities/inventory-transaction.entity';
 import { PurchaseOrder } from './entities/purchase-order.entity';
 import { PurchaseOrderItem } from './entities/purchase-order-item.entity';
+import { PurchaseRequest } from './entities/purchase-request.entity';
+import { PurchaseRequestItem } from './entities/purchase-request-item.entity';
 import { InventoryAdjustmentRequest } from './entities/inventory-adjustment-request.entity';
 import { InventoryService } from './inventory.service';
 import { InventoryController } from './inventory.controller';
@@ -24,6 +26,8 @@ import { UsersModule } from '../users/users.module';
       InventoryTransaction,
       PurchaseOrder,
       PurchaseOrderItem,
+      PurchaseRequest,
+      PurchaseRequestItem,
       InventoryAdjustmentRequest,
     ]),
     UsersModule,

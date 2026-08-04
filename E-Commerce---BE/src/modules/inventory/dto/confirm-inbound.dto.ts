@@ -14,7 +14,7 @@ import { Type } from 'class-transformer';
 
 export class ConfirmInboundItemDto {
   @IsNotEmpty()
-  @IsUUID()
+  @IsUUID('4')
   poItemId: string;
 
   @IsNotEmpty()
@@ -23,12 +23,25 @@ export class ConfirmInboundItemDto {
   receivedQuantity: number;
 
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  rejectedQuantity?: number;
+
+  @IsOptional()
+  @IsString()
+  rejectReason?: string;
+
+  @IsOptional()
+  @IsString()
+  barcode?: string;
+
+  @IsOptional()
   @IsDateString()
   manufactureDate?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsDateString()
-  expiryDate: string;
+  expiryDate?: string;
 
   @IsOptional()
   @IsString()
@@ -45,7 +58,7 @@ export class ConfirmInboundItemDto {
 
 export class ConfirmInboundDto {
   @IsNotEmpty()
-  @IsUUID()
+  @IsUUID('4')
   poId: string;
 
   @IsNotEmpty()
@@ -53,4 +66,8 @@ export class ConfirmInboundDto {
   @ValidateNested({ each: true })
   @Type(() => ConfirmInboundItemDto)
   items: ConfirmInboundItemDto[];
+
+  @IsOptional()
+  @IsBoolean()
+  completePo?: boolean;
 }

@@ -55,8 +55,7 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
     }
   }
 
-  const shipping = subtotal >= 300000 || subtotal === 0 ? 0 : 15000;
-  const grandTotal = Math.max(0, subtotal - discount + shipping);
+  const grandTotal = Math.max(0, subtotal - discount);
 
   const applyCoupon = () => {
     if (!coupon.trim()) return;
@@ -287,7 +286,10 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
               {discount > 0 && (
                 <div className="flex justify-between text-green-600 font-medium"><span>Giảm giá</span><span>-{formatPrice(discount)}</span></div>
               )}
-              <div className="flex justify-between"><span>Phí giao hàng</span><span>{shipping === 0 ? "Miễn phí" : formatPrice(shipping)}</span></div>
+              <div className="flex justify-between">
+                <span>Phí giao hàng</span>
+                <span className="text-muted-foreground">Đang tính</span>
+              </div>
               <hr className="my-2 border-border" />
               <div className="flex justify-between font-bold text-base"><span>Tổng cộng</span><span className="text-primary">{formatPrice(grandTotal)}</span></div>
             </div>

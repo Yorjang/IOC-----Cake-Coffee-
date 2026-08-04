@@ -206,10 +206,10 @@ export function Header({
             <button
               onClick={onChooseStore}
               className="flex items-center gap-1.5 py-3 pl-3 text-[12px] font-medium text-foreground/80 hover:text-foreground transition-colors"
-              title="Chọn cửa hàng"
+              title="Xem danh sách cửa hàng"
             >
               <MapPin size={14} strokeWidth={2} />
-              <span className="hidden sm:inline tracking-wide">{selectedStore?.name ?? "Chọn cửa hàng"}</span>
+              <span className="hidden sm:inline tracking-wide">{selectedStore?.name ?? "Xem cửa hàng"}</span>
             </button>
           </div>
         </div>
