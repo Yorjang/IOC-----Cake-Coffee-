@@ -27,7 +27,7 @@ export default function App() {
     wishlist, setWishlist, user, setUser,
     selectedStore, setSelectedStore, availableStores,
     showStorePopup, setShowStorePopup, manualLocationRequired,
-    lastCreatedOrder, setLastCreatedOrder, selectedOrderId,
+    lastCreatedOrder, setLastCreatedOrder, selectedOrderId, setSelectedOrderId,
     products, categories, publicCoupons, refreshPublicCoupons
   } = appState;
 

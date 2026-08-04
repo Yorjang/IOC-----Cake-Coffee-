@@ -29,7 +29,7 @@ export function AdminProductTable({
           <tbody>
             {filtered.map((p: any) => (
               <tr key={p.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
-                <td className="py-3 pr-4">
+                <td className="py-3 px-4">
                   <div className="flex items-center gap-3">
                     {p.imageUrl && <img src={p.imageUrl} alt={p.name} className="size-10 rounded-lg object-cover" />}
                     <div>
@@ -46,11 +46,11 @@ export function AdminProductTable({
                     </div>
                   </div>
                 </td>
-                <td className="py-3 pr-4 text-muted-foreground">{p.category?.name ?? "-"}</td>
-                <td className="py-3 pr-4 font-semibold text-primary">{fmtPrice(p)}</td>
-                <td className="py-3 pr-4 text-muted-foreground">{p.variants?.length ?? 0}</td>
-                <td className="py-3 pr-4"><span className="rounded-full bg-sidebar-accent px-2 py-0.5 text-xs text-primary">{p.productType}</span></td>
-                <td className="py-3 pr-4 max-w-[200px]">
+                <td className="py-3 px-4 text-muted-foreground">{p.category?.name ?? "-"}</td>
+                <td className="py-3 px-4 font-semibold text-primary">{fmtPrice(p)}</td>
+                <td className="py-3 px-4 text-muted-foreground">{p.variants?.length ?? 0}</td>
+                <td className="py-3 px-4"><span className="rounded-full bg-sidebar-accent px-3 py-1 text-xs text-primary">{p.productType}</span></td>
+                <td className="py-3 px-4 max-w-[200px]">
                   {DRINK_TYPES.includes(p.productType) ? (
                      <IngredientSummaryCell variants={p.variants} />
                   ) : (
@@ -58,7 +58,7 @@ export function AdminProductTable({
                   )}
                 </td>
                 {isAdmin && (
-                  <td className="py-3 pr-4">
+                  <td className="py-3 px-4">
                     <div className="flex gap-2">
                       <AdminBtn variant="ghost" onClick={() => openEdit(p)}><Edit size={14} /></AdminBtn>
                       <AdminBtn variant="danger" onClick={() => remove(p.id)}><Trash2 size={14} /></AdminBtn>
