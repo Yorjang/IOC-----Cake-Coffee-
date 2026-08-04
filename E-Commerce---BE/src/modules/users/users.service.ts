@@ -105,13 +105,13 @@ export class UsersService {
     }
 
     private async assertBranchForRole(role: UserRole, branchId?: string | null) {
-        const branchRequiredRoles = [UserRole.STAFF, UserRole.CASHIER, UserRole.STORE_MANAGER];
+        const branchRequiredRoles = [UserRole.STAFF, UserRole.CASHIER, UserRole.STORE_MANAGER, UserRole.SHIPPER];
         if (!branchRequiredRoles.includes(role)) {
             return null;
         }
 
         if (!branchId) {
-            throw new BadRequestException('Branch is required for staff, cashier and store manager accounts');
+            throw new BadRequestException('Branch is required for staff, cashier, store manager and shipper accounts');
         }
 
         const branch = await this.branches.findOne({ where: { id: branchId } });

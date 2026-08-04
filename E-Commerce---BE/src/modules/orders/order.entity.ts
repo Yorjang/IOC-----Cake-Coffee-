@@ -12,6 +12,16 @@ export enum OrderStatus {
   CANCELLED = 'cancelled',
 }
 
+export enum DeliveryStatus {
+  ASSIGNED = 'assigned',
+  PICKING_UP = 'picking_up',
+  PICKED_UP = 'picked_up',
+  DELIVERING = 'delivering',
+  DELIVERED = 'delivered',
+  FAILED = 'failed',
+  CANCELLED = 'cancelled',
+}
+
 export enum PaymentMethod {
   COD = 'cod',
   MOMO = 'momo',
@@ -57,6 +67,13 @@ export class Order {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
+  @Column({ name: 'shipper_id', type: 'uuid', nullable: true })
+  shipperId: string;
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'shipper_id' })
+  shipper: User;
+
   @Column({ name: 'address_id', type: 'uuid', nullable: true })
   addressId: string;
 
@@ -93,6 +110,9 @@ export class Order {
 
   @Column({ name: 'fulfillment_type', type: 'enum', enum: FulfillmentType, default: FulfillmentType.DELIVERY })
   fulfillmentType: FulfillmentType;
+
+  @Column({ name: 'delivery_status', type: 'enum', enum: DeliveryStatus, nullable: true })
+  deliveryStatus: DeliveryStatus;
 
   @Column({ name: 'shipping_address_street', length: 255, nullable: true })
   shippingAddressStreet: string;
