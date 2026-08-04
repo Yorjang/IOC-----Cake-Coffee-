@@ -36,7 +36,7 @@ export class OrdersService {
 
   async findAll(): Promise<Order[]> {
     return this.orders.find({
-      relations: { user: true, branch: true, items: true },
+      relations: { user: true, branch: true, items: { product: true } },
       order: { createdAt: 'DESC' },
     });
   }
@@ -160,7 +160,7 @@ export class OrdersService {
         ORDER BY d.day_date
       `),
       this.orders.find({
-        relations: { user: true, items: true },
+        relations: { user: true, items: { product: true } },
         order: { createdAt: 'DESC' },
         take: 5,
       }),
@@ -561,7 +561,7 @@ export class OrdersService {
 
       return this.orders.findOne({
         where: { id: orderId },
-        relations: { items: true, branch: true }
+        relations: { items: { product: true }, branch: true }
       });
     } catch (error: any) {
       if (error instanceof BadRequestException) {
@@ -572,11 +572,37 @@ export class OrdersService {
   }
 
   async findMyOrders(userId: string): Promise<Order[]> {
-    return this.orders.find({
+    const orders = await this.orders.find({
       where: { userId },
-      relations: { items: true, branch: true },
+      relations: { items: { product: true }, branch: true },
       order: { createdAt: 'DESC' }
     });
+
+    if (orders.length > 0) {
+      const orderIds = orders.map((o) => o.id);
+      const reviews = await this.dataSource.query(
+        `SELECT order_id, product_id, comment, rating, image_url, created_at FROM reviews WHERE order_id = ANY($1)`,
+        [orderIds]
+      );
+      const reviewMap = new Map();
+      for (const r of reviews) {
+        reviewMap.set(`${r.order_id}_${r.product_id}`, r);
+      }
+      
+      for (const order of orders) {
+        for (const item of order.items) {
+          const review = reviewMap.get(`${order.id}_${item.productId}`);
+          if (review) {
+            (item as any).isReviewed = true;
+            (item as any).review = review;
+          } else {
+            (item as any).isReviewed = false;
+          }
+        }
+      }
+    }
+
+    return orders;
   }
 
   async findPublicOrder(id: string): Promise<Order> {
@@ -587,6 +613,26 @@ export class OrdersService {
     if (!order) {
       throw new BadRequestException('Order not found');
     }
+
+    const reviews = await this.dataSource.query(
+      `SELECT product_id, comment, rating, image_url, created_at FROM reviews WHERE order_id = $1`,
+      [id]
+    );
+    const reviewMap = new Map();
+    for (const r of reviews) {
+      reviewMap.set(r.product_id, r);
+    }
+    
+    for (const item of order.items) {
+      const review = reviewMap.get(item.productId);
+      if (review) {
+        (item as any).isReviewed = true;
+        (item as any).review = review;
+      } else {
+        (item as any).isReviewed = false;
+      }
+    }
+
     return order;
   }
 

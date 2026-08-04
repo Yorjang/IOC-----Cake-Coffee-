@@ -37,10 +37,15 @@ export default function App() {
     subtotal, discount, shipping, grandTotal
   } = cartState;
 
-  const setView = (newView: string) => {
+  const setView = (newView: string, id?: string) => {
     setViewInternal(newView);
     if (newView !== VIEW_KEYS.DETAIL) setSelectedProduct(null);
-    if (newView !== VIEW_KEYS.TRACKING) window.scrollTo({ top: 0, behavior: "smooth" });
+    if (newView !== VIEW_KEYS.TRACKING) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      setSelectedOrderId(null);
+    } else if (id) {
+      setSelectedOrderId(id);
+    }
     const path = getPathFromView(newView);
     if (path) window.history.pushState(null, "", path);
   };

@@ -1,6 +1,7 @@
 import { Heart, LogOut, MapPin, Search, Settings, ShoppingBag, User, X, ChevronDown, Menu } from "lucide-react";
 import { useState } from "react";
 import { VIEW_KEYS } from "../../config/appConfig";
+import { HeaderNotifications } from "./HeaderNotifications";
 
 export function Header({
   view,
@@ -118,6 +119,8 @@ export function Header({
               <User size={22} strokeWidth={1.5} className="text-gray-700" />
             </button>
           )}
+
+          {isLoggedIn && <HeaderNotifications setView={setView} user={user} />}
 
           <button
             onClick={() => setView(VIEW_KEYS.FAVORITES)}

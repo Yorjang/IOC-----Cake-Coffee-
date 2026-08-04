@@ -150,13 +150,27 @@ export function ProfileOrders({ setView }: any) {
                         </button>
                       );
                     }
+                    
+                    const isCompleted = o.orderStatus === 'completed';
+                    const hasUnreviewedItems = o.items?.some((item: any) => !item.isReviewed);
+                    
                     return (
-                      <button
-                        onClick={() => setView("Theo dõi", o.id)}
-                        className="mt-2 text-xs font-semibold text-primary hover:underline"
-                      >
-                        Theo dõi đơn
-                      </button>
+                      <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 mt-2">
+                        {isCompleted && hasUnreviewedItems && (
+                          <button
+                            onClick={() => setView("Theo dõi", o.id)}
+                            className="text-xs font-semibold text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-1"
+                          >
+                            ⭐ Đánh giá ngay
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setView("Theo dõi", o.id)}
+                          className="text-xs font-semibold text-primary hover:underline"
+                        >
+                          Theo dõi đơn
+                        </button>
+                      </div>
                     );
                   })()}
 
