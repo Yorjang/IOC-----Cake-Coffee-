@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { env } from "../../config/env";
 import { parseRes } from '../../utils/api';
 import { ProfileOrders } from '../features/profile/ui/ProfileOrders';
+import { ProfileAddressBook } from '../features/profile/ui/ProfileAddressBook';
 import { getAccessToken } from "../components/authSession";
 import { getTrackingOrders } from "../features/order-tracking/services/orderTrackingService";
 
@@ -31,7 +32,6 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
   const [fullName, setFullName] = useState(displayUser.fullName || displayUser.name || "");
   const [phone, setPhone] = useState(displayUser.phone || "");
   const [avatar, setAvatar] = useState(displayUser.avatarUrl || displayUser.avatar || "");
-  const [address, setAddress] = useState(displayUser.address || "");
   const [isCustomAvatarUrl, setIsCustomAvatarUrl] = useState(false);
   const [customUrlInput, setCustomUrlInput] = useState("");
   const [loadingInfo, setLoadingInfo] = useState(false);
@@ -73,7 +73,6 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
       setFullName(user.fullName || user.name || "");
       setPhone(user.phone || "");
       setAvatar(user.avatarUrl || user.avatar || "");
-      setAddress(user.address || "");
     }
   }, [user]);
 
@@ -117,7 +116,6 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
           fullName,
           phone: phone || undefined,
           avatar: avatar || undefined,
-          address: address || undefined,
         }),
       });
 
@@ -325,16 +323,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold mb-2">Địa chỉ nhận hàng mặc định</label>
-                  <input
-                    type="text"
-                    placeholder="Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành phố"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    className="w-full rounded-xl border bg-input-background py-3 px-4 text-sm outline-none focus:border-primary text-foreground"
-                  />
-                </div>
+                <ProfileAddressBook userId={user?.id ?? null} />
 
                 {/* Avatar Design Section */}
                 <div className="space-y-4 border-t pt-6">

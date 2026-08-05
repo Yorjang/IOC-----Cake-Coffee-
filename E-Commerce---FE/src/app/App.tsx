@@ -13,7 +13,7 @@ import { AppRoutes } from "./components/AppRoutes";
 import { useAppState } from "./hooks/useAppState";
 import { useCartState } from "./hooks/useCartState";
 import { NAV_PAGES, VIEW_KEYS } from "../config/appConfig";
-import { STORE_STORAGE_KEY, getPathFromView, VIEW_PATH_MAP, parsePrice } from '../utils/appUtils';
+import { STORE_STORAGE_KEY, getOrderIdFromPath, getPathFromView, getViewFromPath, parsePrice } from '../utils/appUtils';
 import { clearAuthSession } from "./components/authSession";
 import { rememberTrackingOrder } from "./features/order-tracking/services/orderTrackingService";
 
@@ -27,7 +27,7 @@ export default function App() {
     wishlist, setWishlist, user, setUser,
     selectedStore, setSelectedStore, availableStores,
     showStorePopup, setShowStorePopup, manualLocationRequired,
-    lastCreatedOrder, setLastCreatedOrder, selectedOrderId,
+    lastCreatedOrder, setLastCreatedOrder, selectedOrderId, setSelectedOrderId,
     products, categories, publicCoupons, refreshPublicCoupons
   } = appState;
 
@@ -40,28 +40,31 @@ export default function App() {
   const setView = (newView: string, id?: string) => {
     setViewInternal(newView);
     if (newView !== VIEW_KEYS.DETAIL) setSelectedProduct(null);
-    if (newView !== VIEW_KEYS.TRACKING) {
+    if (newView !== VIEW_KEYS.TRACKING && newView !== VIEW_KEYS.PAYMENT) {
       window.scrollTo({ top: 0, behavior: "smooth" });
       setSelectedOrderId(null);
     } else if (id) {
       setSelectedOrderId(id);
     }
-    const path = getPathFromView(newView);
-    if (path) window.history.pushState(null, "", path);
+    const path = getPathFromView(newView, newView === VIEW_KEYS.DETAIL ? selectedProduct : undefined, id);
+    if (path && window.location.pathname !== path) window.history.pushState(null, "", path);
   };
 
   useEffect(() => {
     const handlePopState = () => {
-      const path = window.location.pathname;
-      let matchedView: string = VIEW_KEYS.HOME;
-      for (const [key, val] of Object.entries(VIEW_PATH_MAP)) {
-        if (val === path) matchedView = key;
-      }
+      const matchedView = getViewFromPath(window.location.pathname, categories);
       setViewInternal(matchedView);
+      if (matchedView !== VIEW_KEYS.DETAIL) setSelectedProduct(null);
+      if (matchedView === VIEW_KEYS.PAYMENT) {
+        setSelectedOrderId(getOrderIdFromPath(window.location.pathname));
+      } else if (matchedView !== VIEW_KEYS.TRACKING) {
+        setSelectedOrderId(null);
+      }
+      window.scrollTo({ top: 0, behavior: 'auto' });
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [setViewInternal]);
+  }, [categories, setSelectedOrderId, setSelectedProduct, setViewInternal]);
 
   useEffect(() => {
     if (selectedStore) {
