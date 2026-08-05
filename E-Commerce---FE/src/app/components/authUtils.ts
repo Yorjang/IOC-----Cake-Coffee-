@@ -72,7 +72,7 @@ export function validateRegisterFields(fullName: string, email: string, phone: s
   return err;
 }
 
-export async function apiLogin(email: string, password: string, remember: boolean, onSuccess: () => void) {
+export async function apiLogin(email: string, password: string, remember: boolean, onSuccess: (user: unknown) => void) {
   const res = await fetch(`${env.API_URL}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -84,7 +84,7 @@ export async function apiLogin(email: string, password: string, remember: boolea
 
   saveAuthSession(data, remember);
   toast.success("Đăng nhập thành công!");
-  onSuccess();
+  onSuccess(data.user);
 }
 
 export async function apiRegister(
@@ -92,7 +92,7 @@ export async function apiRegister(
   email: string,
   phone: string | undefined,
   password: string,
-  onSuccess: () => void,
+  onSuccess: (user: unknown) => void,
   setMode: (m: AuthMode) => void,
 ): Promise<AuthErrors | null> {
   const res = await fetch(`${env.API_URL}/auth/register`, {
@@ -122,7 +122,7 @@ export async function apiRegister(
   } else {
     saveAuthSession(data, false);
     toast.success(data.message || VERIFY_EMAIL_MESSAGE, { duration: 8000 });
-    onSuccess();
+    onSuccess(data.user);
   }
 
   return null;
@@ -155,7 +155,7 @@ export async function apiResetPassword(token: string, password: string): Promise
   return true;
 }
 
-export async function apiGoogleLogin(idToken: string, remember: boolean, onSuccess: () => void) {
+export async function apiGoogleLogin(idToken: string, remember: boolean, onSuccess: (user: unknown) => void) {
   const res = await fetch(`${env.API_URL}/auth/google-login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -166,6 +166,6 @@ export async function apiGoogleLogin(idToken: string, remember: boolean, onSucce
 
   saveAuthSession(data, remember);
   toast.success("Đăng nhập bằng Google thành công!");
-  onSuccess();
+  onSuccess(data.user);
 }
 

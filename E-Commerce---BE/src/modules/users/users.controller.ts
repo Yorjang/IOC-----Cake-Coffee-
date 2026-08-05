@@ -11,10 +11,47 @@ import { UpdateRoleDto } from './dto/update-role.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './user.entity';
 import { UsersService } from './users.service';
+import { CreateUserAddressDto } from './dto/create-user-address.dto';
+import { UpdateUserAddressDto } from './dto/update-user-address.dto';
+import { UserAddressesService } from './user-addresses.service';
 
 @Controller(['admin/users', 'users'])
 export class UsersController {
-    constructor(private readonly usersService: UsersService) {}
+    constructor(
+        private readonly usersService: UsersService,
+        private readonly userAddressesService: UserAddressesService,
+    ) {}
+
+    @Get('addresses')
+    @UseGuards(JwtAuthGuard)
+    getAddresses(@CurrentUser() user: User) {
+        return this.userAddressesService.findAll(user.id);
+    }
+
+    @Post('addresses')
+    @UseGuards(JwtAuthGuard)
+    createAddress(@CurrentUser() user: User, @Body() dto: CreateUserAddressDto) {
+        return this.userAddressesService.create(user.id, dto);
+    }
+
+    @Patch('addresses/:addressId')
+    @UseGuards(JwtAuthGuard)
+    updateAddress(
+        @CurrentUser() user: User,
+        @Param('addressId', ParseUUIDPipe) addressId: string,
+        @Body() dto: UpdateUserAddressDto,
+    ) {
+        return this.userAddressesService.update(user.id, addressId, dto);
+    }
+
+    @Delete('addresses/:addressId')
+    @UseGuards(JwtAuthGuard)
+    async deleteAddress(
+        @CurrentUser() user: User,
+        @Param('addressId', ParseUUIDPipe) addressId: string,
+    ) {
+        await this.userAddressesService.remove(user.id, addressId);
+    }
 
     @Get('me')
     @UseGuards(JwtAuthGuard)

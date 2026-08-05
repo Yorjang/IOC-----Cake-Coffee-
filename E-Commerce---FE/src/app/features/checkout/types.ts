@@ -23,3 +23,24 @@ export interface DeliveryQuote {
   durationMinutes: number | null;
   shippingFee: number;
 }
+
+export interface SavedAddress {
+  id: string;
+  recipientName: string;
+  phone: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  label: string | null;
+  isDefault: boolean;
+}
+
+export interface SavedAddressPayload {
+  recipientName: string;
+  phone: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  label?: string;
+  isDefault?: boolean;
+}
