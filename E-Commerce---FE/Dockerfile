@@ -11,60 +11,81 @@ COPY src ./src
 
 RUN npm run build
 
-FROM nginx:1.27-alpine AS production
+FROM node:22-bookworm-slim AS production
 
-RUN apk add --no-cache jq
+ENV NODE_ENV=production
+WORKDIR /app
 
-COPY <<'EOF' /etc/nginx/conf.d/default.conf
-server {
-    listen 80;
-    listen [::]:80;
-    server_name _;
+COPY --from=builder /app/dist ./dist
 
-    root /usr/share/nginx/html;
-    index index.html;
+COPY <<'EOF' /app/server.mjs
+import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { extname, join, normalize } from 'node:path';
 
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
+const port = Number(process.env.PORT) || 8080;
+const publicDir = join(process.cwd(), 'dist');
+const mimeTypes = {
+  '.css': 'text/css; charset=utf-8',
+  '.gif': 'image/gif',
+  '.html': 'text/html; charset=utf-8',
+  '.ico': 'image/x-icon',
+  '.jpeg': 'image/jpeg',
+  '.jpg': 'image/jpeg',
+  '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.webp': 'image/webp',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+};
 
-    location = /env-config.js {
-        add_header Cache-Control "no-store, no-cache, must-revalidate";
-        expires -1;
-        try_files $uri =404;
-    }
+const runtimeEnvKeys = [
+  'VITE_API_URL',
+  'VITE_APP_NAME',
+  'VITE_GOOGLE_CLIENT_ID',
+  'VITE_GEOCODING_API_URL',
+  'VITE_SUPABASE_URL',
+  'VITE_SUPABASE_ANON_KEY',
+];
 
-    location ~* \.(?:css|js|mjs|svg|png|jpg|jpeg|gif|webp|ico|woff2?)$ {
-        expires 7d;
-        add_header Cache-Control "public, immutable";
-        try_files $uri =404;
-    }
+createServer((request, response) => {
+  const requestPath = new URL(request.url ?? '/', 'http://localhost').pathname;
 
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-}
+  if (requestPath === '/env-config.js') {
+    const runtimeEnv = Object.fromEntries(
+      runtimeEnvKeys.map((key) => [key, process.env[key] ?? '']),
+    );
+    response.writeHead(200, {
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'Content-Type': 'text/javascript; charset=utf-8',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    response.end(`window.__RUNTIME_ENV__ = ${JSON.stringify(runtimeEnv)};`);
+    return;
+  }
+
+  const safePath = normalize(requestPath).replace(/^(\.\.(\/|\\|$))+/, '');
+  let filePath = join(publicDir, safePath);
+  if (!existsSync(filePath) || !statSync(filePath).isFile()) {
+    filePath = join(publicDir, 'index.html');
+  }
+
+  const extension = extname(filePath).toLowerCase();
+  response.writeHead(200, {
+    'Cache-Control': extension === '.html' ? 'no-cache' : 'public, max-age=604800, immutable',
+    'Content-Type': mimeTypes[extension] ?? 'application/octet-stream',
+    'X-Content-Type-Options': 'nosniff',
+  });
+  createReadStream(filePath).pipe(response);
+}).listen(port, '0.0.0.0', () => {
+  console.log(`Frontend is running on port ${port}`);
+});
 EOF
 
-COPY <<'EOF' /docker-entrypoint.d/15-runtime-env.sh
-#!/bin/sh
-set -eu
+USER node
+EXPOSE 8080
 
-jq -n \
-  --arg VITE_API_URL "${VITE_API_URL:-http://localhost:3000}" \
-  --arg VITE_APP_NAME "${VITE_APP_NAME:-Sweet Bean Coffee & Cake}" \
-  --arg VITE_GOOGLE_CLIENT_ID "${VITE_GOOGLE_CLIENT_ID:-}" \
-  --arg VITE_GEOCODING_API_URL "${VITE_GEOCODING_API_URL:-https://photon.komoot.io}" \
-  --arg VITE_SUPABASE_URL "${VITE_SUPABASE_URL:-}" \
-  --arg VITE_SUPABASE_ANON_KEY "${VITE_SUPABASE_ANON_KEY:-}" \
-  '$ARGS.named' \
-  | sed '1s/^/window.__RUNTIME_ENV__ = /; $s/$/;/' \
-  > /usr/share/nginx/html/env-config.js
-EOF
-
-RUN chmod +x /docker-entrypoint.d/15-runtime-env.sh
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "server.mjs"]
