@@ -5,6 +5,7 @@ import { type StoreLocation } from '../data/storeLocations';
 import { getDiscountedPrice } from '../app/components/shared';
 import { LoadingScreen } from '../app/components/LoadingScreen';
 import { Toaster } from '../app/components/ui/sonner';
+import { createUuid } from './uuid';
 
 export const matchSize = (itemSize: string, targetSize: string): boolean => {
   if (!targetSize) return true;
@@ -182,7 +183,7 @@ export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-
 export const getCartSessionId = () => {
   const existing = localStorage.getItem(CART_SESSION_KEY);
   if (existing && UUID_PATTERN.test(existing)) return existing;
-  const sessionId = crypto.randomUUID();
+  const sessionId = createUuid();
   localStorage.setItem(CART_SESSION_KEY, sessionId);
   return sessionId;
 };
