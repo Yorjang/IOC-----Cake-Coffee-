@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { env } from '../../config/env';
 import { getAccessToken } from '../components/authSession';
+import { createUuid } from '../../utils/uuid';
 
 interface CartContextType {
   cart: any[];
@@ -20,7 +21,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3
 const getCartSessionId = () => {
   const existing = localStorage.getItem(CART_SESSION_KEY);
   if (existing && UUID_PATTERN.test(existing)) return existing;
-  const sessionId = crypto.randomUUID();
+  const sessionId = createUuid();
   localStorage.setItem(CART_SESSION_KEY, sessionId);
   return sessionId;
 };
