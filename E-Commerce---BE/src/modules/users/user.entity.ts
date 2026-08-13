@@ -44,6 +44,10 @@ export class User {
     @Column({ type: 'text', nullable: true })
     address: string;
 
+    @Column({ type: 'int', default: 0 })
+    points: number;
+
+
     @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
     createdAt: Date;
 

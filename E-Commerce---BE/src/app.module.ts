@@ -22,6 +22,8 @@ import { StatisticsModule } from './modules/statistics/statistics.module';
 import { TagsModule } from './modules/tags/tags.module';
 import { GeocodingModule } from './modules/geocoding/geocoding.module';
 
+import { PointsModule } from './modules/points/points.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -59,6 +61,7 @@ import { GeocodingModule } from './modules/geocoding/geocoding.module';
     StatisticsModule,
     SettingsModule,
     GeocodingModule,
+    PointsModule,
   ],
   controllers: [],
   providers: [],

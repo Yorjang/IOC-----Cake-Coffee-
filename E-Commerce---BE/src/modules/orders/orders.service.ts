@@ -4,6 +4,9 @@ import { DataSource, Repository } from 'typeorm';
 import { CartService } from '../cart/cart.service';
 import { BranchesService } from '../branches/branches.service';
 import { PaymentsService } from '../payments/payments.service';
+import { PointsService } from '../points/points.service';
+import { PointTransactionType } from '../points/point-history.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 import { User, UserRole } from '../users/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatusHistory } from './order-status-history.entity';
@@ -31,6 +34,8 @@ export class OrdersService {
     private readonly cartService: CartService,
     private readonly branchesService: BranchesService,
     private readonly dataSource: DataSource,
+    private readonly pointsService: PointsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
 
@@ -57,9 +62,36 @@ export class OrdersService {
 
       const previousStatus = order.orderStatus;
       order.orderStatus = status;
-      if (status === OrderStatus.COMPLETED) {
+      if (status === OrderStatus.COMPLETED && previousStatus !== OrderStatus.COMPLETED) {
         order.paymentStatus = PaymentStatus.PAID;
         order.paidAt = new Date();
+
+        if (order.userId) {
+          const earnedPoints = Math.floor(Number(order.totalAmount) / 1000);
+          if (earnedPoints > 0) {
+            try {
+              await this.pointsService.addPoints(
+                order.userId,
+                earnedPoints,
+                PointTransactionType.ORDER_COMPLETED,
+                order.id,
+                `Tích điểm từ đơn hàng ${order.orderCode}`,
+                manager,
+              );
+
+              this.notificationsService
+                .createNotification(order.userId, {
+                  orderId: order.id,
+                  type: 'points_reward',
+                  title: 'Bạn đã nhận được điểm thưởng!',
+                  message: `Chúc mừng! Bạn đã nhận được +${earnedPoints} điểm thưởng từ đơn hàng ${order.orderCode}.`,
+                })
+                .catch((err) => console.error('Failed to send order completion points notification:', err));
+            } catch (err) {
+              console.error('Failed to award points for completed order:', err);
+            }
+          }
+        }
       }
 
       if (status === OrderStatus.CANCELLED && previousStatus !== OrderStatus.CANCELLED) {
