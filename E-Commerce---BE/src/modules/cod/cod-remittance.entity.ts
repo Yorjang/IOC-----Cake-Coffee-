@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn, Index } from 'typeorm';
 import { User } from '../users/user.entity';
 
 export enum CodRemittanceStatus {
@@ -7,6 +7,8 @@ export enum CodRemittanceStatus {
 }
 
 @Entity('cod_remittances')
+@Index(['shipperId', 'status'])
+@Index(['createdAt'])
 export class CodRemittance {
   @PrimaryGeneratedColumn('uuid')
   id: string;

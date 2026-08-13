@@ -19,36 +19,6 @@ export class CodService {
       throw new ForbiddenException('Only shippers can create remit requests');
     }
 
-    // Lấy các đơn hàng đã giao thành công, thanh toán COD mà chưa được đối soát (chưa thuộc về remit request nào đã hoàn thành)
-    // Để đơn giản, ta sẽ tính tổng COD của tất cả các đơn COD đã giao, trừ đi tổng các lần remit đã completed.
-    // Hoặc cách tốt hơn: thêm cột codRemittanceId vào Order để đánh dấu đơn này đã được nộp tiền.
-    // Tạm thời tính tổng tiền đang giữ bằng tổng COD - tổng tiền đã nộp.
-    
-    const deliveredOrders = await this.ordersRepository.find({
-      where: {
-        shipperId: shipper.id,
-        deliveryStatus: DeliveryStatus.DELIVERED,
-      }
-    });
-
-    const totalCodReceived = deliveredOrders
-      .filter(o => o.paymentMethod === PaymentMethod.COD || o.paymentMethod === PaymentMethod.CASH)
-      .reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
-
-    const completedRemits = await this.codRepository.find({
-      where: {
-        shipperId: shipper.id,
-        status: CodRemittanceStatus.COMPLETED
-      }
-    });
-
-    const totalRemitted = completedRemits.reduce((sum, r) => sum + Number(r.totalActual || 0), 0);
-    const currentHolding = totalCodReceived - totalRemitted;
-
-    if (currentHolding <= 0) {
-      throw new BadRequestException('You do not have any COD amount to remit');
-    }
-
     // Check if there is already a pending request
     const pendingRequest = await this.codRepository.findOne({
       where: { shipperId: shipper.id, status: CodRemittanceStatus.PENDING }
@@ -57,6 +27,29 @@ export class CodService {
     if (pendingRequest) {
       throw new BadRequestException('You already have a pending remit request');
     }
+    
+    // Find all DELIVERED COD orders that haven't been remitted
+    const query = this.ordersRepository.createQueryBuilder('order')
+      .where('order.shipperId = :shipperId', { shipperId: shipper.id })
+      .andWhere('order.deliveryStatus = :deliveryStatus', { deliveryStatus: DeliveryStatus.DELIVERED })
+      .andWhere('order.paymentMethod IN (:...methods)', { methods: [PaymentMethod.COD, PaymentMethod.CASH] })
+      .andWhere('order.codRemittanceId IS NULL');
+
+    const unremittedOrders = await query.getMany();
+
+    const unremittedHolding = unremittedOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+
+    const lastRemit = await this.codRepository.findOne({
+      where: { shipperId: shipper.id, status: CodRemittanceStatus.COMPLETED },
+      order: { createdAt: 'DESC' }
+    });
+    const currentDebt = lastRemit ? Number(lastRemit.discrepancy) : 0;
+
+    const currentHolding = unremittedHolding + currentDebt;
+
+    if (currentHolding <= 0) {
+      throw new BadRequestException('You do not have any COD amount to remit');
+    }
 
     const remit = this.codRepository.create({
       shipperId: shipper.id,
@@ -64,7 +57,17 @@ export class CodService {
       status: CodRemittanceStatus.PENDING,
     });
 
-    return this.codRepository.save(remit);
+    const savedRemit = await this.codRepository.save(remit);
+
+    // Lock the orders to this remittance request
+    if (unremittedOrders.length > 0) {
+      await this.ordersRepository.update(
+        unremittedOrders.map(o => o.id),
+        { codRemittanceId: savedRemit.id }
+      );
+    }
+
+    return savedRemit;
   }
 
   async getMyRequests(shipper: User) {

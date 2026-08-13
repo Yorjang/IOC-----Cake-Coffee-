@@ -4,9 +4,10 @@ import { DeliveryService } from './delivery.service';
 import { DeliveryController } from './delivery.controller';
 import { Order } from '../orders/order.entity';
 import { DeliveryLog } from './delivery-log.entity';
+import { CodRemittance } from '../cod/cod-remittance.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Order, DeliveryLog])],
+  imports: [TypeOrmModule.forFeature([Order, DeliveryLog, CodRemittance])],
   providers: [DeliveryService],
   controllers: [DeliveryController],
   exports: [DeliveryService],

@@ -1,6 +1,7 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn, Index } from 'typeorm';
 import { Branch } from '../branches/branch.entity';
 import { User } from '../users/user.entity';
+import { CodRemittance } from '../cod/cod-remittance.entity';
 import { OrderItem } from './order-item.entity';
 
 export enum OrderStatus {
@@ -50,6 +51,9 @@ export enum FulfillmentType {
 }
 
 @Entity('orders')
+@Index(['branchId'])
+@Index(['orderStatus'])
+@Index(['createdAt'])
 export class Order {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -67,6 +71,7 @@ export class Order {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
+  @Index()
   @Column({ name: 'shipper_id', type: 'uuid', nullable: true })
   shipperId: string;
 
@@ -102,6 +107,7 @@ export class Order {
   @Column({ name: 'payment_status', type: 'enum', enum: PaymentStatus, default: PaymentStatus.PENDING })
   paymentStatus: PaymentStatus;
 
+  @Index()
   @Column({ name: 'order_status', type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })
   orderStatus: OrderStatus;
 
@@ -111,6 +117,7 @@ export class Order {
   @Column({ name: 'fulfillment_type', type: 'enum', enum: FulfillmentType, default: FulfillmentType.DELIVERY })
   fulfillmentType: FulfillmentType;
 
+  @Index()
   @Column({ name: 'delivery_status', type: 'enum', enum: DeliveryStatus, nullable: true })
   deliveryStatus: DeliveryStatus;
 
@@ -146,6 +153,14 @@ export class Order {
 
   @Column({ type: 'text', nullable: true })
   note: string;
+
+  @Index()
+  @Column({ name: 'cod_remittance_id', type: 'uuid', nullable: true })
+  codRemittanceId: string;
+
+  @ManyToOne(() => CodRemittance)
+  @JoinColumn({ name: 'cod_remittance_id' })
+  codRemittance: CodRemittance;
 
   @Column({ name: 'refund_info', type: 'jsonb', nullable: true })
   refundInfo: any;

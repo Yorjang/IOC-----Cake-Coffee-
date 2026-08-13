@@ -1,8 +1,11 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Index } from 'typeorm';
 import { Order, DeliveryStatus } from '../orders/order.entity';
 import { User } from '../users/user.entity';
 
 @Entity('delivery_logs')
+@Index(['orderId'])
+@Index(['shipperId'])
+@Index(['createdAt'])
 export class DeliveryLog {
   @PrimaryGeneratedColumn('uuid')
   id: string;

@@ -47,12 +47,44 @@ export class DeliveryController {
   }
 
   @Post(':id/complete')
-  async completeDelivery(@Param('id') id: string, @Request() req: any) {
-    return this.deliveryService.completeDelivery(id, req.user);
+  async completeDelivery(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body('imageUrl') imageUrl: string,
+    @Body('lat') lat: number,
+    @Body('lng') lng: number,
+  ) {
+    return this.deliveryService.completeDelivery(id, req.user, imageUrl, lat, lng);
   }
 
   @Post(':id/fail')
-  async failDelivery(@Param('id') id: string, @Body('reason') reason: string, @Request() req: any) {
-    return this.deliveryService.failDelivery(id, req.user, reason);
+  @Permissions(Permission.MANAGE_DELIVERIES)
+  async failDelivery(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body('reason') reason: string,
+    @Body('lat') lat: number,
+    @Body('lng') lng: number,
+  ) {
+    return this.deliveryService.failDelivery(id, req.user, reason, lat, lng);
+  }
+
+  // ==== ADMIN/MANAGER ENDPOINTS ====
+
+  @Get('admin/failed')
+  @Permissions(Permission.UPDATE_ORDER)
+  async getFailedDeliveries(@Request() req: any) {
+    // Nếu là store_manager thì chỉ lấy theo nhánh
+    const branchId = req.user.role === 'store_manager' ? req.user.branchId : undefined;
+    return this.deliveryService.getFailedDeliveries(branchId);
+  }
+
+  @Post(':id/resolve-fail')
+  @Permissions(Permission.UPDATE_ORDER)
+  async resolveFailedDelivery(
+    @Param('id') id: string,
+    @Body('action') action: 'cancel' | 'reassign'
+  ) {
+    return this.deliveryService.resolveFailedDelivery(id, action);
   }
 }
