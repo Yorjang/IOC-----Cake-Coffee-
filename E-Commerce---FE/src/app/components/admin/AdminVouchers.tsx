@@ -38,6 +38,8 @@ export function AdminVouchers() {
   const [description, setDescription] = useState("");
   const [availableSizes, setAvailableSizes] = useState<string[]>([]);
   const [isActive, setIsActive] = useState(true);
+  const [pointsRequired, setPointsRequired] = useState("");
+  const [discountedPointsRequired, setDiscountedPointsRequired] = useState("");
   const [branches, setBranches] = useState<any[]>([]);
   const [branchId, setBranchId] = useState(isManager ? user?.branchId || "" : "");
 
@@ -144,6 +146,8 @@ export function AdminVouchers() {
           branchId: branchId || null,
           description: description || "",
           isActive: isActive,
+          pointsRequired: pointsRequired ? Number(pointsRequired) : 0,
+          discountedPointsRequired: discountedPointsRequired ? Number(discountedPointsRequired) : null,
         }),
       });
       const data = await parseRes(res);
@@ -161,6 +165,8 @@ export function AdminVouchers() {
         setTargetSize("");
         setBranchId(isManager ? user?.branchId || "" : "");
         setDescription("");
+        setPointsRequired("");
+        setDiscountedPointsRequired("");
         setIsActive(true);
         setEditingVoucher(null);
         loadCoupons();
@@ -190,6 +196,8 @@ export function AdminVouchers() {
     setTargetSize(v.targetSize || "");
     setBranchId(v.branchId || "");
     setDescription(v.description || "");
+    setPointsRequired(v.pointsRequired ? String(v.pointsRequired) : "");
+    setDiscountedPointsRequired(v.discountedPointsRequired ? String(v.discountedPointsRequired) : "");
     setIsActive(v.isActive !== false);
   };
 
@@ -207,6 +215,8 @@ export function AdminVouchers() {
     setTargetSize("");
     setBranchId(isManager ? user?.branchId || "" : "");
     setDescription("");
+    setPointsRequired("");
+    setDiscountedPointsRequired("");
     setIsActive(true);
   };
 
@@ -318,6 +328,17 @@ export function AdminVouchers() {
                         🏬 {v.branch.name}
                       </span>
                     )}
+                    {v.pointsRequired && Number(v.pointsRequired) > 0 ? (
+                      v.discountedPointsRequired && Number(v.discountedPointsRequired) > 0 && Number(v.discountedPointsRequired) < Number(v.pointsRequired) ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-1 text-xs text-red-500 font-semibold ml-1">
+                          🔥 {v.discountedPointsRequired} điểm <span className="line-through opacity-60 text-[10px]">{v.pointsRequired}</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs text-amber-500 font-semibold ml-1">
+                          ⭐ {v.pointsRequired} điểm
+                        </span>
+                      )
+                    ) : null}
                   </td>
                   <td className="py-3 font-semibold text-foreground">
                     {v.discountType === "percent" ? `${Math.round(Number(v.discountValue))}%` : formatMoney(Number(v.discountValue))}
@@ -424,6 +445,20 @@ export function AdminVouchers() {
               onChange={e => setMaxDiscount(e.target.value)}
             />
           )}
+          <input
+            type="number"
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent"
+            placeholder="Số điểm gốc để đổi (VD: 15000)"
+            value={pointsRequired}
+            onChange={e => setPointsRequired(e.target.value)}
+          />
+          <input
+            type="number"
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent"
+            placeholder="Số điểm ưu đãi/discount (để trống nếu không giảm)"
+            value={discountedPointsRequired}
+            onChange={e => setDiscountedPointsRequired(e.target.value)}
+          />
           <input
             type="number"
             className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent"

@@ -22,6 +22,12 @@ export class CouponsController {
     return this.couponsService.findPublicActive(userId, branchId);
   }
 
+  @Get('redeemable')
+  @Public()
+  findRedeemable(@Query('branchId') branchId?: string) {
+    return this.couponsService.findRedeemableCoupons(branchId);
+  }
+
 
   @Get()
   @Permissions(Permission.VIEW_BRANCHES) // Staff, managers, admins
@@ -59,6 +65,15 @@ export class CouponsController {
   @Permissions(Permission.MANAGE_BRANCHES) // Managers and admins only
   delete(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
     return this.couponsService.delete(id, user);
+  }
+
+  @Post(':id/redeem')
+  @UseGuards(JwtAuthGuard)
+  redeem(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.couponsService.redeemCouponWithPoints(user.id, id);
   }
 }
 

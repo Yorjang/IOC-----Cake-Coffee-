@@ -70,9 +70,63 @@ export function ProfilePoints() {
     }
   };
 
+  const [redeemableCoupons, setRedeemableCoupons] = useState<any[]>([]);
+  const [redeemingId, setRedeemingId] = useState<string | null>(null);
+
+  const fetchRedeemableCoupons = async () => {
+    const token = getAccessToken();
+    try {
+      const res = await fetch(`${env.API_URL}/coupons/redeemable`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await parseRes(res);
+        setRedeemableCoupons(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     fetchPointData(1);
+    fetchRedeemableCoupons();
   }, []);
+
+  const handleRedeem = async (couponId: string, code: string, pointsReq: number) => {
+    if (points < pointsReq) {
+      toast.error(`Bạn không đủ điểm thưởng! Cần ${pointsReq} điểm (bạn hiện có ${points} điểm).`);
+      return;
+    }
+    if (!window.confirm(`Bạn có chắc muốn dùng ${pointsReq} điểm để đổi Voucher ${code} không?`)) return;
+
+    const token = getAccessToken();
+    if (!token) {
+      toast.error("Vui lòng đăng nhập để đổi voucher.");
+      return;
+    }
+
+    setRedeemingId(couponId);
+    try {
+      const res = await fetch(`${env.API_URL}/coupons/${couponId}/redeem`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await parseRes(res);
+      if (res.ok) {
+        toast.success(data.message || `Đổi mã ${code} thành công!`);
+        fetchPointData(1);
+        fetchRedeemableCoupons();
+      } else {
+        toast.error(data.message || 'Không thể đổi voucher.');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi kết nối khi đổi voucher.');
+    } finally {
+      setRedeemingId(null);
+    }
+  };
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -98,6 +152,12 @@ export function ProfilePoints() {
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
             <ShieldCheck size={12} /> Điều chỉnh Admin
+          </span>
+        );
+      case 'points_redeemed':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+            <Award size={12} /> Đổi Voucher
           </span>
         );
       default:
@@ -161,6 +221,100 @@ export function ProfilePoints() {
           </p>
         </div>
       </div>
+
+      {/* Redeemable Vouchers Section */}
+      {redeemableCoupons.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="font-bold text-base text-foreground font-serif flex items-center gap-2">
+              <Award size={18} className="text-amber-500" /> Đổi Voucher bằng Điểm thưởng
+            </h4>
+            <span className="text-xs text-muted-foreground font-medium">
+              Dùng điểm thưởng của bạn để nhận Voucher giảm giá
+            </span>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {redeemableCoupons.map((c) => {
+              const origPoints = Number(c.pointsRequired || 0);
+              const discPoints = c.discountedPointsRequired !== null && c.discountedPointsRequired !== undefined ? Number(c.discountedPointsRequired) : null;
+              const hasDiscount = discPoints !== null && discPoints >= 0 && discPoints < origPoints;
+              const effectivePoints = hasDiscount ? discPoints : origPoints;
+              const hasRedeemed = !!c.hasRedeemed;
+              const canRedeem = points >= effectivePoints && !hasRedeemed;
+              const isRedeeming = redeemingId === c.id;
+
+              return (
+                <div
+                  key={c.id}
+                  className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-card p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-base text-primary uppercase">{c.code}</span>
+                        {hasDiscount ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/15 text-red-600 dark:text-red-400 flex items-center gap-1">
+                            🔥 {discPoints} điểm <span className="line-through text-muted-foreground opacity-75 font-normal">{origPoints}</span>
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                            ⭐ {origPoints} điểm
+                          </span>
+                        )}
+                        {hasRedeemed && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-500/15 text-green-600 dark:text-green-400">
+                            ✓ Đã đổi
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs font-semibold text-foreground mt-1">
+                        {c.discountType === 'percent' ? `Giảm ${Math.round(Number(c.discountValue))}%` : `Giảm ${Number(c.discountValue).toLocaleString('vi-VN')}đ`}
+                        {c.minOrderValue > 0 ? ` cho đơn từ ${Number(c.minOrderValue).toLocaleString('vi-VN')}đ` : ''}
+                      </p>
+                      {c.description && <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{c.description}</p>}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-border">
+                    <span className="text-[11px] text-muted-foreground">
+                      Hạn dùng: {new Date(c.expiresAt).toLocaleDateString('vi-VN')}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={!canRedeem || isRedeeming}
+                      onClick={() => handleRedeem(c.id, c.code, effectivePoints)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs ${
+                        hasRedeemed
+                          ? 'bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20 cursor-default'
+                          : canRedeem
+                            ? 'bg-amber-500 hover:bg-amber-600 text-white active:scale-95'
+                            : 'bg-muted text-muted-foreground cursor-not-allowed'
+                      }`}
+                    >
+                      {isRedeeming ? (
+                        <>
+                          <Loader2 size={12} className="animate-spin" /> Đang đổi...
+                        </>
+                      ) : hasRedeemed ? (
+                        <>
+                          <ShieldCheck size={13} /> Đã sở hữu
+                        </>
+                      ) : canRedeem ? (
+                        <>
+                          <Award size={13} /> Đổi ({effectivePoints}pt)
+                        </>
+                      ) : (
+                        `Thiếu ${effectivePoints - points} điểm`
+                      )}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Point History Table */}
       <div className="space-y-4">

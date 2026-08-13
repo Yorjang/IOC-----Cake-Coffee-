@@ -102,6 +102,12 @@ export class Coupon {
   @Column({ name: 'is_pending_delete', type: 'boolean', default: false })
   isPendingDelete: boolean;
 
+  @Column({ name: 'points_required', type: 'integer', default: 0 })
+  pointsRequired: number;
+
+  @Column({ name: 'discounted_points_required', type: 'integer', nullable: true })
+  discountedPointsRequired?: number | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }

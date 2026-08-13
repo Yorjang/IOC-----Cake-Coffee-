@@ -17,12 +17,6 @@ export class PointsService implements OnModuleInit {
 
   async onModuleInit() {
     try {
-      const allUsers = await this.dataSource.query(`SELECT id, full_name, email, points FROM users`);
-      console.log('[DEBUG Points] All users in database:', JSON.stringify(allUsers, null, 2));
-    } catch (e) {
-      console.error(e);
-    }
-    try {
       await this.pointHistoryRepository.query(`
         ALTER TABLE users ADD COLUMN IF NOT EXISTS points INT DEFAULT 0;
         
@@ -107,7 +101,6 @@ export class PointsService implements OnModuleInit {
    * Automatically check and award missing points for any completed orders of the user
    */
   async syncMissingPointsForCompletedOrders(userId: string) {
-    console.log('[DEBUG Points] syncMissingPointsForCompletedOrders for userId:', userId);
     if (!userId) return;
 
     try {
@@ -118,7 +111,6 @@ export class PointsService implements OnModuleInit {
            AND LOWER(order_status::text) = 'completed'`,
         [userId],
       );
-      console.log('[DEBUG Points] Found completed orders count:', completedOrders?.length);
 
       if (!completedOrders || completedOrders.length === 0) return;
 
@@ -139,7 +131,6 @@ export class PointsService implements OnModuleInit {
           const earnedPoints = Math.floor(eligibleAmount / 1000);
 
           if (earnedPoints > 0) {
-            console.log(`[DEBUG Points] Awarding +${earnedPoints} points for order ${order.order_code} to userId: ${userId}`);
             await this.addPoints(
               userId,
               earnedPoints,
@@ -172,8 +163,6 @@ export class PointsService implements OnModuleInit {
       take: 20,
     });
 
-    console.log(`[DEBUG Points] getUserPoints -> userId: ${userId}, email: ${user.email}, points: ${user.points}`);
-
     return {
       points: user.points || 0,
       history,
@@ -201,8 +190,6 @@ export class PointsService implements OnModuleInit {
       take: limitNum,
       skip,
     });
-
-    console.log(`[DEBUG Points] getUserPointHistory -> userId: ${userId}, email: ${user.email}, points: ${user.points}, itemsCount: ${items.length}`);
 
     return {
       points: user.points || 0,
