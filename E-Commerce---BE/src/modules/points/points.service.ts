@@ -17,6 +17,12 @@ export class PointsService implements OnModuleInit {
 
   async onModuleInit() {
     try {
+      const allUsers = await this.dataSource.query(`SELECT id, full_name, email, points FROM users`);
+      console.log('[DEBUG Points] All users in database:', JSON.stringify(allUsers, null, 2));
+    } catch (e) {
+      console.error(e);
+    }
+    try {
       await this.pointHistoryRepository.query(`
         ALTER TABLE users ADD COLUMN IF NOT EXISTS points INT DEFAULT 0;
         
@@ -98,9 +104,63 @@ export class PointsService implements OnModuleInit {
   }
 
   /**
+   * Automatically check and award missing points for any completed orders of the user
+   */
+  async syncMissingPointsForCompletedOrders(userId: string) {
+    console.log('[DEBUG Points] syncMissingPointsForCompletedOrders for userId:', userId);
+    if (!userId) return;
+
+    try {
+      const completedOrders = await this.dataSource.query(
+        `SELECT id, order_code, total_amount, shipping_fee, user_id 
+         FROM orders 
+         WHERE (user_id = $1 OR user_id::text = $1::text OR (shipping_address_phone IS NOT NULL AND shipping_address_phone != '' AND shipping_address_phone = (SELECT phone FROM users WHERE id = $1 AND phone IS NOT NULL AND phone != '')))
+           AND LOWER(order_status::text) = 'completed'`,
+        [userId],
+      );
+      console.log('[DEBUG Points] Found completed orders count:', completedOrders?.length);
+
+      if (!completedOrders || completedOrders.length === 0) return;
+
+      for (const order of completedOrders) {
+        const existingRecord = await this.pointHistoryRepository.findOne({
+          where: {
+            userId,
+            referenceId: order.id,
+            type: PointTransactionType.ORDER_COMPLETED,
+          },
+        });
+
+        if (!existingRecord) {
+          const eligibleAmount = Math.max(
+            0,
+            Number(order.total_amount || 0) - Number(order.shipping_fee || 0),
+          );
+          const earnedPoints = Math.floor(eligibleAmount / 1000);
+
+          if (earnedPoints > 0) {
+            console.log(`[DEBUG Points] Awarding +${earnedPoints} points for order ${order.order_code} to userId: ${userId}`);
+            await this.addPoints(
+              userId,
+              earnedPoints,
+              PointTransactionType.ORDER_COMPLETED,
+              order.id,
+              `Tích điểm từ đơn hàng ${order.order_code}`,
+            );
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to sync missing points for completed orders:', err);
+    }
+  }
+
+  /**
    * Get current points and recent history for authenticated user
    */
   async getUserPoints(userId: string) {
+    await this.syncMissingPointsForCompletedOrders(userId);
+
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('Người dùng không tồn tại');
@@ -112,6 +172,8 @@ export class PointsService implements OnModuleInit {
       take: 20,
     });
 
+    console.log(`[DEBUG Points] getUserPoints -> userId: ${userId}, email: ${user.email}, points: ${user.points}`);
+
     return {
       points: user.points || 0,
       history,
@@ -122,6 +184,8 @@ export class PointsService implements OnModuleInit {
    * Paginated point history for a user
    */
   async getUserPointHistory(userId: string, page = 1, limit = 10) {
+    await this.syncMissingPointsForCompletedOrders(userId);
+
     const pageNum = Math.max(1, Number(page) || 1);
     const limitNum = Math.min(100, Math.max(1, Number(limit) || 10));
     const skip = (pageNum - 1) * limitNum;
@@ -137,6 +201,8 @@ export class PointsService implements OnModuleInit {
       take: limitNum,
       skip,
     });
+
+    console.log(`[DEBUG Points] getUserPointHistory -> userId: ${userId}, email: ${user.email}, points: ${user.points}, itemsCount: ${items.length}`);
 
     return {
       points: user.points || 0,

@@ -94,6 +94,7 @@ export const getPathFromView = (view: string, product?: any, entityId?: string) 
 export const getViewFromPath = (path: string, cats: any[] = []) => {
   if (path.startsWith("/admin")) return VIEW_KEYS.ADMIN;
   if (path.startsWith('/thanh-toan-don-hang/')) return VIEW_KEYS.PAYMENT;
+  if (path.startsWith('/ho-so')) return VIEW_KEYS.PROFILE;
   for (const [key, value] of Object.entries(VIEW_PATH_MAP)) {
     if (value === path) return key;
   }

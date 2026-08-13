@@ -24,6 +24,20 @@ export class NotificationsService implements OnModuleInit {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
+        ALTER TABLE notifications ADD COLUMN IF NOT EXISTS order_id UUID REFERENCES orders(id) ON DELETE SET NULL;
+        ALTER TABLE notifications ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+        DO $$ 
+        BEGIN 
+          ALTER TABLE notifications ALTER COLUMN type TYPE VARCHAR(50) USING type::text;
+        EXCEPTION WHEN OTHERS THEN 
+          NULL;
+        END $$;
+        DO $$ 
+        BEGIN 
+          ALTER TYPE notification_type ADD VALUE IF NOT EXISTS 'points_reward';
+        EXCEPTION WHEN OTHERS THEN 
+          NULL;
+        END $$;
         CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
         CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
       `);
@@ -44,16 +58,34 @@ export class NotificationsService implements OnModuleInit {
   ): Promise<Notification> {
     if (!userId) return null;
 
-    const notification = this.notificationRepository.create({
-      userId,
-      orderId: data.orderId || null,
-      type: data.type,
-      title: data.title,
-      message: data.message,
-      isRead: false,
-    });
+    try {
+      const notification = this.notificationRepository.create({
+        userId,
+        orderId: data.orderId || null,
+        type: data.type,
+        title: data.title,
+        message: data.message,
+        isRead: false,
+      });
 
-    return this.notificationRepository.save(notification);
+      return await this.notificationRepository.save(notification);
+    } catch (err) {
+      console.error('Failed to save notification with orderId, retrying without orderId:', err);
+      try {
+        const fallbackNotification = this.notificationRepository.create({
+          userId,
+          orderId: null,
+          type: data.type,
+          title: data.title,
+          message: data.message,
+          isRead: false,
+        });
+        return await this.notificationRepository.save(fallbackNotification);
+      } catch (fallbackErr) {
+        console.error('Failed to save fallback notification:', fallbackErr);
+        return null;
+      }
+    }
   }
 
   async getUserNotifications(userId: string, page = 1, limit = 10) {

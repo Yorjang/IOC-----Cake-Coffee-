@@ -1,10 +1,11 @@
-import { Check, History, Image as ImageIcon, Lock, Phone, Save, Upload, User } from "lucide-react";
+import { Award, Check, Coins, History, Image as ImageIcon, Lock, Phone, Save, Star, Upload, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { env } from "../../config/env";
 import { parseRes } from '../../utils/api';
 import { ProfileOrders } from '../features/profile/ui/ProfileOrders';
 import { ProfileAddressBook } from '../features/profile/ui/ProfileAddressBook';
+import { ProfilePoints } from '../features/profile/ui/ProfilePoints';
 import { getAccessToken } from "../components/authSession";
 import { getTrackingOrders } from "../features/order-tracking/services/orderTrackingService";
 
@@ -16,13 +17,88 @@ const PRESET_AVATARS = [
   { name: "Tiramisu", url: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=150&auto=format&fit=crop&q=60" },
 ];
 
+const getTabFromPath = (path: string): "info" | "password" | "orders" | "points" => {
+  if (path.includes("/change-password") || path.includes("/doi-mat-khau")) return "password";
+  if (path.includes("/orders") || path.includes("/don-hang")) return "orders";
+  if (path.includes("/points") || path.includes("/diem-thuong")) return "points";
+  return "info";
+};
+
+const getPathFromTab = (tab: "info" | "password" | "orders" | "points") => {
+  switch (tab) {
+    case "password":
+      return "/ho-so/change-password";
+    case "orders":
+      return "/ho-so/orders";
+    case "points":
+      return "/ho-so/points";
+    case "info":
+    default:
+      return "/ho-so";
+  }
+};
+
 export function Profile({ user, setUser, setView, onLogout }: any) {
   const displayUser = user || { fullName: "", email: "", phone: "", avatar: "" };
 
-  // Tabs: 'info' | 'password' | 'orders'
-  const [activeTab, setActiveTab] = useState<"info" | "password" | "orders">(() => {
-    return (sessionStorage.getItem("sb_profile_tab") as any) || "info";
+  // Tabs: 'info' | 'password' | 'orders' | 'points'
+  const [activeTab, setActiveTab] = useState<"info" | "password" | "orders" | "points">(() => {
+    return getTabFromPath(window.location.pathname) || (sessionStorage.getItem("sb_profile_tab") as any) || "info";
   });
+
+  const handleTabChange = (newTab: "info" | "password" | "orders" | "points") => {
+    setActiveTab(newTab);
+    sessionStorage.setItem("sb_profile_tab", newTab);
+    const newPath = getPathFromTab(newTab);
+    if (window.location.pathname !== newPath) {
+      window.history.pushState(null, "", newPath);
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (window.location.pathname.startsWith("/ho-so")) {
+        setActiveTab(getTabFromPath(window.location.pathname));
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const [userPoints, setUserPoints] = useState<number>(user?.points || 0);
+
+  useEffect(() => {
+    const fetchPoints = async () => {
+      const token = getAccessToken();
+      if (!token) return;
+      try {
+        const res = await fetch(`${env.API_URL}/points/my-points`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await parseRes(res);
+          const pts = Number(data?.points || 0);
+          setUserPoints(pts);
+          if (setUser) {
+            setUser((prev: any) => (prev ? { ...prev, points: pts } : prev));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch user points:', err);
+      }
+    };
+    fetchPoints();
+
+    const handleCustomPoints = (e: any) => {
+      if (typeof e.detail === 'number') {
+        setUserPoints(e.detail);
+      } else {
+        fetchPoints();
+      }
+    };
+    window.addEventListener('points-updated', handleCustomPoints);
+    return () => window.removeEventListener('points-updated', handleCustomPoints);
+  }, [activeTab]);
 
   useEffect(() => {
     sessionStorage.setItem("sb_profile_tab", activeTab);
@@ -222,9 +298,20 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
 
             <div>
               <h3 className="font-bold text-xl text-foreground font-serif">{fullName}</h3>
-              <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary capitalize">
-                Thành viên
-              </span>
+              <div className="flex flex-wrap items-center justify-center gap-1.5 mt-1.5">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary capitalize">
+                  Thành viên
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("points")}
+                  className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25 transition-colors flex items-center gap-1 cursor-pointer"
+                  title="Xem lịch sử tích điểm"
+                >
+                  <Star size={12} className="fill-amber-400 text-amber-500" />
+                  <span>{userPoints.toLocaleString('vi-VN')} điểm</span>
+                </button>
+              </div>
               <p className="text-xs text-muted-foreground mt-2">{displayUser.email}</p>
             </div>
 
@@ -245,7 +332,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
           {/* Navigation Tabs */}
           <div className="flex rounded-xl bg-secondary p-1 border border-border shadow-sm">
             <button
-              onClick={() => setActiveTab("info")}
+              onClick={() => handleTabChange("info")}
               className={`flex-1 rounded-lg py-2.5 text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-2 ${
                 activeTab === "info"
                   ? "bg-background shadow-sm text-primary"
@@ -255,7 +342,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
               <User size={16} /> Thông tin cá nhân
             </button>
             <button
-              onClick={() => setActiveTab("password")}
+              onClick={() => handleTabChange("password")}
               className={`flex-1 rounded-lg py-2.5 text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-2 ${
                 activeTab === "password"
                   ? "bg-background shadow-sm text-primary"
@@ -265,7 +352,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
               <Lock size={16} /> Đổi mật khẩu
             </button>
             <button
-              onClick={() => setActiveTab("orders")}
+              onClick={() => handleTabChange("orders")}
               className={`flex-1 rounded-lg py-2.5 text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-2 ${
                 activeTab === "orders"
                   ? "bg-background shadow-sm text-primary"
@@ -273,6 +360,16 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
               }`}
             >
               <History size={16} /> Đơn hàng của tôi
+            </button>
+            <button
+              onClick={() => handleTabChange("points")}
+              className={`flex-1 rounded-lg py-2.5 text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-2 ${
+                activeTab === "points"
+                  ? "bg-background shadow-sm text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Coins size={16} /> Điểm thưởng
             </button>
           </div>
 
@@ -487,6 +584,11 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
             {/* TAB: Order History */}
             {activeTab === "orders" && (
               <ProfileOrders setView={setView} />
+            )}
+
+            {/* TAB: Loyalty Points */}
+            {activeTab === "points" && (
+              <ProfilePoints />
             )}
           </div>
         </div>

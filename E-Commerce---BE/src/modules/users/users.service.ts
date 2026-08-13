@@ -84,6 +84,7 @@ export class UsersService {
                 role: true,
                 branchId: true,
                 isActive: true,
+                points: true,
                 emailVerifiedAt: true,
                 createdAt: true,
                 updatedAt: true,

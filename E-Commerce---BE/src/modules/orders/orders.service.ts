@@ -67,7 +67,9 @@ export class OrdersService {
         order.paidAt = new Date();
 
         if (order.userId) {
-          const earnedPoints = Math.floor(Number(order.totalAmount) / 1000);
+          // Tích điểm dựa trên số tiền đơn hàng (Không bao gồm tiền ship)
+          const eligibleAmount = Math.max(0, Number(order.totalAmount) - Number(order.shippingFee || 0));
+          const earnedPoints = Math.floor(eligibleAmount / 1000);
           if (earnedPoints > 0) {
             try {
               await this.pointsService.addPoints(
@@ -76,7 +78,6 @@ export class OrdersService {
                 PointTransactionType.ORDER_COMPLETED,
                 order.id,
                 `Tích điểm từ đơn hàng ${order.orderCode}`,
-                manager,
               );
 
               this.notificationsService

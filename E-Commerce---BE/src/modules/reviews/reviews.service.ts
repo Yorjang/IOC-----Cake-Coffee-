@@ -121,15 +121,27 @@ export class ReviewsService implements OnModuleInit {
     });
     const savedReview = await this.reviews.save(review);
 
-    // 5. Award Loyalty Points to User (+20 points for product review)
-    const pointsEarned = 20;
+    // 5. Award Loyalty Points to User based on product value:
+    // < 100,000 VNĐ => 5 điểm
+    // 100,000 - 349,999 VNĐ => 25 điểm
+    // >= 350,000 VNĐ => 50 điểm
+    const reviewedItem = order.items.find((item) => item.productId === productId);
+    const itemPrice = Number(reviewedItem?.totalPrice || reviewedItem?.unitPrice || 0);
+
+    let pointsEarned = 5;
+    if (itemPrice >= 350000) {
+      pointsEarned = 50;
+    } else if (itemPrice >= 100000) {
+      pointsEarned = 25;
+    }
+
     try {
       await this.pointsService.addPoints(
         userId,
         pointsEarned,
         PointTransactionType.PRODUCT_REVIEW,
         savedReview.id,
-        'Tích điểm từ đánh giá sản phẩm',
+        `Tích điểm từ đánh giá sản phẩm (${reviewedItem?.productName || 'Sản phẩm'})`,
       );
     } catch (err) {
       console.error('Failed to award review points:', err);
@@ -146,7 +158,7 @@ export class ReviewsService implements OnModuleInit {
       .catch((err) => console.error('Failed to create points notification:', err));
 
     return {
-      message: 'Gửi đánh giá thành công! Bạn đã tích thêm 20 điểm thưởng.',
+      message: `Gửi đánh giá thành công! Bạn đã tích thêm ${pointsEarned} điểm thưởng.`,
       review: savedReview,
       pointsEarned,
     };

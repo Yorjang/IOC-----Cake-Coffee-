@@ -5,6 +5,7 @@ import { Order } from '../orders/order.entity';
 export enum NotificationType {
   ORDER_PLACED = 'order_placed',
   ORDER_DELIVERED = 'order_delivered',
+  POINTS_REWARD = 'points_reward',
 }
 
 @Entity('notifications')

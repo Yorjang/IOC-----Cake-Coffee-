@@ -1,5 +1,7 @@
-import { Edit, Search, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Coins, Edit, Search, Trash2 } from 'lucide-react';
 import { AdminBtn, StatusBadge, TableHeader } from '../../../components/admin/AdminShared';
+import { AdminAdjustPointsModal } from './AdminAdjustPointsModal';
 
 export function AdminUserTable({
   filteredUsers,
@@ -12,6 +14,8 @@ export function AdminUserTable({
   openCreateUser,
   loadUsers
 }: any) {
+  const [adjustingUser, setAdjustingUser] = useState<any>(null);
+
   return (
     <>
       <div className="flex items-center justify-between">
@@ -36,7 +40,7 @@ export function AdminUserTable({
       </div>
       <div className="overflow-auto rounded-2xl bg-sidebar">
         <table className="w-full text-sm">
-          <TableHeader cols={["Họ tên", "Email", "SĐT", "Vai trò", "Chi nhánh", "Trạng thái", "Tham gia", "Thao tác"]} />
+          <TableHeader cols={["Họ tên", "Email", "SĐT", "Vai trò", "Điểm thưởng", "Chi nhánh", "Trạng thái", "Tham gia", "Thao tác"]} />
           <tbody>
             {filteredUsers.map((u: any) => (
               <tr key={u.id} className="border-t border-sidebar-accent hover:bg-sidebar-accent transition">
@@ -44,11 +48,13 @@ export function AdminUserTable({
                 <td className="py-3 text-muted-foreground">{u.email || "-"}</td>
                 <td className="py-3 text-muted-foreground">{u.phone || "-"}</td>
                 <td className="py-3"><span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">{u.role}</span></td>
+                <td className="py-3 font-mono font-bold text-amber-600 dark:text-amber-400">{(u.points || 0).toLocaleString('vi-VN')} đ</td>
                 <td className="py-3 text-muted-foreground">{needsBranch(u.role) ? branchName(u.branchId) : "-"}</td>
                 <td className="py-3"><StatusBadge status={u.isActive ? "Hoạt động" : "Ẩn"} /></td>
                 <td className="py-3 text-muted-foreground">{u.createdAt ? new Date(u.createdAt).toLocaleDateString("vi-VN") : "-"}</td>
                 <td className="py-3">
                   <div className="flex gap-2">
+                    <AdminBtn variant="ghost" onClick={() => setAdjustingUser(u)} title="Điều chỉnh điểm"><Coins size={14} className="text-amber-500" /></AdminBtn>
                     <AdminBtn variant="ghost" onClick={() => setEditingUser({ ...u })}><Edit size={14} /></AdminBtn>
                     <AdminBtn variant="danger" onClick={() => deleteUser(u)}><Trash2 size={14} /></AdminBtn>
                   </div>
@@ -56,14 +62,22 @@ export function AdminUserTable({
               </tr>
             ))}
             {!loading && filteredUsers.length === 0 && (
-              <tr><td colSpan={8} className="py-12 text-center text-muted-foreground">Không có người dùng nào.</td></tr>
+              <tr><td colSpan={9} className="py-12 text-center text-muted-foreground">Không có người dùng nào.</td></tr>
             )}
             {loading && (
-              <tr><td colSpan={8} className="py-12 text-center text-muted-foreground">Đang tải danh sách người dùng...</td></tr>
+              <tr><td colSpan={9} className="py-12 text-center text-muted-foreground">Đang tải danh sách người dùng...</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {adjustingUser && (
+        <AdminAdjustPointsModal
+          user={adjustingUser}
+          onClose={() => setAdjustingUser(null)}
+          onSuccess={() => loadUsers?.()}
+        />
+      )}
     </>
   );
 }
