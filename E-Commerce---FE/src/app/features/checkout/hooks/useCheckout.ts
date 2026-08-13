@@ -5,6 +5,8 @@ import { parseRes } from "../../../../utils/api";
 import { useDeliveryAddress } from "./useDeliveryAddress";
 import { getDeliveryQuote } from "../services/deliveryQuoteService";
 import type { DeliveryQuote } from "../types";
+import type { SavedAddress } from "../types";
+import { useAddressBook } from "./useAddressBook";
 
 export function useCheckout({ cart, setView, onPlaceOrder, user, subtotal, discount }: any) {
   const [fulfillmentType, setFulfillmentType] = useState<"delivery" | "pickup">("delivery");
@@ -23,6 +25,13 @@ export function useCheckout({ cart, setView, onPlaceOrder, user, subtotal, disco
   const [loadingDeliveryQuote, setLoadingDeliveryQuote] = useState(false);
   const [deliveryQuoteError, setDeliveryQuoteError] = useState<string | null>(null);
   const deliveryAddress = useDeliveryAddress({ address, setAddress });
+  const applySavedAddress = (item: SavedAddress) => {
+    setName(item.recipientName);
+    setPhone(item.phone);
+    deliveryAddress.applyResolvedAddress(item.address, { latitude: item.latitude, longitude: item.longitude });
+  };
+  const addressBook = useAddressBook({ enabled: Boolean(user?.id), onSelect: applySavedAddress });
+  const showManualAddressField = !user?.id || (!addressBook.loading && addressBook.addresses.length === 0);
 
   useEffect(() => {
     if (!deliveryAddress.coordinates) {
@@ -189,6 +198,8 @@ export function useCheckout({ cart, setView, onPlaceOrder, user, subtotal, disco
     hasCustomerLocation,
     checkoutError, setCheckoutError,
     deliveryAddress,
+    addressBook,
+    showManualAddressField,
     deliveryQuote,
     loadingDeliveryQuote,
     deliveryQuoteError,

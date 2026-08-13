@@ -5,6 +5,7 @@ import { useCheckout } from "../features/checkout/hooks/useCheckout";
 import { DeliveryAddressField } from "../features/checkout/ui/DeliveryAddressField";
 import { useCheckoutCoupons } from "../features/checkout/hooks/useCheckoutCoupons";
 import { CheckoutCouponSelector } from "../features/checkout/ui/CheckoutCouponSelector";
+import { CheckoutAddressBook } from "../features/checkout/ui/CheckoutAddressBook";
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
 export function Checkout(props: any) {
@@ -21,6 +22,8 @@ export function Checkout(props: any) {
     hasCustomerLocation,
     checkoutError, setCheckoutError,
     deliveryAddress,
+    addressBook,
+    showManualAddressField,
     deliveryQuote,
     loadingDeliveryQuote,
     deliveryQuoteError,
@@ -97,19 +100,29 @@ export function Checkout(props: any) {
 
             {fulfillmentType === "delivery" ? (
               <div className="space-y-3">
-                <DeliveryAddressField
-                  address={address}
-                  onAddressChange={setAddress}
-                  suggestions={deliveryAddress.suggestions}
-                  coordinates={deliveryAddress.coordinates}
-                  isSearching={deliveryAddress.isSearching}
-                  isLocating={deliveryAddress.isLocating}
-                  addressError={deliveryAddress.addressError}
-                  isSuggestionOpen={deliveryAddress.isSuggestionOpen}
-                  onSuggestionOpenChange={deliveryAddress.setIsSuggestionOpen}
-                  onSelectSuggestion={deliveryAddress.selectSuggestion}
-                  onUseCurrentLocation={deliveryAddress.useCurrentLocation}
-                />
+                {props.user?.id && (
+                  <CheckoutAddressBook
+                    addresses={addressBook.addresses} currentAddress={address} loading={addressBook.loading}
+                    saving={addressBook.saving} isOpen={addressBook.isOpen} editing={addressBook.editing}
+                    onSelect={addressBook.select} onAdd={addressBook.add} onEdit={addressBook.edit}
+                    onClose={addressBook.close} onSave={addressBook.save} onRemove={addressBook.remove}
+                  />
+                )}
+                {showManualAddressField && (
+                  <DeliveryAddressField
+                    address={address}
+                    onAddressChange={setAddress}
+                    suggestions={deliveryAddress.suggestions}
+                    coordinates={deliveryAddress.coordinates}
+                    isSearching={deliveryAddress.isSearching}
+                    isLocating={deliveryAddress.isLocating}
+                    addressError={deliveryAddress.addressError}
+                    isSuggestionOpen={deliveryAddress.isSuggestionOpen}
+                    onSuggestionOpenChange={deliveryAddress.setIsSuggestionOpen}
+                    onSelectSuggestion={deliveryAddress.selectSuggestion}
+                    onUseCurrentLocation={deliveryAddress.useCurrentLocation}
+                  />
+                )}
                 {loadingDeliveryQuote && (
                   <div className="flex items-center gap-2 rounded-xl border bg-muted/30 p-3 text-xs text-muted-foreground">
                     <Loader2 className="animate-spin" size={15} />

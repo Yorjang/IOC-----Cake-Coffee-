@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { getProductFromPath, getViewFromPath, apiProductToArray, apiCategoryToLegacy, STORE_STORAGE_KEY } from "../../utils/appUtils";
+import { getOrderIdFromPath, getProductFromPath, getViewFromPath, apiProductToArray, apiCategoryToLegacy, STORE_STORAGE_KEY } from "../../utils/appUtils";
 import { storeLocations as fallbackStoreLocations, type StoreLocation } from "../../data/storeLocations";
 import { getStoredUser } from "../components/authSession";
 import { env } from "../../config/env";
@@ -25,7 +25,7 @@ export function useAppState() {
   });
   const [manualLocationRequired, setManualLocationRequired] = useState(false);
   const [lastCreatedOrder, setLastCreatedOrder] = useState<any>(null);
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(() => getOrderIdFromPath(window.location.pathname));
 
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -115,6 +115,16 @@ export function useAppState() {
       }
     })();
   }, [couponRefreshKey, selectedStore?.id, user?.id]);
+
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path.startsWith('/chi-tiet/') && products.length > 0) {
+      setSelectedProduct(getProductFromPath(path, products));
+    }
+    if (path.startsWith('/danh-muc/') && categories.length > 0) {
+      setViewInternal(getViewFromPath(path, categories));
+    }
+  }, [categories, products]);
 
   return {
     view, setViewInternal, isLoading, setIsLoading,

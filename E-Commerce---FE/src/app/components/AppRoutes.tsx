@@ -14,6 +14,7 @@ import { ProductListing } from "../pages/ProductListing";
 import { Profile } from "../pages/Profile";
 import { StoreMap } from "../pages/StoreMap";
 import { Success } from "../pages/Success";
+import { VnpayPayment } from "../features/checkout/ui/VnpayPayment";
 
 import { VIEW_KEYS } from "../../config/appConfig";
 import { getAccessToken } from "./authSession";
@@ -65,7 +66,7 @@ export function AppRoutes({
   }
   if (view === VIEW_KEYS.RESET_PASSWORD) {
     const token = new URLSearchParams(window.location.search).get("token") || "";
-    return <AuthPage onSuccess={handleLoginSuccess} initialMode="reset" resetToken={token} />;
+    return <AuthPage onSuccess={handleLoginSuccess} setView={setView} initialMode="reset" resetToken={token} />;
   }
 
   return (
@@ -78,6 +79,8 @@ export function AppRoutes({
       {view === VIEW_KEYS.FAVORITES && <Favorites wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onAddToCart={handleAddToCart} onSelectProduct={handleSelectProduct} setView={setView} />}
       {view === VIEW_KEYS.PROFILE && <Profile user={user} setUser={setUser} setView={setView} onLogout={handleAdminLogout} />}
       {view === VIEW_KEYS.TRACKING && <OrderTracking orderId={selectedOrderId || lastCreatedOrder?.id} onBack={() => setView(VIEW_KEYS.HOME)} />}
+      {view === VIEW_KEYS.PAYMENT && selectedOrderId && <VnpayPayment orderId={selectedOrderId} orderCode={selectedOrderId} setView={setView} />}
+      {view === VIEW_KEYS.PAYMENT && !selectedOrderId && <OrderTracking onBack={() => setView(VIEW_KEYS.HOME)} />}
       {view === VIEW_KEYS.STORES && <StoreMap branches={availableStores} activeStoreId={selectedStore?.id} onSelectStore={(store: any) => { handleSelectStore(store); setView(VIEW_KEYS.HOME); }} />}
       {view === VIEW_KEYS.PRIVACY && <PolicyPage type="privacy" setView={setView} />}
       {view === VIEW_KEYS.TERMS && <PolicyPage type="terms" setView={setView} />}

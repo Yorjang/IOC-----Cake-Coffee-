@@ -108,6 +108,15 @@ export function useDeliveryAddress({ address, setAddress }: UseDeliveryAddressPa
     );
   };
 
+  const applyResolvedAddress = (label: string, nextCoordinates: DeliveryCoordinates) => {
+    selectedAddressRef.current = label;
+    setAddress(label);
+    setCoordinates(nextCoordinates);
+    setSuggestions([]);
+    setIsSuggestionOpen(false);
+    setAddressError(null);
+  };
+
   return {
     suggestions,
     coordinates,
@@ -118,5 +127,6 @@ export function useDeliveryAddress({ address, setAddress }: UseDeliveryAddressPa
     setIsSuggestionOpen,
     selectSuggestion,
     useCurrentLocation,
+    applyResolvedAddress,
   };
 }
