@@ -59,8 +59,8 @@ export function CreateReviewModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Kích thước file tối đa là 5MB.");
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Kích thước file tối đa là 10MB.");
       return;
     }
 

@@ -158,8 +158,8 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1 * 1024 * 1024) {
-        toast.error("Ảnh đại diện phải nhỏ hơn 1MB!");
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("Ảnh đại diện phải nhỏ hơn 10MB!");
         return;
       }
       const reader = new FileReader();
