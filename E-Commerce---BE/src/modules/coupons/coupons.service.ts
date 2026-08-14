@@ -178,15 +178,18 @@ export class CouponsService implements OnModuleInit {
       );
       for (const row of redeemedTotal) {
         if (row.reference_id) {
-          totalMap.set(row.reference_id, (totalMap.get(row.reference_id) || 0) + 1);
-          if (userId && row.user_id === userId) {
-            userRedeemedSet.add(row.reference_id);
+          const refStr = String(row.reference_id).trim();
+          totalMap.set(refStr, (totalMap.get(refStr) || 0) + 1);
+
+          if (userId && String(row.user_id).toLowerCase().trim() === String(userId).toLowerCase().trim()) {
+            userRedeemedSet.add(refStr);
+            userRedeemedSet.add(refStr.toUpperCase());
           }
         }
       }
       activeCoupons = activeCoupons.filter(c => {
         if (c.usageLimit === null || c.usageLimit === undefined) return true;
-        const totalRedeemed = Math.max(Number(c.usedCount || 0), totalMap.get(c.id) || 0);
+        const totalRedeemed = Math.max(Number(c.usedCount || 0), totalMap.get(c.id) || totalMap.get(c.code.toUpperCase().trim()) || 0);
         return totalRedeemed < Number(c.usageLimit);
       });
     } catch (err) {
@@ -196,7 +199,7 @@ export class CouponsService implements OnModuleInit {
     return activeCoupons.map(c => ({
       ...c,
       isActive: true,
-      hasRedeemed: userRedeemedSet.has(c.id),
+      hasRedeemed: userRedeemedSet.has(c.id) || userRedeemedSet.has(c.code.toUpperCase().trim()),
     })) as any;
   }
 

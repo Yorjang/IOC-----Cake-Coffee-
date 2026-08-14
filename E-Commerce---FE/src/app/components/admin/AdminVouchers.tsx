@@ -330,9 +330,17 @@ export function AdminVouchers() {
                     )}
                     {v.pointsRequired && Number(v.pointsRequired) > 0 ? (
                       v.discountedPointsRequired && Number(v.discountedPointsRequired) > 0 && Number(v.discountedPointsRequired) < Number(v.pointsRequired) ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-1 text-xs text-red-500 font-semibold ml-1">
-                          🔥 {v.discountedPointsRequired} điểm <span className="line-through opacity-60 text-[10px]">{v.pointsRequired}</span>
-                        </span>
+                        (() => {
+                          const origP = Number(v.pointsRequired);
+                          const discP = Number(v.discountedPointsRequired);
+                          const pct = Math.round(((origP - discP) / origP) * 100);
+                          return (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-1 text-xs text-red-500 font-semibold ml-1">
+                              🔥 {discP} điểm <span className="line-through opacity-60 text-[10px]">{origP}</span>
+                              {pct > 0 && <span className="rounded bg-red-500/20 px-1 py-0.2 text-[10px] font-bold">-{pct}%</span>}
+                            </span>
+                          );
+                        })()
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs text-amber-500 font-semibold ml-1">
                           ⭐ {v.pointsRequired} điểm

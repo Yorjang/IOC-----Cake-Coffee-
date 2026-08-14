@@ -93,13 +93,21 @@ export function ProfilePoints() {
     fetchRedeemableCoupons();
   }, []);
 
-  const handleRedeem = async (couponId: string, code: string, pointsReq: number) => {
+  const [confirmModal, setConfirmModal] = useState<{
+    couponId: string;
+    code: string;
+    pointsReq: number;
+  } | null>(null);
+
+  const handleRedeemClick = (couponId: string, code: string, pointsReq: number) => {
     if (points < pointsReq) {
       toast.error(`Bạn không đủ điểm thưởng! Cần ${pointsReq} điểm (bạn hiện có ${points} điểm).`);
       return;
     }
-    if (!window.confirm(`Bạn có chắc muốn dùng ${pointsReq} điểm để đổi Voucher ${code} không?`)) return;
+    setConfirmModal({ couponId, code, pointsReq });
+  };
 
+  const executeRedeem = async (couponId: string, code: string, pointsReq: number) => {
     const token = getAccessToken();
     if (!token) {
       toast.error("Vui lòng đăng nhập để đổi voucher.");
@@ -115,6 +123,8 @@ export function ProfilePoints() {
       const data = await parseRes(res);
       if (res.ok) {
         toast.success(data.message || `Đổi mã ${code} thành công!`);
+        setConfirmModal(null);
+        setRedeemableCoupons(prev => prev.map(item => item.id === couponId ? { ...item, hasRedeemed: true } : item));
         fetchPointData(1);
         fetchRedeemableCoupons();
       } else {
@@ -239,6 +249,7 @@ export function ProfilePoints() {
               const origPoints = Number(c.pointsRequired || 0);
               const discPoints = c.discountedPointsRequired !== null && c.discountedPointsRequired !== undefined ? Number(c.discountedPointsRequired) : null;
               const hasDiscount = discPoints !== null && discPoints >= 0 && discPoints < origPoints;
+              const percentOff = hasDiscount ? Math.round(((origPoints - discPoints) / origPoints) * 100) : 0;
               const effectivePoints = hasDiscount ? discPoints : origPoints;
               const hasRedeemed = !!c.hasRedeemed;
               const canRedeem = points >= effectivePoints && !hasRedeemed;
@@ -251,11 +262,12 @@ export function ProfilePoints() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono font-bold text-base text-primary uppercase">{c.code}</span>
                         {hasDiscount ? (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/15 text-red-600 dark:text-red-400 flex items-center gap-1">
                             🔥 {discPoints} điểm <span className="line-through text-muted-foreground opacity-75 font-normal">{origPoints}</span>
+                            {percentOff > 0 && <span className="rounded bg-red-500/20 px-1 py-0.2 text-[10px] font-bold text-red-600 dark:text-red-400">-{percentOff}%</span>}
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400">
@@ -283,7 +295,7 @@ export function ProfilePoints() {
                     <button
                       type="button"
                       disabled={!canRedeem || isRedeeming}
-                      onClick={() => handleRedeem(c.id, c.code, effectivePoints)}
+                      onClick={() => handleRedeemClick(c.id, c.code, effectivePoints)}
                       className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs ${
                         hasRedeemed
                           ? 'bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20 cursor-default'
@@ -419,6 +431,71 @@ export function ProfilePoints() {
           </div>
         )}
       </div>
+
+      {/* Modal xác nhận đổi Voucher */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200" onClick={() => setConfirmModal(null)}>
+          <div 
+            className="relative w-full max-w-md overflow-hidden rounded-3xl border border-amber-500/20 bg-white dark:bg-[#1C1815] text-stone-900 dark:text-stone-100 p-6 shadow-2xl space-y-5 text-center animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header / Icon */}
+            <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 ring-8 ring-amber-500/5">
+              <Award className="size-8 animate-pulse" />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="font-serif text-xl font-bold text-stone-900 dark:text-white">Xác nhận đổi Voucher</h3>
+              <p className="text-sm text-stone-600 dark:text-stone-300">
+                Bạn có chắc chắn muốn dùng <span className="font-bold text-amber-600 dark:text-amber-400">{confirmModal.pointsReq.toLocaleString('vi-VN')} điểm</span> để đổi lấy mã <span className="font-mono font-bold text-amber-700 dark:text-amber-300">{confirmModal.code}</span> không?
+              </p>
+            </div>
+
+            {/* Bảng tính điểm - Nền sáng kem cao cấp, chữ rực rỡ sắc nét */}
+            <div className="rounded-2xl bg-amber-500/5 dark:bg-amber-950/30 p-4 text-xs space-y-2.5 border border-amber-500/20">
+              <div className="flex justify-between items-center text-stone-600 dark:text-stone-300 font-medium">
+                <span>Điểm khả dụng hiện tại:</span>
+                <span className="font-bold text-stone-900 dark:text-stone-100 text-sm">{points.toLocaleString('vi-VN')} pt</span>
+              </div>
+              <div className="flex justify-between items-center text-stone-600 dark:text-stone-300 font-medium">
+                <span>Số điểm khấu trừ:</span>
+                <span className="font-bold text-red-600 dark:text-red-400 text-sm">-{confirmModal.pointsReq.toLocaleString('vi-VN')} pt</span>
+              </div>
+              <div className="pt-2.5 border-t border-amber-500/20 flex justify-between items-center text-sm font-bold text-stone-900 dark:text-white">
+                <span>Điểm còn lại sau đổi:</span>
+                <span className="text-amber-600 dark:text-amber-400 font-extrabold text-base">{(points - confirmModal.pointsReq).toLocaleString('vi-VN')} pt</span>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex items-center justify-end gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setConfirmModal(null)}
+                className="w-1/2 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 text-xs font-semibold transition cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                disabled={redeemingId === confirmModal.couponId}
+                onClick={() => executeRedeem(confirmModal.couponId, confirmModal.code, confirmModal.pointsReq)}
+                className="w-1/2 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs font-bold shadow-md transition flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              >
+                {redeemingId === confirmModal.couponId ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" /> Đang đổi...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={14} /> Xác nhận đổi
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

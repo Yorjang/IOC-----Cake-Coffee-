@@ -24,8 +24,9 @@ export class CouponsController {
 
   @Get('redeemable')
   @Public()
-  findRedeemable(@Query('branchId') branchId?: string) {
-    return this.couponsService.findRedeemableCoupons(branchId);
+  findRedeemable(@Req() req: any, @Query('userId') userIdQuery?: string, @Query('branchId') branchId?: string) {
+    const userId = req.user?.id || userIdQuery;
+    return this.couponsService.findRedeemableCoupons(userId, branchId);
   }
 
 
