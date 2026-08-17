@@ -665,7 +665,7 @@ export class OrdersService {
   async findPublicOrder(id: string): Promise<Order> {
     const order = await this.orders.findOne({
       where: { id },
-      relations: { items: true, branch: true }
+      relations: { items: { product: true }, branch: true }
     });
     if (!order) {
       throw new BadRequestException('Order not found');

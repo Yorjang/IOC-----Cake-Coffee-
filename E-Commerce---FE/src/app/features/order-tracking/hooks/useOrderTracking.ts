@@ -39,5 +39,5 @@ export function useOrderTracking(orderId: string) {
     }
   }, [orderId]);
 
-  return { order, loading, cancelOrder };
+  return { order, loading, cancelOrder, refresh };
 }
