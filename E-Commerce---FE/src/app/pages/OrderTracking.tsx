@@ -42,7 +42,7 @@ export function OrderTracking({ orderId, onBack }: OrderTrackingProps) {
 }
 
 function OrderTrackingDetail({ orderId, onBack }: { orderId: string; onBack: () => void }) {
-  const { order, loading, cancelOrder } = useOrderTracking(orderId);
+  const { order, loading, cancelOrder, refresh } = useOrderTracking(orderId);
   const [reviewingItem, setReviewingItem] = useState<any>(null);
 
   if (loading) return <div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="animate-spin text-primary" size={44} /></div>;
@@ -130,6 +130,22 @@ function OrderTrackingDetail({ orderId, onBack }: { orderId: string; onBack: () 
         if (!window.confirm('Bạn có chắc muốn hủy đơn hàng này?')) return;
         if (await cancelOrder()) onBack();
       }} className="rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-600 hover:bg-red-100">Hủy đơn hàng</button></div>}
+
+      {reviewingItem && (
+        <CreateReviewModal
+          isOpen={!!reviewingItem}
+          onClose={() => setReviewingItem(null)}
+          orderId={orderId}
+          productId={reviewingItem.productId}
+          productName={reviewingItem.productName}
+          variantName={reviewingItem.variantName}
+          productImage={reviewingItem.product?.imageUrl || reviewingItem.productImage || reviewingItem.image_url}
+          onSuccess={() => {
+            setReviewingItem(null);
+            refresh();
+          }}
+        />
+      )}
     </div>
   );
 }
