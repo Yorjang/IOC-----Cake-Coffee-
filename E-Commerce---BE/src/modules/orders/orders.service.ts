@@ -10,7 +10,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { User, UserRole } from '../users/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatusHistory } from './order-status-history.entity';
-import { FulfillmentType, Order, OrderStatus, PaymentStatus } from './order.entity';
+import { FulfillmentType, Order, OrderStatus, PaymentStatus, DeliveryStatus } from './order.entity';
+import { DeliveryLog } from '../delivery/delivery-log.entity';
 
 const PICKUP_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
   [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
@@ -93,6 +94,16 @@ export class OrdersService {
             }
           }
         }
+      }
+
+      if (status === OrderStatus.CANCELLED && order.shipperId) {
+        order.deliveryStatus = DeliveryStatus.CANCELLED as any;
+        await manager.getRepository(DeliveryLog).save({
+          orderId: order.id,
+          shipperId: order.shipperId,
+          status: DeliveryStatus.CANCELLED as any,
+          note: 'Đơn hàng đã bị hủy bởi quản lý khi đang giao',
+        });
       }
 
       if (status === OrderStatus.CANCELLED && previousStatus !== OrderStatus.CANCELLED) {

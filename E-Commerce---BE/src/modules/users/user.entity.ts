@@ -7,6 +7,7 @@ export enum UserRole {
     CASHIER = 'cashier',
     STORE_MANAGER = 'store_manager',
     ADMIN = 'admin',
+    SHIPPER = 'shipper',
 }
 
 @Entity('users')
