@@ -1,5 +1,6 @@
 import { Gift, Tag } from "lucide-react";
 import { createPortal } from "react-dom";
+import { VIEW_KEYS } from "../../../../config/appConfig";
 
 export function VoucherDetailModal({ voucher, products: rawProducts = [], onSelectProduct, setView, onClose }: any) {
   const products = Array.isArray(rawProducts) ? rawProducts : (Array.isArray(rawProducts?.data) ? rawProducts.data : []);
@@ -107,10 +108,10 @@ export function VoucherDetailModal({ voucher, products: rawProducts = [], onSele
                 const arr = [scopeProduct.name, "", scopeProduct.category?.name || "Khác", scopeProduct.imageUrl, "4.8", "Còn hàng", null, null];
                 (arr as any).raw = scopeProduct;
                 onSelectProduct(arr);
-              } else if (d?.categoriesId) {
-                setView(scopeCategory?.name || 'Thực đơn');
+              } else if (d?.categoriesId && scopeCategory?.name) {
+                setView(scopeCategory.name);
               } else {
-                setView('Thực đơn');
+                setView(VIEW_KEYS.SWEETS);
               }
               onClose();
             }}
