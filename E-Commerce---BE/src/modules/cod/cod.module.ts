@@ -4,9 +4,10 @@ import { CodService } from './cod.service';
 import { CodController } from './cod.controller';
 import { CodRemittance } from './cod-remittance.entity';
 import { Order } from '../orders/order.entity';
+import { UsersModule } from '../users/users.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CodRemittance, Order])],
+  imports: [TypeOrmModule.forFeature([CodRemittance, Order]), UsersModule],
   providers: [CodService],
   controllers: [CodController],
   exports: [CodService],
