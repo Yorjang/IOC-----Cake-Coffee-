@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
-import { getProductFromPath, getViewFromPath, apiProductToArray, apiCategoryToLegacy, STORE_STORAGE_KEY } from "../../utils/appUtils";
+import { useState, useEffect, useCallback } from "react";
+import { getOrderIdFromPath, getProductFromPath, getViewFromPath, apiProductToArray, apiCategoryToLegacy, STORE_STORAGE_KEY } from "../../utils/appUtils";
 import { storeLocations as fallbackStoreLocations, type StoreLocation } from "../../data/storeLocations";
 import { getStoredUser } from "../components/authSession";
 import { env } from "../../config/env";
 import { parseRes } from "../../utils/api";
+import { getActiveStores, getCustomerCoordinates, getNearbyStores } from "../features/stores/services/storeService";
+import { getAvailableCoupons } from "../features/coupons/services/couponService";
 
 export function useAppState() {
   const [view, setViewInternal] = useState<any>(() => getViewFromPath(window.location.pathname));
@@ -23,23 +25,73 @@ export function useAppState() {
   });
   const [manualLocationRequired, setManualLocationRequired] = useState(false);
   const [lastCreatedOrder, setLastCreatedOrder] = useState<any>(null);
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(() => getOrderIdFromPath(window.location.pathname));
 
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [publicCoupons, setPublicCoupons] = useState<any[]>([]);
+  const [couponRefreshKey, setCouponRefreshKey] = useState(0);
+
+  const refreshPublicCoupons = useCallback(() => {
+    setCouponRefreshKey((currentKey) => currentKey + 1);
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchAvailableStores = async () => {
+      // Capture this before geolocation resolves because App persists the temporary
+      // fallback store while the real branch list is still loading.
+      const previouslySavedStoreId = localStorage.getItem(STORE_STORAGE_KEY);
+      try {
+        let stores: StoreLocation[];
+        let locationWasDetected = false;
+        try {
+          const coordinates = await getCustomerCoordinates();
+          stores = await getNearbyStores(coordinates, controller.signal);
+          locationWasDetected = true;
+          setManualLocationRequired(false);
+        } catch (locationError) {
+          if (controller.signal.aborted) return;
+          console.info("Không thể xác định vị trí khách hàng:", locationError);
+          stores = await getActiveStores(controller.signal);
+          setManualLocationRequired(true);
+        }
+        if (stores.length === 0) return;
+
+        setAvailableStores(stores);
+        setSelectedStore((currentStore) => {
+          const nearestOpenStore = stores.find((store) => store.isOpenNow);
+
+          if (locationWasDetected && nearestOpenStore) {
+            return nearestOpenStore;
+          }
+
+          return (
+            stores.find((store) => store.id === previouslySavedStoreId) ??
+            nearestOpenStore ??
+            stores.find((store) => store.id === currentStore?.id) ??
+            stores[0]
+          );
+        });
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          console.error("Lỗi khi tải danh sách chi nhánh:", error);
+        }
+      }
+    };
+
+    void fetchAvailableStores();
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     (async () => {
       try {
         let couponsList: any[] = [];
         try {
-          const couponRes = await fetch(`${env.API_URL}/coupons/public`);
-          if (couponRes.ok) {
-            const raw = await parseRes(couponRes);
-            couponsList = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw?.coupons) ? raw.coupons : []));
-            setPublicCoupons(couponsList);
-          }
+          couponsList = await getAvailableCoupons(selectedStore?.id);
+          setPublicCoupons(couponsList);
         } catch (err) {
           console.error("Lỗi khi tải vouchers:", err);
         }
@@ -62,7 +114,17 @@ export function useAppState() {
         // Keep empty fallback data if the API is unavailable.
       }
     })();
-  }, []);
+  }, [couponRefreshKey, selectedStore?.id, user?.id]);
+
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path.startsWith('/chi-tiet/') && products.length > 0) {
+      setSelectedProduct(getProductFromPath(path, products));
+    }
+    if (path.startsWith('/danh-muc/') && categories.length > 0) {
+      setViewInternal(getViewFromPath(path, categories));
+    }
+  }, [categories, products]);
 
   return {
     view, setViewInternal, isLoading, setIsLoading,
@@ -71,6 +133,7 @@ export function useAppState() {
     selectedStore, setSelectedStore, availableStores, setAvailableStores,
     showStorePopup, setShowStorePopup, manualLocationRequired, setManualLocationRequired,
     lastCreatedOrder, setLastCreatedOrder, selectedOrderId, setSelectedOrderId,
-    products, setProducts, categories, setCategories, publicCoupons, setPublicCoupons
+    products, setProducts, categories, setCategories, publicCoupons, setPublicCoupons,
+    refreshPublicCoupons,
   };
 }

@@ -1,12 +1,14 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull, FindOptionsWhere, DataSource } from 'typeorm';
+import { User, UserRole } from '../users/user.entity';
 import { Category } from './category.entity';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/create-product.dto';
 import { CreateProductTagDto, ReplaceProductTagsDto, UpdateProductTagDto } from './dto/product-tag.dto';
 import { ReplaceProductToppingsDto } from './dto/product-topping.dto';
 import { CreateProductVariantDto, UpdateProductVariantDto } from './dto/product-variant.dto';
+import { OrderItem } from '../orders/order-item.entity';
 import { ProductTag } from './product-tag.entity';
 import { ProductTopping } from './product-topping.entity';
 import { ProductVariant, VariantStatus } from './product-variant.entity';
@@ -44,6 +46,11 @@ export class ProductsService {
 
         @InjectRepository(ProductTag)
         private readonly tags: Repository<ProductTag>,
+
+        @InjectRepository(OrderItem)
+        private readonly orderItems: Repository<OrderItem>,
+
+        private readonly dataSource: DataSource,
     ) {}
 
     // ── Categories CRUD ──────────────────────────────────────────────────────
@@ -124,10 +131,31 @@ export class ProductsService {
         };
     }
 
-    async findAllProducts(tagSlug?: string): Promise<Product[]> {
+    async findAllProducts(tagSlug?: string, user?: User, isAdminPath?: boolean, branchId?: string): Promise<Product[]> {
+        const baseWhere: FindOptionsWhere<Product> = {};
+        if (tagSlug) {
+            baseWhere.tags = { slug: tagSlug };
+        }
+        if (isAdminPath && user?.role === UserRole.STORE_MANAGER && user.branchId) {
+            baseWhere.branchId = user.branchId;
+        }
+        const where: FindOptionsWhere<Product> | FindOptionsWhere<Product>[] | undefined =
+            !isAdminPath && branchId
+                ? [
+                    { ...baseWhere, branchId },
+                    { ...baseWhere, branchId: IsNull() },
+                ]
+                : Object.keys(baseWhere).length > 0 ? baseWhere : undefined;
         return this.products.find({
-            where: tagSlug ? { tags: { slug: tagSlug } } : undefined,
-            relations: { category: true, variants: true, toppings: true, tags: true },
+            where,
+            relations: {
+                category: true,
+                variants: { variantIngredients: { ingredient: true } },
+                toppings: true,
+                tags: true,
+                branch: true,
+                items: { childProduct: { category: true, toppings: true }, childVariant: true },
+            },
             order: { name: 'ASC' },
         });
     }
@@ -135,7 +163,14 @@ export class ProductsService {
     async findProductById(id: string): Promise<Product> {
         const prod = await this.products.findOne({
             where: { id },
-            relations: { category: true, variants: true, toppings: true, tags: true },
+            relations: {
+                category: true,
+                variants: { variantIngredients: { ingredient: true } },
+                toppings: true,
+                tags: true,
+                branch: true,
+                items: { childProduct: { category: true, toppings: true }, childVariant: true },
+            },
         });
         if (!prod) throw new NotFoundException('Không tìm thấy sản phẩm');
         return prod;
@@ -200,12 +235,34 @@ export class ProductsService {
         }
 
         Object.assign(prod, dto);
+
+        // TypeORM gotcha: when both the FK column (branchId) and the relation object (branch)
+        // are set on a loaded entity, TypeORM may use the relation object to determine the FK value,
+        // ignoring the explicit null/new FK. We must clear the relation cache so TypeORM
+        // uses branchId column value directly.
+        if ('branchId' in dto) {
+            prod.branchId = (dto.branchId && dto.branchId !== '') ? dto.branchId : null as any;
+            (prod as any).branch = undefined;
+        }
+
         await this.products.save(prod);
         return this.findProductById(id);
     }
 
     async deleteProduct(id: string): Promise<void> {
         const prod = await this.findProductById(id);
+
+        // Check if any order items reference this product
+        const orderItemCount = await this.orderItems.count({ where: { productId: id } });
+        if (orderItemCount > 0) {
+            // Soft-delete: hide product instead of deleting to preserve order history
+            prod.isActive = false;
+            await this.products.save(prod);
+            throw new BadRequestException(
+                `Sản phẩm "${prod.name}" đang được tham chiếu bởi ${orderItemCount} đơn hàng. Sản phẩm đã được ẩn khỏi cửa hàng thay vì xóa để bảo toàn lịch sử đơn hàng.`,
+            );
+        }
+
         await this.products.remove(prod);
     }
 

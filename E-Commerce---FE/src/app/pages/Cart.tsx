@@ -1,4 +1,4 @@
-import { Check, ChevronRight, Minus, Plus, Ticket, Trash2, X } from "lucide-react";
+import { Award, Check, ChevronRight, Minus, Plus, Ticket, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { VIEW_KEYS } from "../../config/appConfig";
@@ -55,8 +55,7 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
     }
   }
 
-  const shipping = subtotal >= 300000 || subtotal === 0 ? 0 : 15000;
-  const grandTotal = Math.max(0, subtotal - discount + shipping);
+  const grandTotal = Math.max(0, subtotal - discount);
 
   const applyCoupon = () => {
     if (!coupon.trim()) return;
@@ -180,6 +179,8 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
     return getAmt(b) - getAmt(a);
   });
 
+  const estimatedPoints = Math.floor(Math.max(0, subtotal - discount) / 1000);
+
   return (
     <div className="mx-auto max-w-4xl px-5 py-8 sm:px-6 lg:px-10">
       <h2 className="mb-6 text-2xl md:text-3xl font-bold font-serif">Giỏ hàng của bạn</h2>
@@ -287,7 +288,19 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
               {discount > 0 && (
                 <div className="flex justify-between text-green-600 font-medium"><span>Giảm giá</span><span>-{formatPrice(discount)}</span></div>
               )}
-              <div className="flex justify-between"><span>Phí giao hàng</span><span>{shipping === 0 ? "Miễn phí" : formatPrice(shipping)}</span></div>
+              <div className="flex justify-between">
+                <span>Phí giao hàng</span>
+                <span className="text-muted-foreground">Đang tính</span>
+              </div>
+              {estimatedPoints > 0 && (
+                <div className="flex items-center justify-between rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300 my-1">
+                  <span className="flex items-center gap-1.5">
+                    <Award size={15} className="text-amber-500 shrink-0" />
+                    <span>Điểm thưởng tích lũy:</span>
+                  </span>
+                  <span className="font-mono font-bold text-amber-600 dark:text-amber-400">+{estimatedPoints} điểm</span>
+                </div>
+              )}
               <hr className="my-2 border-border" />
               <div className="flex justify-between font-bold text-base"><span>Tổng cộng</span><span className="text-primary">{formatPrice(grandTotal)}</span></div>
             </div>

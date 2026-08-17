@@ -1,10 +1,11 @@
 import { env } from '../../../../config/env';
 import { parseRes } from '../../../../utils/api';
+import { getAccessToken } from '../../../components/authSession';
 import type { TrackingOrder } from '../types';
 
 const authHeaders = (): Record<string, string> => {
   const headers: Record<string, string> = {};
-  const token = localStorage.getItem('accessToken');
+  const token = getAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;
   return headers;
 };
@@ -49,7 +50,7 @@ export function getRememberedOrderIds(): string[] {
 }
 
 export async function getTrackingOrders(): Promise<TrackingOrder[]> {
-  const token = localStorage.getItem('accessToken');
+  const token = getAccessToken();
   const accountOrders = token ? await fetch(`${env.API_URL}/orders/my`, {
     headers: { Authorization: `Bearer ${token}` },
   }).then(async response => {

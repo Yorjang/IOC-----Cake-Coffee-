@@ -7,6 +7,7 @@ export enum UserRole {
     CASHIER = 'cashier',
     STORE_MANAGER = 'store_manager',
     ADMIN = 'admin',
+    SHIPPER = 'shipper',
 }
 
 @Entity('users')
@@ -43,6 +44,10 @@ export class User {
 
     @Column({ type: 'text', nullable: true })
     address: string;
+
+    @Column({ type: 'int', default: 0 })
+    points: number;
+
 
     @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
     createdAt: Date;

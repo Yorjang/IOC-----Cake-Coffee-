@@ -1,14 +1,14 @@
 import {
-  Column,
   Entity,
-  Index,
-  JoinColumn,
-  ManyToOne,
   PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  Index,
 } from 'typeorm';
-import { ProductVariant } from '../../products/product-variant.entity';
-import { Ingredient } from './ingredient.entity';
 import { PurchaseOrder } from './purchase-order.entity';
+import { Ingredient } from './ingredient.entity';
+import { ProductVariant } from '../../products/product-variant.entity';
 
 @Entity('purchase_order_items')
 @Index(['poId'])
@@ -37,11 +37,17 @@ export class PurchaseOrderItem {
   @JoinColumn({ name: 'variant_id' })
   variant: ProductVariant;
 
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  barcode: string;
+
   @Column({ name: 'ordered_quantity', type: 'numeric', precision: 10, scale: 3 })
   orderedQuantity: number;
 
   @Column({ name: 'received_quantity', type: 'numeric', precision: 10, scale: 3, default: 0 })
   receivedQuantity: number;
+
+  @Column({ name: 'rejected_quantity', type: 'numeric', precision: 10, scale: 3, default: 0 })
+  rejectedQuantity: number;
 
   @Column({ name: 'unit_price', type: 'numeric', precision: 15, scale: 2, default: 0 })
   unitPrice: number;

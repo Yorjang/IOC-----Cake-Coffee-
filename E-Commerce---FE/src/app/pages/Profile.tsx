@@ -1,10 +1,13 @@
-import { Check, History, Image as ImageIcon, Lock, Phone, Save, Upload, User } from "lucide-react";
+import { Award, Check, Coins, History, Image as ImageIcon, Lock, Phone, Save, Star, Upload, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { env } from "../../config/env";
 import { parseRes } from '../../utils/api';
 import { ProfileOrders } from '../features/profile/ui/ProfileOrders';
+import { ProfileAddressBook } from '../features/profile/ui/ProfileAddressBook';
+import { ProfilePoints } from '../features/profile/ui/ProfilePoints';
 import { getAccessToken } from "../components/authSession";
+import { getTrackingOrders } from "../features/order-tracking/services/orderTrackingService";
 
 const PRESET_AVATARS = [
   { name: "Coffee", url: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=150&auto=format&fit=crop&q=60" },
@@ -14,17 +17,97 @@ const PRESET_AVATARS = [
   { name: "Tiramisu", url: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=150&auto=format&fit=crop&q=60" },
 ];
 
+const getTabFromPath = (path: string): "info" | "password" | "orders" | "points" => {
+  if (path.includes("/change-password") || path.includes("/doi-mat-khau")) return "password";
+  if (path.includes("/orders") || path.includes("/don-hang")) return "orders";
+  if (path.includes("/points") || path.includes("/diem-thuong")) return "points";
+  return "info";
+};
+
+const getPathFromTab = (tab: "info" | "password" | "orders" | "points") => {
+  switch (tab) {
+    case "password":
+      return "/ho-so/change-password";
+    case "orders":
+      return "/ho-so/orders";
+    case "points":
+      return "/ho-so/points";
+    case "info":
+    default:
+      return "/ho-so";
+  }
+};
+
 export function Profile({ user, setUser, setView, onLogout }: any) {
   const displayUser = user || { fullName: "", email: "", phone: "", avatar: "" };
 
-  // Tabs: 'info' | 'password' | 'orders'
-  const [activeTab, setActiveTab] = useState<"info" | "password" | "orders">("info");
+  // Tabs: 'info' | 'password' | 'orders' | 'points'
+  const [activeTab, setActiveTab] = useState<"info" | "password" | "orders" | "points">(() => {
+    return getTabFromPath(window.location.pathname) || (sessionStorage.getItem("sb_profile_tab") as any) || "info";
+  });
+
+  const handleTabChange = (newTab: "info" | "password" | "orders" | "points") => {
+    setActiveTab(newTab);
+    sessionStorage.setItem("sb_profile_tab", newTab);
+    const newPath = getPathFromTab(newTab);
+    if (window.location.pathname !== newPath) {
+      window.history.pushState(null, "", newPath);
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (window.location.pathname.startsWith("/ho-so")) {
+        setActiveTab(getTabFromPath(window.location.pathname));
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const [userPoints, setUserPoints] = useState<number>(user?.points || 0);
+
+  useEffect(() => {
+    const fetchPoints = async () => {
+      const token = getAccessToken();
+      if (!token) return;
+      try {
+        const res = await fetch(`${env.API_URL}/points/my-points`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await parseRes(res);
+          const pts = Number(data?.points || 0);
+          setUserPoints(pts);
+          if (setUser) {
+            setUser((prev: any) => (prev ? { ...prev, points: pts } : prev));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch user points:', err);
+      }
+    };
+    fetchPoints();
+
+    const handleCustomPoints = (e: any) => {
+      if (typeof e.detail === 'number') {
+        setUserPoints(e.detail);
+      } else {
+        fetchPoints();
+      }
+    };
+    window.addEventListener('points-updated', handleCustomPoints);
+    return () => window.removeEventListener('points-updated', handleCustomPoints);
+  }, [activeTab]);
+
+  useEffect(() => {
+    sessionStorage.setItem("sb_profile_tab", activeTab);
+  }, [activeTab]);
 
   // Profile Form States
   const [fullName, setFullName] = useState(displayUser.fullName || displayUser.name || "");
   const [phone, setPhone] = useState(displayUser.phone || "");
   const [avatar, setAvatar] = useState(displayUser.avatarUrl || displayUser.avatar || "");
-  const [address, setAddress] = useState(displayUser.address || "");
   const [isCustomAvatarUrl, setIsCustomAvatarUrl] = useState(false);
   const [customUrlInput, setCustomUrlInput] = useState("");
   const [loadingInfo, setLoadingInfo] = useState(false);
@@ -37,27 +120,18 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loadingOrders, setLoadingOrders] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [orderTab, setOrderTab] = useState<"active" | "history">("active");
-  const ITEMS_PER_PAGE = 5;
 
   const fetchMyOrders = async () => {
     const token = getAccessToken();
     if (!token) return;
     setLoadingOrders(true);
     try {
-      const res = await fetch(`${env.API_URL}/orders/my`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await parseRes(res);
-        setOrders(data);
-        setCurrentPage(1);
-      }
+      const data = await getTrackingOrders();
+      setOrders(data);
+      setCurrentPage(1);
     } catch (err) {
       console.error("Error fetching my orders:", err);
+      toast.error(err instanceof Error ? err.message : "Không thể tải danh sách đơn hàng");
     } finally {
       setLoadingOrders(false);
     }
@@ -75,7 +149,6 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
       setFullName(user.fullName || user.name || "");
       setPhone(user.phone || "");
       setAvatar(user.avatarUrl || user.avatar || "");
-      setAddress(user.address || "");
     }
   }, [user]);
 
@@ -85,8 +158,8 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1 * 1024 * 1024) {
-        toast.error("Ảnh đại diện phải nhỏ hơn 1MB!");
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("Ảnh đại diện phải nhỏ hơn 10MB!");
         return;
       }
       const reader = new FileReader();
@@ -119,7 +192,6 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
           fullName,
           phone: phone || undefined,
           avatar: avatar || undefined,
-          address: address || undefined,
         }),
       });
 
@@ -226,9 +298,20 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
 
             <div>
               <h3 className="font-bold text-xl text-foreground font-serif">{fullName}</h3>
-              <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary capitalize">
-                Thành viên
-              </span>
+              <div className="flex flex-wrap items-center justify-center gap-1.5 mt-1.5">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary capitalize">
+                  Thành viên
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("points")}
+                  className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25 transition-colors flex items-center gap-1 cursor-pointer"
+                  title="Xem lịch sử tích điểm"
+                >
+                  <Star size={12} className="fill-amber-400 text-amber-500" />
+                  <span>{userPoints.toLocaleString('vi-VN')} điểm</span>
+                </button>
+              </div>
               <p className="text-xs text-muted-foreground mt-2">{displayUser.email}</p>
             </div>
 
@@ -249,7 +332,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
           {/* Navigation Tabs */}
           <div className="flex rounded-xl bg-secondary p-1 border border-border shadow-sm">
             <button
-              onClick={() => setActiveTab("info")}
+              onClick={() => handleTabChange("info")}
               className={`flex-1 rounded-lg py-2.5 text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-2 ${
                 activeTab === "info"
                   ? "bg-background shadow-sm text-primary"
@@ -259,7 +342,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
               <User size={16} /> Thông tin cá nhân
             </button>
             <button
-              onClick={() => setActiveTab("password")}
+              onClick={() => handleTabChange("password")}
               className={`flex-1 rounded-lg py-2.5 text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-2 ${
                 activeTab === "password"
                   ? "bg-background shadow-sm text-primary"
@@ -269,7 +352,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
               <Lock size={16} /> Đổi mật khẩu
             </button>
             <button
-              onClick={() => setActiveTab("orders")}
+              onClick={() => handleTabChange("orders")}
               className={`flex-1 rounded-lg py-2.5 text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-2 ${
                 activeTab === "orders"
                   ? "bg-background shadow-sm text-primary"
@@ -277,6 +360,16 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
               }`}
             >
               <History size={16} /> Đơn hàng của tôi
+            </button>
+            <button
+              onClick={() => handleTabChange("points")}
+              className={`flex-1 rounded-lg py-2.5 text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-2 ${
+                activeTab === "points"
+                  ? "bg-background shadow-sm text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Coins size={16} /> Điểm thưởng
             </button>
           </div>
 
@@ -327,16 +420,7 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold mb-2">Địa chỉ nhận hàng mặc định</label>
-                  <input
-                    type="text"
-                    placeholder="Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành phố"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    className="w-full rounded-xl border bg-input-background py-3 px-4 text-sm outline-none focus:border-primary text-foreground"
-                  />
-                </div>
+                <ProfileAddressBook userId={user?.id ?? null} />
 
                 {/* Avatar Design Section */}
                 <div className="space-y-4 border-t pt-6">
@@ -499,164 +583,12 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
 
             {/* TAB: Order History */}
             {activeTab === "orders" && (
-              <div className="space-y-6">
-                <div className="border-b pb-3 mb-4">
-                  <h3 className="text-xl font-bold font-serif">Đơn hàng của tôi</h3>
-                  <div className="flex gap-4 mt-4">
-                    <button 
-                      onClick={() => { setOrderTab("active"); setCurrentPage(1); }}
-                      className={`text-sm font-semibold pb-2 border-b-2 transition-colors ${orderTab === "active" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-                    >
-                      Đang xử lý
-                    </button>
-                    <button 
-                      onClick={() => { setOrderTab("history"); setCurrentPage(1); }}
-                      className={`text-sm font-semibold pb-2 border-b-2 transition-colors ${orderTab === "history" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-                    >
-                      Đã hoàn tất
-                    </button>
-                  </div>
-                </div>
+              <ProfileOrders setView={setView} />
+            )}
 
-                {loadingOrders ? (
-                  <div className="text-center py-10 text-muted-foreground">
-                    Đang tải danh sách đơn hàng...
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {(() => {
-                      const filteredOrders = orders.filter(o => 
-                        orderTab === "active" 
-                          ? !['completed', 'cancelled'].includes(o.orderStatus)
-                          : ['completed', 'cancelled'].includes(o.orderStatus)
-                      );
-
-                      if (filteredOrders.length === 0) {
-                        return (
-                          <div className="text-center py-10">
-                            <p className="text-sm text-muted-foreground">
-                              {orderTab === "active" ? "Bạn không có đơn hàng nào đang xử lý." : "Bạn chưa có đơn hàng nào hoàn tất."}
-                            </p>
-                          </div>
-                        );
-                      }
-
-                      const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-                      const paginatedOrders = filteredOrders.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-                      const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
-
-                      return (
-                        <>
-                          <div className="space-y-3 max-h-[380px] overflow-y-auto pr-2">
-                            {paginatedOrders.map((o) => {
-                            const itemsStr = o.items
-                        ?.map((i: any) => `${i.quantity}x ${i.productName} (${i.variantName})`)
-                        .join(", ") || "Không có sản phẩm";
-
-                      const dateStr = new Date(o.createdAt).toLocaleDateString("vi-VN");
-                      const priceStr = Number(o.totalAmount).toLocaleString("vi-VN") + "đ";
-
-                      const statusColors: Record<string, string> = {
-                        pending: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-                        confirmed: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-                        preparing: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-                        shipping: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-                        completed: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                        cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                      };
-
-                      const getStatusLabel = (status: string) => {
-                        const map: Record<string, string> = {
-                          pending: "Chờ xác nhận",
-                          confirmed: "Đã xác nhận",
-                          preparing: "Đang chuẩn bị",
-                          shipping: "Đang giao hàng",
-                          completed: "Đã hoàn thành",
-                          cancelled: "Đã hủy"
-                        };
-                        return map[status] || status;
-                      };
-
-                      return (
-                        <div
-                          key={o.id}
-                          className="border bg-secondary/20 py-2.5 px-3.5 rounded-lg text-sm flex flex-col sm:flex-row justify-between sm:items-center gap-2 transition hover:bg-secondary/40"
-                        >
-                          <div className="space-y-0.5">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-primary">{o.orderCode}</span>
-                              <span className="text-muted-foreground text-xs">• {dateStr}</span>
-                            </div>
-                            <p className="text-foreground/90 font-medium">{itemsStr}</p>
-                          </div>
-                          <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-1">
-                            <p className="font-bold text-foreground">{priceStr}</p>
-                            <span
-                              className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                                statusColors[o.orderStatus] || "bg-gray-100 text-gray-700"
-                              }`}
-                            >
-                              {getStatusLabel(o.orderStatus)}
-                            </span>
-                            {o.orderStatus !== 'cancelled' && (() => {
-                              const needsPayment = 
-                                o.paymentStatus === 'pending' && 
-                                !['cod', 'cash'].includes(o.paymentMethod);
-                              
-                              if (needsPayment) {
-                                return (
-                                  <button
-                                    onClick={() => setView("Thanh toán đơn hàng", o.id)}
-                                    className="mt-2 text-xs font-semibold text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-1"
-                                  >
-                                    <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                                    Thanh toán đơn hàng
-                                  </button>
-                                );
-                              }
-                              return (
-                                <button
-                                  onClick={() => setView("Theo dõi", o.id)}
-                                  className="mt-2 text-xs font-semibold text-primary hover:underline"
-                                >
-                                  Theo dõi đơn
-                                </button>
-                              );
-                            })()}
-
-                          </div>
-                        </div>
-                      );
-                    })}
-                    </div>
-                    
-                    {totalPages > 1 && (
-                      <div className="flex justify-center items-center gap-2 pt-4 border-t mt-2">
-                        <button 
-                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                          disabled={currentPage === 1}
-                          className="px-4 py-2 rounded-lg border border-border bg-card hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
-                        >
-                          Trước
-                        </button>
-                        <span className="text-sm font-medium text-muted-foreground mx-3">
-                          Trang {currentPage} / {totalPages}
-                        </span>
-                        <button 
-                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                          disabled={currentPage === totalPages}
-                          className="px-4 py-2 rounded-lg border border-border bg-card hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
-                        >
-                          Sau
-                        </button>
-                      </div>
-                    )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                )}
-              </div>
+            {/* TAB: Loyalty Points */}
+            {activeTab === "points" && (
+              <ProfilePoints />
             )}
           </div>
         </div>

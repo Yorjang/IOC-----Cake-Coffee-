@@ -69,24 +69,32 @@ export const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.ADMIN]: "/admin",
   [VIEW_KEYS.STAFF]: "/nhan-vien",
   [VIEW_KEYS.LOGIN]: "/dang-nhap",
+  [VIEW_KEYS.REGISTER]: "/dang-ky",
+  [VIEW_KEYS.FORGOT_PASSWORD]: "/quen-mat-khau",
   [VIEW_KEYS.FAVORITES]: "/yeu-thich",
   [VIEW_KEYS.PROFILE]: "/ho-so",
   [VIEW_KEYS.RESET_PASSWORD]: "/reset-password",
   [VIEW_KEYS.STORES]: "/he-thong-cua-hang",
   [VIEW_KEYS.PRIVACY]: "/chinh-sach-bao-mat",
   [VIEW_KEYS.TERMS]: "/dieu-khoan-dich-vu",
+  [VIEW_KEYS.RETURN_POLICY]: "/chinh-sach-doi-tra",
+  [VIEW_KEYS.ORDER_GUIDE]: "/huong-dan-dat-banh",
   [VIEW_KEYS.TRACKING]: "/theo-doi",
+  [VIEW_KEYS.PAYMENT]: "/thanh-toan-don-hang",
 };
 
-export const getPathFromView = (view: string, product?: any) => {
+export const getPathFromView = (view: string, product?: any, entityId?: string) => {
   if (view === VIEW_KEYS.DETAIL && product) {
     return `/chi-tiet/${encodeURIComponent(product[0].toLowerCase().replace(/\s+/g, "-"))}`;
   }
+  if (view === VIEW_KEYS.PAYMENT && entityId) return `/thanh-toan-don-hang/${entityId}`;
   return VIEW_PATH_MAP[view] ?? `/danh-muc/${encodeURIComponent(view.toLowerCase().replace(/\s+/g, "-"))}`;
 };
 
 export const getViewFromPath = (path: string, cats: any[] = []) => {
   if (path.startsWith("/admin")) return VIEW_KEYS.ADMIN;
+  if (path.startsWith('/thanh-toan-don-hang/')) return VIEW_KEYS.PAYMENT;
+  if (path.startsWith('/ho-so')) return VIEW_KEYS.PROFILE;
   for (const [key, value] of Object.entries(VIEW_PATH_MAP)) {
     if (value === path) return key;
   }
@@ -103,6 +111,11 @@ export const getViewFromPath = (path: string, cats: any[] = []) => {
     return VIEW_KEYS.SWEETS;
   }
   return VIEW_KEYS.HOME;
+};
+
+export const getOrderIdFromPath = (path: string): string | null => {
+  if (!path.startsWith('/thanh-toan-don-hang/')) return null;
+  return decodeURIComponent(path.slice('/thanh-toan-don-hang/'.length)) || null;
 };
 
 export const getProductFromPath = (path: string, prods: any[] = []) => {
@@ -262,4 +275,4 @@ export const apiBranchToStore = (branch: any): StoreLocation => {
     todayOpeningHour: todayHours ?? null,
   };
 };
-
+

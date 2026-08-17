@@ -24,6 +24,9 @@ export enum Permission {
   CREATE_ORDER = 'create_order',
   VIEW_ORDER = 'view_order',
   UPDATE_ORDER = 'update_order',
+
+  // Delivery
+  MANAGE_DELIVERIES = 'manage_deliveries',
 }
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
@@ -32,13 +35,13 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.VIEW_USERS,
     Permission.VIEW_BRANCHES,
     Permission.MANAGE_BRANCHES,
-    Permission.CREATE_PRODUCT,
     Permission.UPDATE_PRODUCT,
     Permission.DELETE_PRODUCT,
     Permission.VIEW_INVENTORY,
     Permission.MANAGE_INVENTORY,
     Permission.VIEW_ORDER,
     Permission.UPDATE_ORDER,
+    Permission.MANAGE_DELIVERIES,
   ],
   [UserRole.STAFF]: [
     Permission.VIEW_BRANCHES,
@@ -51,6 +54,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.CREATE_ORDER,
     Permission.VIEW_ORDER,
     Permission.UPDATE_ORDER,
+  ],
+  [UserRole.SHIPPER]: [
+    Permission.MANAGE_DELIVERIES,
   ],
   [UserRole.CUSTOMER]: [
     Permission.CREATE_ORDER,

@@ -9,7 +9,7 @@ export function Footer({ setView }: { setView?: (view: string) => void }) {
     try {
       const cached = localStorage.getItem("sb_cached_footer_bg");
       if (cached && !cached.includes("unsplash.com")) return cached;
-    } catch (_) {}
+    } catch (_) { }
     return "";
   });
 
@@ -20,18 +20,19 @@ export function Footer({ setView }: { setView?: (view: string) => void }) {
         const res = await fetch(`${env.API_URL}/banners/public`);
         if (!res.ok) return;
         const data = await res.json();
-        if (!cancelled && Array.isArray(data)) {
-          const footerBanner = data.find((b: any) => 
-            b.title && b.title.trim().toLowerCase() === 'ảnh footer' && b.imageUrl
+        const rawBanners = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
+        if (!cancelled && rawBanners.length > 0) {
+          const footerBanner = rawBanners.find((b: any) =>
+            b.position === 'footer' && b.imageUrl
           );
           if (footerBanner) {
             setBgImage(footerBanner.imageUrl);
             try {
               localStorage.setItem("sb_cached_footer_bg", footerBanner.imageUrl);
-            } catch (_) {}
+            } catch (_) { }
           }
         }
-      } catch (err) {}
+      } catch (err) { }
     };
 
     fetchFooterImage();
@@ -39,14 +40,14 @@ export function Footer({ setView }: { setView?: (view: string) => void }) {
   }, []);
 
   return (
-    <footer 
+    <footer
       className={`relative text-white border-t border-black/20 pt-16 pb-12 overflow-hidden bg-cover bg-center transition-all duration-700 ${bgImage ? "" : "bg-[#2d1a15]"}`}
       style={bgImage ? { backgroundImage: `url("${bgImage}")` } : undefined}
     >
       <div className="absolute inset-0 bg-black/20" /> {/* Slight dark tint for text readability, but much lighter than before */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 drop-shadow-md">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-8">
-          
+
           {/* Column 1: About & Info */}
           <div className="space-y-5">
             <div style={{ fontFamily: "'Bodoni Moda', serif" }} className="text-[28px] font-bold tracking-wide uppercase text-[#b99368]">
@@ -102,7 +103,7 @@ export function Footer({ setView }: { setView?: (view: string) => void }) {
                 Chúng tôi luôn tìm kiếm và chào đón những ứng viên đam mê với ngành bánh ngọt và dịch vụ khách hàng.
               </p>
               <p>
-                Gửi CV của bạn về email:<br/>
+                Gửi CV của bạn về email:<br />
                 <a href="mailto:tuyendung@tmories.vn" className="text-white hover:text-[#fd6699] font-medium transition-colors">tuyendung@tmories.vn</a>
               </p>
               <button className="inline-block mt-2 px-6 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full transition-all text-white font-semibold shadow-sm">
@@ -110,7 +111,7 @@ export function Footer({ setView }: { setView?: (view: string) => void }) {
               </button>
             </div>
           </div>
-          
+
         </div>
 
         {/* Copyright */}

@@ -32,16 +32,21 @@ export function AdminProducts() {
     emptyTopping,
     branches,
     isAdmin,
-    isManager
+    isManager,
+    ingredients,
+    variantRecipes,
+    updateVariantRecipe,
   } = useAdminProducts();
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl font-semibold text-foreground">Quản lý sản phẩm</h2>
-        <AdminBtn onClick={openAdd}>
-          <span className="flex items-center gap-1"><Plus size={14} />Thêm sản phẩm</span>
-        </AdminBtn>
+        {isAdmin && (
+          <AdminBtn onClick={openAdd}>
+            <span className="flex items-center gap-1"><Plus size={14} />Thêm sản phẩm</span>
+          </AdminBtn>
+        )}
       </div>
       <div className="flex flex-wrap gap-3">
         <div className="flex items-center gap-2 rounded-xl bg-sidebar px-3 py-2 text-sm">
@@ -61,6 +66,7 @@ export function AdminProducts() {
         fmtPrice={fmtPrice}
         openEdit={openEdit}
         remove={remove}
+        isAdmin={isAdmin}
       />
 
       <AdminProductModal 
@@ -83,6 +89,9 @@ export function AdminProducts() {
         branches={branches}
         isAdmin={isAdmin}
         isManager={isManager}
+        ingredients={ingredients}
+        variantRecipes={variantRecipes}
+        updateVariantRecipe={updateVariantRecipe}
       />
     </div>
   );

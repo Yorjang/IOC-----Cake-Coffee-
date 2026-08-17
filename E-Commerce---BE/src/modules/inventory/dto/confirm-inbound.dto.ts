@@ -1,19 +1,20 @@
-import { Type } from 'class-transformer';
 import {
-  IsArray,
-  IsDateString,
   IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
   IsUUID,
+  IsNumber,
   Min,
+  IsArray,
   ValidateNested,
+  IsOptional,
+  IsDateString,
+  IsString,
+  IsBoolean,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class ConfirmInboundItemDto {
   @IsNotEmpty()
-  @IsUUID()
+  @IsUUID('4')
   poItemId: string;
 
   @IsNotEmpty()
@@ -22,21 +23,42 @@ export class ConfirmInboundItemDto {
   receivedQuantity: number;
 
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  rejectedQuantity?: number;
+
+  @IsOptional()
+  @IsString()
+  rejectReason?: string;
+
+  @IsOptional()
+  @IsString()
+  barcode?: string;
+
+  @IsOptional()
   @IsDateString()
   manufactureDate?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsDateString()
-  expiryDate: string;
+  expiryDate?: string;
 
   @IsOptional()
   @IsString()
   batchCode?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isIngredient?: boolean;
+
+  @IsOptional()
+  @IsString()
+  unit?: string;
 }
 
 export class ConfirmInboundDto {
   @IsNotEmpty()
-  @IsUUID()
+  @IsUUID('4')
   poId: string;
 
   @IsNotEmpty()
@@ -44,4 +66,8 @@ export class ConfirmInboundDto {
   @ValidateNested({ each: true })
   @Type(() => ConfirmInboundItemDto)
   items: ConfirmInboundItemDto[];
+
+  @IsOptional()
+  @IsBoolean()
+  completePo?: boolean;
 }

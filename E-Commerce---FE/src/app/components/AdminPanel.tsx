@@ -19,6 +19,7 @@ import { useEffect, useState } from "react";
 import { AdminBanners } from './admin/AdminBanners';
 import { AdminBranches } from './admin/AdminBranches';
 import { AdminCategories } from './admin/AdminCategories';
+import { AdminCombos } from './admin/AdminCombos';
 import { AdminInventory } from './admin/AdminInventory';
 import { AdminOrders } from './admin/AdminOrders';
 import { AdminProducts } from './admin/AdminProducts';
@@ -46,6 +47,7 @@ const navItems = [
   { key: "branches", label: "Chi nhánh", icon: Store, allowedRoles: ["admin", "store_manager"] },
   { key: "storeMap", label: "Bản đồ", icon: MapPin, allowedRoles: ["admin", "store_manager"] },
   { key: "products", label: "Sản phẩm", icon: Package, allowedRoles: ["admin", "store_manager", "staff"] },
+  { key: "combos", label: "Combo", icon: Package, allowedRoles: ["admin", "store_manager", "staff"] },
   { key: "categories", label: "Danh mục", icon: Tag, allowedRoles: ["admin", "store_manager", "staff"] },
   { key: "productTags", label: "Tag sản phẩm", icon: Tag, allowedRoles: ["admin", "store_manager", "staff"] },
   { key: "inventory", label: "Tồn kho", icon: Boxes, allowedRoles: ["admin", "store_manager", "staff"] },
@@ -68,6 +70,7 @@ const ADMIN_TAB_PATHS: Record<string, string> = {
   branches: "/admin/branches",
   storeMap: "/admin/map",
   products: "/admin/products",
+  combos: "/admin/combos",
   categories: "/admin/categories",
   productTags: "/admin/tags",
   inventory: "/admin/inventory",
@@ -136,6 +139,7 @@ export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUse
     branches: <AdminBranches adminUser={adminUser} />,
     storeMap: <AdminStoreMap />,
     products: <AdminProducts />,
+    combos: <AdminCombos />,
     categories: <AdminCategories />,
     productTags: <AdminProductTags />,
     inventory: <AdminInventory />,

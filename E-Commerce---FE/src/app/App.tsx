@@ -13,8 +13,9 @@ import { AppRoutes } from "./components/AppRoutes";
 import { useAppState } from "./hooks/useAppState";
 import { useCartState } from "./hooks/useCartState";
 import { NAV_PAGES, VIEW_KEYS } from "../config/appConfig";
-import { STORE_STORAGE_KEY, getPathFromView, VIEW_PATH_MAP, parsePrice } from '../utils/appUtils';
+import { STORE_STORAGE_KEY, getOrderIdFromPath, getPathFromView, getViewFromPath, parsePrice } from '../utils/appUtils';
 import { clearAuthSession } from "./components/authSession";
+import { rememberTrackingOrder } from "./features/order-tracking/services/orderTrackingService";
 
 export default function App() {
   const appState = useAppState();
@@ -26,8 +27,8 @@ export default function App() {
     wishlist, setWishlist, user, setUser,
     selectedStore, setSelectedStore, availableStores,
     showStorePopup, setShowStorePopup, manualLocationRequired,
-    lastCreatedOrder, setLastCreatedOrder, selectedOrderId,
-    products, categories, publicCoupons
+    lastCreatedOrder, setLastCreatedOrder, selectedOrderId, setSelectedOrderId,
+    products, categories, publicCoupons, refreshPublicCoupons
   } = appState;
 
   const {
@@ -36,26 +37,34 @@ export default function App() {
     subtotal, discount, shipping, grandTotal
   } = cartState;
 
-  const setView = (newView: string) => {
+  const setView = (newView: string, id?: string) => {
     setViewInternal(newView);
     if (newView !== VIEW_KEYS.DETAIL) setSelectedProduct(null);
-    if (newView !== VIEW_KEYS.TRACKING) window.scrollTo({ top: 0, behavior: "smooth" });
-    const path = getPathFromView(newView);
-    if (path) window.history.pushState(null, "", path);
+    if (newView !== VIEW_KEYS.TRACKING && newView !== VIEW_KEYS.PAYMENT) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      setSelectedOrderId(null);
+    } else if (id) {
+      setSelectedOrderId(id);
+    }
+    const path = getPathFromView(newView, newView === VIEW_KEYS.DETAIL ? selectedProduct : undefined, id);
+    if (path && window.location.pathname !== path) window.history.pushState(null, "", path);
   };
 
   useEffect(() => {
     const handlePopState = () => {
-      const path = window.location.pathname;
-      let matchedView: string = VIEW_KEYS.HOME;
-      for (const [key, val] of Object.entries(VIEW_PATH_MAP)) {
-        if (val === path) matchedView = key;
-      }
+      const matchedView = getViewFromPath(window.location.pathname, categories);
       setViewInternal(matchedView);
+      if (matchedView !== VIEW_KEYS.DETAIL) setSelectedProduct(null);
+      if (matchedView === VIEW_KEYS.PAYMENT) {
+        setSelectedOrderId(getOrderIdFromPath(window.location.pathname));
+      } else if (matchedView !== VIEW_KEYS.TRACKING) {
+        setSelectedOrderId(null);
+      }
+      window.scrollTo({ top: 0, behavior: 'auto' });
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [setViewInternal]);
+  }, [categories, setSelectedOrderId, setSelectedProduct, setViewInternal]);
 
   useEffect(() => {
     if (selectedStore) {
@@ -102,12 +111,15 @@ export default function App() {
       return;
     }
     const payload = {
-      branchId: selectedStore?.id,
-      shippingRecipientName: customerInfo.name,
-      shippingAddressPhone: customerInfo.phone,
-      shippingAddressStreet: customerInfo.address,
+      branchId: customerInfo.branchId || selectedStore?.id,
+      shippingRecipientName: customerInfo.shippingRecipientName,
+      shippingAddressPhone: customerInfo.shippingAddressPhone,
+      shippingAddressStreet: customerInfo.shippingAddressStreet,
+      shippingLatitude: customerInfo.shippingLatitude,
+      shippingLongitude: customerInfo.shippingLongitude,
+      shippingFee: customerInfo.shippingFee,
       paymentMethod: customerInfo.paymentMethod,
-      fulfillmentType: "delivery",
+      fulfillmentType: customerInfo.fulfillmentType,
       note: customerInfo.note || "",
       couponCode: appliedCoupon?.code || null,
       items: cart.map((item: any) => {
@@ -136,8 +148,10 @@ export default function App() {
       } catch (err) { }
       
       setLastCreatedOrder(resData);
+      if (resData?.id) rememberTrackingOrder(resData.id);
       setCart([]);
       setAppliedCoupon(null);
+      refreshPublicCoupons();
       toast.success("Đặt hàng thành công!");
       setView(VIEW_KEYS.SUCCESS);
     } catch (err: any) {
@@ -146,7 +160,7 @@ export default function App() {
     }
   };
 
-  if ([VIEW_KEYS.ADMIN, VIEW_KEYS.STAFF, VIEW_KEYS.LOGIN, VIEW_KEYS.RESET_PASSWORD].includes(view)) {
+  if ([VIEW_KEYS.ADMIN, VIEW_KEYS.STAFF, VIEW_KEYS.LOGIN, VIEW_KEYS.REGISTER, VIEW_KEYS.FORGOT_PASSWORD, VIEW_KEYS.RESET_PASSWORD].includes(view)) {
     return (
       <>
         <Toaster richColors position="top-center" />
@@ -184,7 +198,10 @@ export default function App() {
             handleSelectStore={handleSelectStore} handleAdminLogout={handleLogout}
           />
         </main>
-        <FloatingContact />
+        <FloatingContact
+          showOrderTracking={view === VIEW_KEYS.HOME}
+          onTrackOrder={() => setView(VIEW_KEYS.TRACKING)}
+        />
         {view === VIEW_KEYS.HOME && <SalesNotification products={products} onSelectProduct={handleSelectProduct} />}
         <Footer setView={setView} />
         {showStorePopup && (

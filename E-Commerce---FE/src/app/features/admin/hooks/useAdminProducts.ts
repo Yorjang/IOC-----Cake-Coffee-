@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { env } from "../../../../config/env";
 import { parseRes } from "../../../../utils/api";
 import { getAccessToken, getStoredUser } from "../../../components/authSession";
+
+const DRINK_TYPES = ["coffee", "drink"];
 
 export function useAdminProducts() {
   const user = getStoredUser();
@@ -21,6 +23,10 @@ export function useAdminProducts() {
   const [removedVariantIds, setRemovedVariantIds] = useState<string[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
+  // BOM: ingredient recipe per variant
+  const [ingredients, setIngredients] = useState<any[]>([]);
+  // variantRecipes: { [tempKey: string]: { ingredientId: string; quantityRequired: number; unit?: string }[] }
+  const [variantRecipes, setVariantRecipes] = useState<Record<string, any[]>>({});
 
   const getToken = () => getAccessToken();
 
@@ -31,14 +37,16 @@ export function useAdminProducts() {
       const headers: any = {};
       if (token) headers.Authorization = `Bearer ${token}`;
 
-      const [pRes, cRes, bRes] = await Promise.all([
+      const [pRes, cRes, bRes, iRes] = await Promise.all([
         fetch(`${env.API_URL}/products`, { headers }),
         fetch(`${env.API_URL}/products/categories`),
         fetch(`${env.API_URL}/branches/active`),
+        fetch(`${env.API_URL}/inventory/ingredients?isActive=true`, { headers }),
       ]);
       if (pRes.ok) setItems(await parseRes(pRes));
       if (cRes.ok) setCats(await parseRes(cRes));
       if (bRes.ok) setBranches(await parseRes(bRes));
+      if (iRes.ok) { const iData = await parseRes(iRes); setIngredients(Array.isArray(iData) ? iData : (iData?.data ?? [])); }
     } catch { /* silent */ } finally { setLoading(false); }
   };
 
@@ -57,30 +65,63 @@ export function useAdminProducts() {
 
   const emptyTopping = () => ({ name: "", price: "0", isActive: true });
 
+  const loadVariantRecipes = useCallback(async (variants: any[], productType: string) => {
+    if (!DRINK_TYPES.includes(productType)) return;
+    const token = getToken();
+    const headers: any = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const recipes: Record<string, any[]> = {};
+    await Promise.all(
+      variants
+        .filter((v: any) => v.id)
+        .map(async (v: any) => {
+          try {
+            const res = await fetch(`${env.API_URL}/inventory/variants/${v.id}/ingredients`, { headers });
+            if (res.ok) {
+              const data = await parseRes(res);
+              recipes[v.id] = (Array.isArray(data) ? data : (data?.data ?? [])).map((r: any) => ({
+                ingredientId: r.ingredientId,
+                quantityRequired: Number(r.quantityRequired),
+                unit: r.unit ?? 'g',
+              }));
+            } else {
+              recipes[v.id] = [];
+            }
+          } catch { recipes[v.id] = []; }
+        })
+    );
+    setVariantRecipes(recipes);
+  }, []);
+
   const openAdd = () => {
     setEditing(null);
     setForm({ name: "", categoryId: cats[0]?.id ?? "", description: "", imageUrl: "", productType: "cake", branchId: isManager ? user?.branchId || "" : "" });
     setVariantForms([emptyVariant()]);
     setToppingForms([]);
     setRemovedVariantIds([]);
+    setVariantRecipes({});
     setShowModal(true);
   };
 
   const openEdit = (p: any) => {
     setEditing(p);
     setForm({ name: p.name, categoryId: p.categoryId, description: p.description || "", imageUrl: p.imageUrl || "", productType: p.productType, branchId: p.branchId || (isManager ? user?.branchId || "" : "") });
-    setVariantForms((p.variants || []).map((variant: any) => ({
+    const mappedVariants = (p.variants || []).map((variant: any) => ({
       ...variant,
       price: String(variant.price),
       flavor: variant.flavor || "",
       topping: variant.topping || "",
       imageUrl: variant.imageUrl || "",
-    })));
+    }));
+    setVariantForms(mappedVariants);
     setToppingForms([...(p.toppings || [])]
       .sort((a: any, b: any) => Number(a.sortOrder) - Number(b.sortOrder))
       .map((topping: any) => ({ ...topping, price: String(topping.price) })));
     setRemovedVariantIds([]);
+    setVariantRecipes({});
     setShowModal(true);
+    // Load recipe for each variant asynchronously
+    loadVariantRecipes(p.variants || [], p.productType);
   };
 
   const updateVariantForm = (index: number, changes: any) => {
@@ -191,10 +232,28 @@ export function useAdminProducts() {
         const error = await parseRes(toppingRes);
         throw new Error(error.message || "Không thể lưu danh sách topping");
       }
+      // Save recipes for each variant (coffee/drink)
+      if (DRINK_TYPES.includes(form.productType) && editing) {
+        for (const [variantId, recipe] of Object.entries(variantRecipes)) {
+          const recipeRes = await fetch(`${env.API_URL}/inventory/variants/${variantId}/ingredients`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ ingredients: recipe.map(r => ({ ingredientId: r.ingredientId, quantityRequired: Number(r.quantityRequired), unit: r.unit || 'g' })) }),
+          });
+          if (!recipeRes.ok) {
+            const error = await parseRes(recipeRes);
+            throw new Error(error.message || "Không thể lưu công thức nguyên liệu");
+          }
+        }
+      }
       setShowModal(false); load();
-      toast.success(editing ? "Đã cập nhật sản phẩm, biến thể và topping." : "Đã tạo sản phẩm cùng biến thể và topping.");
+      toast.success(editing ? "Đã cập nhật sản phẩm, biến thể, topping và công thức nguyên liệu." : "Đã tạo sản phẩm cùng biến thể và topping.");
     } catch (err: any) { toast.error(err.message || "Lỗi khi lưu sản phẩm"); }
     finally { setSaving(false); }
+  };
+
+  const updateVariantRecipe = (variantId: string, recipe: any[]) => {
+    setVariantRecipes(prev => ({ ...prev, [variantId]: recipe }));
   };
 
   const remove = async (id: string) => {
@@ -249,6 +308,9 @@ export function useAdminProducts() {
     emptyTopping,
     branches,
     isAdmin,
-    isManager
+    isManager,
+    ingredients,
+    variantRecipes,
+    updateVariantRecipe,
   };
 }

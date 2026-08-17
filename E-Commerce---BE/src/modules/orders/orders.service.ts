@@ -2,11 +2,16 @@ import { BadRequestException, ForbiddenException, Injectable, InternalServerErro
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { CartService } from '../cart/cart.service';
+import { BranchesService } from '../branches/branches.service';
 import { PaymentsService } from '../payments/payments.service';
+import { PointsService } from '../points/points.service';
+import { PointTransactionType } from '../points/point-history.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 import { User, UserRole } from '../users/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatusHistory } from './order-status-history.entity';
-import { FulfillmentType, Order, OrderStatus, PaymentStatus } from './order.entity';
+import { FulfillmentType, Order, OrderStatus, PaymentStatus, DeliveryStatus } from './order.entity';
+import { DeliveryLog } from '../delivery/delivery-log.entity';
 
 const PICKUP_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
   [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
@@ -28,13 +33,16 @@ export class OrdersService {
     private readonly orders: Repository<Order>,
     private readonly paymentsService: PaymentsService,
     private readonly cartService: CartService,
+    private readonly branchesService: BranchesService,
     private readonly dataSource: DataSource,
+    private readonly pointsService: PointsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
 
   async findAll(): Promise<Order[]> {
     return this.orders.find({
-      relations: { user: true, branch: true, items: true },
+      relations: { user: true, branch: true, items: { product: true } },
       order: { createdAt: 'DESC' },
     });
   }
@@ -55,9 +63,51 @@ export class OrdersService {
 
       const previousStatus = order.orderStatus;
       order.orderStatus = status;
-      if (status === OrderStatus.COMPLETED) {
+      if (status === OrderStatus.COMPLETED && previousStatus !== OrderStatus.COMPLETED) {
         order.paymentStatus = PaymentStatus.PAID;
         order.paidAt = new Date();
+
+        if (order.userId) {
+          // Tích điểm dựa trên số tiền đơn hàng (Không bao gồm tiền ship)
+          const eligibleAmount = Math.max(0, Number(order.totalAmount) - Number(order.shippingFee || 0));
+          const earnedPoints = Math.floor(eligibleAmount / 1000);
+          if (earnedPoints > 0) {
+            try {
+              await this.pointsService.addPoints(
+                order.userId,
+                earnedPoints,
+                PointTransactionType.ORDER_COMPLETED,
+                order.id,
+                `Tích điểm từ đơn hàng ${order.orderCode}`,
+              );
+
+              this.notificationsService
+                .createNotification(order.userId, {
+                  orderId: order.id,
+                  type: 'points_reward',
+                  title: 'Bạn đã nhận được điểm thưởng!',
+                  message: `Chúc mừng! Bạn đã nhận được +${earnedPoints} điểm thưởng từ đơn hàng ${order.orderCode}.`,
+                })
+                .catch((err) => console.error('Failed to send order completion points notification:', err));
+            } catch (err) {
+              console.error('Failed to award points for completed order:', err);
+            }
+          }
+        }
+      }
+
+      if (status === OrderStatus.CANCELLED && order.shipperId) {
+        order.deliveryStatus = DeliveryStatus.CANCELLED as any;
+        await manager.getRepository(DeliveryLog).save({
+          orderId: order.id,
+          shipperId: order.shipperId,
+          status: DeliveryStatus.CANCELLED as any,
+          note: 'Đơn hàng đã bị hủy bởi quản lý khi đang giao',
+        });
+      }
+
+      if (status === OrderStatus.CANCELLED && previousStatus !== OrderStatus.CANCELLED) {
+        await this.restoreStocks(order.id, order.branchId, manager);
       }
 
       const savedOrder = await orderRepository.save(order);
@@ -154,7 +204,7 @@ export class OrdersService {
         ORDER BY d.day_date
       `),
       this.orders.find({
-        relations: { user: true, items: true },
+        relations: { user: true, items: { product: true } },
         order: { createdAt: 'DESC' },
         take: 5,
       }),
@@ -200,7 +250,7 @@ export class OrdersService {
   async createOrder(userId: string | null, sessionId: string | null, dto: CreateOrderDto): Promise<Order> {
 
     const {
-      branchId,
+      branchId: requestedBranchId,
       subtotal,
       discountAmount = 0,
       shippingFee = 0,
@@ -211,16 +261,36 @@ export class OrdersService {
       shippingAddressWard,
       shippingAddressDistrict,
       shippingAddressProvince,
+      shippingLatitude,
+      shippingLongitude,
       shippingAddressPhone,
       shippingRecipientName,
       note,
       couponCode,
       items
     } = dto;
+    let branchId = requestedBranchId;
+    let calculatedShippingFee = 0;
 
     try {
       if (!items || items.length === 0) {
         throw new BadRequestException('Đơn hàng phải có ít nhất một sản phẩm');
+      }
+
+      if (fulfillmentType === FulfillmentType.DELIVERY) {
+        if (shippingLatitude === undefined || shippingLongitude === undefined) {
+          throw new BadRequestException('Đơn giao hàng phải có tọa độ nhận hàng');
+        }
+        const deliveryQuote = await this.branchesService.getDeliveryQuote(
+          shippingLatitude,
+          shippingLongitude,
+          items.map((item: any) => ({
+            variantId: item.variantId,
+            quantity: item.quantity,
+          })),
+        );
+        branchId = deliveryQuote.branch.id;
+        calculatedShippingFee = deliveryQuote.shippingFee;
       }
 
     if (!userId && Number(discountAmount) > 0) {
@@ -231,7 +301,7 @@ export class OrdersService {
     let couponId: string | null = null;
     if (couponCode && userId) {
       const couponRes = await this.orders.query(
-        `SELECT id, status, expires_at, usage_limit, used_count, per_customer_limit, product_id, categories_id, branch_id, is_approved, is_pending_delete FROM coupons WHERE code = $1`,
+        `SELECT id, status, expires_at, usage_limit, used_count, per_customer_limit, product_id, categories_id, branch_id, is_approved, is_pending_delete, points_required FROM coupons WHERE code = $1`,
         [couponCode.toUpperCase().trim()]
       );
       if (couponRes.length === 0) {
@@ -275,18 +345,42 @@ export class OrdersService {
           throw new BadRequestException(`Mã giảm giá "${couponCode}" chỉ áp dụng cho danh mục sản phẩm cụ thể.`);
         }
       }
-      // Check per-customer usage limit
-      const perLimit = Number(coupon.per_customer_limit ?? 1);
-      if (perLimit > 0) {
+
+      // Check redemption requirement and per-customer limit
+      const pointsReq = Number(coupon.points_required || 0);
+      if (pointsReq > 0) {
+        const redeemRes = await this.orders.query(
+          `SELECT COUNT(*) as count FROM point_histories WHERE user_id = $1 AND type = 'points_redeemed' AND reference_id = $2`,
+          [userId, coupon.id]
+        );
+        const redeemedCount = Number(redeemRes[0]?.count ?? 0);
+
         const usageRes = await this.orders.query(
           `SELECT COUNT(*) as count FROM orders WHERE user_id = $1 AND coupon_code = $2 AND order_status != 'cancelled'`,
           [userId, couponCode.toUpperCase().trim()]
         );
         const usedByCustomer = Number(usageRes[0]?.count ?? 0);
-        if (usedByCustomer >= perLimit) {
-          throw new BadRequestException(`Bạn đã sử dụng mã giảm giá "${couponCode}" rồi. Mỗi tài khoản chỉ được dùng ${perLimit} lần.`);
+
+        if (redeemedCount <= 0) {
+          throw new BadRequestException(`Mã giảm giá "${couponCode}" cần đổi bằng điểm thưởng. Bạn chưa đổi mã này.`);
+        }
+        if (usedByCustomer >= redeemedCount) {
+          throw new BadRequestException(`Bạn đã sử dụng hết lượt đổi của mã giảm giá "${couponCode}". Hãy đổi thêm mã bằng điểm thưởng nếu muốn tiếp tục sử dụng.`);
+        }
+      } else {
+        const perLimit = Number(coupon.per_customer_limit ?? 1);
+        if (perLimit > 0) {
+          const usageRes = await this.orders.query(
+            `SELECT COUNT(*) as count FROM orders WHERE user_id = $1 AND coupon_code = $2 AND order_status != 'cancelled'`,
+            [userId, couponCode.toUpperCase().trim()]
+          );
+          const usedByCustomer = Number(usageRes[0]?.count ?? 0);
+          if (usedByCustomer >= perLimit) {
+            throw new BadRequestException(`Bạn đã sử dụng mã giảm giá "${couponCode}" rồi. Mỗi tài khoản chỉ được dùng ${perLimit} lần.`);
+          }
         }
       }
+
       couponId = coupon.id;
     }
 
@@ -351,9 +445,17 @@ export class OrdersService {
 
     const finalSubtotal = subtotal !== undefined ? Number(subtotal) : calculatedSubtotal;
     const finalDiscount = calculatedDiscount > 0 ? calculatedDiscount : Number(discountAmount || 0);
-    const finalTotalAmount = totalAmount !== undefined ? Number(totalAmount) : (finalSubtotal - finalDiscount + Number(shippingFee));
+    const finalShippingFee =
+      fulfillmentType === FulfillmentType.DELIVERY ? calculatedShippingFee : 0;
+    const finalTotalAmount = finalSubtotal - finalDiscount + finalShippingFee;
 
-    // 1. Validate stocks
+    // 1. Validate stocks (physical + ingredients)
+    const stockUpdates: Array<{
+      variantId: string;
+      usedPhysical: number;
+      usedIngredients: Array<{ ingredientId: string; qty: number }>;
+    }> = [];
+
     for (const item of items) {
       const stockRes = await this.orders.query(
         'SELECT quantity FROM branch_variant_stocks WHERE branch_id = $1 AND variant_id = $2',
@@ -362,23 +464,90 @@ export class OrdersService {
       if (stockRes.length === 0) {
         throw new BadRequestException(`Sản phẩm ${item.productName} hiện không khả dụng tại chi nhánh này (Chưa có dữ liệu kho).`);
       }
-      
-      const availableQty = Number(stockRes[0].quantity);
-      // BUG-002 FIX: Re-enable stock validation
-      if (availableQty < item.quantity) {
-        throw new BadRequestException(`Sản phẩm ${item.productName} (${item.variantName}) không đủ số lượng tồn kho (Còn lại: ${availableQty}).`);
+      const physicalQty = Number(stockRes[0].quantity || 0);
+
+      // Get recipe ingredients
+      const recipe = await this.orders.query(
+        'SELECT ingredient_id, quantity_required FROM variant_ingredients WHERE variant_id = $1',
+        [item.variantId]
+      );
+
+      if (recipe.length === 0) {
+        // No recipe: regular physical check
+        if (physicalQty < item.quantity) {
+          throw new BadRequestException(`Sản phẩm ${item.productName} (${item.variantName}) không đủ số lượng tồn kho (Còn lại: ${physicalQty}).`);
+        }
+        stockUpdates.push({
+          variantId: item.variantId,
+          usedPhysical: item.quantity,
+          usedIngredients: [],
+        });
+      } else {
+        // Has recipe: calculate max possible from ingredients
+        const ingredientIds = recipe.map((ri: any) => ri.ingredient_id);
+        const ingStocks = await this.orders.query(
+          'SELECT ingredient_id, current_stock FROM branch_ingredient_stocks WHERE branch_id = $1 AND ingredient_id = ANY($2)',
+          [branchId, ingredientIds]
+        );
+        const ingStockMap = new Map<string, number>(
+          ingStocks.map((s: any) => [s.ingredient_id, Number(s.current_stock || 0)])
+        );
+
+        let maxSellable = Infinity;
+        for (const ri of recipe) {
+          const availableIngQty = ingStockMap.get(ri.ingredient_id) || 0;
+          const reqQty = Number(ri.quantity_required || 0);
+          if (reqQty > 0) {
+            const possible = Math.floor(availableIngQty / reqQty);
+            if (possible < maxSellable) {
+              maxSellable = possible;
+            }
+          }
+        }
+        if (maxSellable === Infinity) maxSellable = 0;
+
+        const totalAvailable = physicalQty + maxSellable;
+        if (totalAvailable < item.quantity) {
+          throw new BadRequestException(`Sản phẩm ${item.productName} (${item.variantName}) không đủ số lượng tồn kho (Còn lại: ${totalAvailable}).`);
+        }
+
+        const usedPhysical = Math.min(physicalQty, item.quantity);
+        const remainingToDeduct = item.quantity - usedPhysical;
+        const usedIngredients = [];
+
+        if (remainingToDeduct > 0) {
+          for (const ri of recipe) {
+            const neededIngQty = Number(ri.quantity_required) * remainingToDeduct;
+            usedIngredients.push({
+              ingredientId: ri.ingredient_id,
+              qty: neededIngQty,
+            });
+          }
+        }
+
+        stockUpdates.push({
+          variantId: item.variantId,
+          usedPhysical,
+          usedIngredients,
+        });
       }
     }
 
-    // BUG-008: Update stocks in parallel (was serial N queries)
-    await Promise.all(
-      items.map((item: any) =>
-        this.orders.query(
+    // 2. Perform updates
+    for (const update of stockUpdates) {
+      if (update.usedPhysical > 0) {
+        await this.orders.query(
           'UPDATE branch_variant_stocks SET quantity = quantity - $1 WHERE branch_id = $2 AND variant_id = $3',
-          [item.quantity, branchId, item.variantId]
-        )
-      )
-    );
+          [update.usedPhysical, branchId, update.variantId]
+        );
+      }
+      for (const ingUse of update.usedIngredients) {
+        await this.orders.query(
+          'UPDATE branch_ingredient_stocks SET current_stock = current_stock - $1 WHERE branch_id = $2 AND ingredient_id = $3',
+          [ingUse.qty, branchId, ingUse.ingredientId]
+        );
+      }
+    }
 
     // BUG-006 FIX: Ensure unique constraint exists (safe migration)
     try {
@@ -402,14 +571,14 @@ export class OrdersService {
             order_code, user_id, branch_id, subtotal, discount_amount, shipping_fee, total_amount, 
             payment_method, payment_status, order_status, order_type, fulfillment_type, 
             shipping_address_street, shipping_address_ward, shipping_address_district, shipping_address_province,
-            shipping_address_phone, shipping_recipient_name, note, coupon_code, session_id
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+            shipping_latitude, shipping_longitude, shipping_address_phone, shipping_recipient_name, note, coupon_code, session_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
           RETURNING id
         `, [
-          orderCode, userId || null, branchId, finalSubtotal, finalDiscount, shippingFee, finalTotalAmount,
+          orderCode, userId || null, branchId, finalSubtotal, finalDiscount, finalShippingFee, finalTotalAmount,
           paymentMethod, 'pending', 'pending', 'online', fulfillmentType,
           shippingAddressStreet, shippingAddressWard, shippingAddressDistrict, shippingAddressProvince,
-          shippingAddressPhone, shippingRecipientName, note,
+          shippingLatitude, shippingLongitude, shippingAddressPhone, shippingRecipientName, note,
           couponCode ? couponCode.toUpperCase().trim() : null, sessionId || null
         ]);
         
@@ -460,7 +629,7 @@ export class OrdersService {
 
       return this.orders.findOne({
         where: { id: orderId },
-        relations: { items: true, branch: true }
+        relations: { items: { product: true }, branch: true }
       });
     } catch (error: any) {
       if (error instanceof BadRequestException) {
@@ -471,56 +640,110 @@ export class OrdersService {
   }
 
   async findMyOrders(userId: string): Promise<Order[]> {
-    return this.orders.find({
+    const orders = await this.orders.find({
       where: { userId },
-      relations: { items: true, branch: true },
+      relations: { items: { product: true }, branch: true },
       order: { createdAt: 'DESC' }
     });
+
+    if (orders.length > 0) {
+      const orderIds = orders.map((o) => o.id);
+      const reviews = await this.dataSource.query(
+        `SELECT order_id, product_id, comment, rating, image_url, created_at FROM reviews WHERE order_id = ANY($1)`,
+        [orderIds]
+      );
+      const reviewMap = new Map();
+      for (const r of reviews) {
+        reviewMap.set(`${r.order_id}_${r.product_id}`, r);
+      }
+      
+      for (const order of orders) {
+        for (const item of order.items) {
+          const review = reviewMap.get(`${order.id}_${item.productId}`);
+          if (review) {
+            (item as any).isReviewed = true;
+            (item as any).review = review;
+          } else {
+            (item as any).isReviewed = false;
+          }
+        }
+      }
+    }
+
+    return orders;
   }
 
   async findPublicOrder(id: string): Promise<Order> {
     const order = await this.orders.findOne({
       where: { id },
-      relations: { items: true, branch: true }
+      relations: { items: { product: true }, branch: true }
     });
     if (!order) {
       throw new BadRequestException('Order not found');
     }
+
+    const reviews = await this.dataSource.query(
+      `SELECT product_id, comment, rating, image_url, created_at FROM reviews WHERE order_id = $1`,
+      [id]
+    );
+    const reviewMap = new Map();
+    for (const r of reviews) {
+      reviewMap.set(r.product_id, r);
+    }
+    
+    for (const item of order.items) {
+      const review = reviewMap.get(item.productId);
+      if (review) {
+        (item as any).isReviewed = true;
+        (item as any).review = review;
+      } else {
+        (item as any).isReviewed = false;
+      }
+    }
+
     return order;
   }
 
   async cancelMyOrder(id: string, userId: string | null, sessionId: string | null, refundInfo?: any): Promise<Order> {
-    const order = await this.orders.findOne({ where: { id } });
-    if (!order) {
-      throw new BadRequestException('Order not found');
-    }
+    return this.dataSource.transaction(async (manager) => {
+      const orderRepository = manager.getRepository(Order);
+      const order = await orderRepository.findOne({ where: { id } });
+      if (!order) {
+        throw new BadRequestException('Order not found');
+      }
 
-    if (userId) {
-      if (order.userId !== userId) {
+      if (userId) {
+        if (order.userId !== userId) {
+          throw new BadRequestException('Không có quyền hủy đơn hàng này');
+        }
+      } else if (sessionId) {
+        if (order.sessionId !== sessionId) {
+          throw new BadRequestException('Không có quyền hủy đơn hàng này (sai session)');
+        }
+      } else {
         throw new BadRequestException('Không có quyền hủy đơn hàng này');
       }
-    } else if (sessionId) {
-      if (order.sessionId !== sessionId) {
-        throw new BadRequestException('Không có quyền hủy đơn hàng này (sai session)');
+
+      if (order.orderStatus !== OrderStatus.PENDING) {
+        throw new BadRequestException('Chỉ có thể hủy đơn hàng đang ở trạng thái chờ xác nhận');
       }
-    } else {
-      throw new BadRequestException('Không có quyền hủy đơn hàng này');
-    }
 
-    if (order.orderStatus !== OrderStatus.PENDING) {
-      throw new BadRequestException('Chỉ có thể hủy đơn hàng đang ở trạng thái chờ xác nhận');
-    }
-
-    if (order.paymentStatus === 'paid' as any) {
-      if (!refundInfo || !refundInfo.bankName || !refundInfo.accountNumber || !refundInfo.accountName) {
-        throw new BadRequestException('Vui lòng cung cấp đầy đủ thông tin ngân hàng để nhận hoàn tiền.');
+      if (order.paymentStatus === 'paid' as any) {
+        if (!refundInfo || !refundInfo.bankName || !refundInfo.accountNumber || !refundInfo.accountName) {
+          throw new BadRequestException('Vui lòng cung cấp đầy đủ thông tin ngân hàng để nhận hoàn tiền.');
+        }
+        order.paymentStatus = 'refund_pending' as any;
+        order.refundInfo = refundInfo;
       }
-      order.paymentStatus = 'refund_pending' as any;
-      order.refundInfo = refundInfo;
-    }
 
-    order.orderStatus = OrderStatus.CANCELLED;
-    return this.orders.save(order);
+      order.orderStatus = OrderStatus.CANCELLED;
+      await this.restoreStocks(order.id, order.branchId, manager);
+      await orderRepository.save(order);
+      return orderRepository.findOneOrFail({
+        where: { id },
+        relations: { items: true, branch: true },
+      });
+    });
   }
 
   async processRefund(id: string): Promise<Order> {
@@ -534,5 +757,42 @@ export class OrdersService {
     
     order.paymentStatus = 'refunded' as any;
     return this.orders.save(order);
+  }
+
+  private async restoreStocks(orderId: string, branchId: string, manager: any) {
+    const items = await manager.query(
+      'SELECT variant_id, quantity FROM order_items WHERE order_id = $1',
+      [orderId]
+    );
+    for (const item of items) {
+      const recipe = await manager.query(
+        'SELECT ingredient_id, quantity_required FROM variant_ingredients WHERE variant_id = $1',
+        [item.variant_id]
+      );
+      if (recipe.length > 0) {
+        for (const ri of recipe) {
+          const returnQty = Number(ri.quantity_required) * Number(item.quantity);
+          await manager.query(
+            'UPDATE branch_ingredient_stocks SET current_stock = current_stock + $1 WHERE branch_id = $2 AND ingredient_id = $3',
+            [returnQty, branchId, ri.ingredient_id]
+          );
+        }
+      } else {
+        await manager.query(
+          'UPDATE branch_variant_stocks SET quantity = quantity + $1 WHERE branch_id = $2 AND variant_id = $3',
+          [item.quantity, branchId, item.variant_id]
+        );
+      }
+    }
+  }
+
+  async hasPurchasedProduct(userId: string, productId: string): Promise<boolean> {
+    const result = await this.orders.query(
+      `SELECT 1 FROM orders o 
+       INNER JOIN order_items oi ON o.id = oi.order_id 
+       WHERE o.user_id = $1 AND oi.product_id = $2 AND o.order_status = 'completed' LIMIT 1`,
+      [userId, productId]
+    );
+    return result.length > 0;
   }
 }

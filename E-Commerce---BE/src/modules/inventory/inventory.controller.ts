@@ -10,53 +10,58 @@ import {
   Put,
   Query,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
-import { Permission } from '../../common/constants/permissions';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Permissions } from '../../common/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { CreateBranchIngredientStockDto, UpdateBranchIngredientStockDto } from './dto/branch-ingredient-stock.dto';
-import { ConfirmInboundDto } from './dto/confirm-inbound.dto';
+import { Permissions } from '../../common/decorators/permissions.decorator';
+import { Permission } from '../../common/constants/permissions';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { UserRole } from '../users/user.entity';
+import { InventoryService } from './inventory.service';
+import { UpdateInventoryDto } from './dto/update-inventory.dto';
 import { CreateIngredientDto, UpdateIngredientDto } from './dto/create-ingredient.dto';
+import { CreateBranchIngredientStockDto, UpdateBranchIngredientStockDto } from './dto/branch-ingredient-stock.dto';
+import { CreateVariantIngredientDto, BulkSetVariantIngredientsDto } from './dto/variant-ingredient.dto';
+import { CreateStockBatchDto, UpdateStockBatchDto } from './dto/stock-batch.dto';
 import { CreateInventoryTransactionDto } from './dto/create-inventory-transaction.dto';
 import { CreatePurchaseOrderDto, QueryPurchaseOrderDto } from './dto/create-purchase-order.dto';
+import { CreatePurchaseRequestDto, QueryPurchaseRequestDto } from './dto/create-purchase-request.dto';
+import { CancelReasonDto } from './dto/cancel-dto';
+import { ConfirmInboundDto } from './dto/confirm-inbound.dto';
+import { QueryAdjustmentDto } from './dto/query-adjustment.dto';
 import {
-  QueryExpiryWarningDto,
-  QueryIngredientStockDto,
-  QueryInventoryTransactionDto,
-  QueryLowStockDto,
-  QueryStockBatchDto,
   QueryVariantStockDto,
+  QueryIngredientStockDto,
+  QueryStockBatchDto,
+  QueryInventoryTransactionDto,
+  QueryExpiryWarningDto,
+  QueryLowStockDto,
 } from './dto/query-inventory.dto';
-import { CreateStockBatchDto, UpdateStockBatchDto } from './dto/stock-batch.dto';
-import { UpdateInventoryDto } from './dto/update-inventory.dto';
-import { BulkSetVariantIngredientsDto, CreateVariantIngredientDto } from './dto/variant-ingredient.dto';
-import { InventoryService } from './inventory.service';
-import { PurchaseOrderService } from './purchase-order.service';
-import { IngredientService } from './ingredient.service';
 
 @Controller(['admin/inventory', 'inventory'])
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class InventoryController {
-  constructor(
-    private readonly inventoryService: InventoryService,
-    private readonly purchaseOrderService: PurchaseOrderService,
-    private readonly ingredientService: IngredientService
-  ) {}
+  constructor(private readonly inventoryService: InventoryService) {}
 
   // ───────────────────────────────────────────────────────────────────────────
   // SP2-09: Tồn kho variant theo chi nhánh
   // ───────────────────────────────────────────────────────────────────────────
   @Get()
   @Permissions(Permission.VIEW_INVENTORY)
-  findAllStocks(@Query() query: QueryVariantStockDto) {
+  findAllStocks(@Query() query: QueryVariantStockDto, @CurrentUser() user: any) {
+    if (user?.role === UserRole.STORE_MANAGER && user?.branchId) {
+      query.branchId = user.branchId;
+    }
     return this.inventoryService.findVariantStocks(query);
   }
 
   @Get('variants')
   @Permissions(Permission.VIEW_INVENTORY)
-  findVariantStocks(@Query() query: QueryVariantStockDto) {
+  findVariantStocks(@Query() query: QueryVariantStockDto, @CurrentUser() user: any) {
+    if (user?.role === UserRole.STORE_MANAGER && user?.branchId) {
+      query.branchId = user.branchId;
+    }
     return this.inventoryService.findVariantStocks(query);
   }
 
@@ -71,8 +76,9 @@ export class InventoryController {
   updateStock(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateInventoryDto,
+    @CurrentUser() user: any,
   ) {
-    return this.inventoryService.updateVariantStock(id, dto);
+    return this.inventoryService.updateVariantStock(id, dto, user);
   }
 
   @Patch('variants/:id')
@@ -80,8 +86,9 @@ export class InventoryController {
   updateVariantStock(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateInventoryDto,
+    @CurrentUser() user: any,
   ) {
-    return this.inventoryService.updateVariantStock(id, dto);
+    return this.inventoryService.updateVariantStock(id, dto, user);
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -90,7 +97,7 @@ export class InventoryController {
   @Post('ingredients')
   @Permissions(Permission.MANAGE_INVENTORY)
   createIngredient(@Body() dto: CreateIngredientDto) {
-    return this.ingredientService.createIngredient(dto);
+    return this.inventoryService.createIngredient(dto);
   }
 
   @Get('ingredients')
@@ -100,13 +107,13 @@ export class InventoryController {
     @Query('isActive') isActive?: string,
   ) {
     const activeBool = isActive !== undefined ? isActive === 'true' : undefined;
-    return this.ingredientService.findAllIngredients(search, activeBool);
+    return this.inventoryService.findAllIngredients(search, activeBool);
   }
 
   @Get('ingredients/:id')
   @Permissions(Permission.VIEW_INVENTORY)
   findIngredientById(@Param('id', ParseUUIDPipe) id: string) {
-    return this.ingredientService.findIngredientById(id);
+    return this.inventoryService.findIngredientById(id);
   }
 
   @Patch('ingredients/:id')
@@ -115,13 +122,13 @@ export class InventoryController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateIngredientDto,
   ) {
-    return this.ingredientService.updateIngredient(id, dto);
+    return this.inventoryService.updateIngredient(id, dto);
   }
 
   @Delete('ingredients/:id')
   @Permissions(Permission.MANAGE_INVENTORY)
   deleteIngredient(@Param('id', ParseUUIDPipe) id: string) {
-    return this.ingredientService.deleteIngredient(id);
+    return this.inventoryService.deleteIngredient(id);
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -130,13 +137,13 @@ export class InventoryController {
   @Get('branch-ingredients')
   @Permissions(Permission.VIEW_INVENTORY)
   findBranchIngredientStocks(@Query() query: QueryIngredientStockDto) {
-    return this.ingredientService.findBranchIngredientStocks(query);
+    return this.inventoryService.findBranchIngredientStocks(query);
   }
 
   @Post('branch-ingredients')
   @Permissions(Permission.MANAGE_INVENTORY)
   upsertBranchIngredientStock(@Body() dto: CreateBranchIngredientStockDto) {
-    return this.ingredientService.upsertBranchIngredientStock(dto);
+    return this.inventoryService.upsertBranchIngredientStock(dto);
   }
 
   @Patch('branch-ingredients/:id')
@@ -144,8 +151,9 @@ export class InventoryController {
   updateBranchIngredientStock(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateBranchIngredientStockDto,
+    @CurrentUser() user: any,
   ) {
-    return this.ingredientService.updateBranchIngredientStock(id, dto);
+    return this.inventoryService.updateBranchIngredientStock(id, dto, user);
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -251,6 +259,46 @@ export class InventoryController {
   }
 
   // ───────────────────────────────────────────────────────────────────────────
+  // Purchase Request (PR) Workflow Endpoints
+  // ───────────────────────────────────────────────────────────────────────────
+  @Post('purchase-requests')
+  @Permissions(Permission.MANAGE_INVENTORY)
+  createPurchaseRequest(
+    @Body() dto: CreatePurchaseRequestDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.inventoryService.createPurchaseRequest(dto, user?.id);
+  }
+
+  @Get('purchase-requests')
+  @Permissions(Permission.VIEW_INVENTORY)
+  findPurchaseRequests(
+    @Query() query: QueryPurchaseRequestDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.inventoryService.findPurchaseRequests(query, user);
+  }
+
+  @Post('purchase-requests/:id/approve-to-pos')
+  @Permissions(Permission.MANAGE_INVENTORY)
+  approvePrToPos(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.inventoryService.approvePrToPos(id, user?.id);
+  }
+
+  @Post('purchase-requests/:id/cancel')
+  @Permissions(Permission.MANAGE_INVENTORY)
+  cancelPurchaseRequest(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CancelReasonDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.inventoryService.cancelPurchaseRequest(id, dto, user);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
   // Inbound Workflow & Purchase Orders (Scan Barcode & FEFO Confirmation)
   // ───────────────────────────────────────────────────────────────────────────
   @Post('purchase-orders')
@@ -259,19 +307,38 @@ export class InventoryController {
     @Body() dto: CreatePurchaseOrderDto,
     @CurrentUser() user: any,
   ) {
-    return this.purchaseOrderService.createPurchaseOrder(dto, user?.id);
+    return this.inventoryService.createPurchaseOrder(dto, user?.id);
   }
 
   @Get('purchase-orders')
   @Permissions(Permission.VIEW_INVENTORY)
   findPurchaseOrders(@Query() query: QueryPurchaseOrderDto) {
-    return this.purchaseOrderService.findPurchaseOrders(query);
+    return this.inventoryService.findPurchaseOrders(query);
   }
 
   @Get('purchase-orders/:id')
   @Permissions(Permission.VIEW_INVENTORY)
   findPurchaseOrderById(@Param('id', ParseUUIDPipe) id: string) {
-    return this.purchaseOrderService.findPurchaseOrderById(id);
+    return this.inventoryService.findPurchaseOrderById(id);
+  }
+
+  @Post('purchase-orders/:id/ship')
+  @Permissions(Permission.MANAGE_INVENTORY)
+  markPoAsShipped(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.inventoryService.markPoAsShipped(id, user);
+  }
+
+  @Post('purchase-orders/:id/cancel')
+  @Permissions(Permission.MANAGE_INVENTORY)
+  cancelPurchaseOrder(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CancelReasonDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.inventoryService.cancelPurchaseOrder(id, dto, user);
   }
 
   @Get('inbound/scan')
@@ -280,7 +347,7 @@ export class InventoryController {
     @Query('po_code') poCode: string,
     @CurrentUser() user: any,
   ) {
-    return this.purchaseOrderService.scanInboundBarcode(poCode, user);
+    return this.inventoryService.scanInboundBarcode(poCode, user);
   }
 
   @Post('inbound/confirm')
@@ -289,6 +356,42 @@ export class InventoryController {
     @Body() dto: ConfirmInboundDto,
     @CurrentUser() user: any,
   ) {
-    return this.purchaseOrderService.confirmInbound(dto, user);
+    return this.inventoryService.confirmInbound(dto, user);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Stock Adjustment Requests Approval Workflow
+  // ───────────────────────────────────────────────────────────────────────────
+  @Get('adjustments')
+  @Permissions(Permission.VIEW_INVENTORY)
+  findAllAdjustments(
+    @Query() query: QueryAdjustmentDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.inventoryService.findAllAdjustments(query, user);
+  }
+
+  @Post('adjustments/:id/approve')
+  @Permissions(Permission.MANAGE_INVENTORY)
+  approveAdjustment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: any,
+  ) {
+    if (user?.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Chỉ có Admin mới được phê duyệt yêu cầu điều chỉnh tồn kho.');
+    }
+    return this.inventoryService.approveAdjustment(id, user.id);
+  }
+
+  @Post('adjustments/:id/reject')
+  @Permissions(Permission.MANAGE_INVENTORY)
+  rejectAdjustment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: any,
+  ) {
+    if (user?.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Chỉ có Admin mới được từ chối yêu cầu điều chỉnh tồn kho.');
+    }
+    return this.inventoryService.rejectAdjustment(id, user.id);
   }
 }

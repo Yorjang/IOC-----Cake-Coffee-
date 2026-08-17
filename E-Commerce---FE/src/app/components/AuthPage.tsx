@@ -15,13 +15,13 @@ declare global {
   }
 }
 
-function AuthLeftPanel({ onSuccess }: { onSuccess: () => void }) {
+function AuthLeftPanel({ onBack }: { onBack: () => void }) {
   return (
     <div className="relative hidden overflow-hidden border-r bg-sidebar lg:block">
       <img src={AUTH_CONTENT.HERO_IMAGE} alt={AUTH_CONTENT.HERO_IMAGE_ALT} className="absolute inset-0 h-full w-full object-cover opacity-70" />
       <div className="absolute inset-0 bg-gradient-to-r from-sidebar/90 via-sidebar/65 to-sidebar/20" />
       <div className="relative z-10 flex h-full flex-col justify-between p-12">
-        <button type="button" onClick={onSuccess} className="flex items-center gap-3 text-left hover:opacity-85 transition cursor-pointer w-fit">
+        <button type="button" onClick={onBack} className="flex items-center gap-3 text-left hover:opacity-85 transition cursor-pointer w-fit">
           <span className="grid size-10 place-items-center rounded-full bg-primary-foreground/20"><CakeSlice size={20} className="text-primary-foreground" /></span>
           <span className="font-serif text-2xl font-bold text-primary-foreground">{AUTH_CONTENT.BRAND_NAME}</span>
         </button>
@@ -37,7 +37,7 @@ function AuthLeftPanel({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
-export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", setView }: { onSuccess: () => void; onAdminDemo?: () => void; initialMode?: AuthMode; resetToken?: string; setView?: (view: string) => void; }) {
+export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", setView }: { onSuccess: (user: unknown) => void; onAdminDemo?: () => void; initialMode?: AuthMode; resetToken?: string; setView?: (view: string) => void; }) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -50,6 +50,7 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", se
   const [remember, setRemember] = useState(false);
   const rememberRef = useRef(false);
   const [errors, setErrors] = useState<AuthErrors>({});
+  const handleBackHome = () => setView?.(VIEW_KEYS.HOME);
 
   useEffect(() => {
     setMode(initialMode);
@@ -125,11 +126,11 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", se
 
   return (
     <div className="min-h-screen lg:h-screen grid bg-background text-foreground lg:grid-cols-2">
-      <AuthLeftPanel onSuccess={onSuccess} />
+      <AuthLeftPanel onBack={handleBackHome} />
       <div className="flex items-start justify-center bg-background p-6 sm:p-12 lg:pt-24 lg:overflow-y-auto">
         <div className="w-full max-w-md relative">
           <div className="mb-6 flex justify-between items-center lg:hidden">
-            <button type="button" onClick={onSuccess} className="flex items-center gap-2 text-sm text-primary font-semibold hover:underline"><CakeSlice size={16} /> Quay về Trang chủ</button>
+            <button type="button" onClick={handleBackHome} className="flex items-center gap-2 text-sm text-primary font-semibold hover:underline"><CakeSlice size={16} /> Quay về Trang chủ</button>
           </div>
           {mode !== "forgot" && mode !== "reset" && (
             <div className="mb-8 flex rounded-2xl bg-secondary p-1">

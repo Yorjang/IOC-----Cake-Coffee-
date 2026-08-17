@@ -1,6 +1,7 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
-import { Product } from '../products/product.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { User } from '../users/user.entity';
+import { Product } from '../products/product.entity';
+import { Order } from '../orders/order.entity';
 
 @Entity('reviews')
 export class Review {
@@ -21,6 +22,13 @@ export class Review {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
+  @Column({ name: 'order_id', type: 'uuid', nullable: true })
+  orderId: string;
+
+  @ManyToOne(() => Order, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'order_id' })
+  order: Order;
+
   @Column({ name: 'order_item_id', type: 'uuid', nullable: true })
   orderItemId: string;
 
@@ -29,6 +37,9 @@ export class Review {
 
   @Column({ type: 'text', nullable: true })
   comment: string;
+
+  @Column({ name: 'image_url', type: 'text', nullable: true })
+  imageUrl: string;
 
   @Column({ name: 'is_verified', default: false })
   isVerified: boolean;

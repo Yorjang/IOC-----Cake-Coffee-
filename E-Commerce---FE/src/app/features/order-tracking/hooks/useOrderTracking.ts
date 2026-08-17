@@ -27,14 +27,17 @@ export function useOrderTracking(orderId: string) {
     return () => window.clearInterval(intervalId);
   }, [refresh]);
 
-  const cancelOrder = useCallback(async () => {
+  const cancelOrder = useCallback(async (): Promise<boolean> => {
     try {
-      setOrder(await cancelTrackingOrder(orderId));
+      await cancelTrackingOrder(orderId);
+      setOrder(await getTrackingOrder(orderId));
       toast.success('Đã hủy đơn hàng');
+      return true;
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Không thể hủy đơn hàng');
+      return false;
     }
   }, [orderId]);
 
-  return { order, loading, cancelOrder };
+  return { order, loading, cancelOrder, refresh };
 }

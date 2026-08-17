@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, Min } from 'class-validator';
+import { IsNumber, IsOptional, Min, IsString } from 'class-validator';
 
 export class UpdateInventoryDto {
   @IsNumber()
@@ -10,4 +10,12 @@ export class UpdateInventoryDto {
   @IsOptional()
   @Min(0, { message: 'Số lượng tối thiểu không được âm.' })
   minQuantity?: number;
+
+  @IsString()
+  @IsOptional()
+  reason?: string;
+
+  @IsString()
+  @IsOptional()
+  imageUrl?: string;
 }

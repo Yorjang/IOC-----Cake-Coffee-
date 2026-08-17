@@ -1,7 +1,7 @@
 import { ArrowUpRight, Clock, MapPin, Navigation, Phone, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 
-export function StoreMap({ branches, activeStoreId, onSelectStore }: any) {
+export function StoreMap({ branches, activeStoreId }: any) {
   const [activeBranchId, setActiveBranchId] = useState<string | null>(activeStoreId || null);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -123,34 +123,13 @@ export function StoreMap({ branches, activeStoreId, onSelectStore }: any) {
               <div className="bg-background border-t p-4 lg:hidden">
                 <h3 className="font-bold text-lg">{activeBranch.name}</h3>
                 <p className="text-sm text-muted-foreground mt-1">{activeBranch.address}</p>
-                
-                <button
-                  onClick={() => onSelectStore(activeBranch)}
-                  className="mt-4 w-full bg-primary text-primary-foreground py-2.5 rounded-xl text-sm font-semibold hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
-                >
-                  <MapPin size={16} />
-                  Chọn làm cửa hàng hiện tại
-                </button>
               </div>
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8 text-center">
               <MapPin size={48} className="text-muted-foreground/20 mb-4" />
-              <p className="text-lg font-medium">Chưa chọn cửa hàng</p>
-              <p className="text-sm mt-1">Vui lòng chọn một chi nhánh từ danh sách bên trái để xem bản đồ.</p>
-            </div>
-          )}
-          
-          {/* Desktop Select Store Button Overlay */}
-          {activeBranch && (
-            <div className="hidden lg:block absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
-              <button
-                onClick={() => onSelectStore(activeBranch)}
-                className="bg-primary text-primary-foreground px-6 py-3 rounded-full text-sm font-bold shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
-              >
-                <MapPin size={18} />
-                Chọn cửa hàng này để đặt món
-              </button>
+              <p className="text-lg font-medium">Chưa có dữ liệu cửa hàng</p>
+              <p className="text-sm mt-1">Hiện chưa có chi nhánh để hiển thị trên bản đồ.</p>
             </div>
           )}
         </div>
