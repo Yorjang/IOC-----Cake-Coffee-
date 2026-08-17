@@ -105,6 +105,17 @@ export const resolveVietnameseAddress = async (
   return payload.data as AddressSuggestion;
 };
 
+export const geocodeVietnameseAddress = async (
+  address: string,
+  signal?: AbortSignal,
+) => {
+  const [suggestion] = await searchVietnameseAddresses(address, signal);
+  if (!suggestion) return null;
+  const resolved = await resolveVietnameseAddress(suggestion, signal);
+  if (resolved.latitude === null || resolved.longitude === null) return null;
+  return { latitude: resolved.latitude, longitude: resolved.longitude };
+};
+
 export const reverseGeocodeAddress = async (
   latitude: number,
   longitude: number,
