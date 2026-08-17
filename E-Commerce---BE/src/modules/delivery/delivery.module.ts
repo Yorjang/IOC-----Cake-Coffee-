@@ -8,7 +8,10 @@ import { CodRemittance } from '../cod/cod-remittance.entity';
 import { UsersModule } from '../users/users.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Order, DeliveryLog, CodRemittance]), UsersModule],
+  imports: [
+    TypeOrmModule.forFeature([Order, DeliveryLog, CodRemittance]),
+    UsersModule,
+  ],
   providers: [DeliveryService],
   controllers: [DeliveryController],
   exports: [DeliveryService],
