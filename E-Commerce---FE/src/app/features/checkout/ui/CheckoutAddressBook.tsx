@@ -1,8 +1,10 @@
-import { Loader2, MapPin, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import type { SavedAddress, SavedAddressPayload } from "../types";
 import { useAddressEditor } from "../hooks/useAddressEditor";
-import { DeliveryAddressField } from "./DeliveryAddressField";
+import { AdministrativeAddressField } from "./AdministrativeAddressField";
+import { AddressMapPicker } from "./AddressMapPicker";
 
 interface CheckoutAddressBookProps {
   addresses: SavedAddress[];
@@ -71,10 +73,20 @@ export function CheckoutAddressBook(props: CheckoutAddressBookProps) {
 
 function AddressEditorModal(props: CheckoutAddressBookProps) {
   const editor = useAddressEditor(props.editing);
-  const submit = () => {
-    const payload = editor.buildPayload();
+  const [isResolving, setIsResolving] = useState(false);
+  const submit = async () => {
+    setIsResolving(true);
+    let payload: SavedAddressPayload | null = null;
+    try {
+      payload = await editor.buildPayload();
+    } catch {
+      toast.error("Không thể xác định tọa độ địa chỉ. Vui lòng kiểm tra và thử lại");
+      return;
+    } finally {
+      setIsResolving(false);
+    }
     if (!payload) {
-      toast.error("Vui lòng nhập đủ thông tin và chọn địa chỉ trong danh sách gợi ý");
+      toast.error("Vui lòng nhập đầy đủ thông tin và chọn Tỉnh/Thành phố, Phường/Xã");
       return;
     }
     props.onSave(payload);
@@ -92,20 +104,31 @@ function AddressEditorModal(props: CheckoutAddressBookProps) {
             <input value={editor.recipientName} onChange={e => editor.setRecipientName(e.target.value)} placeholder="Họ tên người nhận" className="rounded-xl border bg-input px-3 py-2.5 text-sm" />
             <input value={editor.phone} onChange={e => editor.setPhone(e.target.value)} placeholder="Số điện thoại" className="rounded-xl border bg-input px-3 py-2.5 text-sm" />
           </div>
-          <DeliveryAddressField
-            address={editor.address} onAddressChange={editor.setAddress}
-            suggestions={editor.deliveryAddress.suggestions} coordinates={editor.deliveryAddress.coordinates}
-            isSearching={editor.deliveryAddress.isSearching} isLocating={editor.deliveryAddress.isLocating}
-            addressError={editor.deliveryAddress.addressError} isSuggestionOpen={editor.deliveryAddress.isSuggestionOpen}
-            onSuggestionOpenChange={editor.deliveryAddress.setIsSuggestionOpen}
-            onSelectSuggestion={editor.deliveryAddress.selectSuggestion} onUseCurrentLocation={editor.deliveryAddress.useCurrentLocation}
+          <AdministrativeAddressField
+            provinces={editor.administrativeAddress.provinces}
+            wards={editor.administrativeAddress.wards}
+            provinceCode={editor.administrativeAddress.provinceCode}
+            wardCode={editor.administrativeAddress.wardCode}
+            specificAddress={editor.specificAddress}
+            isLoadingProvinces={editor.administrativeAddress.isLoadingProvinces}
+            isLoadingWards={editor.administrativeAddress.isLoadingWards}
+            error={editor.administrativeAddress.error}
+            onProvinceChange={editor.administrativeAddress.setProvinceCode}
+            onWardChange={editor.administrativeAddress.setWardCode}
+            onSpecificAddressChange={editor.setSpecificAddress}
+          />
+          <AddressMapPicker
+            address={editor.address}
+            coordinates={editor.deliveryAddress.coordinates}
+            isGeocoding={editor.isGeocoding}
+            onCoordinatesChange={editor.updateMapCoordinates}
           />
           <div className="grid grid-cols-3 gap-2">
             {["Nhà riêng", "Văn phòng", "Khác"].map(value => <button key={value} type="button" onClick={() => editor.setLabel(value)} className={`rounded-lg border px-2 py-2 text-xs ${editor.label === value ? "border-primary bg-primary/5 text-primary" : ""}`}>{value}</button>)}
           </div>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editor.isDefault} onChange={e => editor.setIsDefault(e.target.checked)} className="accent-primary" /> Đặt làm địa chỉ mặc định</label>
-          <button type="button" disabled={props.saving} onClick={submit} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60">
-            {props.saving && <Loader2 className="animate-spin" size={16} />} Hoàn thành
+          <button type="button" disabled={props.saving || isResolving} onClick={submit} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+            {(props.saving || isResolving) && <Loader2 className="animate-spin" size={16} />} Hoàn thành
           </button>
         </div>
       </div>

@@ -3,6 +3,14 @@ export interface DeliveryCoordinates {
   longitude: number;
 }
 
+export interface AdministrativeDivision {
+  code: number;
+  name: string;
+  codename: string;
+  divisionType: string;
+  provinceCode?: number;
+}
+
 export interface AddressSuggestion {
   id: string;
   refId?: string;
