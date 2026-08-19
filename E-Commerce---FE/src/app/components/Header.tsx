@@ -1,4 +1,4 @@
-import { Heart, LogOut, MapPin, Search, Settings, ShoppingBag, User, X, ChevronDown, Menu } from "lucide-react";
+import { Heart, LogOut, MapPin, Search, Settings, ShoppingBag, User, X, ChevronDown, Menu, Smartphone } from "lucide-react";
 import { useState } from "react";
 import { VIEW_KEYS } from "../../config/appConfig";
 import { HeaderNotifications } from "./HeaderNotifications";
@@ -18,6 +18,7 @@ export function Header({
   selectedStore,
   onChooseStore,
   onLogout,
+  onOpenDownloadModal,
 }: any) {
   const [showFilters, setShowFilters] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -202,10 +203,22 @@ export function Header({
 
           <div className="flex-1" />
 
-          <div className="flex items-center flex-shrink-0">
+          <div className="flex items-center gap-3 flex-shrink-0">
+            {onOpenDownloadModal && (
+              <button
+                type="button"
+                onClick={onOpenDownloadModal}
+                className="flex items-center gap-1.5 py-1.5 px-3 bg-[#D84315] hover:bg-[#BF360C] text-white text-[11px] font-bold rounded-full shadow-md transition-all hover:scale-105 border border-white/20"
+                title="Tải ngay ứng dụng Sweet Bean"
+              >
+                <Smartphone size={13} className="animate-pulse text-amber-200" />
+                <span className="tracking-wide">Tải ngay ứng dụng Sweet Bean</span>
+              </button>
+            )}
+
             <button
               onClick={onChooseStore}
-              className="flex items-center gap-1.5 py-3 pl-3 text-[12px] font-medium text-foreground/80 hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 py-3 pl-1 text-[12px] font-medium text-foreground/80 hover:text-foreground transition-colors"
               title="Xem danh sách cửa hàng"
             >
               <MapPin size={14} strokeWidth={2} />

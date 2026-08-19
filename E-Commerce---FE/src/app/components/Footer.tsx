@@ -1,10 +1,16 @@
-import { Mail, MapPin, Phone } from "lucide-react";
+import { Mail, MapPin, Phone, Smartphone } from "lucide-react";
 import { useEffect, useState } from "react";
 import { VIEW_KEYS } from "../../config/appConfig";
 import { env } from "../../config/env";
 import { MESSAGES } from "../../constants/messages";
 
-export function Footer({ setView }: { setView?: (view: string) => void }) {
+export function Footer({
+  setView,
+  onOpenDownloadModal,
+}: {
+  setView?: (view: string) => void;
+  onOpenDownloadModal?: () => void;
+}) {
   const [bgImage, setBgImage] = useState(() => {
     try {
       const cached = localStorage.getItem("sb_cached_footer_bg");
@@ -110,6 +116,20 @@ export function Footer({ setView }: { setView?: (view: string) => void }) {
                 Xem vị trí đang tuyển
               </button>
             </div>
+
+            {/* App Download Button in Footer */}
+            {onOpenDownloadModal && (
+              <div className="mt-6 pt-4 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={onOpenDownloadModal}
+                  className="flex items-center justify-center gap-2.5 w-full py-3 px-4 bg-[#D84315] hover:bg-[#BF360C] text-white text-xs font-bold rounded-full shadow-lg transition-all hover:scale-105 border border-white/20"
+                >
+                  <Smartphone size={16} className="animate-pulse text-amber-200" />
+                  <span>TẢI NGAY ỨNG DỤNG SWEET BEAN</span>
+                </button>
+              </div>
+            )}
           </div>
 
         </div>

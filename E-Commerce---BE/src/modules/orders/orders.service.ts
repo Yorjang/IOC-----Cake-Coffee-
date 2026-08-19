@@ -93,6 +93,13 @@ export class OrdersService {
               console.error('Failed to award points for completed order:', err);
             }
           }
+
+          // Evaluate user loyalty tier status (spending & product count)
+          try {
+            await this.pointsService.evaluateUserTier(order.userId, false);
+          } catch (err) {
+            console.error('Failed to evaluate loyalty tier for completed order:', err);
+          }
         }
       }
 

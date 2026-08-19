@@ -22,6 +22,7 @@ export function ProfilePoints() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [pointsVoucherPage, setPointsVoucherPage] = useState(1);
 
   const fetchPointData = async (currentPage = 1) => {
     const token = getAccessToken();
@@ -233,100 +234,149 @@ export function ProfilePoints() {
       </div>
 
       {/* Redeemable Vouchers Section */}
-      {redeemableCoupons.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h4 className="font-bold text-base text-foreground font-serif flex items-center gap-2">
-              <Award size={18} className="text-amber-500" /> Đổi Voucher bằng Điểm thưởng
-            </h4>
-            <span className="text-xs text-muted-foreground font-medium">
-              Dùng điểm thưởng của bạn để nhận Voucher giảm giá
-            </span>
-          </div>
+      {(() => {
+        const VOUCHERS_PER_PAGE = 4;
+        const totalPointsPages = Math.ceil(redeemableCoupons.length / VOUCHERS_PER_PAGE) || 1;
+        const paginatedCoupons = redeemableCoupons.slice((pointsVoucherPage - 1) * VOUCHERS_PER_PAGE, pointsVoucherPage * VOUCHERS_PER_PAGE);
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            {redeemableCoupons.map((c) => {
-              const origPoints = Number(c.pointsRequired || 0);
-              const discPoints = c.discountedPointsRequired !== null && c.discountedPointsRequired !== undefined ? Number(c.discountedPointsRequired) : null;
-              const hasDiscount = discPoints !== null && discPoints >= 0 && discPoints < origPoints;
-              const percentOff = hasDiscount ? Math.round(((origPoints - discPoints) / origPoints) * 100) : 0;
-              const effectivePoints = hasDiscount ? discPoints : origPoints;
-              const hasRedeemed = !!c.hasRedeemed;
-              const canRedeem = points >= effectivePoints && !hasRedeemed;
-              const isRedeeming = redeemingId === c.id;
+        return redeemableCoupons.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-base text-foreground font-serif flex items-center gap-2">
+                  <Award size={18} className="text-amber-500" /> Đổi Voucher bằng Điểm thưởng
+                </h4>
+                <span className="text-xs font-bold text-muted-foreground bg-secondary px-2.5 py-0.5 rounded-full border border-border/50">
+                  (Tổng {redeemableCoupons.length} voucher)
+                </span>
+              </div>
+              <span className="text-xs text-muted-foreground font-medium">
+                Dùng điểm thưởng của bạn để nhận Voucher giảm giá
+              </span>
+            </div>
 
-              return (
-                <div
-                  key={c.id}
-                  className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-card p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between space-y-3"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono font-bold text-base text-primary uppercase">{c.code}</span>
-                        {hasDiscount ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/15 text-red-600 dark:text-red-400 flex items-center gap-1">
-                            🔥 {discPoints} điểm <span className="line-through text-muted-foreground opacity-75 font-normal">{origPoints}</span>
-                            {percentOff > 0 && <span className="rounded bg-red-500/20 px-1 py-0.2 text-[10px] font-bold text-red-600 dark:text-red-400">-{percentOff}%</span>}
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                            ⭐ {origPoints} điểm
-                          </span>
-                        )}
-                        {hasRedeemed && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-500/15 text-green-600 dark:text-green-400">
-                            ✓ Đã đổi
-                          </span>
-                        )}
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                {paginatedCoupons.map((c) => {
+                  const origPoints = Number(c.pointsRequired || 0);
+                  const discPoints = c.discountedPointsRequired !== null && c.discountedPointsRequired !== undefined ? Number(c.discountedPointsRequired) : null;
+                  const hasDiscount = discPoints !== null && discPoints >= 0 && discPoints < origPoints;
+                  const percentOff = hasDiscount ? Math.round(((origPoints - discPoints) / origPoints) * 100) : 0;
+                  const effectivePoints = hasDiscount ? discPoints : origPoints;
+                  const hasRedeemed = !!c.hasRedeemed;
+                  const canRedeem = points >= effectivePoints && !hasRedeemed;
+                  const isRedeeming = redeemingId === c.id;
+
+                  return (
+                    <div
+                      key={c.id}
+                      className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-card p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between space-y-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-mono font-bold text-base text-primary uppercase">{c.code}</span>
+                            {hasDiscount ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/15 text-red-600 dark:text-red-400 flex items-center gap-1">
+                                🔥 {discPoints} điểm <span className="line-through text-muted-foreground opacity-75 font-normal">{origPoints}</span>
+                                {percentOff > 0 && <span className="rounded bg-red-500/20 px-1 py-0.2 text-[10px] font-bold text-red-600 dark:text-red-400">-{percentOff}%</span>}
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                                ⭐ {origPoints} điểm
+                              </span>
+                            )}
+                            {hasRedeemed && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-500/15 text-green-600 dark:text-green-400">
+                                ✓ Đã đổi
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs font-semibold text-foreground mt-1">
+                            {c.discountType === 'percent' ? `Giảm ${Math.round(Number(c.discountValue))}%` : `Giảm ${Number(c.discountValue).toLocaleString('vi-VN')}đ`}
+                            {c.minOrderValue > 0 ? ` cho đơn từ ${Number(c.minOrderValue).toLocaleString('vi-VN')}đ` : ''}
+                          </p>
+                          {c.description && <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{c.description}</p>}
+                        </div>
                       </div>
-                      <p className="text-xs font-semibold text-foreground mt-1">
-                        {c.discountType === 'percent' ? `Giảm ${Math.round(Number(c.discountValue))}%` : `Giảm ${Number(c.discountValue).toLocaleString('vi-VN')}đ`}
-                        {c.minOrderValue > 0 ? ` cho đơn từ ${Number(c.minOrderValue).toLocaleString('vi-VN')}đ` : ''}
-                      </p>
-                      {c.description && <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{c.description}</p>}
-                    </div>
-                  </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-border">
-                    <span className="text-[11px] text-muted-foreground">
-                      Hạn dùng: {new Date(c.expiresAt).toLocaleDateString('vi-VN')}
-                    </span>
+                      <div className="flex items-center justify-between pt-2 border-t border-border">
+                        <span className="text-[11px] text-muted-foreground">
+                          Hạn dùng: {new Date(c.expiresAt).toLocaleDateString('vi-VN')}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={!canRedeem || isRedeeming}
+                          onClick={() => handleRedeemClick(c.id, c.code, effectivePoints)}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs ${
+                            hasRedeemed
+                              ? 'bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20 cursor-default'
+                              : canRedeem
+                                ? 'bg-amber-500 hover:bg-amber-600 text-white active:scale-95'
+                                : 'bg-muted text-muted-foreground cursor-not-allowed'
+                          }`}
+                        >
+                          {isRedeeming ? (
+                            <>
+                              <Loader2 size={12} className="animate-spin" /> Đang đổi...
+                            </>
+                          ) : hasRedeemed ? (
+                            <>
+                              <ShieldCheck size={13} /> Đã sở hữu
+                            </>
+                          ) : canRedeem ? (
+                            <>
+                              <Award size={13} /> Đổi ({effectivePoints}pt)
+                            </>
+                          ) : (
+                            `Thiếu ${effectivePoints - points} điểm`
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {totalPointsPages > 1 && (
+                <div className="flex items-center justify-between pt-2 border-t border-border/50 text-xs font-medium text-muted-foreground">
+                  <span>Trang {pointsVoucherPage} / {totalPointsPages} (Hiển thị 4 voucher / trang)</span>
+                  <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      disabled={!canRedeem || isRedeeming}
-                      onClick={() => handleRedeemClick(c.id, c.code, effectivePoints)}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs ${
-                        hasRedeemed
-                          ? 'bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20 cursor-default'
-                          : canRedeem
-                            ? 'bg-amber-500 hover:bg-amber-600 text-white active:scale-95'
-                            : 'bg-muted text-muted-foreground cursor-not-allowed'
-                      }`}
+                      disabled={pointsVoucherPage === 1}
+                      onClick={() => setPointsVoucherPage(p => Math.max(1, p - 1))}
+                      className="p-1.5 rounded-lg border border-border bg-card hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
                     >
-                      {isRedeeming ? (
-                        <>
-                          <Loader2 size={12} className="animate-spin" /> Đang đổi...
-                        </>
-                      ) : hasRedeemed ? (
-                        <>
-                          <ShieldCheck size={13} /> Đã sở hữu
-                        </>
-                      ) : canRedeem ? (
-                        <>
-                          <Award size={13} /> Đổi ({effectivePoints}pt)
-                        </>
-                      ) : (
-                        `Thiếu ${effectivePoints - points} điểm`
-                      )}
+                      <ChevronLeft size={16} />
+                    </button>
+                    {Array.from({ length: totalPointsPages }, (_, i) => i + 1).map(pg => (
+                      <button
+                        key={pg}
+                        type="button"
+                        onClick={() => setPointsVoucherPage(pg)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          pointsVoucherPage === pg ? 'bg-primary text-primary-foreground' : 'bg-card border border-border hover:bg-secondary'
+                        }`}
+                      >
+                        {pg}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      disabled={pointsVoucherPage >= totalPointsPages}
+                      onClick={() => setPointsVoucherPage(p => Math.min(totalPointsPages, p + 1))}
+                      className="p-1.5 rounded-lg border border-border bg-card hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                    >
+                      <ChevronRight size={16} />
                     </button>
                   </div>
                 </div>
-              );
-            })}
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Point History Table */}
       <div className="space-y-4">

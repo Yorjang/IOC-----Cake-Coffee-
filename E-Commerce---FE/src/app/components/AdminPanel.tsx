@@ -1,4 +1,5 @@
 import {
+  Award,
   BarChart2,
   Boxes,
   Image,
@@ -21,6 +22,7 @@ import { AdminBranches } from './admin/AdminBranches';
 import { AdminCategories } from './admin/AdminCategories';
 import { AdminCombos } from './admin/AdminCombos';
 import { AdminInventory } from './admin/AdminInventory';
+import { AdminLoyalty } from './admin/AdminLoyalty';
 import { AdminOrders } from './admin/AdminOrders';
 import { AdminProducts } from './admin/AdminProducts';
 import { AdminProductTags } from './admin/AdminProductTags';
@@ -52,6 +54,7 @@ const navItems = [
   { key: "productTags", label: "Tag sản phẩm", icon: Tag, allowedRoles: ["admin", "store_manager", "staff"] },
   { key: "inventory", label: "Tồn kho", icon: Boxes, allowedRoles: ["admin", "store_manager", "staff"] },
   { key: "users", label: "Người dùng", icon: Users, allowedRoles: ["admin"] },
+  { key: "loyalty", label: "Hạng thành viên", icon: Award, allowedRoles: ["admin", "store_manager"] },
   { key: "reviews", label: "Đánh giá", icon: Star, allowedRoles: ["admin", "store_manager", "staff"] },
   { key: "vouchers", label: "Voucher", icon: Tag, allowedRoles: ["admin", "store_manager"] },
   { key: "banners", label: "Banner", icon: Image, allowedRoles: ["admin", "store_manager"] },
@@ -75,6 +78,7 @@ const ADMIN_TAB_PATHS: Record<string, string> = {
   productTags: "/admin/tags",
   inventory: "/admin/inventory",
   users: "/admin/users",
+  loyalty: "/admin/loyalty",
   reviews: "/admin/reviews",
   vouchers: "/admin/vouchers",
   banners: "/admin/banners",
@@ -144,6 +148,7 @@ export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUse
     productTags: <AdminProductTags />,
     inventory: <AdminInventory />,
     users: <AdminUsers />,
+    loyalty: <AdminLoyalty />,
     reviews: <AdminReviews />,
     vouchers: <AdminVouchers />,
     banners: <AdminBanners />,

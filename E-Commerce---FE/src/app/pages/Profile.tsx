@@ -1,4 +1,4 @@
-import { Award, Check, Coins, History, Image as ImageIcon, Lock, Phone, Save, Star, Upload, User } from "lucide-react";
+import { Award, Check, Coins, Crown, History, Image as ImageIcon, Lock, Phone, Save, Star, Upload, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { env } from "../../config/env";
@@ -6,6 +6,7 @@ import { parseRes } from '../../utils/api';
 import { ProfileOrders } from '../features/profile/ui/ProfileOrders';
 import { ProfileAddressBook } from '../features/profile/ui/ProfileAddressBook';
 import { ProfilePoints } from '../features/profile/ui/ProfilePoints';
+import { ProfileLoyalty } from '../features/profile/ui/ProfileLoyalty';
 import { getAccessToken } from "../components/authSession";
 import { getTrackingOrders } from "../features/order-tracking/services/orderTrackingService";
 
@@ -17,14 +18,15 @@ const PRESET_AVATARS = [
   { name: "Tiramisu", url: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=150&auto=format&fit=crop&q=60" },
 ];
 
-const getTabFromPath = (path: string): "info" | "password" | "orders" | "points" => {
+const getTabFromPath = (path: string): "info" | "password" | "orders" | "points" | "loyalty" => {
   if (path.includes("/change-password") || path.includes("/doi-mat-khau")) return "password";
   if (path.includes("/orders") || path.includes("/don-hang")) return "orders";
   if (path.includes("/points") || path.includes("/diem-thuong")) return "points";
+  if (path.includes("/loyalty") || path.includes("/hang-thanh-vien")) return "loyalty";
   return "info";
 };
 
-const getPathFromTab = (tab: "info" | "password" | "orders" | "points") => {
+const getPathFromTab = (tab: "info" | "password" | "orders" | "points" | "loyalty") => {
   switch (tab) {
     case "password":
       return "/ho-so/change-password";
@@ -32,6 +34,8 @@ const getPathFromTab = (tab: "info" | "password" | "orders" | "points") => {
       return "/ho-so/orders";
     case "points":
       return "/ho-so/points";
+    case "loyalty":
+      return "/ho-so/loyalty";
     case "info":
     default:
       return "/ho-so";
@@ -41,12 +45,12 @@ const getPathFromTab = (tab: "info" | "password" | "orders" | "points") => {
 export function Profile({ user, setUser, setView, onLogout }: any) {
   const displayUser = user || { fullName: "", email: "", phone: "", avatar: "" };
 
-  // Tabs: 'info' | 'password' | 'orders' | 'points'
-  const [activeTab, setActiveTab] = useState<"info" | "password" | "orders" | "points">(() => {
+  // Tabs: 'info' | 'password' | 'orders' | 'points' | 'loyalty'
+  const [activeTab, setActiveTab] = useState<"info" | "password" | "orders" | "points" | "loyalty">(() => {
     return getTabFromPath(window.location.pathname) || (sessionStorage.getItem("sb_profile_tab") as any) || "info";
   });
 
-  const handleTabChange = (newTab: "info" | "password" | "orders" | "points") => {
+  const handleTabChange = (newTab: "info" | "password" | "orders" | "points" | "loyalty") => {
     setActiveTab(newTab);
     sessionStorage.setItem("sb_profile_tab", newTab);
     const newPath = getPathFromTab(newTab);
@@ -66,9 +70,10 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
   }, []);
 
   const [userPoints, setUserPoints] = useState<number>(user?.points || 0);
+  const [userTier, setUserTier] = useState<any>(user?.currentTier || null);
 
   useEffect(() => {
-    const fetchPoints = async () => {
+    const fetchPointsAndLoyalty = async () => {
       const token = getAccessToken();
       if (!token) return;
       try {
@@ -86,8 +91,22 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
       } catch (err) {
         console.error('Failed to fetch user points:', err);
       }
+
+      try {
+        const resTier = await fetch(`${env.API_URL}/points/loyalty-status`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (resTier.ok) {
+          const dataTier = await parseRes(resTier);
+          if (dataTier?.currentTier) {
+            setUserTier(dataTier.currentTier);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch user tier:', err);
+      }
     };
-    fetchPoints();
+    fetchPointsAndLoyalty();
 
     const handleCustomPoints = (e: any) => {
       if (typeof e.detail === 'number') {
@@ -304,6 +323,19 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
                 </span>
                 <button
                   type="button"
+                  onClick={() => handleTabChange("loyalty")}
+                  className="px-2.5 py-0.5 rounded-full text-xs font-extrabold transition-colors flex items-center gap-1 cursor-pointer shadow-xs border border-amber-500/20"
+                  style={{
+                    backgroundColor: `${userTier?.color || '#CD7F32'}20`,
+                    color: userTier?.color || '#CD7F32',
+                  }}
+                  title="Xem chi tiết Hạng thành viên"
+                >
+                  <Crown size={12} />
+                  <span>Hạng {userTier?.name || 'Đồng'}</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => handleTabChange("points")}
                   className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25 transition-colors flex items-center gap-1 cursor-pointer"
                   title="Xem lịch sử tích điểm"
@@ -360,6 +392,16 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
               }`}
             >
               <History size={16} /> Đơn hàng của tôi
+            </button>
+            <button
+              onClick={() => handleTabChange("loyalty")}
+              className={`flex-1 rounded-lg py-2.5 text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-2 ${
+                activeTab === "loyalty"
+                  ? "bg-background shadow-sm text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Award size={16} /> Hạng thành viên
             </button>
             <button
               onClick={() => handleTabChange("points")}
@@ -584,6 +626,11 @@ export function Profile({ user, setUser, setView, onLogout }: any) {
             {/* TAB: Order History */}
             {activeTab === "orders" && (
               <ProfileOrders setView={setView} />
+            )}
+
+            {/* TAB: Loyalty Tier Status */}
+            {activeTab === "loyalty" && (
+              <ProfileLoyalty />
             )}
 
             {/* TAB: Loyalty Points */}
