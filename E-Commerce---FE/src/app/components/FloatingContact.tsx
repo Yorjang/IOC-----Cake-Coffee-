@@ -1,14 +1,16 @@
-import { ChevronUp, Facebook, Instagram, PackageSearch, Twitter, Youtube } from "lucide-react";
+import { ChevronUp, Facebook, Instagram, PackageSearch, Twitter, Youtube, Smartphone } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface FloatingContactProps {
   onTrackOrder?: () => void;
   showOrderTracking?: boolean;
+  onOpenDownloadModal?: () => void;
 }
 
 export function FloatingContact({
   onTrackOrder,
   showOrderTracking = false,
+  onOpenDownloadModal,
 }: FloatingContactProps) {
   const [showTop, setShowTop] = useState(false);
 
@@ -25,7 +27,23 @@ export function FloatingContact({
   };
 
   return (
-    <div className="fixed bottom-8 right-6 z-[999] flex flex-col items-center gap-3">
+    <>
+      {onOpenDownloadModal && (
+        <div className="fixed bottom-6 left-6 z-[999]">
+          <button
+            type="button"
+            onClick={onOpenDownloadModal}
+            className="group flex items-center gap-2.5 px-4 py-3 bg-[#D84315] hover:bg-[#BF360C] text-white text-xs font-bold rounded-full shadow-2xl transition-all duration-300 hover:scale-105 border border-white/30"
+            title="Tải ngay ứng dụng Sweet Bean"
+          >
+            <Smartphone size={18} className="animate-pulse" />
+            <span className="hidden sm:inline tracking-wide">Tải ngay ứng dụng Sweet Bean</span>
+            <span className="sm:hidden font-bold">Tải App</span>
+          </button>
+        </div>
+      )}
+
+      <div className="fixed bottom-8 right-6 z-[999] flex flex-col items-center gap-3">
       {showOrderTracking && onTrackOrder && (
         <button
           type="button"
@@ -72,6 +90,6 @@ export function FloatingContact({
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

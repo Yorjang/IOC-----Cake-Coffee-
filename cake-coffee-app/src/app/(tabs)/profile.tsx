@@ -133,6 +133,9 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       if (user) {
+        setRegSuccessModalVisible(false);
+        setUnverifiedModalVisible(false);
+        setForgotModalVisible(false);
         fetchUserPoints();
         fetchUserAddresses();
         setEditFullName(user.fullName || '');
@@ -793,7 +796,7 @@ export default function ProfileScreen() {
 
       {/* Registration Success Email Notification Custom Modal */}
       <Modal
-        visible={regSuccessModalVisible}
+        visible={regSuccessModalVisible && !user}
         transparent={true}
         animationType="fade"
         onRequestClose={() => setRegSuccessModalVisible(false)}>
@@ -827,7 +830,7 @@ export default function ProfileScreen() {
 
       {/* Unverified Email / Auth Error Custom UI Modal */}
       <Modal
-        visible={unverifiedModalVisible}
+        visible={unverifiedModalVisible && !user}
         transparent={true}
         animationType="fade"
         onRequestClose={() => setUnverifiedModalVisible(false)}>
