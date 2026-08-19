@@ -88,12 +88,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     const token = res.accessToken || res.token || res.data?.accessToken;
-    const userData = res.user || res.data?.user || { email, id: 'user-1' };
+    const userData = res.user || res.data?.user;
 
-    if (token) {
-      await AsyncStorage.setItem('auth_token', token);
-      await AsyncStorage.setItem('auth_user', JSON.stringify(userData));
+    if (!token || !userData) {
+      throw new Error(res?.message || 'Không thể đăng nhập. Vui lòng kiểm tra lại thông tin hoặc xác thực Gmail.');
     }
+
+    await AsyncStorage.setItem('auth_token', token);
+    await AsyncStorage.setItem('auth_user', JSON.stringify(userData));
     setUser(userData);
   };
 
@@ -121,14 +123,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       body: JSON.stringify({ fullName, email, password, phone }),
     });
 
-    const token = res.accessToken || res.token;
-    const userData = res.user || { fullName, email, phone, id: 'user-' + Date.now() };
-
-    if (token) {
-      await AsyncStorage.setItem('auth_token', token);
-      await AsyncStorage.setItem('auth_user', JSON.stringify(userData));
+    // If verification is required, DO NOT log in or set user state!
+    if (res?.requiresVerification || !res?.accessToken || !res?.user) {
+      return res;
     }
+
+    const token = res.accessToken || res.token;
+    const userData = res.user;
+
+    await AsyncStorage.setItem('auth_token', token);
+    await AsyncStorage.setItem('auth_user', JSON.stringify(userData));
     setUser(userData);
+    return res;
   };
 
   const logout = async () => {

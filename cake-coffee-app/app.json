@@ -16,6 +16,7 @@
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "package": "com.sweetbean.cakecoffeeapp",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -41,6 +42,11 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "5fd9312b-9e56-44dd-89de-827cedf7edc1"
+      }
     }
   }
 }

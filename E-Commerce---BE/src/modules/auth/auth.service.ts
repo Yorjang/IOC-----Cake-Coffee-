@@ -163,7 +163,7 @@ export class AuthService {
     }
 
     if (!user.isActive) {
-      throw new BadRequestException('Please verify your email or contact support to activate your account');
+      throw new BadRequestException('Tài khoản chưa được kích hoạt. Vui lòng mở hộp thư Gmail để bấm xác nhận tài khoản trước khi đăng nhập.');
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);

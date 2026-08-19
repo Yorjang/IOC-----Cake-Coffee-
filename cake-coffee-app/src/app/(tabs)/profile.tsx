@@ -99,6 +99,14 @@ export default function ProfileScreen() {
   const [accountModalVisible, setAccountModalVisible] = useState(false);
   const [addressModalVisible, setAddressModalVisible] = useState(false);
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [regSuccessModalVisible, setRegSuccessModalVisible] = useState(false);
+  const [unverifiedModalVisible, setUnverifiedModalVisible] = useState(false);
+  const [forgotModalVisible, setForgotModalVisible] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [sendingForgot, setSendingForgot] = useState(false);
+  const [authErrorMessage, setAuthErrorMessage] = useState('');
+  const [registeredEmail, setRegisteredEmail] = useState('');
 
   // Structured address state
   const [selectedProvince, setSelectedProvince] = useState('');
@@ -157,18 +165,20 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      const existingScript = document.getElementById('google-gsi-client');
+      const googleClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '803255193380-vveh9regmvuijmji8947l0hsabpokna8.apps.googleusercontent.com';
       const initGsi = () => {
-        if ((window as any).google?.accounts?.id) {
+        if ((window as any).google?.accounts?.id && !(window as any).gsiInitialized) {
           try {
             (window as any).google.accounts.id.initialize({
-              client_id: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '',
+              client_id: googleClientId,
+              use_fedcm_for_prompt: true,
               callback: async (response: any) => {
                 if (response?.credential) {
                   try {
                     setLoading(true);
                     await loginWithGoogle(response.credential);
-                    Alert.alert('Thành công', 'Đăng nhập bằng Google thành công!');
+                    setRegisteredEmail('Tài khoản Google Gmail');
+                    setRegSuccessModalVisible(true);
                   } catch (err: any) {
                     Alert.alert('Lỗi Google Auth', err.message || 'Đăng nhập bằng Google thất bại.');
                   } finally {
@@ -177,10 +187,30 @@ export default function ProfileScreen() {
                 }
               },
             });
+            (window as any).gsiInitialized = true;
           } catch (e) {}
         }
+
+        const renderGoogleBtn = () => {
+          const btnContainer = document.getElementById('google-signin-btn-expo');
+          if (btnContainer && (window as any).google?.accounts?.id) {
+            try {
+              (window as any).google.accounts.id.renderButton(btnContainer, {
+                theme: 'outline',
+                size: 'large',
+                width: 320,
+                shape: 'pill',
+                text: 'signin_with',
+              });
+            } catch (e) {}
+          }
+        };
+
+        renderGoogleBtn();
+        setTimeout(renderGoogleBtn, 300);
       };
 
+      const existingScript = document.getElementById('google-gsi-client');
       if (!existingScript) {
         const script = document.createElement('script');
         script.id = 'google-gsi-client';
@@ -199,23 +229,71 @@ export default function ProfileScreen() {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       const google = (window as any).google;
       if (google?.accounts?.id) {
-        google.accounts.id.prompt((notification: any) => {
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            Alert.alert('Thông báo 🔑', 'Hệ thống đã bật Google One-Tap. Vui lòng cho phép popup đăng nhập Google.');
+        try {
+          // Reset any pending credential request to avoid FedCM concurrency conflict
+          google.accounts.id.cancel();
+        } catch (e) {}
+
+        setTimeout(() => {
+          try {
+            google.accounts.id.prompt((notification: any) => {
+              const notDisplayedReason = typeof notification.getNotDisplayedReason === 'function'
+                ? notification.getNotDisplayedReason()
+                : null;
+              const skippedReason = typeof notification.getSkippedReason === 'function'
+                ? notification.getSkippedReason()
+                : null;
+
+              if (notDisplayedReason === 'origin_not_allowed' || skippedReason === 'origin_not_allowed') {
+                Alert.alert(
+                  'Lỗi Tên Miền Google Auth',
+                  'Tên miền http://localhost:8081 chưa được lưu trong Google Cloud Console hoặc đang chờ Google đồng bộ (cần 2-5 phút sau khi bấm Save).'
+                );
+              } else if (notDisplayedReason || skippedReason) {
+                Alert.alert('Thông báo Đăng nhập Google', 'Hệ thống đã kích hoạt đăng nhập Google. Vui lòng chọn tài khoản trong cửa sổ Google.');
+              }
+            });
+          } catch (err) {
+            console.warn('Google prompt error:', err);
           }
-        });
+        }, 100);
         return;
       }
     }
     Alert.alert(
-      'Đăng nhập Google 🔑',
+      'Đăng nhập Google',
       'Đang kết nối dịch vụ xác thực Google...'
     );
   };
 
+  const handleForgotPasswordSubmit = async () => {
+    if (!forgotEmail) {
+      setAuthErrorMessage('Vui lòng nhập email đăng ký tài khoản.');
+      setUnverifiedModalVisible(true);
+      return;
+    }
+
+    setSendingForgot(true);
+    try {
+      await apiFetch('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      setForgotModalVisible(false);
+      setAuthErrorMessage('Nếu địa chỉ email tồn tại trên hệ thống, liên kết đặt lại mật khẩu đã được gửi tới Gmail của bạn. Vui lòng kiểm tra hộp thư.');
+      setUnverifiedModalVisible(true);
+    } catch (err: any) {
+      setAuthErrorMessage(err?.message || 'Không thể gửi yêu cầu đặt lại mật khẩu.');
+      setUnverifiedModalVisible(true);
+    } finally {
+      setSendingForgot(false);
+    }
+  };
+
   const handleAuthSubmit = async () => {
     if (!email || !password) {
-      Alert.alert('Lỗi', 'Vui lòng nhập email và mật khẩu.');
+      setAuthErrorMessage('Vui lòng nhập email và mật khẩu.');
+      setUnverifiedModalVisible(true);
       return;
     }
 
@@ -223,18 +301,20 @@ export default function ProfileScreen() {
     try {
       if (isLoginTab) {
         await login(email, password);
-        Alert.alert('Thành công', 'Đăng nhập thành công!');
       } else {
         if (!fullName) {
-          Alert.alert('Lỗi', 'Vui lòng nhập họ và tên.');
+          setAuthErrorMessage('Vui lòng nhập họ và tên.');
+          setUnverifiedModalVisible(true);
           setLoading(false);
           return;
         }
         await register(fullName, email, password, phone);
-        Alert.alert('Thành công', 'Tạo tài khoản thành công!');
+        setRegisteredEmail(email);
+        setRegSuccessModalVisible(true);
       }
     } catch (error: any) {
-      Alert.alert('Lỗi', error.message || 'Đăng nhập/Đăng ký không thành công.');
+      setAuthErrorMessage(error.message || 'Đăng nhập không thành công.');
+      setUnverifiedModalVisible(true);
     } finally {
       setLoading(false);
     }
@@ -465,10 +545,18 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert('Xác nhận', 'Bạn có chắc chắn muốn đăng xuất?', [
-      { text: 'Hủy', style: 'cancel' },
-      { text: 'Đăng xuất', style: 'destructive', onPress: () => logout() },
-    ]);
+    setLogoutModalVisible(true);
+  };
+
+  const confirmLogout = async () => {
+    setLogoutModalVisible(false);
+    try {
+      (window as any).gsiInitialized = false;
+      if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
+        (window as any).google.accounts.id.disableAutoSelect();
+      }
+    } catch (e) {}
+    await logout();
   };
 
   const avatarUrl = user?.avatar;
@@ -629,6 +717,17 @@ export default function ProfileScreen() {
               />
             </View>
 
+            {isLoginTab && (
+              <TouchableOpacity
+                style={{ alignSelf: 'flex-end', marginTop: -8, marginBottom: 16 }}
+                onPress={() => {
+                  setForgotEmail(email);
+                  setForgotModalVisible(true);
+                }}>
+                <Text style={{ color: '#D84315', fontSize: 13, fontWeight: '600' }}>Quên mật khẩu?</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity style={styles.submitBtn} onPress={handleAuthSubmit} disabled={loading}>
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" />
@@ -647,13 +746,170 @@ export default function ProfileScreen() {
             </View>
 
             {/* Google Sign In Button */}
-            <TouchableOpacity style={styles.googleBtn} onPress={handleGoogleLogin} disabled={loading}>
-              <Ionicons name="logo-google" size={20} color="#EA4335" />
-              <Text style={styles.googleBtnText}>Đăng nhập bằng Google Gmail</Text>
-            </TouchableOpacity>
+            {Platform.OS === 'web' ? (
+              <View style={{ alignItems: 'center', marginVertical: 10, width: '100%', justifyContent: 'center' }}>
+                <div id="google-signin-btn-expo" style={{ width: '100%', display: 'flex', justifyContent: 'center' }} />
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.googleBtn} onPress={handleGoogleLogin} disabled={loading}>
+                <Ionicons name="logo-google" size={20} color="#EA4335" />
+                <Text style={styles.googleBtnText}>Đăng nhập bằng Google Gmail</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </ScrollView>
+
+      {/* Logout Confirmation Custom Modal */}
+      <Modal
+        visible={logoutModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setLogoutModalVisible(false)}>
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmBox}>
+            <View style={styles.confirmIconBadge}>
+              <Ionicons name="log-out-outline" size={32} color="#E53935" />
+            </View>
+            <Text style={styles.confirmTitle}>Đăng xuất tài khoản</Text>
+            <Text style={styles.confirmSubtitle}>
+              Bạn có chắc chắn muốn đăng xuất khỏi ứng dụng Sweet Bean Coffee & Cake?
+            </Text>
+            <View style={styles.confirmActionsRow}>
+              <TouchableOpacity
+                style={styles.cancelActionBtn}
+                onPress={() => setLogoutModalVisible(false)}>
+                <Text style={styles.cancelActionText}>Hủy bỏ</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.logoutActionBtn}
+                onPress={confirmLogout}>
+                <Text style={styles.logoutActionText}>Đăng xuất</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Registration Success Email Notification Custom Modal */}
+      <Modal
+        visible={regSuccessModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setRegSuccessModalVisible(false)}>
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmBox}>
+            <View style={styles.mailIconBadge}>
+              <Ionicons name="mail-unread-outline" size={36} color="#D84315" />
+            </View>
+            <Text style={styles.confirmTitle}>Đăng Ký Thành Công</Text>
+            <Text style={styles.confirmSubtitle}>
+              Thông báo xác nhận đăng ký tài khoản đã được gửi tới địa chỉ Gmail:
+            </Text>
+
+            <View style={styles.emailHighlightBox}>
+              <Ionicons name="logo-google" size={18} color="#EA4335" />
+              <Text style={styles.emailHighlightText}>{registeredEmail || 'Gmail của bạn'}</Text>
+            </View>
+
+            <Text style={styles.confirmMailHint}>
+              Vui lòng mở ứng dụng Gmail hoặc kiểm tra hộp thư (bao gồm cả mục Thư rác / Spam) để hoàn tất xác thực tài khoản.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.closeRegModalBtn}
+              onPress={() => setRegSuccessModalVisible(false)}>
+              <Text style={styles.closeRegModalBtnText}>Đã Hiểu & Kiểm Tra Gmail</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Unverified Email / Auth Error Custom UI Modal */}
+      <Modal
+        visible={unverifiedModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setUnverifiedModalVisible(false)}>
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmBox}>
+            <View style={styles.mailIconBadge}>
+              <Ionicons name="alert-circle-outline" size={36} color="#D84315" />
+            </View>
+            <Text style={styles.confirmTitle}>Thông Báo Tài Khoản</Text>
+            <Text style={styles.confirmSubtitle}>
+              {authErrorMessage || 'Tài khoản chưa được kích hoạt. Vui lòng mở hộp thư Gmail để bấm xác nhận tài khoản trước khi đăng nhập.'}
+            </Text>
+
+            {email ? (
+              <View style={styles.emailHighlightBox}>
+                <Ionicons name="logo-google" size={18} color="#EA4335" />
+                <Text style={styles.emailHighlightText}>{email}</Text>
+              </View>
+            ) : null}
+
+            <Text style={styles.confirmMailHint}>
+              Vui lòng kiểm tra hộp thư Gmail (bao gồm cả mục Thư rác hoặc Spam) và nhấn vào nút Xác Nhận Tài Khoản.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.closeRegModalBtn}
+              onPress={() => setUnverifiedModalVisible(false)}>
+              <Text style={styles.closeRegModalBtnText}>Đã Hiểu</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Forgot Password Custom UI Modal */}
+      <Modal
+        visible={forgotModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setForgotModalVisible(false)}>
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmBox}>
+            <View style={styles.mailIconBadge}>
+              <Ionicons name="key-outline" size={36} color="#D84315" />
+            </View>
+            <Text style={styles.confirmTitle}>Quên Mật Khẩu</Text>
+            <Text style={styles.confirmSubtitle}>
+              Nhập địa chỉ Gmail của bạn để nhận liên kết đặt lại mật khẩu mới.
+            </Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Địa chỉ Gmail</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="email@example.com"
+                placeholderTextColor="#A1887F"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={forgotEmail}
+                onChangeText={setForgotEmail}
+              />
+            </View>
+
+            <View style={styles.confirmActionsRow}>
+              <TouchableOpacity
+                style={styles.cancelActionBtn}
+                onPress={() => setForgotModalVisible(false)}>
+                <Text style={styles.cancelActionText}>Hủy bỏ</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.logoutActionBtn}
+                onPress={handleForgotPasswordSubmit}
+                disabled={sendingForgot}>
+                {sendingForgot ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.logoutActionText}>Gửi Yêu Cầu</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Avatar Change Modal */}
       <Modal visible={avatarModalVisible} animationType="slide">
@@ -1518,5 +1774,128 @@ const styles = StyleSheet.create({
   chipTextActive: {
     color: '#D84315',
     fontWeight: 'bold',
+  },
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  confirmBox: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#FFFDF9',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+  },
+  confirmIconBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FFEBEE',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  confirmTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#3E2723',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  confirmSubtitle: {
+    fontSize: 14,
+    color: '#795548',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  confirmActionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  cancelActionBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  cancelActionText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#616161',
+  },
+  logoutActionBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#E53935',
+    alignItems: 'center',
+    elevation: 2,
+  },
+  logoutActionText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  mailIconBadge: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#FBE9E7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emailHighlightBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FFE0B2',
+    gap: 8,
+    marginVertical: 12,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  emailHighlightText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#D84315',
+  },
+  confirmMailHint: {
+    fontSize: 13,
+    color: '#6D4C41',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 20,
+  },
+  closeRegModalBtn: {
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#D84315',
+    alignItems: 'center',
+    elevation: 2,
+  },
+  closeRegModalBtnText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
 });
