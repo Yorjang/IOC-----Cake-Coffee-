@@ -1,12 +1,10 @@
-import { Mail, MapPin, Phone, Smartphone } from "lucide-react";
+import { Mail, MapPin, Phone } from "lucide-react";
 import { useEffect, useState } from "react";
 import { VIEW_KEYS } from "../../config/appConfig";
 import { env } from "../../config/env";
 import { MESSAGES } from "../../constants/messages";
-import { AppDownloadModal } from "./AppDownloadModal";
 
 export function Footer({ setView }: { setView?: (view: string) => void }) {
-  const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [bgImage, setBgImage] = useState(() => {
     try {
       const cached = localStorage.getItem("sb_cached_footer_bg");
@@ -97,19 +95,19 @@ export function Footer({ setView }: { setView?: (view: string) => void }) {
             </ul>
           </div>
 
-          {/* Column 4: Ứng Dụng Mobile */}
+          {/* Column 4: Tuyển dụng */}
           <div>
-            <h3 className="text-lg font-bold mb-6 text-white tracking-wide">Ứng dụng Mobile</h3>
+            <h3 className="text-lg font-bold mb-6 text-white tracking-wide">Tuyển dụng</h3>
             <div className="space-y-4 text-sm text-white/80 leading-relaxed">
               <p>
-                Tải ngay ứng dụng <strong>Sweet Bean Coffee & Cake</strong> trên Android để tích điểm thưởng & nhận voucher ưu đãi mua sắm!
+                Chúng tôi luôn tìm kiếm và chào đón những ứng viên đam mê với ngành bánh ngọt và dịch vụ khách hàng.
               </p>
-              <button
-                onClick={() => setShowDownloadModal(true)}
-                className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#D84315] hover:bg-[#BF360C] border border-amber-500/30 rounded-full transition-all text-white font-bold shadow-lg hover:scale-105"
-              >
-                <Smartphone size={16} />
-                Tải ngay ứng dụng Sweet Bean
+              <p>
+                Gửi CV của bạn về email:<br />
+                <a href="mailto:tuyendung@tmories.vn" className="text-white hover:text-[#fd6699] font-medium transition-colors">tuyendung@tmories.vn</a>
+              </p>
+              <button className="inline-block mt-2 px-6 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full transition-all text-white font-semibold shadow-sm">
+                Xem vị trí đang tuyển
               </button>
             </div>
           </div>
@@ -123,11 +121,6 @@ export function Footer({ setView }: { setView?: (view: string) => void }) {
           </div>
         </div>
       </div>
-
-      <AppDownloadModal
-        isOpen={showDownloadModal}
-        onClose={() => setShowDownloadModal(false)}
-      />
     </footer>
   );
 }

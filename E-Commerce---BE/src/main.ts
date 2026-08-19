@@ -25,8 +25,8 @@ async function bootstrap() {
       transform: true, // Tự động chuyển đổi kiểu dữ liệu
     }));
 
-  // Lắng nghe ở cổng 3000 trên tất cả các card mạng (0.0.0.0) để điện thoại kết nối qua Wi-Fi
-  await app.listen(3000, '0.0.0.0');
+  // Lắng nghe ở cổng 3000 (bạn có thể đổi thành 8080 tùy ý)
+    await app.listen(3000);
 
   // In ra một dòng log để chúng ta biết server đã chạy thành công
     console.log(`Project Cake & Coffee đã khởi chạy tại: ${await app.getUrl()}`);

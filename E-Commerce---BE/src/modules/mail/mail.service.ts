@@ -20,23 +20,26 @@ export class MailService {
   }
 
   async sendVerificationEmail(to: string, token: string): Promise<void> {
-    const appUrl = process.env.EXPO_APP_URL || 'http://localhost:8081';
-    const verificationUrl = `${appUrl}/verify-email?token=${token}`;
+    const clientUrl = this.configService.get<string>('CLIENT_URL') || 'http://localhost:3000';
+    // Directly verification endpoint (which is hosted on the same server)
+    const verificationUrl = `${clientUrl}/auth/verify-email?token=${token}`;
 
     const mailOptions = {
-      from: `"Sweet Bean Coffee & Cake" <${this.configService.get<string>('SMTP_USER')}>`,
+      from: `"Cake & Coffee Shop" <${this.configService.get<string>('SMTP_USER')}>`,
       to,
-      subject: 'Xác nhận đăng ký tài khoản - Sweet Bean Coffee & Cake',
+      subject: 'Verify Your Email Address - Cake & Coffee Shop',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 25px; border: 1px solid #E0E0E0; border-radius: 16px; background-color: #FFFDF9;">
-          <h2 style="color: #3E2723; text-align: center; font-size: 22px;">☕ XÁC NHẬN TÀI KHOẢN SWEET BEAN</h2>
-          <p style="color: #5D4037; font-size: 15px;">Xin chào <strong>${to}</strong>,</p>
-          <p style="color: #5D4037; font-size: 14px; line-height: 1.6;">Cảm ơn bạn đã đăng ký tài khoản tại <strong>Sweet Bean Coffee & Cake</strong>. Để kích hoạt tài khoản và tiến hành đăng nhập, vui lòng bấm vào nút bên dưới để xác nhận địa chỉ Gmail của bạn:</p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <h2 style="color: #4A3E3D; text-align: center;">Welcome to Cake & Coffee!</h2>
+          <p>Hi there,</p>
+          <p>Thank you for registering. Please click the button below to verify your email address and activate your account:</p>
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${verificationUrl}" style="background-color: #D84315; color: white; padding: 14px 28px; text-decoration: none; border-radius: 30px; font-weight: bold; font-size: 16px; display: inline-block;">XÁC NHẬN TÀI KHOẢN GMAIL</a>
+            <a href="${verificationUrl}" style="background-color: #D4A373; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Verify Email Address</a>
           </div>
-          <hr style="border: none; border-top: 1px solid #EEEEEE; margin: 25px 0;">
-          <p style="color: #A1887F; font-size: 12px; text-align: center;">Thư này được gửi tự động từ hệ thống Sweet Bean Coffee & Cake.</p>
+          <p>Or copy and paste this link in your browser:</p>
+          <p><a href="${verificationUrl}">${verificationUrl}</a></p>
+          <br>
+          <p>Best regards,<br>Cake & Coffee Team</p>
         </div>
       `,
     };
@@ -51,25 +54,27 @@ export class MailService {
   }
 
   async sendResetPasswordEmail(to: string, token: string): Promise<void> {
-    const appUrl = process.env.EXPO_APP_URL || 'http://localhost:8081';
-    const resetUrl = `${appUrl}/reset-password?token=${token}`;
+    const clientUrl = this.configService.get<string>('CLIENT_URL') || 'http://localhost:3000';
+    const resetUrl = `${clientUrl}/reset-password?token=${token}`;
 
     const mailOptions = {
-      from: `"Sweet Bean Coffee & Cake" <${this.configService.get<string>('SMTP_USER')}>`,
+      from: `"Cake & Coffee Shop" <${this.configService.get<string>('SMTP_USER')}>`,
       to,
-      subject: 'Đặt lại mật khẩu - Sweet Bean Coffee & Cake',
+      subject: 'Reset Your Password - Cake & Coffee Shop',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 25px; border: 1px solid #E0E0E0; border-radius: 16px; background-color: #FFFDF9;">
-          <h2 style="color: #3E2723; text-align: center; font-size: 22px;">ĐẶT LẠI MẬT KHẨU TÀI KHOẢN</h2>
-          <p style="color: #5D4037; font-size: 15px;">Xin chào <strong>${to}</strong>,</p>
-          <p style="color: #5D4037; font-size: 14px; line-height: 1.6;">Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản Sweet Bean Coffee & Cake của bạn. Vui lòng bấm vào nút bên dưới để thiết lập mật khẩu mới:</p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <h2 style="color: #4A3E3D; text-align: center;">Reset Your Password</h2>
+          <p>Hi there,</p>
+          <p>We received a request to reset your password for your Cake & Coffee Shop account. Click the button below to set a new password:</p>
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${resetUrl}" style="background-color: #D84315; color: white; padding: 14px 28px; text-decoration: none; border-radius: 30px; font-weight: bold; font-size: 16px; display: inline-block;">ĐẶT LẠI MẬT KHẨU GMAIL</a>
+            <a href="${resetUrl}" style="background-color: #D4A373; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
           </div>
-          <p style="color: #8D6E63; font-size: 13px;">Liên kết đặt lại mật khẩu này sẽ hết hạn trong vòng 15 phút.</p>
-          <p style="color: #8D6E63; font-size: 13px;">Nếu bạn không yêu cầu đổi mật khẩu, vui lòng bỏ qua email này.</p>
-          <hr style="border: none; border-top: 1px solid #EEEEEE; margin: 25px 0;">
-          <p style="color: #A1887F; font-size: 12px; text-align: center;">Thư này được gửi tự động từ hệ thống Sweet Bean Coffee & Cake.</p>
+          <p>This password reset link will expire in 15 minutes.</p>
+          <p>If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
+          <p>Or copy and paste this link in your browser:</p>
+          <p><a href="${resetUrl}">${resetUrl}</a></p>
+          <br>
+          <p>Best regards,<br>Cake & Coffee Team</p>
         </div>
       `,
     };

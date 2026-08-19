@@ -83,7 +83,6 @@ export function AuthPage({ onSuccess, initialMode = "login", resetToken = "", se
         window.google.accounts.id.initialize({
           client_id: env.GOOGLE_CLIENT_ID,
           callback: handleGoogleCallback,
-          use_fedcm_for_prompt: true,
         });
         window.googleInitialized = true;
       }

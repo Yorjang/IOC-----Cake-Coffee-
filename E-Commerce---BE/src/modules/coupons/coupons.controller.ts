@@ -18,34 +18,14 @@ export class CouponsController {
   @Get('public')
   @Public()
   findPublicActive(@Req() req: any, @Query('userId') userIdQuery?: string, @Query('branchId') branchId?: string) {
-    let userId = req.user?.id || userIdQuery;
-    if (!userId && req.headers?.authorization) {
-      try {
-        const token = req.headers.authorization.replace(/^Bearer\s+/i, '');
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
-          userId = payload.id || payload.sub;
-        }
-      } catch (e) {}
-    }
+    const userId = req.user?.id || userIdQuery;
     return this.couponsService.findPublicActive(userId, branchId);
   }
 
   @Get('redeemable')
   @Public()
   findRedeemable(@Req() req: any, @Query('userId') userIdQuery?: string, @Query('branchId') branchId?: string) {
-    let userId = req.user?.id || userIdQuery;
-    if (!userId && req.headers?.authorization) {
-      try {
-        const token = req.headers.authorization.replace(/^Bearer\s+/i, '');
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
-          userId = payload.id || payload.sub;
-        }
-      } catch (e) {}
-    }
+    const userId = req.user?.id || userIdQuery;
     return this.couponsService.findRedeemableCoupons(userId, branchId);
   }
 

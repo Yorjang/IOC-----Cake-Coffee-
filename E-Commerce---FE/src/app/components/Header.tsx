@@ -1,8 +1,7 @@
-import { Heart, LogOut, MapPin, Search, Settings, ShoppingBag, User, X, ChevronDown, Smartphone } from "lucide-react";
+import { Heart, LogOut, MapPin, Search, Settings, ShoppingBag, User, X, ChevronDown, Menu } from "lucide-react";
 import { useState } from "react";
 import { VIEW_KEYS } from "../../config/appConfig";
 import { HeaderNotifications } from "./HeaderNotifications";
-import { AppDownloadModal } from "./AppDownloadModal";
 
 export function Header({
   view,
@@ -23,7 +22,6 @@ export function Header({
   const [showFilters, setShowFilters] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [showDownloadModal, setShowDownloadModal] = useState(false);
 
   // Use navPages as categories
   const categories = navPages || [];
@@ -204,19 +202,10 @@ export function Header({
 
           <div className="flex-1" />
 
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={() => setShowDownloadModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#D84315] hover:bg-[#BF360C] text-white text-[11px] font-bold rounded-full transition-all shadow-sm hover:scale-105"
-              title="Tải App Sweet Bean cho điện thoại Android"
-            >
-              <Smartphone size={13} strokeWidth={2.5} />
-              <span className="tracking-wide">Tải ngay ứng dụng Sweet Bean</span>
-            </button>
-
+          <div className="flex items-center flex-shrink-0">
             <button
               onClick={onChooseStore}
-              className="flex items-center gap-1.5 py-3 pl-2 text-[12px] font-medium text-foreground/80 hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 py-3 pl-3 text-[12px] font-medium text-foreground/80 hover:text-foreground transition-colors"
               title="Xem danh sách cửa hàng"
             >
               <MapPin size={14} strokeWidth={2} />
@@ -225,11 +214,6 @@ export function Header({
           </div>
         </div>
       </div>
-
-      <AppDownloadModal
-        isOpen={showDownloadModal}
-        onClose={() => setShowDownloadModal(false)}
-      />
     </header>
   );
 }

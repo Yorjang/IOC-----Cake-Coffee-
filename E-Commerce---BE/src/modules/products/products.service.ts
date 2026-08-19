@@ -146,7 +146,7 @@ export class ProductsService {
                     { ...baseWhere, branchId: IsNull() },
                 ]
                 : Object.keys(baseWhere).length > 0 ? baseWhere : undefined;
-        const prods = await this.products.find({
+        return this.products.find({
             where,
             relations: {
                 category: true,
@@ -158,32 +158,6 @@ export class ProductsService {
             },
             order: { name: 'ASC' },
         });
-
-        if (prods.length > 0) {
-            const productIds = prods.map((p) => p.id);
-            const reviewStats = await this.dataSource.query(`
-                SELECT product_id, AVG(rating) as avg_rating, COUNT(id) as count
-                FROM reviews
-                WHERE is_visible = true AND product_id = ANY($1)
-                GROUP BY product_id
-            `, [productIds]);
-
-            const statsMap = new Map<string, { avg: number; count: number }>();
-            for (const r of reviewStats) {
-                statsMap.set(r.product_id, {
-                    avg: Number(Number(r.avg_rating || 5.0).toFixed(1)),
-                    count: Number(r.count || 0),
-                });
-            }
-
-            for (const p of prods) {
-                const stats = statsMap.get(p.id);
-                (p as any).rating = stats ? stats.avg : 5.0;
-                (p as any).reviewCount = stats ? stats.count : 0;
-            }
-        }
-
-        return prods;
     }
 
     async findProductById(id: string): Promise<Product> {
@@ -199,19 +173,6 @@ export class ProductsService {
             },
         });
         if (!prod) throw new NotFoundException('Không tìm thấy sản phẩm');
-
-        const reviewStats = await this.dataSource.query(`
-            SELECT AVG(rating) as avg_rating, COUNT(id) as count
-            FROM reviews
-            WHERE is_visible = true AND product_id = $1
-        `, [id]);
-
-        const avgRating = reviewStats[0]?.avg_rating ? Number(Number(reviewStats[0].avg_rating).toFixed(1)) : 5.0;
-        const reviewCount = reviewStats[0]?.count ? Number(reviewStats[0].count) : 0;
-
-        (prod as any).rating = avgRating;
-        (prod as any).reviewCount = reviewCount;
-
         return prod;
     }
 
