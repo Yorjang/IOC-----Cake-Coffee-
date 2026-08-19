@@ -163,7 +163,7 @@ export class AuthService {
     }
 
     if (!user.isActive) {
-      throw new BadRequestException('Please verify your email or contact support to activate your account');
+      throw new BadRequestException('Tài khoản chưa được kích hoạt. Vui lòng mở hộp thư Gmail để bấm xác nhận tài khoản trước khi đăng nhập.');
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
@@ -184,20 +184,20 @@ export class AuthService {
 
   async googleLogin(idToken: string, remember = false) {
     try {
-      const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
-      if (!response.ok) {
-        throw new BadRequestException('Mã xác thực Google không hợp lệ hoặc đã hết hạn.');
-      }
-      const payload = (await response.json()) as {
-        email: string;
-        name?: string;
-        aud: string;
-      };
+        const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+        if (!response.ok) {
+          throw new BadRequestException('Mã xác thực Google không hợp lệ hoặc đã hết hạn.');
+        }
+        const payload = (await response.json()) as {
+          email: string;
+          name?: string;
+          aud: string;
+        };
 
-      const googleClientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
-      if (googleClientId && googleClientId !== 'your-google-client-id.apps.googleusercontent.com' && payload.aud !== googleClientId) {
-        throw new BadRequestException('Mã client ID của Google không trùng khớp.');
-      }
+        const googleClientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
+        if (googleClientId && googleClientId !== 'your-google-client-id.apps.googleusercontent.com' && payload.aud !== googleClientId) {
+          throw new BadRequestException('Mã client ID của Google không trùng khớp.');
+        }
 
       const email = payload.email;
       const fullName = payload.name || 'Người dùng Google';
@@ -215,7 +215,7 @@ export class AuthService {
         user = await this.usersService.create({
           fullName,
           email,
-          phone: '',
+          phone: undefined as any,
           password: passwordHash,
         });
 

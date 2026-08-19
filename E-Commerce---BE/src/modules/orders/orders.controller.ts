@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, ParseUUIDPipe, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { Permission } from '../../common/constants/permissions';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Permissions } from '../../common/decorators/permissions.decorator';
@@ -17,8 +17,19 @@ export class OrdersController {
 
   @Post()
   @Public()
-  create(@CurrentUser() user: any, @Body() dto: CreateOrderDto, @Headers('x-session-id') sessionId: string) {
-    return this.ordersService.createOrder(user?.id || null, sessionId || null, dto);
+  create(@Req() req: any, @CurrentUser() user: any, @Body() dto: CreateOrderDto, @Headers('x-session-id') sessionId: string) {
+    let userId = user?.id || null;
+    if (!userId && req.headers?.authorization) {
+      try {
+        const token = req.headers.authorization.replace(/^Bearer\s+/i, '');
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+          userId = payload.id || payload.sub || null;
+        }
+      } catch (e) {}
+    }
+    return this.ordersService.createOrder(userId, sessionId || null, dto);
   }
 
   @Get('public/:id')

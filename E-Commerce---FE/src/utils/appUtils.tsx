@@ -62,6 +62,7 @@ export const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.SWEETS]: "/banh-ngot",
   [VIEW_KEYS.DRINKS]: "/do-uong",
   [VIEW_KEYS.COMBO]: "/combo",
+  [VIEW_KEYS.ALL_PRODUCTS]: "/tat-ca-san-pham",
   [VIEW_KEYS.CART]: "/gio-hang",
   [VIEW_KEYS.CHECKOUT]: "/thanh-toan",
   [VIEW_KEYS.SUCCESS]: "/thanh-cong",
@@ -107,7 +108,7 @@ export const getViewFromPath = (path: string, cats: any[] = []) => {
     if (slug === "banh-ngot") return VIEW_KEYS.SWEETS;
     if (slug === "do-uong" || slug === "cafe-do-uong") return VIEW_KEYS.DRINKS;
     if (slug === "combo") return VIEW_KEYS.COMBO;
-    if (slug === "tat-ca-san-pham" || slug === "tat-ca") return VIEW_KEYS.ALL_PRODUCTS;
+    if (slug === "tat-ca-san-pham" || slug === "tat-ca" || slug === "thuc-don" || slug === "thực-đơn") return VIEW_KEYS.SWEETS;
     return VIEW_KEYS.SWEETS;
   }
   return VIEW_KEYS.HOME;

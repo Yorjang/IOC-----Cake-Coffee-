@@ -29,7 +29,8 @@ export class CreateOrderItemDto {
 
 export class CreateOrderDto {
   @IsUUID()
-  branchId: string;
+  @IsOptional()
+  branchId?: string;
 
   @IsNumber()
   @IsOptional()

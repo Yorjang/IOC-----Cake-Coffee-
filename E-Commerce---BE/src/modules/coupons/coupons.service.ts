@@ -170,7 +170,8 @@ export class CouponsService implements OnModuleInit {
     }
 
     const totalMap = new Map<string, number>();
-    const userRedeemedSet = new Set<string>();
+    const userRedeemedMap = new Map<string, number>();
+    const userUsedMap = new Map<string, number>();
 
     try {
       const redeemedTotal = await this.coupons.query(
@@ -182,11 +183,23 @@ export class CouponsService implements OnModuleInit {
           totalMap.set(refStr, (totalMap.get(refStr) || 0) + 1);
 
           if (userId && String(row.user_id).toLowerCase().trim() === String(userId).toLowerCase().trim()) {
-            userRedeemedSet.add(refStr);
-            userRedeemedSet.add(refStr.toUpperCase());
+            userRedeemedMap.set(refStr, (userRedeemedMap.get(refStr) || 0) + 1);
           }
         }
       }
+
+      if (userId) {
+        const userOrders = await this.coupons.query(
+          `SELECT coupon_code, COUNT(*) as count FROM orders WHERE user_id = $1 AND order_status != 'cancelled' AND coupon_code IS NOT NULL GROUP BY coupon_code`,
+          [userId]
+        );
+        for (const row of userOrders) {
+          if (row.coupon_code) {
+            userUsedMap.set(row.coupon_code.toUpperCase().trim(), Number(row.count || 0));
+          }
+        }
+      }
+
       activeCoupons = activeCoupons.filter(c => {
         if (c.usageLimit === null || c.usageLimit === undefined) return true;
         const totalRedeemed = Math.max(Number(c.usedCount || 0), totalMap.get(c.id) || totalMap.get(c.code.toUpperCase().trim()) || 0);
@@ -196,11 +209,19 @@ export class CouponsService implements OnModuleInit {
       console.error('Error checking redeemable coupon usage limits:', err);
     }
 
-    return activeCoupons.map(c => ({
-      ...c,
-      isActive: true,
-      hasRedeemed: userRedeemedSet.has(c.id) || userRedeemedSet.has(c.code.toUpperCase().trim()),
-    })) as any;
+    return activeCoupons.map(c => {
+      const redeemedCnt = userRedeemedMap.get(c.id) || userRedeemedMap.get(c.code.toUpperCase().trim()) || 0;
+      const usedCnt = userUsedMap.get(c.code.toUpperCase().trim()) || 0;
+      // hasRedeemed is true ONLY IF the user has unused redemptions available!
+      const hasUnusedRedemption = redeemedCnt > 0 && usedCnt < redeemedCnt;
+      return {
+        ...c,
+        isActive: true,
+        hasRedeemed: hasUnusedRedemption,
+        redeemedCount: redeemedCnt,
+        usedCountByUser: usedCnt,
+      };
+    }) as any;
   }
 
 
