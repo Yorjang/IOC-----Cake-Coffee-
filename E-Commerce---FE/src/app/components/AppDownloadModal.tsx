@@ -20,7 +20,7 @@ export function AppDownloadModal({ isOpen, onClose, apkUrl, playStoreUrl, appSto
   if (!isOpen || !mounted) return null;
 
   // Priority: Custom APK -> Google Play Store -> App Store -> Default Build Page
-  const downloadLink = playStoreUrl || appStoreUrl || apkUrl || "https://expo.dev/accounts/b1leazy/projects/cake-coffee-app/builds";
+  const downloadLink = playStoreUrl || appStoreUrl || apkUrl || "https://drive.google.com/drive/u/0/folders/1_cih0h2a4YWTwG4RnQE32grrL3J9IADi";
 
   const modalContent = (
     <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">

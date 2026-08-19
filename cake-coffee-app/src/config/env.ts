@@ -1,6 +1,8 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+const FALLBACK_IP = '192.168.1.184';
+
 function getHostIp(): string {
   // Automatically extract host machine IP when running Expo Go on real devices or simulators
   const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest?.debuggerHost || '';
@@ -10,14 +12,24 @@ function getHostIp(): string {
       return ip;
     }
   }
-  return Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+  return FALLBACK_IP;
 }
 
 const DYNAMIC_HOST_IP = getHostIp();
-const DEFAULT_API_URL = `http://${DYNAMIC_HOST_IP}:3000`;
+
+function getApiUrl(): string {
+  const configuredUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (configuredUrl) {
+    if (Platform.OS !== 'web' && (configuredUrl.includes('localhost') || configuredUrl.includes('127.0.0.1'))) {
+      return configuredUrl.replace('localhost', DYNAMIC_HOST_IP).replace('127.0.0.1', DYNAMIC_HOST_IP);
+    }
+    return configuredUrl;
+  }
+  return `http://${DYNAMIC_HOST_IP}:3000`;
+}
 
 export const ENV = {
-  API_URL: process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_URL,
-  APP_NAME: 'Cake & Coffee Mobile',
+  API_URL: getApiUrl(),
+  APP_NAME: 'Sweet Bean Coffee & Cake',
   HOST_IP: DYNAMIC_HOST_IP,
 };
