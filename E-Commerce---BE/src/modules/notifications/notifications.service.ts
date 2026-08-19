@@ -89,6 +89,8 @@ export class NotificationsService implements OnModuleInit {
   }
 
   async getUserNotifications(userId: string, page = 1, limit = 10) {
+    await this.syncVoucherNotificationsForUser(userId);
+
     const pageNum = Math.max(1, Number(page) || 1);
     const limitNum = Math.min(100, Math.max(1, Number(limit) || 10));
     const skip = (pageNum - 1) * limitNum;
@@ -114,6 +116,70 @@ export class NotificationsService implements OnModuleInit {
       limit: limitNum,
       totalPages,
     };
+  }
+
+  private async syncVoucherNotificationsForUser(userId: string) {
+    try {
+      if (!userId) return;
+
+      const userRes = await this.notificationRepository.query(
+        `SELECT id, tier_id, COALESCE(total_spent, 0) as total_spent, COALESCE(total_products_purchased, 0) as total_products FROM users WHERE id = $1`,
+        [userId],
+      );
+      const user = userRes[0];
+      if (!user) return;
+
+      const activeCoupons = await this.notificationRepository.query(
+        `SELECT c.*, lt.name as tier_name, lt.min_spent as tier_min_spent, lt.min_products as tier_min_products
+         FROM coupons c
+         LEFT JOIN loyalty_tiers lt ON c.applicable_tier_id = lt.id
+         WHERE c.status = 'active' AND c.is_approved = true AND c.expires_at > NOW()`,
+      );
+
+      for (const coupon of activeCoupons) {
+        let isEligible = false;
+        if (coupon.applicable_tier_id) {
+          const tierMinSpent = Number(coupon.tier_min_spent || 0);
+          const tierMinProducts = Number(coupon.tier_min_products || 0);
+          if (
+            user.tier_id === coupon.applicable_tier_id ||
+            (Number(user.total_spent) >= tierMinSpent && Number(user.total_products) >= tierMinProducts)
+          ) {
+            isEligible = true;
+          }
+        } else {
+          isEligible = true;
+        }
+
+        if (!isEligible) continue;
+
+        const existing = await this.notificationRepository.query(
+          `SELECT id FROM notifications WHERE user_id = $1 AND message LIKE $2`,
+          [userId, `%[${coupon.code}]%`],
+        );
+
+        if (!existing || existing.length === 0) {
+          const discountText =
+            coupon.discount_type === 'percent'
+              ? `Giảm ${Math.round(Number(coupon.discount_value))}%`
+              : `Giảm ${Number(coupon.discount_value).toLocaleString('vi-VN')}đ`;
+
+          const tierTitle = coupon.tier_name ? ` dành riêng cho Hạng ${coupon.tier_name}` : '';
+          await this.notificationRepository.save(
+            this.notificationRepository.create({
+              userId,
+              type: 'new_voucher_available',
+              title: `Voucher mới${tierTitle}!`,
+              message: `Mã voucher [${coupon.code}] (${discountText}) đã có sẵn cho tài khoản của bạn. Kiểm tra và sử dụng ngay!`,
+              isRead: false,
+              createdAt: coupon.created_at || new Date(),
+            }),
+          );
+        }
+      }
+    } catch (err) {
+      console.error('Error syncing voucher notifications for user:', err);
+    }
   }
 
   async getUnreadCount(userId: string) {

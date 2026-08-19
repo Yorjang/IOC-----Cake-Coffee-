@@ -25,7 +25,8 @@ export const apiProductToArray = (p: any, coupons: any[] = []): any[] => {
   const price = originalPrice ? `${originalPrice.toLocaleString("vi-VN")}đ` : "0đ";
   const categoryName = p.category?.name ?? "Khác";
   const imageUrl = p.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=600&h=520&fit=crop&auto=format";
-  const rating = "4.8";
+  const rawRating = p.averageRating !== undefined && p.averageRating !== null ? p.averageRating : p.rating;
+  const rating = rawRating ? String(Number(rawRating).toFixed(1)) : "5.0";
   const badge = p.productType === "combo"
     ? "Combo"
     : activeVariants.length > 1
@@ -141,7 +142,8 @@ export const mapDbCartToLegacy = (dbItems: any[]): any[] => {
     const formattedPrice = `${Number(variantPrice).toLocaleString("vi-VN")}đ`;
     const categoryName = p.category?.name ?? "Khác";
     const imageUrl = p.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=600&h=520&fit=crop&auto=format";
-    const rating = "4.8";
+    const rawRating = p.averageRating !== undefined && p.averageRating !== null ? p.averageRating : p.rating;
+    const rating = rawRating ? String(Number(rawRating).toFixed(1)) : "5.0";
     const badge = p.productType === "combo" ? "Combo" : (p.variants?.length > 1 ? "S/M/L" : "Còn hàng");
 
     const legacyProduct = [

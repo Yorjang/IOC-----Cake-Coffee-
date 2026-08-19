@@ -47,12 +47,12 @@ export function CheckoutCouponSelector({
               <Ticket size={17} />
             </span>
             {appliedCoupon ? (
-              <span className="min-w-0">
+              <span className="min-w-0 flex-1">
                 <span className="block text-xs text-muted-foreground">Đang áp dụng</span>
-                <span className="block truncate text-sm font-bold text-primary">{appliedCoupon.code}</span>
+                <span className="block text-sm font-bold text-primary font-mono break-all">{appliedCoupon.code}</span>
               </span>
             ) : (
-              <span className="text-sm font-medium text-muted-foreground">Chọn ưu đãi cho đơn hàng</span>
+              <span className="text-sm font-medium text-muted-foreground truncate">Chọn ưu đãi cho đơn hàng</span>
             )}
           </span>
           <ChevronRight className="shrink-0 text-muted-foreground" size={19} />
@@ -60,8 +60,8 @@ export function CheckoutCouponSelector({
       </section>
 
       {isOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/40 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-          <div className="flex max-h-[85dvh] w-full flex-col overflow-hidden border bg-card shadow-2xl sm:max-w-lg sm:rounded-2xl">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="flex max-h-[min(85vh,38rem)] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b p-4">
               <div>
                 <h3 className="font-bold">Chọn mã giảm giá</h3>
@@ -98,7 +98,7 @@ export function CheckoutCouponSelector({
                           : `${Number(coupon.discountValue) / 1000}k`}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block font-bold">{coupon.code}</span>
+                        <span className="block font-bold font-mono text-sm break-all">{coupon.code}</span>
                         <span className="mt-0.5 block text-xs text-muted-foreground">
                           {coupon.unavailableReason ||
                             coupon.description ||

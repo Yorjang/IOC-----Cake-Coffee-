@@ -72,6 +72,16 @@ export class CouponsService implements OnModuleInit {
     } catch (err) {
       console.error('Error adding discounted_points_required to coupons:', err);
     }
+    try {
+      await this.coupons.query('ALTER TABLE coupons ADD COLUMN IF NOT EXISTS applicable_tier_id UUID');
+    } catch (err) {
+      console.error('Error adding applicable_tier_id to coupons:', err);
+    }
+    try {
+      await this.coupons.query(
+        'ALTER TABLE coupons ADD CONSTRAINT fk_coupons_applicable_tier FOREIGN KEY (applicable_tier_id) REFERENCES loyalty_tiers(id) ON DELETE SET NULL'
+      );
+    } catch (err) {}
   }
 
   async findAll(user: User): Promise<Coupon[]> {
@@ -81,7 +91,7 @@ export class CouponsService implements OnModuleInit {
     }
     const list = await this.coupons.find({
       where: Object.keys(where).length > 0 ? where : undefined,
-      relations: { product: { category: true }, category: true, branch: true },
+      relations: { product: { category: true }, category: true, branch: true, applicableTier: true },
       order: { createdAt: 'DESC' },
     });
     return list.map(c => ({
@@ -93,7 +103,7 @@ export class CouponsService implements OnModuleInit {
   async findPublicActive(userId?: string, branchId?: string): Promise<Coupon[]> {
     const coupons = await this.coupons.find({
       where: { status: CouponStatus.ACTIVE, isApproved: true, isPendingDelete: false },
-      relations: { product: { category: true }, category: true, branch: true },
+      relations: { product: { category: true }, category: true, branch: true, applicableTier: true },
       order: { createdAt: 'DESC' },
     });
     const now = new Date();
@@ -260,9 +270,15 @@ export class CouponsService implements OnModuleInit {
       maxDiscount: dto.maxDiscount !== undefined && dto.maxDiscount !== null ? Number(dto.maxDiscount) : null,
       pointsRequired: dto.pointsRequired ? Number(dto.pointsRequired) : 0,
       discountedPointsRequired: dto.discountedPointsRequired !== undefined && dto.discountedPointsRequired !== null ? Number(dto.discountedPointsRequired) : null,
+      applicableTierId: dto.applicableTierId || null,
+      minQuantity: dto.minQuantity !== undefined && dto.minQuantity !== null ? Math.max(1, Number(dto.minQuantity)) : 1,
     });
 
     const saved = await this.coupons.save(coupon);
+    if (saved.isApproved && saved.status === CouponStatus.ACTIVE) {
+      this.sendVoucherNotifications(saved);
+    }
+
     return {
       ...saved,
       isActive: saved.status === CouponStatus.ACTIVE,
@@ -307,6 +323,7 @@ export class CouponsService implements OnModuleInit {
     if (dto.discountType !== undefined) coupon.discountType = dto.discountType;
     if (dto.discountValue !== undefined) coupon.discountValue = Number(dto.discountValue);
     if (dto.minOrderValue !== undefined) coupon.minOrderValue = Number(dto.minOrderValue);
+    if (dto.minQuantity !== undefined) coupon.minQuantity = Math.max(1, Number(dto.minQuantity));
     if (dto.usageLimit !== undefined) coupon.usageLimit = dto.usageLimit ? Number(dto.usageLimit) : null;
     if (dto.startsAt !== undefined) coupon.startsAt = new Date(dto.startsAt);
     if (dto.expiresAt !== undefined) coupon.expiresAt = new Date(dto.expiresAt);
@@ -343,6 +360,7 @@ export class CouponsService implements OnModuleInit {
     if (dto.maxDiscount !== undefined) coupon.maxDiscount = dto.maxDiscount !== null ? Number(dto.maxDiscount) : null;
     if (dto.pointsRequired !== undefined) coupon.pointsRequired = Number(dto.pointsRequired || 0);
     if (dto.discountedPointsRequired !== undefined) coupon.discountedPointsRequired = dto.discountedPointsRequired !== null ? Number(dto.discountedPointsRequired) : null;
+    if (dto.applicableTierId !== undefined) coupon.applicableTierId = dto.applicableTierId || null;
     if (dto.isActive !== undefined) {
       coupon.status = dto.isActive ? CouponStatus.ACTIVE : CouponStatus.DISABLED;
     }
@@ -378,11 +396,67 @@ export class CouponsService implements OnModuleInit {
     } else {
       coupon.isApproved = true;
       const saved = await this.coupons.save(coupon);
+      if (saved.status === CouponStatus.ACTIVE) {
+        this.sendVoucherNotifications(saved);
+      }
       return {
         ...saved,
         isActive: saved.status === CouponStatus.ACTIVE,
         deleted: false,
       } as any;
+    }
+  }
+
+  private async sendVoucherNotifications(coupon: Coupon) {
+    try {
+      if (!coupon || !coupon.isApproved || coupon.status !== CouponStatus.ACTIVE) return;
+
+      const discountText =
+        coupon.discountType === DiscountType.PERCENT
+          ? `Giảm ${Math.round(Number(coupon.discountValue))}%`
+          : `Giảm ${Number(coupon.discountValue).toLocaleString('vi-VN')}đ`;
+
+      if (coupon.applicableTierId) {
+        const tierQuery = await this.coupons.query(`SELECT * FROM loyalty_tiers WHERE id = $1`, [coupon.applicableTierId]);
+        const tier = tierQuery[0];
+        const tierName = tier?.name || 'thành viên';
+        const minSpent = Number(tier?.minSpent || 0);
+        const minProducts = Number(tier?.minProducts || 0);
+
+        const targetUsers = await this.coupons.query(
+          `SELECT id FROM users 
+           WHERE tier_id = $1 
+              OR (COALESCE(total_spent, 0) >= $2 AND COALESCE(total_products_purchased, 0) >= $3)`,
+          [coupon.applicableTierId, minSpent, minProducts],
+        );
+
+        for (const u of targetUsers) {
+          await this.notificationRepository.save(
+            this.notificationRepository.create({
+              userId: u.id,
+              type: 'new_voucher_available',
+              title: `Voucher mới dành riêng cho Hạng ${tierName}!`,
+              message: `Mã voucher [${coupon.code}] (${discountText}) đã được tạo dành riêng cho Hạng ${tierName} của bạn. Kiểm tra và sử dụng ngay!`,
+              isRead: false,
+            }),
+          );
+        }
+      } else {
+        const targetUsers = await this.userRepository.find({ take: 300 });
+        for (const u of targetUsers) {
+          await this.notificationRepository.save(
+            this.notificationRepository.create({
+              userId: u.id,
+              type: 'new_voucher_available',
+              title: `Mã Voucher ưu đãi mới: ${coupon.code}`,
+              message: `Mã voucher [${coupon.code}] (${discountText}) vừa được phát hành. Áp dụng ngay cho đơn hàng mới!`,
+              isRead: false,
+            }),
+          );
+        }
+      }
+    } catch (err) {
+      console.error('Error sending voucher notifications:', err);
     }
   }
 

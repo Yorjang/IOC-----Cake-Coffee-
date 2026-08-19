@@ -7,6 +7,7 @@ interface CheckoutCoupon {
   code: string;
   description?: string;
   minOrderValue?: number | string;
+  minQuantity?: number | string;
   discountType: "percent" | "fixed";
   discountValue: number | string;
   maxDiscount?: number | string;
@@ -18,8 +19,10 @@ interface CheckoutCoupon {
 interface CheckoutCartItem {
   productId?: string;
   size?: string;
+  quantity?: number;
   product?: {
     raw?: {
+      id?: string;
       categoryId?: string;
       categoriesId?: string;
       category?: { id?: string };
@@ -47,12 +50,16 @@ export function useCheckoutCoupons({
   const [isOpen, setIsOpen] = useState(false);
 
   const couponOptions = useMemo(
-    () =>
-      coupons
+    () => {
+      const totalCartQuantity = cart.reduce((sum, item) => sum + Number(item.quantity || 1), 0);
+
+      return coupons
         .map((coupon) => {
           let unavailableReason = "";
           if (subtotal < Number(coupon.minOrderValue || 0)) {
             unavailableReason = `Đơn tối thiểu ${Number(coupon.minOrderValue || 0).toLocaleString("vi-VN")}đ`;
+          } else if (coupon.minQuantity && totalCartQuantity < Number(coupon.minQuantity)) {
+            unavailableReason = `Yêu cầu mua tối thiểu ${coupon.minQuantity} sản phẩm`;
           } else if (
             coupon.productId &&
             !cart.some(
@@ -87,7 +94,8 @@ export function useCheckoutCoupons({
             unavailableReason,
           };
         })
-        .sort((left, right) => Number(right.isApplicable) - Number(left.isApplicable)),
+        .sort((left, right) => Number(right.isApplicable) - Number(left.isApplicable));
+    },
     [cart, coupons, subtotal],
   );
 
