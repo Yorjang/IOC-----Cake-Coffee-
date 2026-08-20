@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { getOrderIdFromPath, getProductFromPath, getViewFromPath, apiProductToArray, apiCategoryToLegacy, STORE_STORAGE_KEY } from "../../utils/appUtils";
 import { storeLocations as fallbackStoreLocations, type StoreLocation } from "../../data/storeLocations";
-import { getStoredUser } from "../components/authSession";
+import { getAccessToken, getStoredUser } from "../components/authSession";
 import { env } from "../../config/env";
 import { parseRes } from "../../utils/api";
 import { getActiveStores, getCustomerCoordinates, getNearbyStores } from "../features/stores/services/storeService";
@@ -35,6 +35,70 @@ export function useAppState() {
   const refreshPublicCoupons = useCallback(() => {
     setCouponRefreshKey((currentKey) => currentKey + 1);
   }, []);
+
+  // Global Real-time polling for public vouchers & products
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshPublicCoupons();
+    }, 4500);
+
+    const handleFocus = () => {
+      refreshPublicCoupons();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [refreshPublicCoupons]);
+
+  // Global Real-time polling for User Points, Tier, & Profile updates
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const syncUserProfile = async () => {
+      const token = getAccessToken();
+      if (!token) return;
+      try {
+        const [ptsRes, tierRes] = await Promise.all([
+          fetch(`${env.API_URL}/points/my-points`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${env.API_URL}/points/loyalty-status`, { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
+
+        let hasChanges = false;
+        const newUserState = { ...user };
+
+        if (ptsRes.ok) {
+          const ptsData = await parseRes(ptsRes);
+          const pts = Number(ptsData?.points ?? user.points);
+          if (pts !== user.points) {
+            newUserState.points = pts;
+            hasChanges = true;
+          }
+        }
+
+        if (tierRes.ok) {
+          const tierData = await parseRes(tierRes);
+          if (tierData?.currentTier && JSON.stringify(tierData.currentTier) !== JSON.stringify(user.currentTier)) {
+            newUserState.currentTier = tierData.currentTier;
+            newUserState.tierId = tierData.currentTier.id;
+            hasChanges = true;
+          }
+        }
+
+        if (hasChanges) {
+          setUser(newUserState);
+          localStorage.setItem("user", JSON.stringify(newUserState));
+        }
+      } catch (err) {
+        // silent fail for polling errors
+      }
+    };
+
+    const userInterval = setInterval(syncUserProfile, 3500);
+    return () => clearInterval(userInterval);
+  }, [user]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -90,7 +154,7 @@ export function useAppState() {
       try {
         let couponsList: any[] = [];
         try {
-          couponsList = await getAvailableCoupons(selectedStore?.id);
+          couponsList = await getAvailableCoupons(selectedStore?.id, user?.id);
           setPublicCoupons(couponsList);
         } catch (err) {
           console.error("Lỗi khi tải vouchers:", err);

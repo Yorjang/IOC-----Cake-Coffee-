@@ -90,9 +90,25 @@ export function ProfilePoints() {
   };
 
   useEffect(() => {
-    fetchPointData(1);
+    fetchPointData(page);
     fetchRedeemableCoupons();
-  }, []);
+
+    const interval = setInterval(() => {
+      fetchPointData(page);
+      fetchRedeemableCoupons();
+    }, 3500);
+
+    const handleFocus = () => {
+      fetchPointData(page);
+      fetchRedeemableCoupons();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [page]);
 
   const [confirmModal, setConfirmModal] = useState<{
     couponId: string;
