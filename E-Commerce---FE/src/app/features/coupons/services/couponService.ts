@@ -16,15 +16,17 @@ export interface AvailableCoupon {
   perCustomerLimit?: number | null;
 }
 
-export async function getAvailableCoupons(branchId?: string): Promise<AvailableCoupon[]> {
+export async function getAvailableCoupons(branchId?: string, userId?: string): Promise<AvailableCoupon[]> {
   const token = getAccessToken();
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  let url = `${env.API_URL}/coupons/public`;
-  if (branchId) {
-    url += `?branchId=${encodeURIComponent(branchId)}`;
-  }
+  const params = new URLSearchParams();
+  if (branchId) params.append('branchId', branchId);
+  if (userId) params.append('userId', userId);
+
+  const queryString = params.toString();
+  const url = `${env.API_URL}/coupons/public${queryString ? `?${queryString}` : ''}`;
 
   const response = await fetch(url, { headers });
   const data = await parseRes(response);

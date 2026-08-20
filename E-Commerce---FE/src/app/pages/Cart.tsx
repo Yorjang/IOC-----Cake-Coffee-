@@ -1,5 +1,5 @@
 import { Award, Check, ChevronRight, Minus, Plus, Ticket, Trash2, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { VIEW_KEYS } from "../../config/appConfig";
 import { matchSize } from "../../utils/appUtils";
@@ -57,6 +57,61 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
 
   const grandTotal = Math.max(0, subtotal - discount);
 
+  const userTierLevel = Number(user?.currentTier?.tierLevel || user?.tier?.tierLevel || user?.tierLevel || user?.tier_level || 1);
+  const userTierId = user?.currentTier?.id || user?.tier?.id || user?.tierId || user?.tier_id;
+
+  // Real-time automatic re-validation of applied coupon whenever cart, subtotal, or user changes
+  useEffect(() => {
+    if (!appliedCoupon) return;
+
+    let invalidReason = "";
+
+    // 1. Check exact tier requirement
+    if (appliedCoupon.applicableTierId) {
+      const reqTierLevel = Number(appliedCoupon.applicableTier?.tierLevel || 1);
+      const reqTierId = appliedCoupon.applicableTierId || appliedCoupon.applicableTier?.id;
+      const isExactTierMatch = userTierId ? userTierId === reqTierId : userTierLevel === reqTierLevel;
+
+      if (!user || !isExactTierMatch) {
+        const tierName = appliedCoupon.applicableTier?.name || "khác";
+        invalidReason = `Mã giảm giá ${appliedCoupon.code} chỉ dành riêng cho Hạng ${tierName}.`;
+      }
+    }
+
+    // 2. Check min order value
+    if (!invalidReason && subtotal < Number(appliedCoupon.minOrderValue || 0)) {
+      invalidReason = `Đơn hàng chưa đạt mức tối thiểu ${formatPrice(Number(appliedCoupon.minOrderValue))}.`;
+    }
+
+    // 3. Check matching items & min quantity
+    if (!invalidReason) {
+      const matchingItems = cart.filter((item: any) => {
+        const isProductMatch = !appliedCoupon.productId || (item.productId || item.product?.raw?.id) === appliedCoupon.productId;
+        const isCategoryMatch = !appliedCoupon.categoriesId || (
+          item.product?.raw?.categoryId === appliedCoupon.categoriesId ||
+          item.product?.raw?.categoriesId === appliedCoupon.categoriesId ||
+          item.product?.raw?.category?.id === appliedCoupon.categoriesId
+        );
+        const isSizeMatch = !appliedCoupon.targetSize || matchSize(item.size, appliedCoupon.targetSize);
+        return isProductMatch && isCategoryMatch && isSizeMatch;
+      });
+
+      if (matchingItems.length === 0 && (appliedCoupon.productId || appliedCoupon.categoriesId || appliedCoupon.targetSize)) {
+        invalidReason = `Giỏ hàng không có sản phẩm áp dụng mã ${appliedCoupon.code}.`;
+      } else {
+        const matchingQuantity = matchingItems.reduce((sum: number, item: any) => sum + Number(item.quantity || 1), 0);
+        if (appliedCoupon.minQuantity && matchingQuantity < Number(appliedCoupon.minQuantity)) {
+          invalidReason = `Mã ${appliedCoupon.code} yêu cầu tối thiểu ${appliedCoupon.minQuantity} SP hợp lệ (hiện có ${matchingQuantity} SP).`;
+        }
+      }
+    }
+
+    if (invalidReason) {
+      setAppliedCoupon(null);
+      toast.error(`${invalidReason} Đã tự động gỡ mã giảm giá.`);
+    }
+  }, [cart, subtotal, user, appliedCoupon, setAppliedCoupon, userTierId, userTierLevel]);
+
   const applyCoupon = () => {
     if (!coupon.trim()) return;
     if (!user) {
@@ -69,44 +124,58 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
       return;
     }
 
-    const totalCartQuantity = cart.reduce((sum: number, item: any) => sum + Number(item.quantity || 1), 0);
+    // 1. Check Exact Tier Requirement
+    const reqTierLevel = Number(found.applicableTier?.tierLevel || 1);
+    const reqTierId = found.applicableTierId || found.applicableTier?.id;
+    const isExactTierMatch = userTierId ? userTierId === reqTierId : userTierLevel === reqTierLevel;
 
+    if (found.applicableTierId && !isExactTierMatch) {
+      const tierName = found.applicableTier?.name || "khác";
+      const currentTierName = user?.currentTier?.name || user?.tier?.name || "Đồng";
+      toast.error(`Mã giảm giá ${found.code} chỉ dành riêng cho Hạng ${tierName} (Tài khoản hiện ở Hạng ${currentTierName}).`);
+      return;
+    }
+
+    // 2. Check Min Order Value
     if (subtotal < Number(found.minOrderValue || 0)) {
       toast.error(`Đơn hàng tối thiểu để áp dụng mã này là ${formatPrice(Number(found.minOrderValue))}.`);
       return;
     }
 
-    if (found.minQuantity && totalCartQuantity < Number(found.minQuantity)) {
-      toast.error(`Đơn hàng cần tối thiểu ${found.minQuantity} sản phẩm để áp dụng mã này.`);
+    // 3. Find matching items & check Product/Category/Size & Min Quantity
+    const matchingItems = cart.filter((item: any) => {
+      const isProductMatch = !found.productId || (item.productId || item.product?.raw?.id) === found.productId;
+      const isCategoryMatch = !found.categoriesId || (
+        item.product?.raw?.categoryId === found.categoriesId ||
+        item.product?.raw?.categoriesId === found.categoriesId ||
+        item.product?.raw?.category?.id === found.categoriesId
+      );
+      const isSizeMatch = !found.targetSize || matchSize(item.size, found.targetSize);
+      return isProductMatch && isCategoryMatch && isSizeMatch;
+    });
+
+    if (found.productId && !cart.some((item: any) => (item.productId || item.product?.raw?.id) === found.productId)) {
+      toast.error("Mã này chỉ áp dụng cho sản phẩm nhất định.");
       return;
     }
 
-    if (found.productId) {
-      const hasProduct = cart.some((item: any) => (item.productId || item.product?.raw?.id) === found.productId);
-      if (!hasProduct) {
-        toast.error("Mã này chỉ áp dụng cho sản phẩm nhất định.");
-        return;
-      }
+    if (found.categoriesId && !cart.some((item: any) => {
+      const prod = item.product?.raw;
+      return prod && (prod.categoryId === found.categoriesId || prod.categoriesId === found.categoriesId || prod.category?.id === found.categoriesId);
+    })) {
+      toast.error("Mã này chỉ áp dụng cho danh mục sản phẩm nhất định.");
+      return;
     }
 
-    if (found.categoriesId) {
-      const hasCategory = cart.some((item: any) => {
-        const prod = item.product?.raw;
-        if (!prod) return false;
-        return prod.categoryId === found.categoriesId || prod.categoriesId === found.categoriesId || prod.category?.id === found.categoriesId;
-      });
-      if (!hasCategory) {
-        toast.error("Mã này chỉ áp dụng cho danh mục sản phẩm nhất định.");
-        return;
-      }
+    if (found.targetSize && !cart.some((item: any) => matchSize(item.size, found.targetSize))) {
+      toast.error(`Mã này chỉ áp dụng cho sản phẩm size ${found.targetSize}.`);
+      return;
     }
 
-    if (found.targetSize) {
-      const hasSize = cart.some((item: any) => matchSize(item.size, found.targetSize));
-      if (!hasSize) {
-        toast.error(`Mã này chỉ áp dụng cho sản phẩm size ${found.targetSize}.`);
-        return;
-      }
+    const matchingQuantity = matchingItems.reduce((sum: number, item: any) => sum + Number(item.quantity || 1), 0);
+    if (found.minQuantity && matchingQuantity < Number(found.minQuantity)) {
+      toast.error(`Mã ${found.code} yêu cầu mua tối thiểu ${found.minQuantity} sản phẩm hợp lệ (bạn hiện có ${matchingQuantity} SP trong giỏ).`);
+      return;
     }
 
     const isReplacement = !!appliedCoupon;
@@ -116,7 +185,6 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
         ? `Đã thay thế mã giảm giá cũ. Áp dụng mã ${found.code} thành công!`
         : `Áp dụng mã giảm giá ${found.code} thành công!`
     );
-
   };
 
   // Find best coupon suggestion
@@ -125,6 +193,14 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
 
   if (Array.isArray(publicCoupons) && cart.length > 0) {
     publicCoupons.forEach((c: any) => {
+      // Check exact tier match
+      if (c.applicableTierId) {
+        const reqTierLevel = Number(c.applicableTier?.tierLevel || 1);
+        const reqTierId = c.applicableTierId || c.applicableTier?.id;
+        const isExactTierMatch = userTierId ? userTierId === reqTierId : userTierLevel === reqTierLevel;
+        if (!user || !isExactTierMatch) return;
+      }
+
       if (subtotal < Number(c.minOrderValue || 0)) return;
 
       const matchingItems = cart.filter((item: any) => {
@@ -139,6 +215,10 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
       });
 
       if (matchingItems.length === 0) return;
+
+      const matchingQuantity = matchingItems.reduce((sum: number, item: any) => sum + Number(item.quantity || 1), 0);
+      if (c.minQuantity && matchingQuantity < Number(c.minQuantity)) return;
+
       const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
 
       let currentDiscount = 0;
@@ -158,28 +238,38 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
     });
   }
 
-  const totalCartQuantity = cart.reduce((sum: number, item: any) => sum + Number(item.quantity || 1), 0);
-
   const sortedCoupons = [...(publicCoupons || [])].map((c: any) => {
     let isApplicable = true;
-    if (subtotal < Number(c.minOrderValue || 0)) isApplicable = false;
-    if (isApplicable && c.minQuantity && totalCartQuantity < Number(c.minQuantity)) isApplicable = false;
-    if (isApplicable && c.productId) {
-      const hasProduct = cart.some((item: any) => (item.productId || item.product?.raw?.id) === c.productId);
-      if (!hasProduct) isApplicable = false;
+
+    if (c.applicableTierId) {
+      const reqTierLevel = Number(c.applicableTier?.tierLevel || 1);
+      const reqTierId = c.applicableTierId || c.applicableTier?.id;
+      const isExactTierMatch = userTierId ? userTierId === reqTierId : userTierLevel === reqTierLevel;
+      if (!user || !isExactTierMatch) isApplicable = false;
     }
-    if (isApplicable && c.categoriesId) {
-      const hasCategory = cart.some((item: any) => {
-        const prod = item.product?.raw;
-        if (!prod) return false;
-        return prod.categoryId === c.categoriesId || prod.categoriesId === c.categoriesId || prod.category?.id === c.categoriesId;
-      });
-      if (!hasCategory) isApplicable = false;
+
+    if (isApplicable && subtotal < Number(c.minOrderValue || 0)) isApplicable = false;
+
+    const matchingItems = cart.filter((item: any) => {
+      const isProductMatch = !c.productId || (item.productId || item.product?.raw?.id) === c.productId;
+      const isCategoryMatch = !c.categoriesId || (
+        item.product?.raw?.categoryId === c.categoriesId ||
+        item.product?.raw?.categoriesId === c.categoriesId ||
+        item.product?.raw?.category?.id === c.categoriesId
+      );
+      const isSizeMatch = !c.targetSize || matchSize(item.size, c.targetSize);
+      return isProductMatch && isCategoryMatch && isSizeMatch;
+    });
+
+    if (isApplicable && matchingItems.length === 0 && (c.productId || c.categoriesId || c.targetSize)) {
+      isApplicable = false;
     }
-    if (isApplicable && c.targetSize) {
-      const hasSize = cart.some((item: any) => matchSize(item.size, c.targetSize));
-      if (!hasSize) isApplicable = false;
+
+    const matchingQuantity = matchingItems.reduce((sum: number, item: any) => sum + Number(item.quantity || 1), 0);
+    if (isApplicable && c.minQuantity && matchingQuantity < Number(c.minQuantity)) {
+      isApplicable = false;
     }
+
     return { ...c, isApplicable };
   }).sort((a: any, b: any) => {
     if (a.isApplicable && !b.isApplicable) return -1;

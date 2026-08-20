@@ -310,7 +310,7 @@ export class OrdersService {
     let couponId: string | null = null;
     if (couponCode && userId) {
       const couponRes = await this.orders.query(
-        `SELECT id, status, expires_at, usage_limit, used_count, per_customer_limit, product_id, categories_id, branch_id, is_approved, is_pending_delete, points_required FROM coupons WHERE code = $1`,
+        `SELECT id, status, expires_at, usage_limit, used_count, per_customer_limit, product_id, categories_id, branch_id, is_approved, is_pending_delete, points_required, applicable_tier_id, min_quantity FROM coupons WHERE code = $1`,
         [couponCode.toUpperCase().trim()]
       );
       if (couponRes.length === 0) {
@@ -335,6 +335,28 @@ export class OrdersService {
       if (coupon.usage_limit !== null && Number(coupon.used_count) >= Number(coupon.usage_limit)) {
         throw new BadRequestException(`Mã giảm giá "${couponCode}" đã đạt giới hạn sử dụng.`);
       }
+
+      // Check loyalty tier requirement
+      if (coupon.applicable_tier_id) {
+        const tierRes = await this.orders.query(
+          `SELECT u.tier_id, ut.tier_level as user_level, ut.name as user_tier_name, ct.tier_level as req_level, ct.name as req_tier_name
+           FROM users u
+           LEFT JOIN loyalty_tiers ut ON u.tier_id = ut.id
+           LEFT JOIN loyalty_tiers ct ON ct.id = $2
+           WHERE u.id = $1`,
+          [userId, coupon.applicable_tier_id]
+        );
+        if (tierRes.length > 0) {
+          const userLevel = Number(tierRes[0].user_level || 1);
+          const reqLevel = Number(tierRes[0].req_level || 1);
+          if (userLevel !== reqLevel) {
+            const reqName = tierRes[0].req_tier_name || 'khác';
+            const userName = tierRes[0].user_tier_name || 'Chưa xếp hạng';
+            throw new BadRequestException(`Mã giảm giá "${couponCode}" chỉ dành riêng cho Hạng ${reqName} (Tài khoản hiện tại ở Hạng ${userName}).`);
+          }
+        }
+      }
+
       // Check product match if coupon restricts to product
       if (coupon.product_id) {
         const matchesProduct = items.some((item: any) => item.productId === coupon.product_id);
@@ -352,6 +374,35 @@ export class OrdersService {
         const matchesCategory = productsWithCategory.some((p: any) => p.category_id === coupon.categories_id);
         if (!matchesCategory) {
           throw new BadRequestException(`Mã giảm giá "${couponCode}" chỉ áp dụng cho danh mục sản phẩm cụ thể.`);
+        }
+      }
+
+      // Check min quantity requirement for matching items
+      const minQty = Number(coupon.min_quantity || 1);
+      if (minQty > 1) {
+        let matchingQty = 0;
+        if (coupon.product_id) {
+          matchingQty = items
+            .filter((item: any) => item.productId === coupon.product_id)
+            .reduce((sum: number, item: any) => sum + Number(item.quantity || 1), 0);
+        } else if (coupon.categories_id) {
+          const itemProductIds = items.map((item: any) => item.productId);
+          const productsWithCategory = await this.orders.query(
+            `SELECT id, category_id FROM products WHERE id = ANY($1)`,
+            [itemProductIds]
+          );
+          const matchingProductIds = productsWithCategory
+            .filter((p: any) => p.category_id === coupon.categories_id)
+            .map((p: any) => p.id);
+          matchingQty = items
+            .filter((item: any) => matchingProductIds.includes(item.productId))
+            .reduce((sum: number, item: any) => sum + Number(item.quantity || 1), 0);
+        } else {
+          matchingQty = items.reduce((sum: number, item: any) => sum + Number(item.quantity || 1), 0);
+        }
+
+        if (matchingQty < minQty) {
+          throw new BadRequestException(`Mã giảm giá "${couponCode}" yêu cầu mua tối thiểu ${minQty} sản phẩm hợp lệ trong đơn (bạn hiện có ${matchingQty} SP).`);
         }
       }
 

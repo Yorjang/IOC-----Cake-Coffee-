@@ -56,7 +56,7 @@ export function AdminVouchers() {
       });
       const data = await parseRes(res);
       if (res.ok) {
-        setCoupons(data);
+        setCoupons(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       console.error(err);
@@ -68,7 +68,10 @@ export function AdminVouchers() {
   const loadProductsOnly = async () => {
     try {
       const pRes = await fetch(`${env.API_URL}/products`);
-      if (pRes.ok) setProducts((await parseRes(pRes)) || []);
+      if (pRes.ok) {
+        const resData = await parseRes(pRes);
+        setProducts(Array.isArray(resData) ? resData : []);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -77,7 +80,10 @@ export function AdminVouchers() {
   const loadCategoriesOnly = async () => {
     try {
       const res = await fetch(`${env.API_URL}/products/categories`);
-      if (res.ok) setCategories(await parseRes(res));
+      if (res.ok) {
+        const resData = await parseRes(res);
+        setCategories(Array.isArray(resData) ? resData : []);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -86,7 +92,10 @@ export function AdminVouchers() {
   const loadSizesOnly = async () => {
     try {
       const res = await fetch(`${env.API_URL}/products/sizes/distinct`);
-      if (res.ok) setAvailableSizes(await parseRes(res));
+      if (res.ok) {
+        const resData = await parseRes(res);
+        setAvailableSizes(Array.isArray(resData) ? resData : []);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -95,7 +104,10 @@ export function AdminVouchers() {
   const loadBranchesOnly = async () => {
     try {
       const res = await fetch(`${env.API_URL}/branches/active`);
-      if (res.ok) setBranches(await parseRes(res));
+      if (res.ok) {
+        const resData = await parseRes(res);
+        setBranches(Array.isArray(resData) ? resData : []);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -107,7 +119,10 @@ export function AdminVouchers() {
       const res = await fetch(`${env.API_URL}/points/admin/loyalty-tiers`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (res.ok) setTiers(await parseRes(res));
+      if (res.ok) {
+        const resData = await parseRes(res);
+        setTiers(Array.isArray(resData) ? resData : []);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -135,6 +150,74 @@ export function AdminVouchers() {
       channelN.postMessage('notifications_updated');
       channelN.close();
     } catch (err) {}
+  };
+
+  const safeCoupons = Array.isArray(coupons) ? coupons : [];
+  const safeProducts = Array.isArray(products) ? products : [];
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const safeTiers = Array.isArray(tiers) ? tiers : [];
+  const safeBranches = Array.isArray(branches) ? branches : [];
+
+  const buildAutoDescription = () => {
+    const parts: string[] = [];
+
+    if (voucherTypeMode === 'points' && pointsRequired) {
+      const origPts = Number(pointsRequired).toLocaleString('vi-VN');
+      if (discountedPointsRequired && Number(discountedPointsRequired) > 0 && Number(discountedPointsRequired) < Number(pointsRequired)) {
+        const discPts = Number(discountedPointsRequired).toLocaleString('vi-VN');
+        parts.push(`Đổi ${discPts}pt (từ ${origPts}pt):`);
+      } else {
+        parts.push(`Đổi ${origPts} điểm:`);
+      }
+    } else if (voucherTypeMode === 'rank' && applicableTierId) {
+      const selTier = safeTiers.find(t => t.id === applicableTierId);
+      if (selTier) parts.push(`Hạng ${selTier.name}:`);
+    }
+
+    if (discountValue) {
+      if (discountType === "percent") {
+        let desc = `Giảm ${discountValue}%`;
+        if (maxDiscount && Number(maxDiscount) > 0) {
+          desc += ` (tối đa ${Number(maxDiscount).toLocaleString('vi-VN')}đ)`;
+        }
+        parts.push(desc);
+      } else {
+        parts.push(`Giảm ${Number(discountValue).toLocaleString('vi-VN')}đ`);
+      }
+    }
+
+    if (productId) {
+      const selProd = safeProducts.find(p => p.id === productId);
+      if (selProd) parts.push(`cho sản phẩm "${selProd.name}"`);
+    } else if (categoriesId) {
+      const selCat = safeCategories.find(c => c.id === categoriesId);
+      if (selCat) parts.push(`cho danh mục "${selCat.name}"`);
+    } else {
+      parts.push(`cho tất cả sản phẩm,`);
+    }
+
+    if (targetSize) {
+      parts.push(`size ${targetSize}`);
+    } else {
+      parts.push(`tất cả các size,`);
+    }
+
+    if (branchId) {
+      const selBranch = safeBranches.find(b => b.id === branchId);
+      if (selBranch) parts.push(`tại chi nhánh "${selBranch.name}"`);
+    } else {
+      parts.push(`tại tất cả chi nhánh`);
+    }
+
+    if (minOrderValue && Number(minOrderValue) > 0) {
+      parts.push(`cho đơn từ ${Number(minOrderValue).toLocaleString('vi-VN')}đ.`);
+    }
+
+    if (minQuantity && Number(minQuantity) > 1) {
+      parts.push(`tối thiểu ${minQuantity} sản phẩm.`);
+    }
+
+    return parts.join(' ');
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -183,7 +266,7 @@ export function AdminVouchers() {
           targetSize: targetSize || null,
           branchId: branchId || null,
           applicableTierId: finalApplicableTierId,
-          description: description || "",
+          description: description.trim() || buildAutoDescription(),
           isActive: isActive,
           pointsRequired: finalPointsRequired,
           discountedPointsRequired: finalDiscountedPoints,
@@ -192,7 +275,6 @@ export function AdminVouchers() {
       const data = await parseRes(res);
       if (res.ok) {
         toast.success(isEditing ? "Cập nhật voucher thành công." : "Tạo voucher thành công.");
-        // Clear form
         setVoucherTypeMode('general');
         setCode("");
         setDiscountValue("");
@@ -278,14 +360,14 @@ export function AdminVouchers() {
 
   const getFilteredSizes = () => {
     if (!productId) return availableSizes;
-    const selProd = products.find(p => p.id === productId);
+    const selProd = safeProducts.find(p => p.id === productId);
     if (!selProd || !selProd.variants) return [];
     const sizes = selProd.variants.map((v: any) => v.size).filter(Boolean);
     return Array.from(new Set(sizes.map((s: string) => s.trim()))) as string[];
   };
 
   const handleApprove = async (id: string) => {
-    const couponObj = coupons.find(c => c.id === id);
+    const couponObj = safeCoupons.find(c => c.id === id);
     const actionLabel = couponObj?.isPendingDelete ? "duyệt xóa" : "phê duyệt";
     if (!window.confirm(`Bạn có chắc chắn muốn ${actionLabel} voucher này không?`)) return;
     const token = getAccessToken();
@@ -330,7 +412,7 @@ export function AdminVouchers() {
     }
   };
 
-  const filteredCoupons = coupons.filter(c => {
+  const filteredCoupons = safeCoupons.filter(c => {
     if (filterTypeMode === 'points') return c.pointsRequired && Number(c.pointsRequired) > 0;
     if (filterTypeMode === 'rank') return c.applicableTierId || c.applicableTier;
     if (filterTypeMode === 'general') return (!c.pointsRequired || Number(c.pointsRequired) === 0) && !c.applicableTierId && !c.applicableTier;
@@ -377,12 +459,12 @@ export function AdminVouchers() {
             >
               {tab.label} ({
                 tab.key === 'all'
-                  ? coupons.length
+                  ? safeCoupons.length
                   : tab.key === 'points'
-                    ? coupons.filter(c => c.pointsRequired && Number(c.pointsRequired) > 0).length
+                    ? safeCoupons.filter(c => c.pointsRequired && Number(c.pointsRequired) > 0).length
                     : tab.key === 'rank'
-                      ? coupons.filter(c => c.applicableTierId || c.applicableTier).length
-                      : coupons.filter(c => (!c.pointsRequired || Number(c.pointsRequired) === 0) && !c.applicableTierId && !c.applicableTier).length
+                      ? safeCoupons.filter(c => c.applicableTierId || c.applicableTier).length
+                      : safeCoupons.filter(c => (!c.pointsRequired || Number(c.pointsRequired) === 0) && !c.applicableTierId && !c.applicableTier).length
               })
             </button>
           ))}
@@ -393,10 +475,10 @@ export function AdminVouchers() {
           <tbody>
             {filteredCoupons.map(v => {
               const hasLimit = v.usageLimit !== null;
-              const usedRatio = hasLimit ? (v.usedCount / v.usageLimit) * 100 : 0;
+              const usedRatio = hasLimit ? Math.round((v.usedCount / v.usageLimit) * 100) : 0;
               const isExpired = new Date(v.expiresAt) < new Date();
-              const status = v.isPendingDelete
-                ? "Chờ xóa"
+              const status = (v.isPendingDelete && !isAdmin)
+                ? "Chờ duyệt xóa"
                 : !v.isApproved
                   ? "Chờ duyệt"
                   : isExpired ? "Hết hạn" : (v.isActive ? "Hoạt động" : "Tạm khóa");
@@ -522,7 +604,8 @@ export function AdminVouchers() {
         </table>
       </div>
 
-      <form onSubmit={handleSave} className="rounded-2xl bg-sidebar p-5 space-y-4">
+      {/* CREATE / EDIT VOUCHER FORM */}
+      <form onSubmit={handleSave} className="rounded-2xl bg-sidebar p-5 space-y-4 border border-sidebar-accent shadow-sm">
         <h3 className="text-sm font-bold text-foreground flex items-center justify-between">
           <span>{editingVoucher ? `Chỉnh sửa voucher: ${editingVoucher.code}` : "Tạo voucher mới"}</span>
         </h3>
@@ -531,7 +614,7 @@ export function AdminVouchers() {
           {/* Dropdown Selector for Voucher Type / Category */}
           <div className="col-span-full bg-sidebar-accent/60 p-3.5 rounded-2xl border border-sidebar-accent flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-xs uppercase tracking-wider text-primary">Mục đích / Phân loại Voucher:</span>
+              <span className="font-extrabold text-xs uppercase tracking-wider text-primary">MỤC ĐÍCH / PHÂN LOẠI VOUCHER:</span>
             </div>
             <select
               className="rounded-xl bg-background px-4 py-2 text-sm font-bold text-foreground outline-none border border-primary/40 shadow-xs cursor-pointer hover:border-primary transition"
@@ -559,7 +642,7 @@ export function AdminVouchers() {
 
           <input
             required
-            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent"
+            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent font-mono font-bold uppercase"
             placeholder="Mã voucher (VD: SUMMER30)"
             value={code}
             onChange={e => setCode(e.target.value)}
@@ -635,7 +718,7 @@ export function AdminVouchers() {
               onChange={e => setApplicableTierId(e.target.value)}
             >
               <option value="">Bắt buộc chọn Hạng thành viên áp dụng...</option>
-              {tiers.filter(t => t.tierLevel > 1).map(t => (
+              {safeTiers.filter(t => t.tierLevel > 1).map(t => (
                 <option key={t.id} value={t.id}>
                   Dành riêng cho Hạng {t.name}
                 </option>
@@ -666,7 +749,7 @@ export function AdminVouchers() {
               if (val) {
                 setCategoriesId("");
                 // Auto-reset targetSize if not supported by the new product variants
-                const selProd = products.find(p => p.id === val);
+                const selProd = safeProducts.find(p => p.id === val);
                 if (selProd && selProd.variants) {
                   const sizes = selProd.variants.map((v: any) => v.size || "");
                   const exists = sizes.some((s: string) => s.trim() === targetSize);
@@ -676,7 +759,7 @@ export function AdminVouchers() {
             }}
           >
             <option value="">Sản phẩm: Tất cả</option>
-            {products.map(p => (
+            {safeProducts.map(p => (
               <option key={p.id} value={p.id}>
                 {p.name} ({p.category?.name || 'Khác'})
               </option>
@@ -688,7 +771,7 @@ export function AdminVouchers() {
             onChange={e => { setCategoriesId(e.target.value); if (e.target.value) setProductId(""); }}
           >
             <option value="">Danh mục: Tất cả</option>
-            {categories.map(c => (
+            {safeCategories.map(c => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
@@ -701,7 +784,7 @@ export function AdminVouchers() {
               onChange={e => setBranchId(e.target.value)}
             >
               <option value="">Chi nhánh áp dụng: Tất cả</option>
-              {branches.map(b => (
+              {safeBranches.map(b => (
                 <option key={b.id} value={b.id}>
                   {b.name}
                 </option>
@@ -726,13 +809,36 @@ export function AdminVouchers() {
             <option value="true">Trạng thái: Hoạt động (Active)</option>
             <option value="false">Trạng thái: Tạm khóa (Inactive)</option>
           </select>
-          <input
-            className="rounded-xl bg-sidebar-accent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent sm:col-span-2 lg:col-span-3"
-            placeholder="Mô tả voucher (VD: Giảm giá 20k cho sản phẩm size Lớn)"
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-          />
-          <div className="sm:col-span-2 lg:col-span-3 flex justify-end gap-2">
+
+          {/* Description field with Auto-Generate button */}
+          <div className="sm:col-span-2 lg:col-span-3 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-foreground">Mô tả Voucher:</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const autoDesc = buildAutoDescription();
+                  if (autoDesc) {
+                    setDescription(autoDesc);
+                    toast.success("Đã tự động tạo mô tả voucher từ dữ liệu ở trên!");
+                  } else {
+                    toast.error("Vui lòng nhập giá trị giảm giá hoặc thông số voucher trước.");
+                  }
+                }}
+                className="text-xs font-bold text-primary hover:underline flex items-center gap-1.5 cursor-pointer bg-primary/10 px-3 py-1.5 rounded-xl border border-primary/20 transition hover:bg-primary/20"
+              >
+                ✨ Tự động tạo mô tả từ dữ liệu ở trên
+              </button>
+            </div>
+            <input
+              className="w-full rounded-xl bg-sidebar-accent px-3.5 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground border border-sidebar-accent focus:border-primary transition"
+              placeholder="Mô tả voucher (VD: Giảm 35% tối đa 80k cho đơn từ 50k khi mua tối thiểu 2 SP)"
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+            />
+          </div>
+
+          <div className="sm:col-span-2 lg:col-span-3 flex justify-end gap-2 pt-2">
             {editingVoucher && (
               <button
                 type="button"

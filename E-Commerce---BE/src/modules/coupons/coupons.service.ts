@@ -113,11 +113,23 @@ export class CouponsService implements OnModuleInit {
       activeCoupons = activeCoupons.filter(c => !c.branchId || c.branchId === branchId);
     }
 
+    let userTierLevel = 1; // Default tier level 1 (Đồng)
     const usedCountsMap = new Map<string, number>();
     const redeemedCountsMap = new Map<string, number>();
 
     if (userId) {
       try {
+        const userRes = await this.coupons.query(
+          `SELECT u.id, u.tier_id, lt.tier_level 
+           FROM users u 
+           LEFT JOIN loyalty_tiers lt ON u.tier_id = lt.id 
+           WHERE u.id = $1`,
+          [userId]
+        );
+        if (userRes.length > 0 && userRes[0].tier_level) {
+          userTierLevel = Number(userRes[0].tier_level);
+        }
+
         const userOrders = await this.coupons.query(
           `SELECT coupon_code, COUNT(*) as count FROM orders WHERE user_id = $1 AND order_status != 'cancelled' AND coupon_code IS NOT NULL GROUP BY coupon_code`,
           [userId]
@@ -143,6 +155,14 @@ export class CouponsService implements OnModuleInit {
     }
 
     activeCoupons = activeCoupons.filter(c => {
+      // If coupon is rank-restricted, verify user's exact tier level
+      if (c.applicableTierId || c.applicableTier) {
+        const reqTierLevel = Number(c.applicableTier?.tierLevel || 1);
+        if (userTierLevel !== reqTierLevel) {
+          return false;
+        }
+      }
+
       const pointsReq = Number(c.pointsRequired || 0);
 
       // If voucher requires points to redeem

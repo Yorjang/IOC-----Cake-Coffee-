@@ -32,6 +32,20 @@ export function ProfileOrders({ setView }: any) {
 
   useEffect(() => {
     fetchMyOrders();
+
+    const interval = setInterval(() => {
+      fetchMyOrders();
+    }, 4000);
+
+    const handleFocus = () => {
+      fetchMyOrders();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [orderTab]);
 
   return (
