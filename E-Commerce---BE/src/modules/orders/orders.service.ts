@@ -138,9 +138,11 @@ export class OrdersService {
 
     if (user.role === UserRole.STORE_MANAGER || user.role === UserRole.CASHIER) return;
 
+    // SHIPPING is included as a stand-in until a dedicated shipper role/account exists;
+    // staff currently double as delivery drivers via the /giao-hang panel.
     if (
       user.role === UserRole.STAFF &&
-      [OrderStatus.CONFIRMED, OrderStatus.PREPARING].includes(order.orderStatus)
+      [OrderStatus.CONFIRMED, OrderStatus.PREPARING, OrderStatus.SHIPPING].includes(order.orderStatus)
     ) {
       return;
     }
