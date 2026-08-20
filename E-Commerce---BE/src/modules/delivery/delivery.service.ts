@@ -87,6 +87,7 @@ export class DeliveryService {
     const query = this.ordersRepository.createQueryBuilder('order')
       .leftJoinAndSelect('order.user', 'customer')
       .leftJoinAndSelect('order.items', 'item')
+      .leftJoinAndSelect('order.branch', 'branch')
       .where('order.fulfillmentType = :fulfillmentType', { fulfillmentType: FulfillmentType.DELIVERY })
       .andWhere('order.orderStatus IN (:...statuses)', { statuses: [OrderStatus.CONFIRMED, OrderStatus.PREPARING] })
       .andWhere('order.shipperId IS NULL');
@@ -109,11 +110,12 @@ export class DeliveryService {
       relations: {
         user: true,
         items: true,
+        branch: true,
       },
       order: { createdAt: 'DESC' }
     });
   }
-  
+
   async getDeliveryHistory(shipper: User) {
     return this.ordersRepository.find({
       where: [
@@ -123,6 +125,8 @@ export class DeliveryService {
       ],
       relations: {
         user: true,
+        items: true,
+        branch: true,
       },
       order: { deliveryAt: 'DESC' }
     });
@@ -324,7 +328,7 @@ export class DeliveryService {
     return savedOrder;
   }
 
-  private async logDeliveryAction(orderId: string, shipperId: string, status: DeliveryStatus, reason?: string) {
+  private async logDeliveryAction(orderId: string, shipperId: string, status: DeliveryStatus | null, reason?: string) {
     const log = this.deliveryLogsRepository.create({
       orderId,
       shipperId,
@@ -363,7 +367,7 @@ export class DeliveryService {
       order.orderStatus = OrderStatus.PREPARING;
       order.deliveryStatus = null;
       order.shipperId = null;
-      await this.logDeliveryAction(order.id, oldShipperId, null as any, 'Store manager reassigned failed order');
+      await this.logDeliveryAction(order.id, oldShipperId, null, 'Store manager reassigned failed order');
     } else {
       throw new BadRequestException('Invalid action');
     }

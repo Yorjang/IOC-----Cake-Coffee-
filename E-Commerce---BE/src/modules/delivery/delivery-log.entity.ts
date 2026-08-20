@@ -24,8 +24,8 @@ export class DeliveryLog {
   @JoinColumn({ name: 'shipper_id' })
   shipper: User;
 
-  @Column({ name: 'status', type: 'enum', enum: DeliveryStatus })
-  status: DeliveryStatus;
+  @Column({ name: 'status', type: 'enum', enum: DeliveryStatus, nullable: true })
+  status: DeliveryStatus | null;
 
   @Column({ type: 'text', nullable: true })
   reason: string;
