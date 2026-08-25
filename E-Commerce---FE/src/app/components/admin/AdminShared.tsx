@@ -74,8 +74,8 @@ export function ImageUploader({ label, value, onChange }: { label: string; value
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Kích thước file tối đa là 5MB.");
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error("Kích thước file tối đa là 20MB.");
       return;
     }
 
@@ -208,5 +208,5 @@ export function AdminBtn({ children, variant = "primary", onClick, disabled = fa
 }
 
 export function TableHeader({ cols }: { cols: string[] }) {
-  return <thead><tr className="border-b border-sidebar-accent">{cols.map(c => <th key={c} className="pb-3 pr-4 text-left text-xs uppercase tracking-wider text-muted-foreground">{c}</th>)}</tr></thead>;
+  return <thead><tr className="border-b border-sidebar-accent">{cols.map(c => <th key={c} className="py-4 px-4 text-left text-xs uppercase tracking-wider text-muted-foreground">{c}</th>)}</tr></thead>;
 }

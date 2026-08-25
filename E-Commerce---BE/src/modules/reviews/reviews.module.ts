@@ -8,6 +8,7 @@ import { ReviewsController } from './reviews.controller';
 import { UsersModule } from '../users/users.module';
 import { OrdersModule } from '../orders/orders.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { PointsModule } from '../points/points.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     UsersModule,
     OrdersModule,
     NotificationsModule,
+    PointsModule,
   ],
   controllers: [ReviewsController],
   providers: [ReviewsService],

@@ -146,7 +146,7 @@ export class ProductsService {
                     { ...baseWhere, branchId: IsNull() },
                 ]
                 : Object.keys(baseWhere).length > 0 ? baseWhere : undefined;
-        return this.products.find({
+        const prods = await this.products.find({
             where,
             relations: {
                 category: true,
@@ -158,6 +158,33 @@ export class ProductsService {
             },
             order: { name: 'ASC' },
         });
+
+        try {
+            const ratingsRaw = await this.dataSource.query(`
+                SELECT product_id, ROUND(AVG(rating)::numeric, 1) as average_rating, COUNT(id)::int as review_count
+                FROM reviews
+                WHERE is_visible = true
+                GROUP BY product_id
+            `);
+
+            const ratingMap = new Map<string, { averageRating: number; reviewCount: number }>();
+            for (const r of ratingsRaw) {
+                ratingMap.set(r.product_id, {
+                    averageRating: Number(r.average_rating),
+                    reviewCount: Number(r.review_count),
+                });
+            }
+
+            for (const p of prods) {
+                const r = ratingMap.get(p.id);
+                (p as any).averageRating = r ? r.averageRating : 5.0;
+                (p as any).reviewCount = r ? r.reviewCount : 0;
+            }
+        } catch (err) {
+            console.error('Error fetching product ratings:', err);
+        }
+
+        return prods;
     }
 
     async findProductById(id: string): Promise<Product> {
@@ -173,6 +200,26 @@ export class ProductsService {
             },
         });
         if (!prod) throw new NotFoundException('Không tìm thấy sản phẩm');
+
+        try {
+            const ratingRaw = await this.dataSource.query(`
+                SELECT ROUND(AVG(rating)::numeric, 1) as average_rating, COUNT(id)::int as review_count
+                FROM reviews
+                WHERE product_id = $1 AND is_visible = true
+                GROUP BY product_id
+            `, [id]);
+
+            if (ratingRaw && ratingRaw[0] && Number(ratingRaw[0].review_count) > 0) {
+                (prod as any).averageRating = Number(ratingRaw[0].average_rating);
+                (prod as any).reviewCount = Number(ratingRaw[0].review_count);
+            } else {
+                (prod as any).averageRating = 5.0;
+                (prod as any).reviewCount = 0;
+            }
+        } catch (err) {
+            console.error('Error fetching product rating:', err);
+        }
+
         return prod;
     }
 

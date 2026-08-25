@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, CreditCard, Crosshair, Loader2, MapPin, Navigation, ShieldAlert, Store, Truck } from "lucide-react";
+import { Award, CheckCircle2, Clock, CreditCard, Crosshair, Loader2, MapPin, Navigation, ShieldAlert, Store, Truck } from "lucide-react";
 import { CHECKOUT_CONFIG } from "../../config/appConfig";
 import { Btn } from "../components/shared";
 import { useCheckout } from "../features/checkout/hooks/useCheckout";
@@ -41,6 +41,7 @@ export function Checkout(props: any) {
     appliedCoupon: props.appliedCoupon ?? null,
     setAppliedCoupon: props.setAppliedCoupon,
   });
+  const estimatedPoints = Math.floor(Math.max(0, subtotal - discount) / 1000);
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-8 sm:px-6 lg:px-10">
@@ -278,6 +279,15 @@ export function Checkout(props: any) {
                       : "Đang tính"}
                 </span>
               </div>
+              {estimatedPoints > 0 && (
+                <div className="flex items-center justify-between rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300 my-1">
+                  <span className="flex items-center gap-1.5">
+                    <Award size={15} className="text-amber-500 shrink-0" />
+                    <span>Điểm thưởng tích lũy:</span>
+                  </span>
+                  <span className="font-mono font-bold text-amber-600 dark:text-amber-400">+{estimatedPoints} điểm</span>
+                </div>
+              )}
               <hr className="my-2 border-border" />
               <div className="flex justify-between font-bold text-lg"><span>Tổng cộng</span><span className="text-primary">{formatPrice(grandTotal)}</span></div>
             </div>
@@ -288,4 +298,3 @@ export function Checkout(props: any) {
     </div>
   );
 }
-

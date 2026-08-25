@@ -7,6 +7,8 @@ import { CreateOrderReviewDto } from './dto/create-order-review.dto';
 import { Order, OrderStatus } from '../orders/order.entity';
 import { Coupon, CouponScope, CouponStatus, DiscountType } from '../coupons/coupon.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PointsService } from '../points/points.service';
+import { PointTransactionType } from '../points/point-history.entity';
 
 @Injectable()
 export class ReviewsService implements OnModuleInit {
@@ -18,6 +20,7 @@ export class ReviewsService implements OnModuleInit {
     @InjectRepository(Coupon)
     private readonly coupons: Repository<Coupon>,
     private readonly notificationsService: NotificationsService,
+    private readonly pointsService: PointsService,
   ) {}
 
   async onModuleInit() {
@@ -118,55 +121,46 @@ export class ReviewsService implements OnModuleInit {
     });
     const savedReview = await this.reviews.save(review);
 
-    // 5. Generate Reward Voucher for User
-    let couponCode = '';
-    let retries = 0;
-    while (retries < 5) {
-      const randStr = Math.random().toString(36).substring(2, 8).toUpperCase();
-      couponCode = `RV-${randStr}`;
-      const existing = await this.coupons.findOne({ where: { code: couponCode } });
-      if (!existing) break;
-      retries++;
+    // 5. Award Loyalty Points to User based on product value:
+    // < 100,000 VNĐ => 5 điểm
+    // 100,000 - 349,999 VNĐ => 25 điểm
+    // >= 350,000 VNĐ => 50 điểm
+    const reviewedItem = order.items.find((item) => item.productId === productId);
+    const itemPrice = Number(reviewedItem?.totalPrice || reviewedItem?.unitPrice || 0);
+
+    let pointsEarned = 5;
+    if (itemPrice >= 350000) {
+      pointsEarned = 50;
+    } else if (itemPrice >= 100000) {
+      pointsEarned = 25;
     }
 
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days valid
-
-    const coupon = this.coupons.create({
-      code: couponCode,
-      name: 'Voucher quà tặng từ đánh giá sản phẩm',
-      description: 'Cảm ơn bạn đã gửi đánh giá cho sản phẩm! Mã giảm giá 10% cho đơn hàng tiếp theo.',
-      discountType: DiscountType.PERCENT,
-      discountValue: 10,
-      maxDiscount: 50000,
-      minOrderValue: 0,
-      couponScope: CouponScope.ORDER,
-      perCustomerLimit: 1,
-      usageLimit: 1,
-      usedCount: 0,
-      status: CouponStatus.ACTIVE,
-      startsAt: now,
-      expiresAt: expiresAt,
-      isApproved: true,
-    });
-
-    await this.coupons.save(coupon);
+    try {
+      await this.pointsService.addPoints(
+        userId,
+        pointsEarned,
+        PointTransactionType.PRODUCT_REVIEW,
+        savedReview.id,
+        `Tích điểm từ đánh giá sản phẩm (${reviewedItem?.productName || 'Sản phẩm'})`,
+      );
+    } catch (err) {
+      console.error('Failed to award review points:', err);
+    }
 
     // 6. Trigger Notification
     this.notificationsService
       .createNotification(userId, {
         orderId,
-        type: 'voucher_reward',
-        title: 'Bạn đã nhận được Voucher quà tặng!',
-        message: `Cảm ơn bạn đã đánh giá sản phẩm! Bạn đã nhận được mã voucher ${couponCode} giảm 10% (Tối đa 50.000đ) cho đơn hàng tiếp theo.`,
+        type: 'points_reward',
+        title: 'Bạn đã nhận được điểm thưởng!',
+        message: `Cảm ơn bạn đã đánh giá sản phẩm! Bạn đã được cộng +${pointsEarned} điểm thưởng tích lũy.`,
       })
-      .catch((err) => console.error('Failed to create voucher notification:', err));
+      .catch((err) => console.error('Failed to create points notification:', err));
 
     return {
-      message: 'Gửi đánh giá thành công! Bạn đã nhận được voucher quà tặng.',
+      message: `Gửi đánh giá thành công! Bạn đã tích thêm ${pointsEarned} điểm thưởng.`,
       review: savedReview,
-      couponCode: coupon.code,
-      discountText: '10% (Tối đa 50.000đ)',
+      pointsEarned,
     };
   }
 

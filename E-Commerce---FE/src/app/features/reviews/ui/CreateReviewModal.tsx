@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Star, Gift, Check, Copy, Camera, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
+import { X, Star, Award, Check, Camera, Sparkles, Loader2, Coins } from 'lucide-react';
 import { env } from '../../../../config/env';
 import { getAccessToken } from '../../../components/authSession';
 import { toast } from 'sonner';
@@ -51,8 +51,7 @@ export function CreateReviewModal({
   const [imageUrl, setImageUrl] = useState('');
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [reward, setReward] = useState<{ couponCode: string; discountText: string } | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [rewardPoints, setRewardPoints] = useState<number | null>(null);
 
   if (!isOpen) return null;
 
@@ -60,8 +59,8 @@ export function CreateReviewModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Kích thước file tối đa là 5MB.");
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Kích thước file tối đa là 10MB.");
       return;
     }
 
@@ -140,30 +139,14 @@ export function CreateReviewModal({
         throw new Error(data.message || 'Không thể gửi đánh giá');
       }
 
-      if (data.couponCode) {
-        setReward({
-          couponCode: data.couponCode,
-          discountText: data.discountText || '10%',
-        });
-      } else {
-        toast.success('Gửi đánh giá thành công!');
-        onSuccess?.();
-        onClose();
-      }
+      const pointsEarned = data.pointsEarned || 20;
+      setRewardPoints(pointsEarned);
+      toast.success(`Gửi đánh giá thành công! Bạn tích được +${pointsEarned} điểm.`);
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || 'Lỗi khi gửi đánh giá');
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const copyCouponCode = () => {
-    if (reward?.couponCode) {
-      navigator.clipboard.writeText(reward.couponCode);
-      setCopied(true);
-      toast.success('Đã sao chép mã voucher!');
-      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -190,11 +173,11 @@ export function CreateReviewModal({
 
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[80vh]">
-          {reward ? (
-            /* Celebration Reward State */
+          {rewardPoints !== null ? (
+            /* Celebration Points Reward State */
             <div className="py-6 text-center space-y-5 animate-in zoom-in-95">
-              <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto shadow-inner">
-                <Gift size={32} />
+              <div className="w-16 h-16 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center mx-auto shadow-inner animate-bounce">
+                <Coins size={36} />
               </div>
 
               <div>
@@ -204,26 +187,17 @@ export function CreateReviewModal({
                 </p>
               </div>
 
-              {/* Coupon card */}
-              <div className="p-5 rounded-2xl border-2 border-dashed border-amber-400 bg-amber-50/70 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                  🎉 VOUCHER DÀNH TẶNG BẠN ({reward.discountText})
+              {/* Points Card */}
+              <div className="p-5 rounded-2xl border-2 border-dashed border-amber-400 bg-amber-500/10 text-amber-900 dark:text-amber-200 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                  🎉 ĐÃ TÍCH THÊM VÀO TÀI KHOẢN
                 </p>
-                <div className="flex items-center justify-center gap-2">
-                  <span className="font-mono text-2xl font-extrabold tracking-widest text-primary">
-                    {reward.couponCode}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={copyCouponCode}
-                    className="p-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-1 text-xs font-semibold"
-                    title="Sao chép mã"
-                  >
-                    {copied ? <Check size={16} /> : <Copy size={16} />}
-                  </button>
+                <div className="text-3xl font-black font-mono text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1.5">
+                  <Award size={28} />
+                  <span>+{rewardPoints} ĐIỂM THƯỞNG</span>
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  Hạn sử dụng: 30 ngày. Đã lưu tự động vào thông báo của bạn.
+                  Số điểm đã được cộng trực tiếp vào ví điểm của bạn.
                 </p>
               </div>
 
@@ -233,7 +207,7 @@ export function CreateReviewModal({
                   onSuccess?.();
                   onClose();
                 }}
-                className="w-full py-3 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors shadow-md"
+                className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-colors shadow-md"
               >
                 Hoàn tất
               </button>
@@ -384,8 +358,8 @@ export function CreateReviewModal({
                 disabled={submitting || rating === 0}
                 className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                <Gift size={18} />
-                <span>{submitting ? 'Đang gửi...' : 'Gửi Đánh Giá & Nhận Voucher'}</span>
+                <Award size={18} />
+                <span>{submitting ? 'Đang gửi...' : 'Gửi Đánh Giá & Tích Điểm'}</span>
               </button>
             </form>
           )}

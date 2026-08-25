@@ -55,8 +55,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           const categoryName = p.category?.name ?? "Khác";
           const imageUrl = p.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=600&h=520&fit=crop&auto=format";
           const badge = p.productType === "combo" ? "Combo" : (p.variants?.length > 1 ? "S/M/L" : "Còn hàng");
+          const ratingVal = p.averageRating !== undefined && p.averageRating !== null ? p.averageRating : p.rating;
+          const rating = ratingVal ? String(Number(ratingVal).toFixed(1)) : "5.0";
           
-          const legacyProduct = [p.name, formattedPrice, categoryName, imageUrl, "4.8", badge];
+          const legacyProduct = [p.name, formattedPrice, categoryName, imageUrl, rating, badge];
           (legacyProduct as any).raw = p;
           
           let options = {};

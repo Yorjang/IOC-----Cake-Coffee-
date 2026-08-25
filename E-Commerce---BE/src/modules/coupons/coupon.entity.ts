@@ -2,6 +2,7 @@ import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGenerat
 import { Branch } from '../branches/branch.entity';
 import { Category } from '../products/category.entity';
 import { Product } from '../products/product.entity';
+import { LoyaltyTier } from '../points/loyalty-tier.entity';
 
 export enum DiscountType {
   PERCENT = 'percent',
@@ -96,13 +97,27 @@ export class Coupon {
   @JoinColumn({ name: 'branch_id' })
   branch: Branch;
 
+  @Column({ name: 'applicable_tier_id', type: 'uuid', nullable: true })
+  applicableTierId: string;
+
+  @ManyToOne(() => LoyaltyTier, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'applicable_tier_id' })
+  applicableTier: LoyaltyTier;
+
   @Column({ name: 'is_approved', type: 'boolean', default: true })
   isApproved: boolean;
 
   @Column({ name: 'is_pending_delete', type: 'boolean', default: false })
   isPendingDelete: boolean;
 
+  @Column({ name: 'points_required', type: 'integer', default: 0 })
+  pointsRequired: number;
+
+  @Column({ name: 'discounted_points_required', type: 'integer', nullable: true })
+  discountedPointsRequired?: number | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }
+
 

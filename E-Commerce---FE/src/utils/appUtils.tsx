@@ -26,7 +26,8 @@ export const apiProductToArray = (p: any, coupons: any[] = []): any[] => {
   const price = originalPrice ? `${originalPrice.toLocaleString("vi-VN")}đ` : "0đ";
   const categoryName = p.category?.name ?? "Khác";
   const imageUrl = p.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=600&h=520&fit=crop&auto=format";
-  const rating = "4.8";
+  const rawRating = p.averageRating !== undefined && p.averageRating !== null ? p.averageRating : p.rating;
+  const rating = rawRating ? String(Number(rawRating).toFixed(1)) : "5.0";
   const badge = p.productType === "combo"
     ? "Combo"
     : activeVariants.length > 1
@@ -69,6 +70,7 @@ export const VIEW_PATH_MAP: Record<string, string> = {
   [VIEW_KEYS.DETAIL]: "/chi-tiet",
   [VIEW_KEYS.ADMIN]: "/admin",
   [VIEW_KEYS.STAFF]: "/nhan-vien",
+  [VIEW_KEYS.SHIPPER]: "/giao-hang",
   [VIEW_KEYS.LOGIN]: "/dang-nhap",
   [VIEW_KEYS.REGISTER]: "/dang-ky",
   [VIEW_KEYS.FORGOT_PASSWORD]: "/quen-mat-khau",
@@ -95,6 +97,7 @@ export const getPathFromView = (view: string, product?: any, entityId?: string) 
 export const getViewFromPath = (path: string, cats: any[] = []) => {
   if (path.startsWith("/admin")) return VIEW_KEYS.ADMIN;
   if (path.startsWith('/thanh-toan-don-hang/')) return VIEW_KEYS.PAYMENT;
+  if (path.startsWith('/ho-so')) return VIEW_KEYS.PROFILE;
   for (const [key, value] of Object.entries(VIEW_PATH_MAP)) {
     if (value === path) return key;
   }
@@ -141,7 +144,8 @@ export const mapDbCartToLegacy = (dbItems: any[]): any[] => {
     const formattedPrice = `${Number(variantPrice).toLocaleString("vi-VN")}đ`;
     const categoryName = p.category?.name ?? "Khác";
     const imageUrl = p.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=600&h=520&fit=crop&auto=format";
-    const rating = "4.8";
+    const rawRating = p.averageRating !== undefined && p.averageRating !== null ? p.averageRating : p.rating;
+    const rating = rawRating ? String(Number(rawRating).toFixed(1)) : "5.0";
     const badge = p.productType === "combo" ? "Combo" : (p.variants?.length > 1 ? "S/M/L" : "Còn hàng");
 
     const legacyProduct = [

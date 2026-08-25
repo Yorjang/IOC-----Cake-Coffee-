@@ -4,6 +4,7 @@ import { Toaster } from "./components/ui/sonner";
 import { parseRes } from "../utils/api";
 import { env } from "../config/env";
 import { FloatingContact } from "./components/FloatingContact";
+import { AppDownloadModal } from "./components/AppDownloadModal";
 import { Footer } from "./components/Footer";
 import { Header } from "./components/Header";
 import { LoadingScreen } from "./components/LoadingScreen";
@@ -16,10 +17,12 @@ import { NAV_PAGES, VIEW_KEYS } from "../config/appConfig";
 import { STORE_STORAGE_KEY, getOrderIdFromPath, getPathFromView, getViewFromPath, parsePrice } from '../utils/appUtils';
 import { clearAuthSession } from "./components/authSession";
 import { rememberTrackingOrder } from "./features/order-tracking/services/orderTrackingService";
+import { useState } from "react";
 
 export default function App() {
   const appState = useAppState();
   const cartState = useCartState(appState.user, appState.selectedStore);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
 
   const {
     view, setViewInternal, isLoading,
@@ -160,7 +163,7 @@ export default function App() {
     }
   };
 
-  if ([VIEW_KEYS.ADMIN, VIEW_KEYS.STAFF, VIEW_KEYS.LOGIN, VIEW_KEYS.REGISTER, VIEW_KEYS.FORGOT_PASSWORD, VIEW_KEYS.RESET_PASSWORD].includes(view)) {
+  if ([VIEW_KEYS.ADMIN, VIEW_KEYS.STAFF, VIEW_KEYS.SHIPPER, VIEW_KEYS.LOGIN, VIEW_KEYS.REGISTER, VIEW_KEYS.FORGOT_PASSWORD, VIEW_KEYS.RESET_PASSWORD].includes(view)) {
     return (
       <>
         <Toaster richColors position="top-center" />
@@ -184,6 +187,7 @@ export default function App() {
           searchQuery={searchQuery} onSearchChange={setSearchQuery} onSearchSubmit={() => setView("Tìm kiếm")}
           isLoggedIn={!!user} user={user} products={products} selectedStore={selectedStore}
           onChooseStore={() => setShowStorePopup(true)} onLogout={handleLogout}
+          onOpenDownloadModal={() => setShowDownloadModal(true)}
         />
         <main className="min-h-[calc(100vh-400px)]">
           <AppRoutes 
@@ -203,7 +207,7 @@ export default function App() {
           onTrackOrder={() => setView(VIEW_KEYS.TRACKING)}
         />
         {view === VIEW_KEYS.HOME && <SalesNotification products={products} onSelectProduct={handleSelectProduct} />}
-        <Footer setView={setView} />
+        <Footer setView={setView} onOpenDownloadModal={() => setShowDownloadModal(true)} />
         {showStorePopup && (
           <StoreSelectionModal
             stores={availableStores} selectedStore={selectedStore}
@@ -211,6 +215,10 @@ export default function App() {
             onClose={() => setShowStorePopup(false)}
           />
         )}
+        <AppDownloadModal
+          isOpen={showDownloadModal}
+          onClose={() => setShowDownloadModal(false)}
+        />
       </div>
     </>
   );

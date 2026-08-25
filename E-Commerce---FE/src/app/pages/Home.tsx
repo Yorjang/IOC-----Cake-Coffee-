@@ -45,12 +45,26 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
     }, new Map()).values(),
   ) as Array<{ tag: any; products: any[] }>;
 
-  const displayVouchers = publicCoupons.slice(0, 3).map((c: any) => ({
-    code: c.code,
-    title: c.description || (c.minOrderValue > 0 ? `Đơn từ ${Number(c.minOrderValue).toLocaleString()}đ` : 'Không yêu cầu đơn tối thiểu'),
-    sub: c.name || `Giảm ${c.discountType === 'percent' ? Number(c.discountValue) + '%' : Number(c.discountValue).toLocaleString() + 'đ'}`,
-    rawData: c
-  }));
+  const displayVouchers = publicCoupons
+    .filter((c: any) => {
+      // 1. Chỉ lấy các voucher thuộc nhóm "Voucher Tổng Thể" (không phải Voucher Đổi Điểm, không phải Voucher Theo Hạng)
+      const isPointsVoucher = Boolean(c.pointsRequired && Number(c.pointsRequired) > 0);
+      const isRankVoucher = Boolean(c.applicableTierId || c.applicableTier);
+      if (isPointsVoucher || isRankVoucher) return false;
+
+      // 2. Phải đang ở trạng thái Hoạt Động (active) & Còn hạn sử dụng
+      if (c.status && c.status !== 'active') return false;
+      if (c.expiresAt && new Date(c.expiresAt) <= new Date()) return false;
+
+      return true;
+    })
+    .slice(0, 3)
+    .map((c: any) => ({
+      code: c.code,
+      title: c.description || (c.minOrderValue > 0 ? `Đơn từ ${Number(c.minOrderValue).toLocaleString()}đ` : 'Không yêu cầu đơn tối thiểu'),
+      sub: c.name || `Giảm ${c.discountType === 'percent' ? Number(c.discountValue) + '%' : Number(c.discountValue).toLocaleString() + 'đ'}`,
+      rawData: c
+    }));
 
   useEffect(() => { 
     let cancelled = false; 
@@ -320,7 +334,13 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
                 <Tag size={20} className="text-muted-foreground/60" />
               </div>
               <div className="space-y-4 overflow-y-auto pr-1 pb-1 scrollbar-hide">
-                {displayVouchers.map((v: any) => <VoucherRow key={v.code} {...v} onClick={() => setSelectedVoucher(v)} />)}
+                {displayVouchers.length > 0 ? (
+                  displayVouchers.map((v: any) => <VoucherRow key={v.code} {...v} onClick={() => setSelectedVoucher(v)} />)
+                ) : (
+                  <div className="py-12 text-center text-sm text-muted-foreground italic">
+                    Chưa có mã giảm giá tổng thể nào khả dụng cho tài khoản của bạn.
+                  </div>
+                )}
               </div>
             </div>
           </div>

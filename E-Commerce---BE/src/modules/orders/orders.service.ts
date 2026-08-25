@@ -4,10 +4,14 @@ import { DataSource, Repository } from 'typeorm';
 import { CartService } from '../cart/cart.service';
 import { BranchesService } from '../branches/branches.service';
 import { PaymentsService } from '../payments/payments.service';
+import { PointsService } from '../points/points.service';
+import { PointTransactionType } from '../points/point-history.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 import { User, UserRole } from '../users/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatusHistory } from './order-status-history.entity';
-import { FulfillmentType, Order, OrderStatus, PaymentStatus } from './order.entity';
+import { FulfillmentType, Order, OrderStatus, PaymentStatus, DeliveryStatus } from './order.entity';
+import { DeliveryLog } from '../delivery/delivery-log.entity';
 
 const PICKUP_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
   [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
@@ -31,6 +35,8 @@ export class OrdersService {
     private readonly cartService: CartService,
     private readonly branchesService: BranchesService,
     private readonly dataSource: DataSource,
+    private readonly pointsService: PointsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
 
@@ -57,9 +63,54 @@ export class OrdersService {
 
       const previousStatus = order.orderStatus;
       order.orderStatus = status;
-      if (status === OrderStatus.COMPLETED) {
+      if (status === OrderStatus.COMPLETED && previousStatus !== OrderStatus.COMPLETED) {
         order.paymentStatus = PaymentStatus.PAID;
         order.paidAt = new Date();
+
+        if (order.userId) {
+          // Tích điểm dựa trên số tiền đơn hàng (Không bao gồm tiền ship)
+          const eligibleAmount = Math.max(0, Number(order.totalAmount) - Number(order.shippingFee || 0));
+          const earnedPoints = Math.floor(eligibleAmount / 1000);
+          if (earnedPoints > 0) {
+            try {
+              await this.pointsService.addPoints(
+                order.userId,
+                earnedPoints,
+                PointTransactionType.ORDER_COMPLETED,
+                order.id,
+                `Tích điểm từ đơn hàng ${order.orderCode}`,
+              );
+
+              this.notificationsService
+                .createNotification(order.userId, {
+                  orderId: order.id,
+                  type: 'points_reward',
+                  title: 'Bạn đã nhận được điểm thưởng!',
+                  message: `Chúc mừng! Bạn đã nhận được +${earnedPoints} điểm thưởng từ đơn hàng ${order.orderCode}.`,
+                })
+                .catch((err) => console.error('Failed to send order completion points notification:', err));
+            } catch (err) {
+              console.error('Failed to award points for completed order:', err);
+            }
+          }
+
+          // Evaluate user loyalty tier status (spending & product count)
+          try {
+            await this.pointsService.evaluateUserTier(order.userId, false);
+          } catch (err) {
+            console.error('Failed to evaluate loyalty tier for completed order:', err);
+          }
+        }
+      }
+
+      if (status === OrderStatus.CANCELLED && order.shipperId) {
+        order.deliveryStatus = DeliveryStatus.CANCELLED as any;
+        await manager.getRepository(DeliveryLog).save({
+          orderId: order.id,
+          shipperId: order.shipperId,
+          status: DeliveryStatus.CANCELLED as any,
+          note: 'Đơn hàng đã bị hủy bởi quản lý khi đang giao',
+        });
       }
 
       if (status === OrderStatus.CANCELLED && previousStatus !== OrderStatus.CANCELLED) {
@@ -87,9 +138,11 @@ export class OrdersService {
 
     if (user.role === UserRole.STORE_MANAGER || user.role === UserRole.CASHIER) return;
 
+    // SHIPPING is included as a stand-in until a dedicated shipper role/account exists;
+    // staff currently double as delivery drivers via the /giao-hang panel.
     if (
       user.role === UserRole.STAFF &&
-      [OrderStatus.CONFIRMED, OrderStatus.PREPARING].includes(order.orderStatus)
+      [OrderStatus.CONFIRMED, OrderStatus.PREPARING, OrderStatus.SHIPPING].includes(order.orderStatus)
     ) {
       return;
     }
@@ -257,7 +310,7 @@ export class OrdersService {
     let couponId: string | null = null;
     if (couponCode && userId) {
       const couponRes = await this.orders.query(
-        `SELECT id, status, expires_at, usage_limit, used_count, per_customer_limit, product_id, categories_id, branch_id, is_approved, is_pending_delete FROM coupons WHERE code = $1`,
+        `SELECT id, status, expires_at, usage_limit, used_count, per_customer_limit, product_id, categories_id, branch_id, is_approved, is_pending_delete, points_required, applicable_tier_id, min_quantity FROM coupons WHERE code = $1`,
         [couponCode.toUpperCase().trim()]
       );
       if (couponRes.length === 0) {
@@ -282,6 +335,28 @@ export class OrdersService {
       if (coupon.usage_limit !== null && Number(coupon.used_count) >= Number(coupon.usage_limit)) {
         throw new BadRequestException(`Mã giảm giá "${couponCode}" đã đạt giới hạn sử dụng.`);
       }
+
+      // Check loyalty tier requirement
+      if (coupon.applicable_tier_id) {
+        const tierRes = await this.orders.query(
+          `SELECT u.tier_id, ut.tier_level as user_level, ut.name as user_tier_name, ct.tier_level as req_level, ct.name as req_tier_name
+           FROM users u
+           LEFT JOIN loyalty_tiers ut ON u.tier_id = ut.id
+           LEFT JOIN loyalty_tiers ct ON ct.id = $2
+           WHERE u.id = $1`,
+          [userId, coupon.applicable_tier_id]
+        );
+        if (tierRes.length > 0) {
+          const userLevel = Number(tierRes[0].user_level || 1);
+          const reqLevel = Number(tierRes[0].req_level || 1);
+          if (userLevel !== reqLevel) {
+            const reqName = tierRes[0].req_tier_name || 'khác';
+            const userName = tierRes[0].user_tier_name || 'Chưa xếp hạng';
+            throw new BadRequestException(`Mã giảm giá "${couponCode}" chỉ dành riêng cho Hạng ${reqName} (Tài khoản hiện tại ở Hạng ${userName}).`);
+          }
+        }
+      }
+
       // Check product match if coupon restricts to product
       if (coupon.product_id) {
         const matchesProduct = items.some((item: any) => item.productId === coupon.product_id);
@@ -301,18 +376,71 @@ export class OrdersService {
           throw new BadRequestException(`Mã giảm giá "${couponCode}" chỉ áp dụng cho danh mục sản phẩm cụ thể.`);
         }
       }
-      // Check per-customer usage limit
-      const perLimit = Number(coupon.per_customer_limit ?? 1);
-      if (perLimit > 0) {
+
+      // Check min quantity requirement for matching items
+      const minQty = Number(coupon.min_quantity || 1);
+      if (minQty > 1) {
+        let matchingQty = 0;
+        if (coupon.product_id) {
+          matchingQty = items
+            .filter((item: any) => item.productId === coupon.product_id)
+            .reduce((sum: number, item: any) => sum + Number(item.quantity || 1), 0);
+        } else if (coupon.categories_id) {
+          const itemProductIds = items.map((item: any) => item.productId);
+          const productsWithCategory = await this.orders.query(
+            `SELECT id, category_id FROM products WHERE id = ANY($1)`,
+            [itemProductIds]
+          );
+          const matchingProductIds = productsWithCategory
+            .filter((p: any) => p.category_id === coupon.categories_id)
+            .map((p: any) => p.id);
+          matchingQty = items
+            .filter((item: any) => matchingProductIds.includes(item.productId))
+            .reduce((sum: number, item: any) => sum + Number(item.quantity || 1), 0);
+        } else {
+          matchingQty = items.reduce((sum: number, item: any) => sum + Number(item.quantity || 1), 0);
+        }
+
+        if (matchingQty < minQty) {
+          throw new BadRequestException(`Mã giảm giá "${couponCode}" yêu cầu mua tối thiểu ${minQty} sản phẩm hợp lệ trong đơn (bạn hiện có ${matchingQty} SP).`);
+        }
+      }
+
+      // Check redemption requirement and per-customer limit
+      const pointsReq = Number(coupon.points_required || 0);
+      if (pointsReq > 0) {
+        const redeemRes = await this.orders.query(
+          `SELECT COUNT(*) as count FROM point_histories WHERE user_id = $1 AND type = 'points_redeemed' AND reference_id = $2`,
+          [userId, coupon.id]
+        );
+        const redeemedCount = Number(redeemRes[0]?.count ?? 0);
+
         const usageRes = await this.orders.query(
           `SELECT COUNT(*) as count FROM orders WHERE user_id = $1 AND coupon_code = $2 AND order_status != 'cancelled'`,
           [userId, couponCode.toUpperCase().trim()]
         );
         const usedByCustomer = Number(usageRes[0]?.count ?? 0);
-        if (usedByCustomer >= perLimit) {
-          throw new BadRequestException(`Bạn đã sử dụng mã giảm giá "${couponCode}" rồi. Mỗi tài khoản chỉ được dùng ${perLimit} lần.`);
+
+        if (redeemedCount <= 0) {
+          throw new BadRequestException(`Mã giảm giá "${couponCode}" cần đổi bằng điểm thưởng. Bạn chưa đổi mã này.`);
+        }
+        if (usedByCustomer >= redeemedCount) {
+          throw new BadRequestException(`Bạn đã sử dụng hết lượt đổi của mã giảm giá "${couponCode}". Hãy đổi thêm mã bằng điểm thưởng nếu muốn tiếp tục sử dụng.`);
+        }
+      } else {
+        const perLimit = Number(coupon.per_customer_limit ?? 1);
+        if (perLimit > 0) {
+          const usageRes = await this.orders.query(
+            `SELECT COUNT(*) as count FROM orders WHERE user_id = $1 AND coupon_code = $2 AND order_status != 'cancelled'`,
+            [userId, couponCode.toUpperCase().trim()]
+          );
+          const usedByCustomer = Number(usageRes[0]?.count ?? 0);
+          if (usedByCustomer >= perLimit) {
+            throw new BadRequestException(`Bạn đã sử dụng mã giảm giá "${couponCode}" rồi. Mỗi tài khoản chỉ được dùng ${perLimit} lần.`);
+          }
         }
       }
+
       couponId = coupon.id;
     }
 
@@ -608,7 +736,7 @@ export class OrdersService {
   async findPublicOrder(id: string): Promise<Order> {
     const order = await this.orders.findOne({
       where: { id },
-      relations: { items: true, branch: true }
+      relations: { items: { product: true }, branch: true }
     });
     if (!order) {
       throw new BadRequestException('Order not found');

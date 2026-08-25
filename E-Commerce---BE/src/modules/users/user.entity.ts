@@ -1,4 +1,5 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { LoyaltyTier } from '../points/loyalty-tier.entity';
 
 export enum UserRole {
     GUEST = 'guest',
@@ -7,6 +8,7 @@ export enum UserRole {
     CASHIER = 'cashier',
     STORE_MANAGER = 'store_manager',
     ADMIN = 'admin',
+    SHIPPER = 'shipper',
 }
 
 @Entity('users')
@@ -44,9 +46,32 @@ export class User {
     @Column({ type: 'text', nullable: true })
     address: string;
 
+    @Column({ type: 'int', default: 0 })
+    points: number;
+
+    @Column({ name: 'tier_id', type: 'uuid', nullable: true })
+    tierId: string;
+
+    @ManyToOne(() => LoyaltyTier, { onDelete: 'SET NULL', nullable: true })
+    @JoinColumn({ name: 'tier_id' })
+    currentTier: LoyaltyTier;
+
+    @Column({ name: 'total_spent', type: 'numeric', precision: 14, scale: 0, default: 0 })
+    totalSpent: number;
+
+    @Column({ name: 'total_products_purchased', type: 'int', default: 0 })
+    totalProductsPurchased: number;
+
+    @Column({ name: 'last_order_completed_at', type: 'timestamptz', nullable: true })
+    lastOrderCompletedAt: Date;
+
+    @Column({ name: 'tier_evaluated_at', type: 'timestamptz', nullable: true })
+    tierEvaluatedAt: Date;
+
     @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
     createdAt: Date;
 
     @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
     updatedAt: Date;
 }
+

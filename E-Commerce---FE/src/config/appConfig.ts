@@ -11,6 +11,7 @@ export const VIEW_KEYS = {
   ADMIN: "Admin",
   ADMIN_LOGIN: "AdminLogin",
   STAFF: "Staff",
+  SHIPPER: "Shipper",
   LOGIN: "Đăng nhập",
   REGISTER: "Đăng ký",
   FORGOT_PASSWORD: "Quên mật khẩu",

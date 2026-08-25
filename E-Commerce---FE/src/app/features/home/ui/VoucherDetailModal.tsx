@@ -104,7 +104,8 @@ export function VoucherDetailModal({ voucher, products: rawProducts = [], onSele
           <button
             onClick={() => {
               if (d?.productId && scopeProduct) {
-                const arr = [scopeProduct.name, "", scopeProduct.category?.name || "Khác", scopeProduct.imageUrl, "4.8", "Còn hàng", null, null];
+                const prodRating = scopeProduct.averageRating !== undefined && scopeProduct.averageRating !== null ? String(Number(scopeProduct.averageRating).toFixed(1)) : "5.0";
+                const arr = [scopeProduct.name, "", scopeProduct.category?.name || "Khác", scopeProduct.imageUrl, prodRating, "Còn hàng", null, null];
                 (arr as any).raw = scopeProduct;
                 onSelectProduct(arr);
               } else if (d?.categoriesId) {

@@ -63,6 +63,25 @@ export class UpdateCouponDto {
   @IsUUID('4', { message: 'ID chi nhánh không hợp lệ.' })
   @IsOptional()
   branchId?: string;
+
+  @IsUUID('4', { message: 'ID hạng thành viên không hợp lệ.' })
+  @IsOptional()
+  applicableTierId?: string;
+
+  @IsNumber()
+  @Min(0, { message: 'Số điểm đổi phải lớn hơn hoặc bằng 0.' })
+  @IsOptional()
+  pointsRequired?: number;
+
+  @IsNumber()
+  @Min(0, { message: 'Số điểm ưu đãi phải lớn hơn hoặc bằng 0.' })
+  @IsOptional()
+  discountedPointsRequired?: number;
+
+  @IsNumber()
+  @Min(1, { message: 'Số lượng sản phẩm tối thiểu phải từ 1 trở lên.' })
+  @IsOptional()
+  minQuantity?: number;
 }
 
 

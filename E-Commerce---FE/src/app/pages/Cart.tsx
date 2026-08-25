@@ -1,5 +1,5 @@
-import { Check, ChevronRight, Minus, Plus, Ticket, Trash2, X } from "lucide-react";
-import { useState } from "react";
+import { Award, Check, ChevronRight, Minus, Plus, Ticket, Trash2, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { VIEW_KEYS } from "../../config/appConfig";
 import { matchSize } from "../../utils/appUtils";
@@ -57,6 +57,61 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
 
   const grandTotal = Math.max(0, subtotal - discount);
 
+  const userTierLevel = Number(user?.currentTier?.tierLevel || user?.tier?.tierLevel || user?.tierLevel || user?.tier_level || 1);
+  const userTierId = user?.currentTier?.id || user?.tier?.id || user?.tierId || user?.tier_id;
+
+  // Real-time automatic re-validation of applied coupon whenever cart, subtotal, or user changes
+  useEffect(() => {
+    if (!appliedCoupon) return;
+
+    let invalidReason = "";
+
+    // 1. Check exact tier requirement
+    if (appliedCoupon.applicableTierId) {
+      const reqTierLevel = Number(appliedCoupon.applicableTier?.tierLevel || 1);
+      const reqTierId = appliedCoupon.applicableTierId || appliedCoupon.applicableTier?.id;
+      const isExactTierMatch = userTierId ? userTierId === reqTierId : userTierLevel === reqTierLevel;
+
+      if (!user || !isExactTierMatch) {
+        const tierName = appliedCoupon.applicableTier?.name || "khác";
+        invalidReason = `Mã giảm giá ${appliedCoupon.code} chỉ dành riêng cho Hạng ${tierName}.`;
+      }
+    }
+
+    // 2. Check min order value
+    if (!invalidReason && subtotal < Number(appliedCoupon.minOrderValue || 0)) {
+      invalidReason = `Đơn hàng chưa đạt mức tối thiểu ${formatPrice(Number(appliedCoupon.minOrderValue))}.`;
+    }
+
+    // 3. Check matching items & min quantity
+    if (!invalidReason) {
+      const matchingItems = cart.filter((item: any) => {
+        const isProductMatch = !appliedCoupon.productId || (item.productId || item.product?.raw?.id) === appliedCoupon.productId;
+        const isCategoryMatch = !appliedCoupon.categoriesId || (
+          item.product?.raw?.categoryId === appliedCoupon.categoriesId ||
+          item.product?.raw?.categoriesId === appliedCoupon.categoriesId ||
+          item.product?.raw?.category?.id === appliedCoupon.categoriesId
+        );
+        const isSizeMatch = !appliedCoupon.targetSize || matchSize(item.size, appliedCoupon.targetSize);
+        return isProductMatch && isCategoryMatch && isSizeMatch;
+      });
+
+      if (matchingItems.length === 0 && (appliedCoupon.productId || appliedCoupon.categoriesId || appliedCoupon.targetSize)) {
+        invalidReason = `Giỏ hàng không có sản phẩm áp dụng mã ${appliedCoupon.code}.`;
+      } else {
+        const matchingQuantity = matchingItems.reduce((sum: number, item: any) => sum + Number(item.quantity || 1), 0);
+        if (appliedCoupon.minQuantity && matchingQuantity < Number(appliedCoupon.minQuantity)) {
+          invalidReason = `Mã ${appliedCoupon.code} yêu cầu tối thiểu ${appliedCoupon.minQuantity} SP hợp lệ (hiện có ${matchingQuantity} SP).`;
+        }
+      }
+    }
+
+    if (invalidReason) {
+      setAppliedCoupon(null);
+      toast.error(`${invalidReason} Đã tự động gỡ mã giảm giá.`);
+    }
+  }, [cart, subtotal, user, appliedCoupon, setAppliedCoupon, userTierId, userTierLevel]);
+
   const applyCoupon = () => {
     if (!coupon.trim()) return;
     if (!user) {
@@ -69,37 +124,58 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
       return;
     }
 
+    // 1. Check Exact Tier Requirement
+    const reqTierLevel = Number(found.applicableTier?.tierLevel || 1);
+    const reqTierId = found.applicableTierId || found.applicableTier?.id;
+    const isExactTierMatch = userTierId ? userTierId === reqTierId : userTierLevel === reqTierLevel;
+
+    if (found.applicableTierId && !isExactTierMatch) {
+      const tierName = found.applicableTier?.name || "khác";
+      const currentTierName = user?.currentTier?.name || user?.tier?.name || "Đồng";
+      toast.error(`Mã giảm giá ${found.code} chỉ dành riêng cho Hạng ${tierName} (Tài khoản hiện ở Hạng ${currentTierName}).`);
+      return;
+    }
+
+    // 2. Check Min Order Value
     if (subtotal < Number(found.minOrderValue || 0)) {
       toast.error(`Đơn hàng tối thiểu để áp dụng mã này là ${formatPrice(Number(found.minOrderValue))}.`);
       return;
     }
 
-    if (found.productId) {
-      const hasProduct = cart.some((item: any) => (item.productId || item.product?.raw?.id) === found.productId);
-      if (!hasProduct) {
-        toast.error("Mã này chỉ áp dụng cho sản phẩm nhất định.");
-        return;
-      }
+    // 3. Find matching items & check Product/Category/Size & Min Quantity
+    const matchingItems = cart.filter((item: any) => {
+      const isProductMatch = !found.productId || (item.productId || item.product?.raw?.id) === found.productId;
+      const isCategoryMatch = !found.categoriesId || (
+        item.product?.raw?.categoryId === found.categoriesId ||
+        item.product?.raw?.categoriesId === found.categoriesId ||
+        item.product?.raw?.category?.id === found.categoriesId
+      );
+      const isSizeMatch = !found.targetSize || matchSize(item.size, found.targetSize);
+      return isProductMatch && isCategoryMatch && isSizeMatch;
+    });
+
+    if (found.productId && !cart.some((item: any) => (item.productId || item.product?.raw?.id) === found.productId)) {
+      toast.error("Mã này chỉ áp dụng cho sản phẩm nhất định.");
+      return;
     }
 
-    if (found.categoriesId) {
-      const hasCategory = cart.some((item: any) => {
-        const prod = item.product?.raw;
-        if (!prod) return false;
-        return prod.categoryId === found.categoriesId || prod.categoriesId === found.categoriesId || prod.category?.id === found.categoriesId;
-      });
-      if (!hasCategory) {
-        toast.error("Mã này chỉ áp dụng cho danh mục sản phẩm nhất định.");
-        return;
-      }
+    if (found.categoriesId && !cart.some((item: any) => {
+      const prod = item.product?.raw;
+      return prod && (prod.categoryId === found.categoriesId || prod.categoriesId === found.categoriesId || prod.category?.id === found.categoriesId);
+    })) {
+      toast.error("Mã này chỉ áp dụng cho danh mục sản phẩm nhất định.");
+      return;
     }
 
-    if (found.targetSize) {
-      const hasSize = cart.some((item: any) => matchSize(item.size, found.targetSize));
-      if (!hasSize) {
-        toast.error(`Mã này chỉ áp dụng cho sản phẩm size ${found.targetSize}.`);
-        return;
-      }
+    if (found.targetSize && !cart.some((item: any) => matchSize(item.size, found.targetSize))) {
+      toast.error(`Mã này chỉ áp dụng cho sản phẩm size ${found.targetSize}.`);
+      return;
+    }
+
+    const matchingQuantity = matchingItems.reduce((sum: number, item: any) => sum + Number(item.quantity || 1), 0);
+    if (found.minQuantity && matchingQuantity < Number(found.minQuantity)) {
+      toast.error(`Mã ${found.code} yêu cầu mua tối thiểu ${found.minQuantity} sản phẩm hợp lệ (bạn hiện có ${matchingQuantity} SP trong giỏ).`);
+      return;
     }
 
     const isReplacement = !!appliedCoupon;
@@ -109,7 +185,6 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
         ? `Đã thay thế mã giảm giá cũ. Áp dụng mã ${found.code} thành công!`
         : `Áp dụng mã giảm giá ${found.code} thành công!`
     );
-
   };
 
   // Find best coupon suggestion
@@ -118,6 +193,14 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
 
   if (Array.isArray(publicCoupons) && cart.length > 0) {
     publicCoupons.forEach((c: any) => {
+      // Check exact tier match
+      if (c.applicableTierId) {
+        const reqTierLevel = Number(c.applicableTier?.tierLevel || 1);
+        const reqTierId = c.applicableTierId || c.applicableTier?.id;
+        const isExactTierMatch = userTierId ? userTierId === reqTierId : userTierLevel === reqTierLevel;
+        if (!user || !isExactTierMatch) return;
+      }
+
       if (subtotal < Number(c.minOrderValue || 0)) return;
 
       const matchingItems = cart.filter((item: any) => {
@@ -132,6 +215,10 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
       });
 
       if (matchingItems.length === 0) return;
+
+      const matchingQuantity = matchingItems.reduce((sum: number, item: any) => sum + Number(item.quantity || 1), 0);
+      if (c.minQuantity && matchingQuantity < Number(c.minQuantity)) return;
+
       const matchingSubtotal = matchingItems.reduce((sum: number, item: any) => sum + (item.price || parsePrice(item.product[1])) * item.quantity, 0);
 
       let currentDiscount = 0;
@@ -153,23 +240,36 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
 
   const sortedCoupons = [...(publicCoupons || [])].map((c: any) => {
     let isApplicable = true;
-    if (subtotal < Number(c.minOrderValue || 0)) isApplicable = false;
-    if (isApplicable && c.productId) {
-      const hasProduct = cart.some((item: any) => (item.productId || item.product?.raw?.id) === c.productId);
-      if (!hasProduct) isApplicable = false;
+
+    if (c.applicableTierId) {
+      const reqTierLevel = Number(c.applicableTier?.tierLevel || 1);
+      const reqTierId = c.applicableTierId || c.applicableTier?.id;
+      const isExactTierMatch = userTierId ? userTierId === reqTierId : userTierLevel === reqTierLevel;
+      if (!user || !isExactTierMatch) isApplicable = false;
     }
-    if (isApplicable && c.categoriesId) {
-      const hasCategory = cart.some((item: any) => {
-        const prod = item.product?.raw;
-        if (!prod) return false;
-        return prod.categoryId === c.categoriesId || prod.categoriesId === c.categoriesId || prod.category?.id === c.categoriesId;
-      });
-      if (!hasCategory) isApplicable = false;
+
+    if (isApplicable && subtotal < Number(c.minOrderValue || 0)) isApplicable = false;
+
+    const matchingItems = cart.filter((item: any) => {
+      const isProductMatch = !c.productId || (item.productId || item.product?.raw?.id) === c.productId;
+      const isCategoryMatch = !c.categoriesId || (
+        item.product?.raw?.categoryId === c.categoriesId ||
+        item.product?.raw?.categoriesId === c.categoriesId ||
+        item.product?.raw?.category?.id === c.categoriesId
+      );
+      const isSizeMatch = !c.targetSize || matchSize(item.size, c.targetSize);
+      return isProductMatch && isCategoryMatch && isSizeMatch;
+    });
+
+    if (isApplicable && matchingItems.length === 0 && (c.productId || c.categoriesId || c.targetSize)) {
+      isApplicable = false;
     }
-    if (isApplicable && c.targetSize) {
-      const hasSize = cart.some((item: any) => matchSize(item.size, c.targetSize));
-      if (!hasSize) isApplicable = false;
+
+    const matchingQuantity = matchingItems.reduce((sum: number, item: any) => sum + Number(item.quantity || 1), 0);
+    if (isApplicable && c.minQuantity && matchingQuantity < Number(c.minQuantity)) {
+      isApplicable = false;
     }
+
     return { ...c, isApplicable };
   }).sort((a: any, b: any) => {
     if (a.isApplicable && !b.isApplicable) return -1;
@@ -178,6 +278,8 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
     const getAmt = (c: any) => c.discountType === 'percent' ? (subtotal * Number(c.discountValue) / 100) : Number(c.discountValue);
     return getAmt(b) - getAmt(a);
   });
+
+  const estimatedPoints = Math.floor(Math.max(0, subtotal - discount) / 1000);
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-8 sm:px-6 lg:px-10">
@@ -230,30 +332,33 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
             <h3 className="font-bold text-lg font-serif">Đơn hàng</h3>
             <button
               onClick={() => setIsCouponModalOpen(true)}
-              className="flex items-center justify-between w-full rounded-xl border bg-input px-4 py-3 text-sm hover:border-primary transition"
+              className="flex items-center justify-between w-full rounded-xl border bg-input px-4 py-3 text-sm hover:border-primary transition min-w-0"
             >
-              <div className="flex items-center gap-3">
-                <Ticket className="text-primary" size={20} />
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <Ticket className="text-primary shrink-0" size={20} />
                 {appliedCoupon ? (
-                  <div className="text-left">
-                    <p className="font-bold text-foreground">Mã giảm giá <span className="text-primary font-mono">{appliedCoupon.code}</span></p>
+                  <div className="text-left min-w-0 flex-1">
+                    <p className="font-bold text-foreground text-xs sm:text-sm flex flex-wrap items-center gap-1">
+                      <span>Mã giảm giá:</span>
+                      <span className="text-primary font-mono font-extrabold break-all">{appliedCoupon.code}</span>
+                    </p>
                     <p className="text-[11px] text-muted-foreground mt-0.5">Đã áp dụng thành công</p>
                   </div>
                 ) : (
-                  <span className="font-medium text-muted-foreground">Chọn hoặc nhập mã ưu đãi</span>
+                  <span className="font-medium text-muted-foreground truncate">Chọn hoặc nhập mã ưu đãi</span>
                 )}
               </div>
-              <ChevronRight className="text-muted-foreground" size={20} />
+              <ChevronRight className="text-muted-foreground shrink-0 ml-2" size={20} />
             </button>
 
             {bestCouponSuggestion && (!appliedCoupon || appliedCoupon.id !== bestCouponSuggestion.id) && (
-              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs space-y-2">
-                <p className="text-muted-foreground flex items-center gap-1.5 flex-wrap">
-                  <span className="animate-bounce">💡</span>
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs space-y-2 min-w-0">
+                <p className="text-muted-foreground flex items-start gap-1.5 leading-relaxed break-all">
+                  <span className="animate-bounce shrink-0">💡</span>
                   {user ? (
-                    <span>Gợi ý: Dùng mã <strong className="text-primary font-mono">{bestCouponSuggestion.code}</strong> để được giảm thêm <strong className="text-primary">{formatPrice(bestCouponDiscount)}</strong>!</span>
+                    <span>Gợi ý: Dùng mã <strong className="text-primary font-mono font-bold break-all">{bestCouponSuggestion.code}</strong> để được giảm thêm <strong className="text-primary font-bold">{formatPrice(bestCouponDiscount)}</strong>!</span>
                   ) : (
-                    <span>Gợi ý: Đăng nhập để dùng mã <strong className="text-primary font-mono">{bestCouponSuggestion.code}</strong> giảm thêm <strong className="text-primary">{formatPrice(bestCouponDiscount)}</strong>!</span>
+                    <span>Gợi ý: Đăng nhập để dùng mã <strong className="text-primary font-mono font-bold break-all">{bestCouponSuggestion.code}</strong> giảm thêm <strong className="text-primary font-bold">{formatPrice(bestCouponDiscount)}</strong>!</span>
                   )}
                 </p>
                 <button
@@ -267,7 +372,7 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
                       toast.success(`Đã áp dụng mã gợi ý ${bestCouponSuggestion.code}!`);
                     }
                   }}
-                  className="w-full text-left text-primary font-bold hover:underline"
+                  className="w-full text-left text-primary font-bold hover:underline cursor-pointer"
                 >
                   {user ? "Áp dụng ngay" : "Đăng nhập ngay"}
                 </button>
@@ -275,9 +380,11 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
             )}
 
             {appliedCoupon && (
-              <div className="flex justify-between items-center bg-green-500/10 border border-green-500/20 text-green-600 rounded-xl px-3 py-2 text-xs">
-                <span>Đã áp dụng: <strong>{appliedCoupon.code}</strong> (-{formatPrice(discount)})</span>
-                <button type="button" onClick={() => setAppliedCoupon(null)} className="text-muted-foreground hover:text-red-500 font-bold ml-2">Gỡ</button>
+              <div className="flex items-center justify-between bg-green-500/10 border border-green-500/20 text-green-600 rounded-xl px-3 py-2 text-xs min-w-0 gap-2">
+                <span className="min-w-0 flex-1 break-all leading-normal">
+                  Đã áp dụng: <strong className="font-mono font-extrabold">{appliedCoupon.code}</strong> <span className="font-bold">(-{formatPrice(discount)})</span>
+                </span>
+                <button type="button" onClick={() => setAppliedCoupon(null)} className="text-muted-foreground hover:text-red-500 font-bold shrink-0 cursor-pointer">Gỡ</button>
               </div>
             )}
 
@@ -290,6 +397,15 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
                 <span>Phí giao hàng</span>
                 <span className="text-muted-foreground">Đang tính</span>
               </div>
+              {estimatedPoints > 0 && (
+                <div className="flex items-center justify-between rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300 my-1">
+                  <span className="flex items-center gap-1.5">
+                    <Award size={15} className="text-amber-500 shrink-0" />
+                    <span>Điểm thưởng tích lũy:</span>
+                  </span>
+                  <span className="font-mono font-bold text-amber-600 dark:text-amber-400">+{estimatedPoints} điểm</span>
+                </div>
+              )}
               <hr className="my-2 border-border" />
               <div className="flex justify-between font-bold text-base"><span>Tổng cộng</span><span className="text-primary">{formatPrice(grandTotal)}</span></div>
             </div>
@@ -305,8 +421,8 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
 
       {/* Coupon Selection Modal */}
       {isCouponModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-background/80 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-          <div className="flex h-[100dvh] w-full flex-col overflow-hidden border bg-card shadow-xl animate-in fade-in zoom-in-95 duration-200 sm:h-auto sm:max-h-[min(90dvh,48rem)] sm:max-w-xl sm:rounded-2xl">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="flex max-h-[min(85vh,38rem)] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex shrink-0 items-center justify-between border-b px-4 py-3 sm:p-4">
               <h3 className="font-bold text-lg">Khuyến mãi</h3>
               <button onClick={() => setIsCouponModalOpen(false)} className="p-2 -mr-2 rounded-full hover:bg-secondary transition text-muted-foreground hover:text-foreground">
@@ -358,35 +474,31 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
                           toast.success(`Đã áp dụng mã ${c.code}!`);
                           setIsCouponModalOpen(false);
                         }}
-                        className={`relative grid min-w-0 grid-cols-[3.25rem_minmax(0,1fr)_2.25rem] items-center rounded-xl border-2 p-2.5 transition sm:grid-cols-[4.5rem_minmax(0,1fr)_3rem] sm:p-3 ${
+                        className={`relative grid min-w-0 grid-cols-[3.5rem_minmax(0,1fr)_2.5rem] items-center rounded-2xl border-2 p-3 transition sm:grid-cols-[4.5rem_minmax(0,1fr)_3rem] ${
                           !c.isApplicable
                             ? "border-transparent bg-secondary/50 opacity-50 grayscale cursor-not-allowed"
                             : isSelected 
-                              ? "border-primary bg-primary/5 cursor-pointer" 
+                              ? "border-primary bg-primary/10 cursor-pointer shadow-xs" 
                               : "border-transparent bg-secondary hover:bg-secondary/80 hover:border-border cursor-pointer"
                         }`}
                       >
-                        <div className="flex min-w-0 flex-col items-center justify-center text-primary sm:pr-3">
-                          <span className="text-[10px] font-semibold uppercase leading-none">Giảm</span>
-                          <span className="font-bold leading-none mt-1 text-base">
+                        <div className="flex min-w-0 flex-col items-center justify-center text-primary sm:pr-2">
+                          <span className="text-[10px] font-semibold uppercase leading-none text-muted-foreground">Giảm</span>
+                          <span className="font-extrabold leading-none mt-1 text-base sm:text-lg text-primary">
                             {c.discountType === 'percent' ? `${Number(c.discountValue)}%` : (Number(c.discountValue) / 1000) + 'k'}
                           </span>
                         </div>
                         
-                        <div className="min-w-0 border-r border-dashed border-border/60 px-2 sm:px-3">
+                        <div className="min-w-0 border-l border-r border-dashed border-border/60 px-3">
                           <h4 className="font-bold text-sm text-foreground line-clamp-1">{c.code}</h4>
                           <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{c.description || `Đơn tối thiểu ${formatPrice(Number(c.minOrderValue || 0))}`}</p>
                           {c.maxDiscount > 0 && <p className="text-[11px] text-muted-foreground">Tối đa {formatPrice(Number(c.maxDiscount))}</p>}
                         </div>
 
-                        <div className="relative flex min-w-0 flex-col items-center justify-center gap-1 pl-2 sm:pl-4">
-                           <div className={`size-5 rounded-full border flex flex-col items-center justify-center transition-colors ${isSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/30 bg-background"}`}>
+                        <div className="flex min-w-0 flex-col items-center justify-center pl-2 sm:pl-3">
+                           <div className={`size-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/40 bg-background"}`}>
                              {isSelected ? <Check size={12} strokeWidth={3} /> : null}
                            </div>
-                           
-                           {/* Cutout shapes */}
-                           <div className="absolute -top-[1.3rem] -left-[1.3rem] size-3 rounded-full bg-card"></div>
-                           <div className="absolute -bottom-[1.3rem] -left-[1.3rem] size-3 rounded-full bg-card"></div>
                         </div>
                       </div>
                     );
@@ -395,14 +507,14 @@ export function Cart({ cart: rawCart = [], onUpdateQty, onRemoveItem, setView, p
               )}
             </div>
 
-            <div className="shrink-0 border-t bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
+            <div className="shrink-0 border-t bg-card p-3 sm:p-4">
                <button 
                 onClick={() => {
                   setAppliedCoupon(null);
                   toast.success("Đã bỏ áp dụng mã giảm giá");
                   setIsCouponModalOpen(false);
                 }}
-                className="w-full py-3 rounded-xl bg-secondary text-foreground font-semibold hover:bg-secondary/80 transition"
+                className="w-full py-2.5 rounded-xl bg-secondary text-foreground font-semibold hover:bg-secondary/80 transition text-sm cursor-pointer"
                >
                  Không dùng khuyến mãi
                </button>
