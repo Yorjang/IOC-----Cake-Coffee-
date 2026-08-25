@@ -58,7 +58,7 @@ export function AppRoutes({
     if (!isStaffUser(user) && !isAdminUser(user)) {
       return <ProtectedRouteRedirect message="Bạn không có quyền truy cập trang nhân viên." redirect={setViewInternal} />;
     }
-    return <StaffPanel onExit={handleAdminLogout} staffUser={user} products={products} />;
+    return <StaffPanel onExit={handleAdminLogout} staffUser={user} products={products} categories={categories} />;
   }
 
   if (view === VIEW_KEYS.SHIPPER) {
