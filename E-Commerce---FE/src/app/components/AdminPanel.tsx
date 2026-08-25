@@ -157,82 +157,103 @@ export function AdminPanel({ onExit, adminUser }: { onExit: () => void; adminUse
   };
 
   return (
-    <div className="admin-theme min-h-screen bg-background text-foreground">
-      {/* Admin top bar */}
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-sidebar-accent bg-background/95 px-4 py-3 backdrop-blur">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setMobileNav(previous => !previous)}
-            className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground lg:hidden"
-            aria-label={mobileNav ? "Đóng menu quản trị" : "Mở menu quản trị"}
-            title={mobileNav ? "Đóng menu" : "Mở menu"}
-          >
-            {mobileNav ? <X size={20} /> : <Menu size={20} />}
-          </button>
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            className="hidden size-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground lg:inline-flex"
-            aria-label={sidebarCollapsed ? "Mở rộng menu quản trị" : "Thu gọn menu quản trị"}
-            title={sidebarCollapsed ? "Mở rộng menu" : "Thu gọn menu"}
-          >
-            {sidebarCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
-          </button>
-          <span className="font-serif text-lg font-bold text-primary">Sweet Bean Admin</span>
-          {adminUser && (
-            <span className="hidden sm:flex items-center gap-2 rounded-full border border-sidebar-accent bg-sidebar/60 px-3 py-1 text-xs text-muted-foreground">
-              <span className="size-1.5 rounded-full bg-green-400" />
-              {adminUser.fullName || adminUser.email}
-              <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary">{ROLE_LABEL[role] ?? role}</span>
-            </span>
-          )}
-        </div>
-        <button onClick={onExit} className="rounded-full bg-sidebar px-4 py-1.5 text-sm text-muted-foreground hover:bg-sidebar-accent transition">
-          Đăng xuất
-        </button>
-      </header>
-
+    <div className="admin-theme flex h-screen w-full overflow-hidden bg-[#F5F7FB] text-foreground">
+      {/* Mobile Backdrop */}
       {mobileNav && (
         <button
           type="button"
           aria-label="Đóng menu quản trị"
           onClick={() => setMobileNav(false)}
-          className="fixed inset-0 top-[61px] z-20 bg-black/50 backdrop-blur-[1px] lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] lg:hidden"
         />
       )}
 
-      <div className={`grid w-full min-w-0 gap-0 transition-[grid-template-columns] duration-300 ${sidebarCollapsed ? "lg:grid-cols-[72px_minmax(0,1fr)]" : "lg:grid-cols-[220px_minmax(0,1fr)]"}`}>
-        {/* Sidebar */}
-        <aside className={`${mobileNav ? "flex" : "hidden"} fixed bottom-0 left-0 top-[61px] z-30 w-[280px] flex-col overflow-y-auto border-r border-sidebar-accent bg-sidebar p-4 shadow-2xl transition-[width,padding] duration-300 lg:sticky lg:top-[61px] lg:z-auto lg:flex lg:h-[calc(100vh-61px)] lg:w-auto lg:shadow-none ${sidebarCollapsed ? "lg:px-2" : "lg:px-4"}`}>
-          <nav className="flex-1 space-y-1">
-            {visibleNav.map(({ key, label, icon: Icon }) => (
-              <button
-                key={key}
-                onClick={() => selectTab(key)}
-                title={sidebarCollapsed ? label : undefined}
-                aria-label={label}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${sidebarCollapsed ? "lg:justify-center lg:gap-0 lg:px-0" : ""} ${active === key ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:bg-sidebar-accent"}`}
-              >
-                <Icon size={17} className="shrink-0" />
-                <span className={sidebarCollapsed ? "lg:hidden" : ""}>{label}</span>
-              </button>
-            ))}
-          </nav>
-          <div className={`mt-6 rounded-xl border border-sidebar-accent bg-background/40 p-3 ${sidebarCollapsed ? "lg:hidden" : ""}`}>
-            <p className="mb-1 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Vai trò</p>
-            <p className="text-xs font-semibold text-foreground">{ROLE_LABEL[role] ?? role}</p>
-            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-              {role === "admin" && "Toàn quyền quản lý hệ thống."}
-              {role === "store_manager" && "Quản lý vận hành, sản phẩm, kho và doanh thu."}
-              {role === "staff" && "Xử lý sản phẩm, tồn kho, đơn hàng và đánh giá."}
-              {role === "cashier" && "Theo dõi dashboard và xử lý đơn hàng."}
-            </p>
-          </div>
-        </aside>
+      {/* Sidebar (Full Height Left) */}
+      <aside className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-[#222E3C] text-white shadow-xl transition-all duration-300 lg:static lg:z-auto ${mobileNav ? "translate-x-0" : "-translate-x-full lg:translate-x-0"} ${sidebarCollapsed ? "w-[72px]" : "w-[260px]"}`}>
+        {/* Sidebar Header / Brand */}
+        <div className="flex h-[60px] shrink-0 items-center justify-center border-b border-white/10 px-4">
+          {sidebarCollapsed ? (
+            <span className="font-serif text-xl font-bold text-white">SB</span>
+          ) : (
+            <span className="font-serif text-xl font-bold text-white">Sweet Bean <span className="rounded bg-blue-500/20 px-1 text-sm text-blue-400">PRO</span></span>
+          )}
+        </div>
 
-        {/* Content */}
-        <main className="min-w-0 w-full p-5 lg:p-7">
+        {/* User Profile Area (AdminKit Style) */}
+        {!sidebarCollapsed && adminUser && (
+          <div className="flex items-center gap-3 border-b border-white/10 px-6 py-4">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-500 text-sm font-bold text-white">
+              {adminUser.fullName ? adminUser.fullName.charAt(0).toUpperCase() : 'A'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-white">{adminUser.fullName || adminUser.email}</p>
+              <p className="truncate text-[11px] text-white/60">{ROLE_LABEL[role] ?? role}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto px-3 py-4">
+          <p className={`mb-3 ml-2 text-[11px] font-semibold uppercase tracking-wider text-white/40 ${sidebarCollapsed ? "text-center ml-0" : ""}`}>
+            {sidebarCollapsed ? "..." : "Pages"}
+          </p>
+          <nav className="space-y-1">
+            {visibleNav.map(({ key, label, icon: Icon }) => {
+              const isActive = active === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => selectTab(key)}
+                  title={sidebarCollapsed ? label : undefined}
+                  aria-label={label}
+                  className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[14px] transition-colors ${
+                    sidebarCollapsed ? "justify-center" : ""
+                  } ${isActive ? "bg-white/10 text-white font-medium border-l-4 border-l-blue-500" : "text-white/60 hover:bg-white/5 hover:text-white border-l-4 border-l-transparent"}`}
+                >
+                  <Icon size={18} className={`shrink-0 ${isActive ? "text-blue-400" : "text-white/60 group-hover:text-white"}`} />
+                  {!sidebarCollapsed && <span>{label}</span>}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </aside>
+
+      {/* Main Content Area (Right Side) */}
+      <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
+        {/* Header */}
+        <header className="flex h-[60px] shrink-0 items-center justify-between border-b border-border bg-white px-4 shadow-sm lg:px-6">
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setMobileNav(true)}
+              className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted lg:hidden"
+            >
+              <Menu size={20} />
+            </button>
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="hidden size-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted lg:inline-flex"
+            >
+              <Menu size={20} />
+            </button>
+            
+            <div className="hidden items-center gap-2 text-sm text-muted-foreground md:flex">
+              <span className="font-medium text-foreground">Analytics</span>
+              <span className="text-border">/</span>
+              <span>Dashboard</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 lg:gap-5">
+            <button onClick={onExit} className="rounded bg-muted px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted-foreground/10 transition">
+              Đăng xuất
+            </button>
+          </div>
+        </header>
+
+        {/* Scrollable Content */}
+        <main className="flex-1 overflow-auto p-4 lg:p-8">
           {content[active]}
         </main>
       </div>

@@ -201,15 +201,26 @@ export class OrdersService {
       this.orders.query(`
         WITH days AS (
           SELECT generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day')::date as day_date
+        ),
+        daily_orders AS (
+          SELECT DATE(created_at) as day_date, SUM(total_amount) as total_amount, COUNT(id) as count
+          FROM orders
+          WHERE order_status = 'completed' AND created_at >= CURRENT_DATE - INTERVAL '6 days'
+          GROUP BY DATE(created_at)
+        ),
+        daily_sales AS (
+          SELECT DATE(created_at) as day_date, SUM(total_amount) as total_amount, COUNT(id) as count
+          FROM sales_invoices
+          WHERE invoice_status = 'completed' AND created_at >= CURRENT_DATE - INTERVAL '6 days'
+          GROUP BY DATE(created_at)
         )
         SELECT 
           TO_CHAR(d.day_date, 'ID') as day_num,
-          COALESCE(SUM(o.total_amount), 0) + COALESCE(SUM(s.total_amount), 0) as revenue,
-          COUNT(o.id) + COUNT(s.id) as orders
+          COALESCE(o.total_amount, 0) + COALESCE(s.total_amount, 0) as revenue,
+          COALESCE(o.count, 0) + COALESCE(s.count, 0) as orders
         FROM days d
-        LEFT JOIN orders o ON DATE(o.created_at) = d.day_date AND o.order_status = 'completed'
-        LEFT JOIN sales_invoices s ON DATE(s.created_at) = d.day_date AND s.invoice_status = 'completed'
-        GROUP BY d.day_date
+        LEFT JOIN daily_orders o ON o.day_date = d.day_date
+        LEFT JOIN daily_sales s ON s.day_date = d.day_date
         ORDER BY d.day_date
       `),
       this.orders.find({

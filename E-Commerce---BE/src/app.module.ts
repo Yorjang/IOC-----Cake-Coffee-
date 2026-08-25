@@ -25,6 +25,7 @@ import { TagsModule } from './modules/tags/tags.module';
 import { GeocodingModule } from './modules/geocoding/geocoding.module';
 
 import { PointsModule } from './modules/points/points.module';
+import { ChatModule } from './modules/chat/chat.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { PointsModule } from './modules/points/points.module';
     SettingsModule,
     GeocodingModule,
     PointsModule,
+    ChatModule,
   ],
   controllers: [],
   providers: [],

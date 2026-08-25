@@ -4,6 +4,7 @@ import { Toaster } from "./components/ui/sonner";
 import { parseRes } from "../utils/api";
 import { env } from "../config/env";
 import { FloatingContact } from "./components/FloatingContact";
+import { ChatWidget } from "./components/ChatWidget";
 import { AppDownloadModal } from "./components/AppDownloadModal";
 import { Footer } from "./components/Footer";
 import { Header } from "./components/Header";
@@ -210,10 +211,8 @@ export default function App() {
             handleSelectStore={handleSelectStore} handleAdminLogout={handleLogout}
           />
         </main>
-        <FloatingContact
-          showOrderTracking={view === VIEW_KEYS.HOME}
-          onTrackOrder={() => setView(VIEW_KEYS.TRACKING)}
-        />
+        <FloatingContact />
+        <ChatWidget />
         {view === VIEW_KEYS.HOME && <SalesNotification products={products} onSelectProduct={handleSelectProduct} />}
         <Footer setView={setView} onOpenDownloadModal={() => setShowDownloadModal(true)} />
         {showStorePopup && (
