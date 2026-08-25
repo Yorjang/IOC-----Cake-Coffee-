@@ -33,10 +33,11 @@ export default function HomeScreen() {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [catsRes, prodsRes, bannersRes] = await Promise.allSettled([
+      const [catsRes, prodsRes, bannersRes, couponsRes] = await Promise.allSettled([
         apiFetch('/products/categories'),
         apiFetch('/products'),
         apiFetch('/banners'),
+        apiFetch('/coupons/public'),
       ]);
 
       if (catsRes.status === 'fulfilled' && Array.isArray(catsRes.value)) {
@@ -50,17 +51,70 @@ export default function HomeScreen() {
         ]);
       }
 
+      const publicCoupons = couponsRes.status === 'fulfilled' && Array.isArray(couponsRes.value) ? couponsRes.value : [];
+
       if (prodsRes.status === 'fulfilled' && Array.isArray(prodsRes.value)) {
         const formatted = prodsRes.value.map((item: any) => {
           const firstVariantPrice = item.variants && item.variants.length > 0 ? Number(item.variants[0].price) : 0;
           const displayPrice = Number(item.price || item.basePrice || firstVariantPrice || 0);
 
+          const rawRating = item.averageRating !== undefined && item.averageRating !== null
+            ? Number(item.averageRating)
+            : (item.rating !== undefined && item.rating !== null ? Number(item.rating) : 5.0);
+          const realRating = Number(rawRating.toFixed(1));
+          const reviewCount = Number(item.reviewCount || (item.reviews ? item.reviews.length : 0));
+
+          // Calculate best active voucher discount for this product
+          let maxSave = 0;
+          let bestVoucher: any = null;
+          for (const v of publicCoupons) {
+            if (Number(v.pointsRequired || 0) > 0) continue;
+            if (v.expiresAt && new Date(v.expiresAt) < new Date()) continue;
+            if (v.productId && v.productId !== item.id) continue;
+            if (v.categoriesId && v.categoriesId !== item.categoryId) continue;
+
+            const minQty = Number(v.minQuantity || v.min_quantity || 1);
+            if (minQty > 1) continue;
+
+            const minOrder = Number(v.minOrderValue || 0);
+            if (minOrder > 0 && displayPrice < minOrder) continue;
+
+            const rawVal = Number(v.discountValue || 0);
+            let saveAmount = 0;
+            if (v.discountType === 'percent' || v.discountType === 'percentage') {
+              saveAmount = Math.round((displayPrice * rawVal) / 100);
+              if (v.maxDiscountAmount && Number(v.maxDiscountAmount) > 0) {
+                saveAmount = Math.min(saveAmount, Number(v.maxDiscountAmount));
+              }
+            } else {
+              saveAmount = rawVal;
+            }
+
+            if (saveAmount > maxSave) {
+              maxSave = saveAmount;
+              bestVoucher = v;
+            }
+          }
+
+          const hasDiscount = maxSave > 0 && bestVoucher !== null;
+          const discountedPrice = hasDiscount ? Math.max(0, displayPrice - maxSave) : displayPrice;
+          const discountTag = hasDiscount
+            ? (bestVoucher.discountType === 'percent' || bestVoucher.discountType === 'percentage'
+                ? `-${Number(Number(bestVoucher.discountValue).toFixed(0))}%`
+                : `-${Math.round(maxSave / 1000)}k`)
+            : null;
+
           return {
             id: item.id,
             name: item.name || item.title,
             price: displayPrice,
+            originalPrice: displayPrice,
+            discountedPrice,
+            hasDiscount,
+            discountTag,
             category: item.category?.name || 'Sản phẩm',
-            rating: item.rating !== undefined && item.rating !== null ? item.rating : 5.0,
+            rating: realRating,
+            reviewCount: reviewCount,
             image: item.imageUrl || item.image || 'https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=600',
             description: item.description || '',
           };
@@ -103,7 +157,7 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.welcomeText}>Chào mừng bạn đến với</Text>
-          <Text style={styles.brandTitle}>Sweet Bean Coffee & Cake ☕</Text>
+          <Text style={styles.brandTitle}>Sweet Bean Coffee & Cake</Text>
         </View>
 
         {/* Promo Banners from Database */}
@@ -158,7 +212,7 @@ export default function HomeScreen() {
 
         {/* Featured Products */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Món Nổi Bật Dành Cho Bạn 🔥</Text>
+          <Text style={styles.sectionTitle}>Món Nổi Bật Dành Cho Bạn</Text>
         </View>
 
         {loading ? (
@@ -170,18 +224,37 @@ export default function HomeScreen() {
                 key={item.id}
                 style={styles.productCard}
                 onPress={() => router.push(`/product/${item.id}`)}>
-                <Image source={{ uri: item.image }} style={styles.productImg} />
-                <View style={styles.ratingTag}>
-                  <Ionicons name="star" size={12} color="#FFB300" />
-                  <Text style={styles.ratingText}>{item.rating}</Text>
+                <View style={{ position: 'relative' }}>
+                  <Image source={{ uri: item.image }} style={styles.productImg} />
+                  {item.hasDiscount && item.discountTag ? (
+                    <View style={styles.discountBadgeTagHome}>
+                      <Text style={styles.discountBadgeTextHome}>{item.discountTag}</Text>
+                    </View>
+                  ) : null}
+                  <View style={styles.ratingTag}>
+                    <Ionicons name="star" size={12} color="#FFB300" />
+                    <Text style={styles.ratingText}>
+                      {item.rating} {item.reviewCount > 0 ? `(${item.reviewCount})` : ''}
+                    </Text>
+                  </View>
                 </View>
+
                 <View style={styles.productInfo}>
                   <Text style={styles.productCategory}>{item.category}</Text>
                   <Text style={styles.productName} numberOfLines={1}>
                     {item.name}
                   </Text>
                   <View style={styles.productBottomRow}>
-                    <Text style={styles.productPrice}>{item.price.toLocaleString('vi-VN')} đ</Text>
+                    {item.hasDiscount ? (
+                      <View>
+                        <Text style={styles.productPrice}>{item.discountedPrice.toLocaleString('vi-VN')} đ</Text>
+                        <Text style={styles.originalPriceStrikethroughHome}>
+                          {item.originalPrice.toLocaleString('vi-VN')} đ
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.productPrice}>{item.price.toLocaleString('vi-VN')} đ</Text>
+                    )}
                     <TouchableOpacity style={styles.addBtn} onPress={() => handleQuickAdd(item)}>
                       <Ionicons name="add" size={20} color="#FFFFFF" />
                     </TouchableOpacity>
@@ -395,6 +468,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#D84315',
+  },
+  originalPriceStrikethroughHome: {
+    fontSize: 10,
+    color: '#9E9E9E',
+    textDecorationLine: 'line-through',
+    marginTop: 1,
+  },
+  discountBadgeTagHome: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: '#E53935',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    zIndex: 2,
+  },
+  discountBadgeTextHome: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   addBtn: {
     backgroundColor: '#D84315',

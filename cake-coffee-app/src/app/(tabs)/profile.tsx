@@ -16,8 +16,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiFetch } from '../../services/apiClient';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export function cleanStreetDetail(
   rawStreet: string,
@@ -93,6 +96,7 @@ export default function ProfileScreen() {
 
   // Dynamic user data from DB
   const [userPoints, setUserPoints] = useState<number>(user?.points || 0);
+  const [loyaltyStatus, setLoyaltyStatus] = useState<any>(null);
   const [addresses, setAddresses] = useState<any[]>([]);
 
   // Modals state
@@ -146,11 +150,17 @@ export default function ProfileScreen() {
 
   const fetchUserPoints = async () => {
     try {
-      const res = await apiFetch('/points/my-points');
+      const [res, statusRes] = await Promise.all([
+        apiFetch('/points/my-points').catch(() => null),
+        apiFetch('/points/loyalty-status').catch(() => null),
+      ]);
       if (res && typeof res.points === 'number') {
         setUserPoints(res.points);
       } else if (res && typeof res.data?.points === 'number') {
         setUserPoints(res.data.points);
+      }
+      if (statusRes) {
+        setLoyaltyStatus(statusRes);
       }
     } catch (e) {
       setUserPoints(user?.points || 0);
@@ -180,8 +190,6 @@ export default function ProfileScreen() {
                   try {
                     setLoading(true);
                     await loginWithGoogle(response.credential);
-                    setRegisteredEmail('Tài khoản Google Gmail');
-                    setRegSuccessModalVisible(true);
                   } catch (err: any) {
                     Alert.alert('Lỗi Google Auth', err.message || 'Đăng nhập bằng Google thất bại.');
                   } finally {
@@ -252,8 +260,6 @@ export default function ProfileScreen() {
                   'Lỗi Tên Miền Google Auth',
                   'Tên miền http://localhost:8081 chưa được lưu trong Google Cloud Console hoặc đang chờ Google đồng bộ (cần 2-5 phút sau khi bấm Save).'
                 );
-              } else if (notDisplayedReason || skippedReason) {
-                Alert.alert('Thông báo Đăng nhập Google', 'Hệ thống đã kích hoạt đăng nhập Google. Vui lòng chọn tài khoản trong cửa sổ Google.');
               }
             });
           } catch (err) {
@@ -263,10 +269,30 @@ export default function ProfileScreen() {
         return;
       }
     }
-    Alert.alert(
-      'Đăng nhập Google',
-      'Đang kết nối dịch vụ xác thực Google...'
-    );
+    // Mobile (iOS / Android in Expo Go): Launch WebBrowser for Google Auth
+    const googleClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '803255193380-vveh9regmvuijmji8947l0hsabpokna8.apps.googleusercontent.com';
+    const redirectUri = 'https://auth.expo.io';
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=id_token&scope=openid%20email%20profile&nonce=${Date.now()}`;
+
+    try {
+      setLoading(true);
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      if (result.type === 'success' && result.url) {
+        const params = new URLSearchParams(result.url.split('#')[1] || result.url.split('?')[1]);
+        const idToken = params.get('id_token');
+        if (idToken) {
+          await loginWithGoogle(idToken);
+        } else {
+          Alert.alert('Lỗi Google Auth', 'Không lấy được ID Token từ kết quả đăng nhập Google.');
+        }
+      }
+    } catch (err: any) {
+      if (err?.message) {
+        Alert.alert('Lỗi Google Auth', err.message);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleForgotPasswordSubmit = async () => {
@@ -354,15 +380,15 @@ export default function ProfileScreen() {
 
   const handleChangePassword = async () => {
     if (!oldPassword) {
-      Alert.alert('Thiếu thông tin 🔒', 'Vui lòng nhập mật khẩu hiện tại.');
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập mật khẩu hiện tại.');
       return;
     }
     if (!newPassword || newPassword.length < 6) {
-      Alert.alert('Mật khẩu quá ngắn 🔒', 'Mật khẩu mới phải có ít nhất 6 ký tự.');
+      Alert.alert('Mật khẩu quá ngắn', 'Mật khẩu mới phải có ít nhất 6 ký tự.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert('Không trùng khớp 🔒', 'Mật khẩu mới và xác nhận mật khẩu không trùng nhau.');
+      Alert.alert('Không trùng khớp', 'Mật khẩu mới và xác nhận mật khẩu không trùng nhau.');
       return;
     }
 
@@ -376,7 +402,7 @@ export default function ProfileScreen() {
         }),
       });
 
-      Alert.alert('Thành công 🎉', 'Đổi mật khẩu thành công!');
+      Alert.alert('Thành công', 'Đổi mật khẩu thành công!');
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -393,7 +419,7 @@ export default function ProfileScreen() {
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (permissionResult.granted === false) {
-        Alert.alert('Quyền truy cập 📷', 'Cần cho phép ứng dụng truy cập thư viện ảnh để đổi Avatar.');
+        Alert.alert('Quyền truy cập', 'Cần cho phép ứng dụng truy cập thư viện ảnh để đổi Avatar.');
         return;
       }
 
@@ -453,7 +479,8 @@ export default function ProfileScreen() {
           method: 'DELETE',
         });
         fetchUserAddresses();
-        Alert.alert('Thành công 🗑️', 'Đã xóa địa chỉ khỏi sổ địa chỉ!');
+        fetchUserAddresses();
+        Alert.alert('Thành công', 'Đã xóa địa chỉ khỏi sổ địa chỉ!');
       } catch (e: any) {
         Alert.alert('Lỗi', e.message || 'Không thể xóa địa chỉ.');
       }
@@ -464,7 +491,7 @@ export default function ProfileScreen() {
         doDelete();
       }
     } else {
-      Alert.alert('Xác nhận xóa 🗑️', 'Bạn có chắc chắn muốn xóa địa chỉ này khỏi sổ địa chỉ không?', [
+      Alert.alert('Xác nhận xóa', 'Bạn có chắc chắn muốn xóa địa chỉ này khỏi sổ địa chỉ không?', [
         { text: 'Hủy', style: 'cancel' },
         { text: 'Xóa địa chỉ', style: 'destructive', onPress: doDelete },
       ]);
@@ -524,13 +551,13 @@ export default function ProfileScreen() {
           method: 'PATCH',
           body: JSON.stringify(payload),
         });
-        Alert.alert('Thành công 🎉', 'Đã cập nhật địa chỉ giao hàng!');
+        Alert.alert('Thành công', 'Đã cập nhật địa chỉ giao hàng!');
       } else {
         await apiFetch('/users/addresses', {
           method: 'POST',
           body: JSON.stringify(payload),
         });
-        Alert.alert('Thành công 🎉', 'Đã lưu địa chỉ giao hàng mới!');
+        Alert.alert('Thành công', 'Đã lưu địa chỉ giao hàng mới!');
       }
 
       setEditingAddressId(null);
@@ -564,6 +591,13 @@ export default function ProfileScreen() {
 
   const avatarUrl = user?.avatar;
 
+  // Determine Rank Tier based on Database Loyalty Status
+  const dbCurrentTier = loyaltyStatus?.currentTier || user?.currentTier;
+  const tierNameRaw = dbCurrentTier?.name || 'Đồng';
+  const tierLevel = dbCurrentTier?.tierLevel || 1;
+  const tierColor = dbCurrentTier?.color || (tierLevel === 5 ? '#00BCD4' : '#E65100');
+  const tierBadgeDisplay = tierNameRaw.toUpperCase();
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -588,6 +622,7 @@ export default function ProfileScreen() {
                 </View>
               </TouchableOpacity>
               <Text style={styles.userName}>{user.fullName || 'Khách hàng Sweet Bean'}</Text>
+              <Text style={[styles.rankBadgeSubText, { color: tierColor }]}>{tierBadgeDisplay}</Text>
               <Text style={styles.userEmail}>{user.email}</Text>
             </View>
 
@@ -601,7 +636,9 @@ export default function ProfileScreen() {
                 <Ionicons name="chevron-forward" size={18} color="#FFB300" style={{ marginLeft: 'auto' }} />
               </View>
               <Text style={styles.pointsVal}>{userPoints.toLocaleString('vi-VN')} điểm</Text>
-              <Text style={styles.pointsSub}>Tích điểm tự động khi hoàn thành đơn hàng! (Xem chi tiết ➔)</Text>
+              <Text style={styles.pointsSub}>
+                Hạng thành viên: <Text style={{ color: tierColor, fontWeight: 'bold' }}>{tierNameRaw}</Text> • Xem chi tiết
+              </Text>
             </TouchableOpacity>
 
             {/* Dynamic Menu Options */}
@@ -921,7 +958,7 @@ export default function ProfileScreen() {
             <TouchableOpacity onPress={() => setAvatarModalVisible(false)} style={styles.closeBtn}>
               <Ionicons name="close" size={24} color="#3E2723" />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Đổi Ảnh Đại Diện 🖼️</Text>
+            <Text style={styles.modalTitle}>Đổi Ảnh Đại Diện</Text>
             <View style={{ width: 24 }} />
           </View>
 
@@ -965,7 +1002,7 @@ export default function ProfileScreen() {
             <TouchableOpacity onPress={() => setAccountModalVisible(false)} style={styles.closeBtn}>
               <Ionicons name="close" size={24} color="#3E2723" />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Thông Tin Tài Khoản 👤</Text>
+            <Text style={styles.modalTitle}>Thông Tin Tài Khoản</Text>
             <View style={{ width: 24 }} />
           </View>
 
@@ -1454,6 +1491,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#3E2723',
+  },
+  rankBadgeSubText: {
+    fontSize: 14,
+    fontWeight: '800',
+    marginTop: 4,
+    marginBottom: 2,
+    letterSpacing: 0.5,
   },
   userEmail: {
     fontSize: 13,

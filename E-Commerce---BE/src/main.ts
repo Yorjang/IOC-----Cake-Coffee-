@@ -25,8 +25,8 @@ async function bootstrap() {
       transform: true, // Tự động chuyển đổi kiểu dữ liệu
     }));
 
-  // Lắng nghe ở cổng 3000 (bạn có thể đổi thành 8080 tùy ý)
-    await app.listen(3000);
+  // Lắng nghe ở cổng 3000 trên tất cả giao diện mạng (cho phép iOS / Android trong cùng Wi-Fi truy cập)
+  await app.listen(3000, '0.0.0.0');
 
   // In ra một dòng log để chúng ta biết server đã chạy thành công
     console.log(`Project Cake & Coffee đã khởi chạy tại: ${await app.getUrl()}`);
