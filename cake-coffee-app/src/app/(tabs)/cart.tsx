@@ -203,10 +203,14 @@ export default function CartScreen() {
       } else {
         setAssignedBranch(null);
         setBranchErrorMessage('Hiện tại tất cả các chi nhánh đều đang đóng cửa hoặc hết sản phẩm trong giỏ hàng.');
+        setShippingFee(0);
+        setPaymentMethod('COD');
       }
     } catch (e: any) {
       setAssignedBranch(null);
       setBranchErrorMessage('Hiện tại hết sản phẩm ở mọi chi nhánh (hoặc các cửa hàng đã đóng cửa).');
+      setShippingFee(0);
+      setPaymentMethod('COD');
     } finally {
       setFetchingBranch(false);
     }
@@ -284,7 +288,7 @@ export default function CartScreen() {
             handleSelectAddress(updated[0]);
           }
         }
-        Alert.alert('Thành công 🗑️', 'Đã xóa địa chỉ khỏi sổ địa chỉ!');
+        Alert.alert('Thành công', 'Đã xóa địa chỉ khỏi sổ địa chỉ!');
       } catch (e: any) {
         Alert.alert('Lỗi', e.message || 'Không thể xóa địa chỉ.');
       }
@@ -295,7 +299,7 @@ export default function CartScreen() {
         doDelete();
       }
     } else {
-      Alert.alert('Xác nhận xóa 🗑️', 'Bạn có chắc chắn muốn xóa địa chỉ này khỏi sổ địa chỉ không?', [
+      Alert.alert('Xác nhận xóa', 'Bạn có chắc chắn muốn xóa địa chỉ này khỏi sổ địa chỉ không?', [
         { text: 'Hủy', style: 'cancel' },
         { text: 'Xóa địa chỉ', style: 'destructive', onPress: doDelete },
       ]);
@@ -304,19 +308,19 @@ export default function CartScreen() {
 
   const handleSaveNewAddress = async () => {
     if (!selectedCartProvince) {
-      Alert.alert('Thiếu thông tin 📍', 'Vui lòng chọn Thành phố / Tỉnh.');
+      Alert.alert('Thiếu thông tin', 'Vui lòng chọn Thành phố / Tỉnh.');
       return;
     }
     if (!selectedCartDistrict) {
-      Alert.alert('Thiếu thông tin 📍', 'Vui lòng chọn Quận / Huyện.');
+      Alert.alert('Thiếu thông tin', 'Vui lòng chọn Quận / Huyện.');
       return;
     }
     if (!selectedCartWard) {
-      Alert.alert('Thiếu thông tin 📍', 'Vui lòng chọn Phường / Xã / Thị trấn.');
+      Alert.alert('Thiếu thông tin', 'Vui lòng chọn Phường / Xã / Thị trấn.');
       return;
     }
     if (!newAddress.trim()) {
-      Alert.alert('Thiếu thông tin 📍', 'Vui lòng nhập số nhà và tên đường chi tiết.');
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập số nhà và tên đường chi tiết.');
       return;
     }
     setSavingAddress(true);
@@ -379,7 +383,7 @@ export default function CartScreen() {
       setSelectedCartProvince('');
       setSelectedCartDistrict('');
       setSelectedCartWard('');
-      Alert.alert('Thành công 🎉', editingAddressId ? 'Đã cập nhật địa chỉ giao hàng!' : 'Đã lưu địa chỉ giao hàng!');
+      Alert.alert('Thành công', editingAddressId ? 'Đã cập nhật địa chỉ giao hàng!' : 'Đã lưu địa chỉ giao hàng!');
     } catch (e: any) {
       Alert.alert('Lỗi', e.message || 'Không thể lưu địa chỉ.');
     } finally {
@@ -467,6 +471,31 @@ export default function CartScreen() {
         if (!hasSize) return false;
       }
 
+      // 6. Check minimum quantity requirement (minQuantity)
+      const minQty = Number(voucher.minQuantity || voucher.min_quantity || 1);
+      if (minQty > 1) {
+        let matchingQty = 0;
+        if (voucher.productId) {
+          matchingQty = cart
+            .filter((item) => item.productId === voucher.productId || item.id === voucher.productId)
+            .reduce((sum, item) => sum + item.quantity, 0);
+        } else if (voucher.categoriesId) {
+          matchingQty = cart
+            .filter((item: any) =>
+              item.categoriesId === voucher.categoriesId ||
+              item.category?.id === voucher.categoriesId ||
+              item.product?.categoriesId === voucher.categoriesId
+            )
+            .reduce((sum, item) => sum + item.quantity, 0);
+        } else {
+          matchingQty = cart.reduce((sum, item) => sum + item.quantity, 0);
+        }
+
+        if (matchingQty < minQty) {
+          return false;
+        }
+      }
+
       return true;
     },
     [cart, subtotal]
@@ -500,7 +529,7 @@ export default function CartScreen() {
       if (minVal > 0 && subtotal < minVal) {
         reason = `Mã ${targetCode} yêu cầu đơn hàng tối thiểu từ ${minVal.toLocaleString('vi-VN')}đ. (Hiện tại giỏ của bạn là ${subtotal.toLocaleString('vi-VN')}đ)`;
       }
-      Alert.alert('Chưa đạt điều kiện ⚠️', reason);
+      Alert.alert('Chưa đạt điều kiện', reason);
       return;
     }
 
@@ -510,9 +539,9 @@ export default function CartScreen() {
 
     if (success) {
       setVoucherModalVisible(false);
-      Alert.alert('Thành công 🎉', `Đã áp dụng mã giảm giá ${targetCode}!`);
+      Alert.alert('Thành công', `Đã áp dụng mã giảm giá ${targetCode}!`);
     } else {
-      Alert.alert('Không hợp lệ ⚠️', 'Mã giảm giá không tồn tại, chưa đạt điều kiện hoặc đã hết hạn.');
+      Alert.alert('Không hợp lệ', 'Mã giảm giá không tồn tại, chưa đạt điều kiện hoặc đã hết hạn.');
     }
   };
 
@@ -690,7 +719,7 @@ export default function CartScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Giỏ Hàng & Đặt Hàng 🛒</Text>
+          <Text style={styles.headerTitle}>Giỏ Hàng & Đặt Hàng</Text>
         </View>
 
         {/* Cart Items List */}
@@ -777,8 +806,8 @@ export default function CartScreen() {
                 <Text style={styles.couponCodeText}>Mã {appliedCoupon.code} đã áp dụng</Text>
                 <Text style={styles.couponDiscountDetailText}>
                   {appliedCoupon.discountType === 'percentage'
-                    ? `Giảm ${Number.isInteger(appliedCoupon.discountValue) ? appliedCoupon.discountValue : parseFloat(appliedCoupon.discountValue.toFixed(2))}%`
-                    : `Giảm -${appliedCoupon.discountValue.toLocaleString('vi-VN')}đ`}
+                    ? `Giảm ${Number(appliedCoupon.discountValue.toFixed(2))}% • Tiết kiệm -${discount.toLocaleString('vi-VN')}đ`
+                    : `Giảm -${discount.toLocaleString('vi-VN')}đ`}
                 </Text>
               </View>
               <TouchableOpacity onPress={removeCoupon}>
@@ -875,7 +904,7 @@ export default function CartScreen() {
                 </Text>
               </View>
               <Text style={{ fontSize: 12, color: '#B71C1C', lineHeight: 16 }}>
-                ⚠️ {branchErrorMessage}
+                {branchErrorMessage}
               </Text>
             </View>
           ) : assignedBranch ? (
@@ -898,7 +927,7 @@ export default function CartScreen() {
                 </View>
               </View>
               <Text style={{ fontSize: 12, color: '#33691E', lineHeight: 16 }}>
-                📍 {assignedBranch.address || assignedBranch.branch?.address || 'Chi nhánh phục vụ gần nhất'}
+                {assignedBranch.address || assignedBranch.branch?.address || 'Chi nhánh phục vụ gần nhất'}
                 {assignedBranch.distanceKm ? ` (Cách ${Number(assignedBranch.distanceKm).toFixed(1)} km)` : ''}
               </Text>
             </View>
@@ -942,13 +971,15 @@ export default function CartScreen() {
             <Text style={styles.payText}>Thanh toán tiền mặt khi nhận hàng (COD)</Text>
             {paymentMethod === 'COD' && <Ionicons name="checkmark-circle" size={20} color="#D84315" />}
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.payOption, paymentMethod === 'VNPAY' && styles.payOptionActive]}
-            onPress={() => setPaymentMethod('VNPAY')}>
-            <Ionicons name="card-outline" size={22} color={paymentMethod === 'VNPAY' ? '#D84315' : '#795548'} />
-            <Text style={styles.payText}>Ví điện tử VNPay / Chuyển khoản QR</Text>
-            {paymentMethod === 'VNPAY' && <Ionicons name="checkmark-circle" size={20} color="#D84315" />}
-          </TouchableOpacity>
+          {!branchErrorMessage && (assignedBranch || fetchingBranch) ? (
+            <TouchableOpacity
+              style={[styles.payOption, paymentMethod === 'VNPAY' && styles.payOptionActive]}
+              onPress={() => setPaymentMethod('VNPAY')}>
+              <Ionicons name="card-outline" size={22} color={paymentMethod === 'VNPAY' ? '#D84315' : '#795548'} />
+              <Text style={styles.payText}>Ví điện tử VNPay / Chuyển khoản QR</Text>
+              {paymentMethod === 'VNPAY' && <Ionicons name="checkmark-circle" size={20} color="#D84315" />}
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         {/* Order Summary */}
@@ -1022,7 +1053,7 @@ export default function CartScreen() {
             <TouchableOpacity onPress={() => setVoucherModalVisible(false)} style={styles.closeBtn}>
               <Ionicons name="close" size={24} color="#3E2723" />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Chọn Voucher Khuyến Mãi 🎟️</Text>
+            <Text style={styles.modalTitle}>Chọn Voucher Khuyến Mãi</Text>
             <View style={{ width: 24 }} />
           </View>
 
@@ -1036,16 +1067,40 @@ export default function CartScreen() {
               availableCoupons.map((voucher: any) => {
                 const isValid = isVoucherValidForCart(voucher);
                 const rawVal = Number(voucher.discountValue || 0);
-                const formattedVal = Number.isInteger(rawVal) ? rawVal : parseFloat(rawVal.toFixed(2));
+                const formattedVal = Number(rawVal.toFixed(2));
+                const estDiscountAmount = voucher.discountType === 'percent' || voucher.discountType === 'percentage'
+                  ? Math.round((subtotal * rawVal) / 100)
+                  : rawVal;
+
                 const discountStr = voucher.discountType === 'percent' || voucher.discountType === 'percentage'
-                  ? `Giảm ${formattedVal}%`
-                  : `Giảm ${rawVal.toLocaleString('vi-VN')}đ`;
+                  ? `Giảm ${formattedVal}% (Tiết kiệm -${estDiscountAmount.toLocaleString('vi-VN')}đ)`
+                  : `Giảm -${rawVal.toLocaleString('vi-VN')}đ`;
 
                 const minOrderVal = Number(voucher.minOrderValue || 0);
 
                 let unfulfilledReason = '';
                 if (!isValid) {
-                  if (minOrderVal > 0 && subtotal < minOrderVal) {
+                  const reqQty = Number(voucher.minQuantity || voucher.min_quantity || 1);
+                  let currentMatchingQty = 0;
+                  if (voucher.productId) {
+                    currentMatchingQty = cart
+                      .filter((i) => i.productId === voucher.productId || i.id === voucher.productId)
+                      .reduce((sum, i) => sum + i.quantity, 0);
+                  } else if (voucher.categoriesId) {
+                    currentMatchingQty = cart
+                      .filter((i: any) =>
+                        i.categoriesId === voucher.categoriesId ||
+                        i.category?.id === voucher.categoriesId ||
+                        i.product?.categoriesId === voucher.categoriesId
+                      )
+                      .reduce((sum, i) => sum + i.quantity, 0);
+                  } else {
+                    currentMatchingQty = cart.reduce((sum, i) => sum + i.quantity, 0);
+                  }
+
+                  if (reqQty > 1 && currentMatchingQty < reqQty) {
+                    unfulfilledReason = `Yêu cầu mua từ ${reqQty} sản phẩm trở lên (hiện có ${currentMatchingQty})`;
+                  } else if (minOrderVal > 0 && subtotal < minOrderVal) {
                     const diff = minOrderVal - subtotal;
                     unfulfilledReason = `Cần đơn từ ${minOrderVal.toLocaleString('vi-VN')}đ (còn thiếu ${diff.toLocaleString('vi-VN')}đ)`;
                   } else if (voucher.expiresAt && new Date(voucher.expiresAt) < new Date()) {
@@ -1143,7 +1198,7 @@ export default function CartScreen() {
             <View style={styles.loginIconBg}>
               <Ionicons name="key-outline" size={32} color="#D84315" />
             </View>
-            <Text style={styles.loginModalTitle}>Xác nhận đăng nhập 🔑</Text>
+            <Text style={styles.loginModalTitle}>Xác nhận đăng nhập</Text>
             <Text style={styles.loginModalSub}>
               Bạn có muốn đăng nhập tài khoản ngay bây giờ để áp dụng voucher khuyến mãi cho đơn hàng này không?
             </Text>
@@ -1172,7 +1227,7 @@ export default function CartScreen() {
         <View style={styles.loginModalBackdrop}>
           <View style={[styles.loginModalBox, { maxHeight: '85%', padding: 20 }]}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 16 }}>
-              <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#3E2723' }}>Sổ địa chỉ của bạn 📍</Text>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#3E2723' }}>Sổ địa chỉ của bạn</Text>
               <TouchableOpacity onPress={() => setAddressModalVisible(false)}>
                 <Ionicons name="close" size={24} color="#795548" />
               </TouchableOpacity>
@@ -1254,7 +1309,7 @@ export default function CartScreen() {
                     marginTop: 8,
                   }}>
                   <Ionicons name="add-circle" size={20} color="#D84315" style={{ marginRight: 6 }} />
-                  <Text style={{ color: '#D84315', fontWeight: 'bold', fontSize: 14 }}>➕ Thêm địa chỉ giao hàng mới</Text>
+                  <Text style={{ color: '#D84315', fontWeight: 'bold', fontSize: 14 }}>Thêm địa chỉ giao hàng mới</Text>
                 </TouchableOpacity>
               </ScrollView>
             ) : (

@@ -35,7 +35,9 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
 
     if (!res.ok) {
       const errMsg = json?.message || (Array.isArray(json?.message) ? json.message.join(', ') : null) || `HTTP ${res.status}`;
-      throw new Error(errMsg);
+      const err = new Error(errMsg);
+      (err as any).status = res.status;
+      throw err;
     }
 
     // According to api-conventions standard, if NestJS returns { success: true, data: ... }, extract data
@@ -45,7 +47,27 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
 
     return json as T;
   } catch (error: any) {
-    console.warn(`[apiFetch Error] ${url}:`, error.message);
+    const isAuthError =
+      error?.status === 401 ||
+      error?.status === 403 ||
+      /expired|unauthorized|authorization|forbidden/i.test(error?.message || '');
+
+    const isExpectedAuthEndpointError =
+      /invalid credentials|credential|incorrect/i.test(error?.message || '') ||
+      url.includes('/auth/login') ||
+      url.includes('/auth/register');
+
+    const isNetworkTimeoutOrOffline =
+      /network request failed|network request timed out|aborted|failed to fetch|err_connection_refused|connection_refused/i.test(error?.message || '');
+
+    if (isAuthError) {
+      await AsyncStorage.removeItem('auth_token').catch(() => {});
+      await AsyncStorage.removeItem('auth_user').catch(() => {});
+    } else if (isExpectedAuthEndpointError || isNetworkTimeoutOrOffline) {
+      // Expected auth validation or temporary network timeout, suppress console.warn noise
+    } else {
+      console.warn(`[apiFetch Error] ${url}:`, error.message);
+    }
     throw error;
   }
 }

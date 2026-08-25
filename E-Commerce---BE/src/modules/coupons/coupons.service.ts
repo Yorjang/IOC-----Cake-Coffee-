@@ -155,14 +155,6 @@ export class CouponsService implements OnModuleInit {
     }
 
     activeCoupons = activeCoupons.filter(c => {
-      // If coupon is rank-restricted, verify user's exact tier level
-      if (c.applicableTierId || c.applicableTier) {
-        const reqTierLevel = Number(c.applicableTier?.tierLevel || 1);
-        if (userTierLevel !== reqTierLevel) {
-          return false;
-        }
-      }
-
       const pointsReq = Number(c.pointsRequired || 0);
 
       // If voucher requires points to redeem

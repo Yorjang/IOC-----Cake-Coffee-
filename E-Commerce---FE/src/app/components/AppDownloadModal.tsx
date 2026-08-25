@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Smartphone, QrCode, CheckCircle2, Sparkles, Apple } from "lucide-react";
+import { X, Smartphone, QrCode, CheckCircle2, Sparkles, Apple, Download } from "lucide-react";
 
 interface AppDownloadModalProps {
   isOpen: boolean;
   onClose: () => void;
   playStoreUrl?: string;
   appStoreUrl?: string;
+  apkUrl?: string;
 }
 
 export function AppDownloadModal({
@@ -14,6 +15,7 @@ export function AppDownloadModal({
   onClose,
   playStoreUrl,
   appStoreUrl,
+  apkUrl,
 }: AppDownloadModalProps) {
   const [mounted, setMounted] = useState(false);
 
@@ -26,10 +28,14 @@ export function AppDownloadModal({
   // Custom store links or defaults
   const googlePlayLink = playStoreUrl || "https://play.google.com/store/apps/details?id=com.sweetbean.cakecoffeeapp";
   const appleStoreLink = appStoreUrl || "https://apps.apple.com/app/sweet-bean-coffee-cake/id123456789";
+  const apkLink = apkUrl || "https://drive.google.com/drive/u/0/folders/1_cih0h2a4YWTwG4RnQE32grrL3J9IADi";
 
   const modalContent = (
     <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="relative w-full max-w-xl bg-[#FFFDF9] border border-amber-950/15 rounded-3xl shadow-2xl p-6 sm:p-8 text-foreground max-h-[92vh] overflow-y-auto my-auto shadow-amber-950/20">
+      <div 
+        className="relative w-full max-w-xl bg-[#FFFDF9] border border-amber-950/15 rounded-3xl shadow-2xl p-6 sm:p-8 text-foreground max-h-[90vh] overflow-y-auto no-scrollbar my-auto shadow-amber-950/20 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      >
         
         {/* Close Button */}
         <button
@@ -60,7 +66,7 @@ export function AppDownloadModal({
         {/* 2 Column Layout: Android QR + iOS QR */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           
-          {/* Column 1: Android (Google Play) */}
+          {/* Column 1: Android (Google Play + Direct APK Drive) */}
           <div className="bg-amber-50/70 border border-amber-200/60 rounded-2xl p-4 flex flex-col items-center text-center shadow-inner">
             <div className="flex items-center gap-1.5 text-xs font-bold text-[#D84315] mb-3 uppercase tracking-wider">
               <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
@@ -71,55 +77,71 @@ export function AppDownloadModal({
 
             <div className="bg-white p-2.5 rounded-2xl shadow-md border border-amber-100 mb-3">
               <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(googlePlayLink)}`}
-                alt="Mã QR Android"
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(apkLink)}`}
+                alt="Mã QR Android APK"
                 className="w-32 h-32 object-contain"
               />
             </div>
             
-            <div className="flex items-center justify-center gap-1 text-[11px] font-semibold text-[#8D6E63] mb-4">
+            <div className="flex items-center justify-center gap-1 text-[11px] font-semibold text-[#8D6E63] mb-3">
               <QrCode size={13} className="text-[#D84315]" />
-              Quét mã QR Android
+              Quét mã QR tải APK Android
             </div>
+
+            {/* Direct APK Download Button (Google Drive) */}
+            <a
+              href={apkLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-gradient-to-r from-[#D84315] to-[#BF360C] hover:from-[#BF360C] hover:to-[#9E2A0B] text-white rounded-xl shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] border border-amber-600/40 mb-2"
+            >
+              <Download size={18} className="shrink-0 text-amber-200" />
+              <div className="flex flex-col text-left">
+                <span className="text-[9px] uppercase font-medium tracking-wider text-amber-100/90">Link Google Drive</span>
+                <span className="text-xs font-bold tracking-wide">Tải File APK App</span>
+              </div>
+            </a>
 
             {/* Google Play Button */}
             <a
               href={googlePlayLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2.5 w-full py-3 px-3 bg-gradient-to-r from-gray-900 via-black to-gray-900 hover:from-black hover:to-gray-800 text-white rounded-xl shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] border border-gray-700/50"
+              className="flex items-center justify-center gap-2.5 w-full py-2 px-3 bg-gradient-to-r from-gray-900 via-black to-gray-900 hover:from-black hover:to-gray-800 text-white rounded-xl shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] border border-gray-700/50"
             >
-              <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                 <path fill="#EA4335" d="M3.609 1.814L13.792 12 3.61 22.186c-.198-.182-.317-.442-.317-.732V2.546c0-.29.119-.55.317-.732z"/>
                 <path fill="#34A853" d="M17.156 8.636l-3.364 3.364L3.609 1.814C3.805 1.632 4.07 1.5 4.372 1.5c.29 0 .55.119.732.317l12.052 6.819z"/>
                 <path fill="#4285F4" d="M17.156 15.364L5.104 22.183c-.182.198-.442.317-.732.317-.302 0-.567-.132-.763-.314l10.183-10.183 3.364 3.361z"/>
                 <path fill="#FBBC05" d="M21.144 10.97l-3.988-2.334-3.364 3.364 3.364 3.364 3.988-2.334c.563-.33.912-.924.912-1.57 0-.646-.349-1.24-.912-1.57z"/>
               </svg>
               <div className="flex flex-col text-left">
-                <span className="text-[9px] uppercase font-medium tracking-wider text-gray-300">Tải trên</span>
-                <span className="text-xs font-bold tracking-wide">Google Play</span>
+                <span className="text-[8px] uppercase font-medium tracking-wider text-gray-300">Tải trên</span>
+                <span className="text-[11px] font-bold tracking-wide">Google Play</span>
               </div>
             </a>
           </div>
 
           {/* Column 2: iOS (App Store) */}
-          <div className="bg-amber-50/70 border border-amber-200/60 rounded-2xl p-4 flex flex-col items-center text-center shadow-inner">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-[#D84315] mb-3 uppercase tracking-wider">
-              <Apple size={16} />
-              <span>Dành cho iOS (iPhone)</span>
-            </div>
+          <div className="bg-amber-50/70 border border-amber-200/60 rounded-2xl p-4 flex flex-col items-center text-center shadow-inner justify-between">
+            <div className="w-full flex flex-col items-center">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#D84315] mb-3 uppercase tracking-wider">
+                <Apple size={16} />
+                <span>Dành cho iOS (iPhone)</span>
+              </div>
 
-            <div className="bg-white p-2.5 rounded-2xl shadow-md border border-amber-100 mb-3">
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(appleStoreLink)}`}
-                alt="Mã QR iOS"
-                className="w-32 h-32 object-contain"
-              />
-            </div>
-            
-            <div className="flex items-center justify-center gap-1 text-[11px] font-semibold text-[#8D6E63] mb-4">
-              <QrCode size={13} className="text-[#D84315]" />
-              Quét mã QR iOS / iPhone
+              <div className="bg-white p-2.5 rounded-2xl shadow-md border border-amber-100 mb-3">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(appleStoreLink)}`}
+                  alt="Mã QR iOS"
+                  className="w-32 h-32 object-contain"
+                />
+              </div>
+              
+              <div className="flex items-center justify-center gap-1 text-[11px] font-semibold text-[#8D6E63] mb-3">
+                <QrCode size={13} className="text-[#D84315]" />
+                Quét mã QR iOS / iPhone
+              </div>
             </div>
 
             {/* App Store Button */}
@@ -127,7 +149,7 @@ export function AppDownloadModal({
               href={appleStoreLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2.5 w-full py-3 px-3 bg-black hover:bg-gray-900 text-white rounded-xl shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] border border-gray-800"
+              className="flex items-center justify-center gap-2.5 w-full py-3 px-3 bg-black hover:bg-gray-900 text-white rounded-xl shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] border border-gray-800 mt-auto"
             >
               <Apple size={22} className="shrink-0" />
               <div className="flex flex-col text-left">
@@ -147,11 +169,11 @@ export function AppDownloadModal({
           <ul className="space-y-1.5 text-[11px] text-[#6D4C41]">
             <li className="flex items-start gap-2">
               <CheckCircle2 size={14} className="text-[#4CAF50] shrink-0 mt-0.5" />
-              <span><strong>Mã QR:</strong> Dùng camera điện thoại quét mã tương ứng ở cột <strong>Android</strong> hoặc <strong>iOS</strong> để tải app.</span>
+              <span><strong>Tải File APK Android (Google Drive):</strong> Bấm nút <strong>Tải File APK App</strong> để truy cập thư mục Google Drive chứa file .apk và cài đặt trực tiếp.</span>
             </li>
             <li className="flex items-start gap-2">
               <CheckCircle2 size={14} className="text-[#4CAF50] shrink-0 mt-0.5" />
-              <span><strong>Tải trực tiếp:</strong> Bấm nút <strong>Google Play</strong> hoặc <strong>App Store</strong> tương ứng với thiết bị của bạn.</span>
+              <span><strong>Mã QR:</strong> Dùng camera điện thoại quét mã QR tương ứng ở cột <strong>Android</strong> hoặc <strong>iOS</strong> để tải app.</span>
             </li>
           </ul>
         </div>

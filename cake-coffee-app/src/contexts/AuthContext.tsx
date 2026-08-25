@@ -2,6 +2,18 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiFetch } from '../services/apiClient';
 
+export interface LoyaltyTierInfo {
+  id?: string;
+  tierLevel?: number;
+  name?: string;
+  minSpent?: number;
+  minProducts?: number;
+  discountPercent?: number;
+  bonusPointRate?: number;
+  color?: string;
+  description?: string;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -10,6 +22,7 @@ export interface User {
   role?: string;
   avatar?: string;
   points?: number;
+  currentTier?: LoyaltyTierInfo;
 }
 
 interface AuthContextType {
@@ -60,7 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const reloadProfile = async () => {
     try {
-      const profile = await apiFetch('/users/me').catch(() => apiFetch('/auth/profile'));
+      const profile = await apiFetch('/users/me');
       if (profile) {
         const normalized = {
           ...profile,
@@ -69,7 +82,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(normalized);
         await AsyncStorage.setItem('auth_user', JSON.stringify(normalized));
       }
-    } catch (e) {}
+    } catch (e: any) {
+      if (e?.message?.includes('expired') || e?.message?.includes('Unauthorized')) {
+        setUser(null);
+        await AsyncStorage.removeItem('auth_token').catch(() => {});
+        await AsyncStorage.removeItem('auth_user').catch(() => {});
+      }
+    }
   };
 
   const updateUser = async (updatedData: Partial<User>) => {

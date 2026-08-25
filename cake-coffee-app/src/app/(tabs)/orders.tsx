@@ -209,7 +209,7 @@ export default function OrdersScreen() {
 
       const pointsBonus = res?.pointsEarned || 5;
       Alert.alert(
-        'Đánh giá thành công! 🎉',
+        'Đánh giá thành công!',
         `Cảm ơn bạn đã gửi phản hồi! Bạn đã nhận được +${pointsBonus} điểm thưởng tích lũy.`
       );
 
@@ -228,7 +228,7 @@ export default function OrdersScreen() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.headerContainer}>
-          <Text style={styles.headerTitle}>Theo Dõi & Lịch Sử Đơn Hàng 📋</Text>
+          <Text style={styles.headerTitle}>Theo Dõi & Lịch Sử Đơn Hàng</Text>
         </View>
         <View style={styles.emptyContainer}>
           <Ionicons name="lock-closed-outline" size={70} color="#D7CCC8" />
@@ -249,7 +249,7 @@ export default function OrdersScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>Theo Dõi & Lịch Sử Đơn Hàng 📋</Text>
+        <Text style={styles.headerTitle}>Theo Dõi & Lịch Sử Đơn Hàng</Text>
       </View>
 
       {loading ? (
@@ -383,7 +383,7 @@ export default function OrdersScreen() {
             <TouchableOpacity onPress={() => setDetailModalVisible(false)} style={styles.closeBtn}>
               <Ionicons name="close" size={24} color="#3E2723" />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Chi Tiết Đơn Hàng 🧾</Text>
+            <Text style={styles.modalTitle}>Chi Tiết Đơn Hàng</Text>
             <View style={{ width: 24 }} />
           </View>
 
@@ -518,7 +518,7 @@ export default function OrdersScreen() {
             <TouchableOpacity onPress={() => setReviewModalVisible(false)} style={styles.closeBtn}>
               <Ionicons name="close" size={24} color="#3E2723" />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Đánh Giá Sản Phẩm ⭐</Text>
+            <Text style={styles.modalTitle}>Đánh Giá Sản Phẩm</Text>
             <View style={{ width: 24 }} />
           </View>
 
@@ -547,7 +547,7 @@ export default function OrdersScreen() {
                 ))}
               </View>
               <Text style={styles.starRatingText}>
-                {rating === 5 ? 'Cực kỳ hài lòng 😍' : rating === 4 ? 'Rất ngon 😋' : rating === 3 ? 'Bình thường 🙂' : 'Chưa hài lòng 🙁'}
+                {rating === 5 ? 'Cực kỳ hài lòng' : rating === 4 ? 'Rất ngon' : rating === 3 ? 'Bình thường' : 'Chưa hài lòng'}
               </Text>
 
               {/* Comment Input */}

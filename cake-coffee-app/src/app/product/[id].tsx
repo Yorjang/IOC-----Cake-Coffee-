@@ -60,7 +60,7 @@ export default function ProductDetailScreen() {
             id: data.id,
             name: data.name || data.title,
             basePrice: calculatedBasePrice,
-            rating: data.rating || 5.0,
+            rating: data.averageRating !== undefined && data.averageRating !== null ? Number(data.averageRating) : (data.rating || 5.0),
             image: data.imageUrl || data.image || 'https://images.unsplash.com/photo-1541167760496-1628856ab772?q=80&w=600',
             description: data.description || '',
             productType: data.productType || 'drink',
