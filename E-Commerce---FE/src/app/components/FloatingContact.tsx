@@ -26,6 +26,19 @@ export function FloatingContact({
 
   return (
     <div className="fixed bottom-8 right-6 z-[999] flex flex-col items-center gap-3">
+      {/* Scroll to Top: keep it above the social buttons so it never overlaps
+          the separate chatbot button anchored at the bottom-right. */}
+      <div 
+        className={`mb-1 transition-all duration-300 ease-in-out cursor-pointer ${showTop ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 -translate-y-3 pointer-events-none'}`}
+        onClick={scrollToTop}
+      >
+        <div className="flex items-center justify-center w-[52px] h-[52px] rounded-full border-[2.5px] border-[#c0b5a6] bg-transparent text-[#897364] hover:bg-white/50 transition">
+          <div className="flex items-center justify-center w-11 h-11 rounded-full border-[1.5px] border-[#c0b5a6] bg-white text-[#897364]">
+            <ChevronUp size={24} />
+          </div>
+        </div>
+      </div>
+
       {showOrderTracking && onTrackOrder && (
         <button
           type="button"
@@ -61,17 +74,6 @@ export function FloatingContact({
         <Twitter size={20} fill="currentColor" />
       </a>
 
-      {/* Scroll to Top */}
-      <div 
-        className={`mt-4 transition-all duration-300 ease-in-out cursor-pointer ${showTop ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-10 pointer-events-none'}`}
-        onClick={scrollToTop}
-      >
-        <div className="flex items-center justify-center w-[52px] h-[52px] rounded-full border-[2.5px] border-[#c0b5a6] bg-transparent text-[#897364] hover:bg-white/50 transition">
-          <div className="flex items-center justify-center w-11 h-11 rounded-full border-[1.5px] border-[#c0b5a6] bg-white text-[#897364]">
-            <ChevronUp size={24} />
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

@@ -211,10 +211,7 @@ export default function App() {
             handleSelectStore={handleSelectStore} handleAdminLogout={handleLogout}
           />
         </main>
-        <FloatingContact
-          showOrderTracking={view === VIEW_KEYS.HOME}
-          onTrackOrder={() => setView(VIEW_KEYS.TRACKING)}
-        />
+        <FloatingContact />
         <ChatWidget />
         {view === VIEW_KEYS.HOME && <SalesNotification products={products} onSelectProduct={handleSelectProduct} />}
         <Footer setView={setView} onOpenDownloadModal={() => setShowDownloadModal(true)} />

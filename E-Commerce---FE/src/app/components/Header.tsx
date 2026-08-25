@@ -1,4 +1,4 @@
-import { Heart, LogOut, MapPin, Search, Settings, ShoppingBag, User, X, ChevronDown, Menu, Smartphone } from "lucide-react";
+import { Heart, LogOut, MapPin, Search, Settings, ShoppingBag, User, X, ChevronDown, Smartphone, PackageSearch } from "lucide-react";
 import { useState } from "react";
 import { VIEW_KEYS } from "../../config/appConfig";
 import { HeaderNotifications } from "./HeaderNotifications";
@@ -73,7 +73,7 @@ export function Header({
         {/* Right actions */}
         <div className="flex-1 flex items-center justify-end gap-5">
           {isLoggedIn ? (
-            <div className="relative">
+            <div className="relative order-last">
               <button
                 type="button"
                 onClick={() => setProfileOpen(!profileOpen)}
@@ -115,7 +115,7 @@ export function Header({
           ) : (
             <button
               onClick={() => setView(VIEW_KEYS.LOGIN)}
-              className="flex items-center hover:opacity-70 transition-opacity"
+              className="flex items-center hover:opacity-70 transition-opacity order-last"
             >
               <User size={22} strokeWidth={1.5} className="text-gray-700" />
             </button>
@@ -133,6 +133,15 @@ export function Header({
                 {wishlistCount}
               </span>
             )}
+          </button>
+
+          <button
+            onClick={() => setView(VIEW_KEYS.TRACKING)}
+            className="flex items-center hover:opacity-70 transition-opacity"
+            title="Theo dõi đơn hàng"
+            aria-label="Theo dõi đơn hàng"
+          >
+            <PackageSearch size={22} strokeWidth={1.5} className="text-gray-700" />
           </button>
 
           <button
