@@ -14,7 +14,7 @@ import { AppRoutes } from "./components/AppRoutes";
 import { useAppState } from "./hooks/useAppState";
 import { useCartState } from "./hooks/useCartState";
 import { NAV_PAGES, VIEW_KEYS } from "../config/appConfig";
-import { STORE_STORAGE_KEY, getOrderIdFromPath, getPathFromView, getViewFromPath, parsePrice } from '../utils/appUtils';
+import { STORE_STORAGE_KEY, getOrderIdFromPath, getPathFromView, getViewFromPath, isAdminUser, isStaffUser, parsePrice } from '../utils/appUtils';
 import { clearAuthSession } from "./components/authSession";
 import { rememberTrackingOrder } from "./features/order-tracking/services/orderTrackingService";
 import { useState } from "react";
@@ -95,7 +95,15 @@ export default function App() {
 
   const handleLoginSuccess = (userData: any) => {
     setUser(userData);
-    setView(VIEW_KEYS.HOME);
+    if (userData?.role === "shipper") {
+      setView(VIEW_KEYS.SHIPPER);
+    } else if (isAdminUser(userData)) {
+      setView(VIEW_KEYS.ADMIN);
+    } else if (isStaffUser(userData)) {
+      setView(VIEW_KEYS.STAFF);
+    } else {
+      setView(VIEW_KEYS.HOME);
+    }
     toast.success("Đăng nhập thành công!");
     if (selectedStore) fetchCart(selectedStore.id);
   };

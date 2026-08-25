@@ -15,7 +15,7 @@ export class CodService {
   ) {}
 
   async createRemitRequest(shipper: User) {
-    if (shipper.role !== UserRole.SHIPPER) {
+    if (![UserRole.SHIPPER, UserRole.ADMIN, UserRole.STORE_MANAGER].includes(shipper.role)) {
       throw new ForbiddenException('Only shippers can create remit requests');
     }
 
