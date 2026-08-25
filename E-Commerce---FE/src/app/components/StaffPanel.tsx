@@ -2,12 +2,13 @@ import {
   AlertTriangle,
   Banknote,
   CakeSlice,
-  CheckCircle,
+  Check,
   ClipboardCheck,
   Coffee,
   CreditCard,
   LogOut,
   Minus,
+  MoreVertical,
   PackageCheck,
   Phone,
   Plus,
@@ -35,6 +36,9 @@ type StaffPanelProps = {
 
 type PosItem = {
   product: any[];
+  variantId: string;
+  variantName: string;
+  price: number;
   quantity: number;
 };
 
@@ -125,6 +129,7 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
   const [activeCategory, setActiveCategory] = useState("Tất cả");
   const [query, setQuery] = useState("");
   const [cart, setCart] = useState<PosItem[]>([]);
+  const [selectedProductForVariant, setSelectedProductForVariant] = useState<any[] | null>(null);
 
   // API State
   const [ordersList, setOrdersList] = useState<any[]>([]);
@@ -132,6 +137,8 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
   const [paymentMethod, setPaymentMethod] = useState("Tiền mặt");
   const [customerPhone, setCustomerPhone] = useState("");
   const [fulfillmentType, setFulfillmentType] = useState("Mang đi");
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [checkoutSuccessOrder, setCheckoutSuccessOrder] = useState<any>(null);
 
   const loadOrders = async () => {
     const token = getAccessToken();
@@ -198,24 +205,21 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
         paymentMethod: paymentMethod === "Tiền mặt" ? "cash" : paymentMethod === "Momo" ? "momo" : "vnpay",
         fulfillmentType: fulfillmentType === "Dùng tại chỗ" ? "dine-in" : "pickup",
         items: cart.map((item) => {
-          const uPrice = parsePrice(item.product[1]);
           const pRaw = (item.product as any).raw;
           const pId = pRaw?.id;
-          const activeVariants = pRaw?.variants?.filter((v: any) => v.status === "active") || [];
-          const vId = activeVariants[0]?.id || pRaw?.variants?.[0]?.id;
           
-          if (!pId || !vId) {
+          if (!pId || !item.variantId) {
             throw new Error(`Sản phẩm ${item.product[0]} bị lỗi dữ liệu (không có ID)`);
           }
 
           return {
             productId: pId,
-            variantId: vId,
+            variantId: item.variantId,
             productName: item.product[0],
-            variantName: activeVariants[0]?.size || "Mặc định",
+            variantName: item.variantName,
             quantity: item.quantity,
-            unitPrice: uPrice,
-            totalPrice: uPrice * item.quantity,
+            unitPrice: item.price,
+            totalPrice: item.price * item.quantity,
           };
         }),
       };
@@ -230,7 +234,7 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
       });
       const data = await parseRes(res);
       if (res.ok) {
-        toast.success("Thanh toán thành công");
+        setCheckoutSuccessOrder(data);
         setCart([]);
         setCustomerPhone("");
         loadOrders();
@@ -239,6 +243,18 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
       }
     } catch (err: any) {
       toast.error(err.message || "Lỗi kết nối.");
+    }
+  };
+
+  const onCheckoutClick = () => {
+    if (cart.length === 0) {
+      toast.error("Chưa có món nào trong hoá đơn");
+      return;
+    }
+    if (paymentMethod === "Momo" || paymentMethod === "VNPay") {
+      setShowQrModal(true);
+    } else {
+      handlePosCheckout();
     }
   };
 
@@ -269,6 +285,13 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
 
   const posProducts = useMemo(() => {
     let source = products || [];
+    // Không lọc các món hết hàng ở đây nữa, giữ nguyên để hiển thị làm mờ
+    // source = source.filter((item: any[]) => {
+    //   if (item[5] === "Hết hàng") return false;
+    //   if (item.raw && item.raw.isActive === false) return false;
+    //   return true;
+    // });
+    
     if (activeCategory !== "Tất cả") {
       source = source.filter((item: any[]) => item[2] === activeCategory);
     }
@@ -279,29 +302,52 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
     return source.slice(0, 12);
   }, [products, query, activeCategory]);
 
-  const subtotal = cart.reduce((sum, item) => sum + parsePrice(item.product[1]) * item.quantity, 0);
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const vat = Math.round(subtotal * 0.03);
   const grandTotal = subtotal + vat;
   const todayRevenue = invoices.reduce((sum, o) => sum + Number(o.totalAmount), 0);
   const newOnlineOrders = onlineOrders.filter((o) => o.orderStatus === "pending").length;
 
-  const addToCart = (product: any[]) => {
+  const addToCart = (product: any[], variant?: any) => {
+    const raw = (product as any).raw || {};
+    const activeVariants = raw.variants?.filter((v: any) => v.status === "active") || [];
+    
+    if (!variant) {
+      if (activeVariants.length > 1) {
+        setSelectedProductForVariant(product);
+        return;
+      }
+      variant = activeVariants[0];
+    }
+    
+    if (!variant) {
+      toast.error("Sản phẩm không có dữ liệu phiên bản");
+      return;
+    }
+
     setCart((current) => {
-      const existing = current.find((item) => item.product[0] === product[0]);
+      const existing = current.find((item) => item.product[0] === product[0] && item.variantId === variant.id);
       if (existing) {
         return current.map((item) =>
-          item.product[0] === product[0] ? { ...item, quantity: item.quantity + 1 } : item
+          item.product[0] === product[0] && item.variantId === variant.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
-      return [...current, { product, quantity: 1 }];
+      return [...current, { 
+        product, 
+        variantId: variant.id, 
+        variantName: variant.size || variant.variantName || "Mặc định", 
+        price: Number(variant.price), 
+        quantity: 1 
+      }];
     });
+    setSelectedProductForVariant(null);
   };
 
-  const changeQty = (productName: string, delta: number) => {
+  const changeQty = (productName: string, variantId: string, delta: number) => {
     setCart((current) =>
       current
         .map((item) =>
-          item.product[0] === productName ? { ...item, quantity: item.quantity + delta } : item
+          item.product[0] === productName && item.variantId === variantId ? { ...item, quantity: item.quantity + delta } : item
         )
         .filter((item) => item.quantity > 0)
     );
@@ -366,12 +412,7 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
             sub="Tổng tiền thu được"
             icon={Banknote}
           />
-          <StaffMetric
-            label="Tình trạng"
-            value="Ổn định"
-            sub="Hệ thống online"
-            icon={CheckCircle}
-          />
+
         </div>
 
         <div className="mb-5 flex flex-wrap gap-2">
@@ -430,35 +471,41 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
                   </div>
 
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-                    {posProducts.map((product: any[]) => (
-                      <button
-                        key={product[0]}
-                        type="button"
-                        onClick={() => addToCart(product)}
-                        className="group overflow-hidden rounded-2xl border bg-background text-left transition hover:border-primary hover:shadow-md"
-                      >
-                        <img
-                          src={product[3]}
-                          alt={product[0]}
-                          className="h-32 w-full object-cover transition duration-300 group-hover:scale-105"
-                        />
-                        <div className="p-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-muted-foreground">
-                              {product[2]}
-                            </span>
-                            <span className="text-xs text-green-700">Còn hàng</span>
+                    {posProducts.map((product: any[]) => {
+                      const isOutOfStock = product[5] === "Hết hàng" || (product.raw && product.raw.isActive === false);
+                      return (
+                        <button
+                          key={product[0]}
+                          type="button"
+                          disabled={isOutOfStock}
+                          onClick={() => { if (!isOutOfStock) addToCart(product) }}
+                          className={`group overflow-hidden rounded-2xl border bg-background text-left transition ${
+                            isOutOfStock ? "opacity-50 pointer-events-none grayscale" : "hover:border-primary hover:shadow-md"
+                          }`}
+                        >
+                          <img
+                            src={product[3]}
+                            alt={product[0]}
+                            className={`h-32 w-full object-cover transition duration-300 ${!isOutOfStock ? "group-hover:scale-105" : ""}`}
+                          />
+                          <div className="p-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-muted-foreground">
+                                {product[2]}
+                              </span>
+                              <span className={`text-xs ${product[5] === "Hết hàng" ? "text-red-600 font-semibold" : "text-green-700 font-semibold"}`}>{product[5]}</span>
+                            </div>
+                            <h3 className={`mt-3 line-clamp-2 font-sans text-base ${isOutOfStock ? "text-muted-foreground" : ""}`}>{product[0]}</h3>
+                            <div className="mt-4 flex items-center justify-between">
+                              <b className={isOutOfStock ? "text-muted-foreground" : "text-primary"}>{product[1]}</b>
+                              <span className={`grid size-8 place-items-center rounded-full ${isOutOfStock ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground"}`}>
+                                <Plus size={15} />
+                              </span>
+                            </div>
                           </div>
-                          <h3 className="mt-3 line-clamp-2 font-sans text-base">{product[0]}</h3>
-                          <div className="mt-4 flex items-center justify-between">
-                            <b className="text-primary">{product[1]}</b>
-                            <span className="grid size-8 place-items-center rounded-full bg-primary text-primary-foreground">
-                              <Plus size={15} />
-                            </span>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -498,17 +545,17 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
                     )}
                     {cart.map((item) => (
                       <div
-                        key={item.product[0]}
+                        key={`${item.product[0]}-${item.variantId}`}
                         className="flex flex-wrap items-center justify-between gap-3 border-b pb-3"
                       >
                         <div className="flex-1">
                           <p className="font-medium text-sm sm:text-base">{item.product[0]}</p>
-                          <p className="text-xs text-muted-foreground">{item.product[1]}</p>
+                          <p className="text-xs text-muted-foreground">{item.variantName !== "Mặc định" ? `Size: ${item.variantName} · ` : ""}{formatMoney(item.price)}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => changeQty(item.product[0], -1)}
+                            onClick={() => changeQty(item.product[0], item.variantId, -1)}
                             className="rounded-full border p-1 transition hover:bg-secondary"
                           >
                             <Minus size={12} />
@@ -516,7 +563,7 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
                           <span className="w-4 text-center text-sm">{item.quantity}</span>
                           <button
                             type="button"
-                            onClick={() => changeQty(item.product[0], 1)}
+                            onClick={() => changeQty(item.product[0], item.variantId, 1)}
                             className="rounded-full border p-1 transition hover:bg-secondary"
                           >
                             <Plus size={12} />
@@ -548,22 +595,15 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
                       <span className="text-muted-foreground">Tạm tính</span>
                       <b>{formatMoney(subtotal)}</b>
                     </p>
-                    <p className="flex justify-between">
-                      <span className="text-muted-foreground">VAT</span>
-                      <b>{formatMoney(vat)}</b>
-                    </p>
                     <p className="flex justify-between border-t pt-3 text-lg font-bold">
                       <span>Tổng</span>
                       <span className="text-primary">{formatMoney(grandTotal)}</span>
                     </p>
                   </div>
 
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <StaffButton onClick={handlePosCheckout}>
-                      <CreditCard size={14} /> Thanh toán
-                    </StaffButton>
-                    <StaffButton variant="secondary">
-                      <Printer size={14} /> In hoá đơn
+                  <div className="grid gap-2 sm:grid-cols-1 mt-4">
+                    <StaffButton onClick={onCheckoutClick} className="w-full">
+                      <CreditCard size={14} /> Xác nhận thanh toán
                     </StaffButton>
                   </div>
                 </aside>
@@ -858,6 +898,105 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
           </>
         )}
       </main>
+      
+      {showQrModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl bg-background p-6 shadow-xl text-center animate-in zoom-in-95">
+            <h3 className="text-xl font-bold">Thanh toán {paymentMethod}</h3>
+            <p className="mt-2 text-sm text-muted-foreground">Vui lòng yêu cầu khách hàng quét mã QR bên dưới để thanh toán.</p>
+            
+            <div className="my-6 mx-auto flex aspect-square w-48 items-center justify-center rounded-xl bg-white p-2">
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=Pay_${grandTotal}_${paymentMethod}`} 
+                alt="QR Code" 
+                className="h-full w-full object-contain"
+              />
+            </div>
+            
+            <div className="mb-6 rounded-xl bg-secondary p-4">
+              <p className="text-sm text-muted-foreground">Số tiền cần thanh toán</p>
+              <p className="text-2xl font-bold text-primary">{formatMoney(grandTotal)}</p>
+            </div>
+
+            <div className="grid gap-3">
+              <button
+                onClick={() => {
+                  setShowQrModal(false);
+                  handlePosCheckout();
+                }}
+                className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80"
+              >
+                Đã thanh toán thành công
+              </button>
+              <button
+                onClick={() => setShowQrModal(false)}
+                className="w-full rounded-full border py-3 text-sm font-semibold transition hover:bg-secondary"
+              >
+                Hủy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {checkoutSuccessOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl bg-background p-6 shadow-xl text-center animate-in zoom-in-95">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-600">
+               <Check size={32} />
+            </div>
+            <h3 className="text-xl font-bold">Thanh toán thành công!</h3>
+            <p className="mt-2 text-sm text-muted-foreground">Đơn hàng #{checkoutSuccessOrder.id?.slice(0, 8)} đã được tạo.</p>
+            
+            <div className="mt-6 grid gap-3">
+              <button
+                onClick={() => {
+                  toast.success("Đang in hoá đơn...");
+                  setCheckoutSuccessOrder(null);
+                }}
+                className="w-full flex justify-center items-center gap-2 rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80"
+              >
+                <Printer size={16} /> In hoá đơn
+              </button>
+              <button
+                onClick={() => setCheckoutSuccessOrder(null)}
+                className="w-full rounded-full border py-3 text-sm font-semibold transition hover:bg-secondary"
+              >
+                Tạo đơn mới
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedProductForVariant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl bg-background p-6 shadow-xl animate-in zoom-in-95">
+            <h3 className="text-lg font-semibold">Chọn kích cỡ</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{selectedProductForVariant[0]}</p>
+            <div className="mt-5 space-y-3">
+              {((selectedProductForVariant as any).raw?.variants || [])
+                .filter((v: any) => v.status === "active")
+                .map((variant: any) => (
+                  <button
+                    key={variant.id}
+                    onClick={() => addToCart(selectedProductForVariant, variant)}
+                    className="flex w-full items-center justify-between rounded-xl border p-4 text-left transition hover:border-primary hover:bg-secondary"
+                  >
+                    <span className="font-medium">{variant.size || variant.variantName}</span>
+                    <span className="text-primary font-semibold">{formatMoney(Number(variant.price))}</span>
+                  </button>
+                ))}
+            </div>
+            <button
+              onClick={() => setSelectedProductForVariant(null)}
+              className="mt-5 w-full rounded-full border py-3 text-sm font-semibold transition hover:bg-secondary"
+            >
+              Hủy
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

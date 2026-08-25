@@ -11,6 +11,7 @@ import {
   Users
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { env } from "../../../config/env";
 import { getAccessToken } from "../authSession";
 import { StatusBadge } from "./AdminShared";
@@ -53,21 +54,21 @@ export function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center bg-sidebar rounded-2xl">
-        <Loader2 className="animate-spin text-primary" size={32} />
+      <div className="flex h-64 items-center justify-center bg-sidebar rounded-[12px] border border-border">
+        <Loader2 className="animate-spin text-[#D85A30]" size={32} />
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="flex flex-col h-64 items-center justify-center bg-sidebar rounded-2xl p-5 space-y-4">
-        <AlertCircle className="text-red-500" size={40} />
-        <p className="text-sm text-foreground font-semibold">{error || "Có lỗi xảy ra."}</p>
+      <div className="flex flex-col h-64 items-center justify-center bg-sidebar rounded-[12px] border border-border p-4 space-y-4">
+        <AlertCircle className="text-amber-500" size={40} />
+        <p className="text-sm text-muted-foreground font-semibold">{error || "Có lỗi xảy ra."}</p>
         <button
           type="button"
           onClick={loadStats}
-          className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/80 transition"
+          className="rounded-full bg-[#D85A30] px-4 py-2 text-xs font-semibold text-white hover:opacity-90 transition"
         >
           Thử lại
         </button>
@@ -87,82 +88,184 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold text-foreground">Dashboard</h2>
-        <span className="text-sm text-muted-foreground">
-          Cập nhật: {new Date().toLocaleDateString("vi-VN")} — {new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
-        </span>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map(({ label, value, delta, icon }: any) => {
-          const IconComponent = iconMap[icon] || DollarSign;
-          return (
-            <div key={label} className="rounded-2xl bg-sidebar p-5 transition hover:bg-sidebar-accent">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">{label}</p>
-                <span className="rounded-xl bg-sidebar-accent p-2">
-                  <IconComponent size={16} className="text-primary" />
-                </span>
-              </div>
-              <h3 className="mt-3 text-2xl font-bold text-foreground">{value}</h3>
-              <p className="mt-1 flex items-center gap-1 text-xs text-green-400">
-                <TrendingUp size={12} />
-                {delta}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="rounded-2xl bg-sidebar p-5">
-          <h3 className="mb-4 font-semibold text-foreground">Doanh thu 7 ngày qua</h3>
-          <div className="flex items-end gap-3 h-40">
-            {weekly.map((d: any) => (
-              <div key={d.day} className="flex flex-1 flex-col items-center gap-2">
-                <span className="text-xs text-muted-foreground">{(d.revenue / 1000000).toFixed(1)}M</span>
-                <div
-                  className="w-full rounded-t-lg bg-primary opacity-80 transition hover:opacity-100"
-                  style={{ height: `${(d.revenue / maxRev) * 100}%` }}
-                />
-                <span className="text-xs text-muted-foreground">{d.day}</span>
-              </div>
-            ))}
-          </div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-foreground">
+            Analytics <span className="font-light text-muted-foreground">Dashboard</span>
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Cập nhật: {new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} — {new Date().toLocaleDateString("vi-VN")}
+          </p>
         </div>
-        <div className="rounded-2xl bg-sidebar p-5">
-          <h3 className="mb-4 font-semibold text-foreground">Đơn hàng gần đây</h3>
-          <div className="space-y-3">
-            {recentOrders.map((o: any) => (
-              <div key={o.id} className="flex items-center justify-between text-sm">
-                <div>
-                  <p className="text-foreground">
-                    #{o.id} · {o.customer}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {o.time} — {o.items.slice(0, 22)}…
-                  </p>
+        <div className="flex items-center gap-3">
+          <button className="rounded bg-white px-4 py-2 text-sm font-medium text-foreground shadow-sm border border-border hover:bg-muted transition">
+            Export Report
+          </button>
+          <button className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 transition">
+            New Project
+          </button>
+        </div>
+      </div>
+      
+      {/* Top Section: Metrics + Main Chart */}
+      <div className="grid gap-6 lg:grid-cols-12">
+        {/* Left: Metrics 2x2 Grid */}
+        <div className="lg:col-span-5 xl:col-span-4 grid gap-4 grid-cols-2">
+          {stats.map(({ label, value, delta, icon }: any) => {
+            const IconComponent = iconMap[icon] || DollarSign;
+            const isRevenue = label.toLowerCase().includes("doanh thu");
+            return (
+              <div 
+                key={label} 
+                className="rounded-xl bg-white p-5 shadow-sm border border-border/50 flex flex-col justify-between"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <p className="text-[13px] font-medium text-muted-foreground">{label}</p>
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded bg-blue-50 text-blue-500">
+                    <IconComponent size={16} />
+                  </span>
                 </div>
-                <StatusBadge status={o.status} />
+                <div>
+                  <h3 className="text-2xl font-semibold text-foreground">{value}</h3>
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <span className={`inline-flex items-center rounded-sm px-1.5 py-0.5 text-[11px] font-medium ${isRevenue ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
+                      {delta.includes('-') ? '' : '+'}{delta.replace(/[^0-9.-]/g, '')}%
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">So với tuần trước</span>
+                  </div>
+                </div>
               </div>
-            ))}
-            {recentOrders.length === 0 && (
-              <p className="text-center text-sm text-muted-foreground py-8">Chưa có đơn hàng nào.</p>
-            )}
+            );
+          })}
+        </div>
+
+        {/* Right: Main Chart */}
+        <div className="lg:col-span-7 xl:col-span-8 rounded-xl bg-white p-5 shadow-sm border border-border/50 flex flex-col">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
+            <h3 className="font-semibold text-foreground">Biến động gần đây</h3>
+            <div className="flex items-center gap-2">
+              <select className="rounded border border-border bg-transparent px-2 py-1 text-sm outline-none">
+                <option>7 ngày qua</option>
+                <option>30 ngày qua</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex-1 w-full min-h-[250px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={weekly} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                <XAxis 
+                  dataKey="day" 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: '#6b7280' }}
+                  dy={10}
+                />
+                <YAxis 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: '#6b7280' }}
+                  tickFormatter={(val) => val === 0 ? '0' : `${(val / 1000000).toFixed(0)}M`}
+                />
+                <Tooltip 
+                  cursor={{ fill: '#f3f4f6' }}
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  formatter={(value: number) => [new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value), 'Doanh thu']}
+                  labelStyle={{ color: '#374151', fontWeight: 'bold' }}
+                />
+                <Bar 
+                  dataKey="revenue" 
+                  fill="#3b82f6" 
+                  radius={[4, 4, 0, 0]}
+                  barSize={40}
+                />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl bg-sidebar p-5 flex items-center gap-3">
-          <CheckCircle className="text-green-400 shrink-0" size={18} />
-          <p className="text-sm text-muted-foreground">Báo cáo tháng hoạt động bình thường.</p>
+
+      {/* Bottom Section: Orders & System Status */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Orders Card */}
+        <div className="lg:col-span-2 rounded-xl bg-white p-5 shadow-sm border border-border/50 flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-foreground">Đơn hàng gần đây</h3>
+            <button className="text-sm font-medium text-blue-600 hover:underline">Xem tất cả</button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-border text-muted-foreground">
+                <tr>
+                  <th className="pb-3 font-medium">Khách hàng</th>
+                  <th className="pb-3 font-medium">Mã ĐH</th>
+                  <th className="pb-3 font-medium">Thời gian</th>
+                  <th className="pb-3 font-medium text-right">Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {recentOrders.map((o: any) => {
+                  const initials = o.customer.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+                  return (
+                    <tr key={o.id} className="group hover:bg-muted/30 transition-colors">
+                      <td className="py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[11px] font-bold text-blue-700">
+                            {initials}
+                          </div>
+                          <span className="font-medium">{o.customer}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 text-muted-foreground">#{o.id}</td>
+                      <td className="py-3 text-muted-foreground">{o.time}</td>
+                      <td className="py-3 text-right">
+                        <StatusBadge status={o.status} />
+                      </td>
+                    </tr>
+                  );
+                })}
+                {recentOrders.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-muted-foreground">Chưa có đơn hàng nào.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-        <div className="rounded-2xl bg-sidebar p-5 flex items-center gap-3">
-          <AlertCircle className="text-yellow-400 shrink-0" size={18} />
-          <p className="text-sm text-muted-foreground">Kiểm tra tồn kho định kỳ tại tab Tồn kho.</p>
-        </div>
-        <div className="rounded-2xl bg-sidebar p-5 flex items-center gap-3">
-          <CheckCircle className="text-green-400 shrink-0" size={18} />
-          <p className="text-sm text-muted-foreground">Tất cả cổng thanh toán hoạt động bình thường.</p>
+
+        {/* System Status */}
+        <div className="rounded-xl bg-white p-5 shadow-sm border border-border/50 flex flex-col">
+          <h3 className="mb-4 font-semibold text-foreground">Trạng thái hệ thống</h3>
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 shrink-0 rounded-full bg-green-100 p-1">
+                <CheckCircle className="size-4 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Báo cáo hoạt động bình thường</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Cập nhật lúc {new Date().toLocaleTimeString('vi-VN')}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 shrink-0 rounded-full bg-amber-100 p-1">
+                <AlertCircle className="size-4 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Cảnh báo tồn kho</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Có 3 sản phẩm sắp hết hàng</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 shrink-0 rounded-full bg-blue-100 p-1">
+                <CheckCircle className="size-4 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Cổng thanh toán</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Tất cả cổng đang online</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
