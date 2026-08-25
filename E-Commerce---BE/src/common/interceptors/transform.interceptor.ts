@@ -29,7 +29,15 @@ export class TransformInterceptor<T> implements NestInterceptor<T, Response<T>> 
         let message = 'Thành công';
         let responseData = data;
 
-        if (data && typeof data === 'object' && 'message' in data) {
+        // Only treat a string `message` as the response status message.
+        // Some endpoints (for example chat) legitimately return a nested
+        // message object, which must remain inside the response data.
+        if (
+          data &&
+          typeof data === 'object' &&
+          'message' in data &&
+          typeof (data as { message?: unknown }).message === 'string'
+        ) {
           message = data.message;
           // If there's more data inside, extract it, otherwise just return the data object minus message
           if (Object.keys(data).length === 1) {
