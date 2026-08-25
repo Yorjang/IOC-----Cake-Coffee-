@@ -95,6 +95,7 @@ export const getPathFromView = (view: string, product?: any, entityId?: string) 
 
 export const getViewFromPath = (path: string, cats: any[] = []) => {
   if (path.startsWith("/admin")) return VIEW_KEYS.ADMIN;
+  if (path === '/thanh-toan-vnpay') return VIEW_KEYS.PAYMENT;
   if (path.startsWith('/thanh-toan-don-hang/')) return VIEW_KEYS.PAYMENT;
   if (path.startsWith('/ho-so')) return VIEW_KEYS.PROFILE;
   for (const [key, value] of Object.entries(VIEW_PATH_MAP)) {
@@ -116,6 +117,9 @@ export const getViewFromPath = (path: string, cats: any[] = []) => {
 };
 
 export const getOrderIdFromPath = (path: string): string | null => {
+  if (path === '/thanh-toan-vnpay') {
+    return new URLSearchParams(window.location.search).get('orderId');
+  }
   if (!path.startsWith('/thanh-toan-don-hang/')) return null;
   return decodeURIComponent(path.slice('/thanh-toan-don-hang/'.length)) || null;
 };

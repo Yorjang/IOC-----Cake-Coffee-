@@ -135,7 +135,14 @@ export class PaymentsService {
         if (successful) payment.transactionId = `VNPAY-${query.vnp_TransactionNo}`;
 
         order.paymentStatus = successful ? ('paid' as typeof order.paymentStatus) : ('failed' as typeof order.paymentStatus);
-        if (successful) order.orderStatus = OrderStatus.CONFIRMED;
+        if (successful) {
+          order.orderStatus = OrderStatus.CONFIRMED;
+        } else if (order.orderStatus === OrderStatus.PENDING) {
+          // A cancelled/failed VNPay attempt must not remain waiting for
+          // staff confirmation; it is a cancelled order from the customer's
+          // point of view and can be recreated if they want to pay again.
+          order.orderStatus = OrderStatus.CANCELLED;
+        }
         await paymentRepository.save(payment);
         await orderRepository.save(order);
         return { RspCode: '00', Message: 'Confirm success' };
@@ -231,6 +238,8 @@ export class PaymentsService {
       order.paymentStatus = status === 'paid' ? ('paid' as any) : ('failed' as any);
       if (status === 'paid') {
         order.orderStatus = OrderStatus.CONFIRMED; // Move to confirmed once paid
+      } else if (order.orderStatus === OrderStatus.PENDING) {
+        order.orderStatus = OrderStatus.CANCELLED;
       }
       await this.orders.save(order);
     }

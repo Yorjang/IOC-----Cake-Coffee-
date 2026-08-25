@@ -7,13 +7,27 @@ import { vnpayService } from '../services/vnpayService';
 export type VnpayViewStatus = 'redirecting' | 'pending' | 'paid' | 'failed';
 
 export function useVnpayPayment(orderId: string) {
-  const query = new URLSearchParams(window.location.search);
-  const isReturn = query.get('vnpayReturn') === '1';
-  const returnedStatus = query.get('status');
+  // Capture the VNPay return query once. After displaying the result, remove
+  // it from the address bar without losing the return state on rerenders.
+  const [returnQuery] = useState(() => {
+    const query = new URLSearchParams(window.location.search);
+    return {
+      isReturn: query.get('vnpayReturn') === '1',
+      returnedStatus: query.get('status'),
+      responseCode: query.get('responseCode'),
+    };
+  });
+  const { isReturn, returnedStatus, responseCode } = returnQuery;
   const started = useRef(false);
   const [status, setStatus] = useState<VnpayViewStatus>(
     isReturn ? (returnedStatus === 'success' ? 'pending' : 'failed') : 'redirecting',
   );
+
+  useEffect(() => {
+    if (isReturn && window.location.search) {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`);
+    }
+  }, [isReturn]);
 
   useEffect(() => {
     if (isReturn || started.current) return;
@@ -53,5 +67,5 @@ export function useVnpayPayment(orderId: string) {
     return () => { active = false; window.clearInterval(interval); };
   }, [isReturn, orderId, status]);
 
-  return { status, responseCode: query.get('responseCode') };
+  return { status, responseCode };
 }
