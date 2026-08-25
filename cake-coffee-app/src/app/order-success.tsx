@@ -104,7 +104,7 @@ export default function OrderSuccessScreen() {
           <View style={styles.checkCircle}>
             <Ionicons name="checkmark-sharp" size={40} color="#FFFFFF" />
           </View>
-          <Text style={styles.bannerTitle}>ĐẶT HÀNG THÀNH CÔNG! 🎉</Text>
+          <Text style={styles.bannerTitle}>ĐẶT HÀNG THÀNH CÔNG!</Text>
           <Text style={styles.bannerSub}>
             Cảm ơn bạn đã lựa chọn Sweet Bean Coffee & Cake! Đơn hàng của bạn đã được ghi nhận vào hệ thống.
           </Text>
@@ -117,7 +117,7 @@ export default function OrderSuccessScreen() {
 
         {/* Live Order Timeline Progress */}
         <View style={styles.cardSection}>
-          <Text style={styles.cardSectionTitle}>Tiến Trình Đơn Hàng Real-Time ⏱️</Text>
+          <Text style={styles.cardSectionTitle}>Tiến Trình Đơn Hàng Real-Time</Text>
           <View style={styles.timelineRow}>
             {ORDER_STEPS.map((step, idx) => {
               const isPassed = idx <= activeStepIdx;
@@ -206,7 +206,7 @@ export default function OrderSuccessScreen() {
                   styles.infoVal,
                   { color: order?.paymentStatus === 'PAID' ? '#2E7D32' : '#E65100', fontWeight: 'bold' },
                 ]}>
-                {order?.paymentStatus === 'PAID' ? '✅ Đã thanh toán' : '⏳ Chờ thanh toán khi nhận hàng'}
+                {order?.paymentStatus === 'PAID' ? 'Đã thanh toán' : 'Chờ thanh toán khi nhận hàng'}
               </Text>
             </View>
           </View>

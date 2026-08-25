@@ -29,6 +29,8 @@ export default function PointsScreen() {
   const [loading, setLoading] = useState(true);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
 
+  const [loyaltyStatus, setLoyaltyStatus] = useState<any>(null);
+
   // Pagination states
   const [vouchersPage, setVouchersPage] = useState<number>(1);
   const [historyPage, setHistoryPage] = useState<number>(1);
@@ -37,13 +39,17 @@ export default function PointsScreen() {
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
   const [confirmVoucher, setConfirmVoucher] = useState<any | null>(null);
 
+  // Loyalty Rank Details Modal state
+  const [rankModalVisible, setRankModalVisible] = useState(false);
+  const [selectedRoadmapTier, setSelectedRoadmapTier] = useState<any>(null);
+
   // Real-time live polling & focus refresh
   useFocusEffect(
     useCallback(() => {
       fetchData(history.length === 0);
       const timer = setInterval(() => {
         fetchData(true); // silent live background fetch
-      }, 4000);
+      }, 10000);
       return () => clearInterval(timer);
     }, [user])
   );
@@ -51,8 +57,16 @@ export default function PointsScreen() {
   const fetchData = async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     try {
-      // 1. Fetch real points and history from PostgreSQL Database
-      const pointsRes = await apiFetch('/points/my-points').catch(() => null);
+      // 1. Fetch real points, history, and loyalty rank from PostgreSQL Database
+      const [pointsRes, loyaltyRes] = await Promise.all([
+        apiFetch('/points/my-points').catch(() => null),
+        apiFetch('/points/loyalty-status').catch(() => null),
+      ]);
+
+      if (loyaltyRes) {
+        setLoyaltyStatus(loyaltyRes);
+      }
+
       if (pointsRes && typeof pointsRes.points === 'number') {
         setPoints(pointsRes.points);
         if (Array.isArray(pointsRes.history)) {
@@ -93,7 +107,7 @@ export default function PointsScreen() {
 
   const handleOpenRedeemConfirm = (voucher: any) => {
     if (!user) {
-      Alert.alert('Yêu cầu đăng nhập 🔑', 'Vui lòng đăng nhập tài khoản để đổi điểm thưởng lấy voucher.');
+      Alert.alert('Yêu cầu đăng nhập', 'Vui lòng đăng nhập tài khoản để đổi điểm thưởng lấy voucher.');
       return;
     }
 
@@ -124,7 +138,7 @@ export default function PointsScreen() {
       });
 
       Alert.alert(
-        'Đổi Voucher Thành Công! 🎉',
+        'Đổi Voucher Thành Công!',
         res?.message || `Bạn đã dùng ${ptsReq.toLocaleString('vi-VN')} điểm đổi thành công mã ${voucher.code}.`,
         [
           { text: 'Đóng', style: 'cancel' },
@@ -140,16 +154,23 @@ export default function PointsScreen() {
     }
   };
 
-  // Determine Rank Tier based on total points
-  const getRankTier = (pts: number) => {
-    if (pts >= 100000) return { name: 'KIM CƯƠNG 💎', color: '#00BCD4', next: 200000, target: 'Đặc quyền VVIP' };
-    if (pts >= 20000) return { name: 'THÀNH VIÊN VÀNG 🥇', color: '#FFB300', next: 100000, target: 'Kim Cương' };
-    if (pts >= 5000) return { name: 'THÀNH VIÊN BẠC 🥈', color: '#78909C', next: 20000, target: 'Hạng Vàng' };
-    return { name: 'THÀNH VIÊN ĐỒNG 🥉', color: '#A1887F', next: 5000, target: 'Hạng Bạc' };
+  // Determine Rank Tier based on Database Loyalty Status
+  const getTierEmoji = (level?: number, name?: string) => {
+    return '';
   };
 
-  const currentTier = getRankTier(points);
-  const progressPercent = Math.min(100, Math.round((points / currentTier.next) * 100));
+  const dbCurrentTier = loyaltyStatus?.currentTier || user?.currentTier;
+  const tierNameRaw = dbCurrentTier?.name || 'Đồng';
+  const tierLevel = dbCurrentTier?.tierLevel || 1;
+  const tierColor = dbCurrentTier?.color || (tierLevel === 5 ? '#00BCD4' : '#FFB300');
+  const tierBadgeDisplay = `${tierNameRaw.toUpperCase()} ${getTierEmoji(tierLevel, tierNameRaw)}`;
+
+  const nextTierObj = loyaltyStatus?.nextTier;
+  const isMaxTier = !nextTierObj;
+  const targetLabel = isMaxTier ? 'Đặc quyền VVIP' : `Hạng ${nextTierObj.name}`;
+  const progressPercent = isMaxTier
+    ? 100
+    : Math.min(100, loyaltyStatus?.progress?.spentPercent ?? 0);
 
   const confirmPtsReq = confirmVoucher
     ? Number(confirmVoucher.discountedPointsRequired ?? confirmVoucher.pointsRequired ?? 0)
@@ -186,37 +207,46 @@ export default function PointsScreen() {
           )}
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={styles.userName}>{user?.fullName || 'Khách hàng Sweet Bean'}</Text>
-            <Text style={[styles.tierBadgeText, { color: currentTier.color }]}>
-              {currentTier.name}
+            <Text style={[styles.tierBadgeText, { color: tierColor }]}>
+              {tierBadgeDisplay}
             </Text>
           </View>
         </View>
 
-        {/* Royalty Points VIP Card */}
-        <View style={styles.pointsCard}>
+        {/* Royalty Points VIP Card - Tappable to open Rank Details Modal */}
+        <TouchableOpacity
+          style={styles.pointsCard}
+          activeOpacity={0.9}
+          onPress={() => {
+            setSelectedRoadmapTier(dbCurrentTier);
+            setRankModalVisible(true);
+          }}>
           <View style={styles.cardHeader}>
             <Ionicons name="sparkles" size={24} color="#FFB300" />
             <Text style={styles.cardBrandTitle}>SWEET BEAN REWARDS</Text>
+            <Ionicons name="chevron-forward" size={20} color="#FFB300" style={{ marginLeft: 'auto' }} />
           </View>
 
           <Text style={styles.pointsVal}>{points.toLocaleString('vi-VN')} điểm</Text>
-          <Text style={styles.cardSub}>Điểm tích lũy mua sắm tự động từ đơn hàng của bạn</Text>
+          <Text style={styles.cardSub}>
+            Hạng thành viên: <Text style={{ color: tierColor, fontWeight: 'bold' }}>{tierNameRaw}</Text> • Bấm xem chi tiết ➔
+          </Text>
 
           {/* Progress Bar to next tier */}
           <View style={styles.progressContainer}>
             <View style={styles.progressHeader}>
-              <Text style={styles.progressLabel}>Tiến trình lên {currentTier.target}</Text>
+              <Text style={styles.progressLabel}>Tiến trình lên {targetLabel}</Text>
               <Text style={styles.progressVal}>{progressPercent}%</Text>
             </View>
             <View style={styles.progressBarTrack}>
               <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
 
         {/* Vouchers Available for Exchange */}
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Đổi Voucher Khuyến Mãi 🎟️</Text>
+          <Text style={styles.sectionTitle}>Đổi Voucher Khuyến Mãi</Text>
           {vouchers.length > 0 && (
             <Text style={styles.countBadgeText}>
               (Tổng {vouchers.length} mã)
@@ -271,7 +301,7 @@ export default function PointsScreen() {
                     {isPointVoucher ? (
                       hasRedeemed ? (
                         <View style={styles.redeemedRow}>
-                          <Text style={styles.redeemedText}>✅ Đã đổi mã này</Text>
+                          <Text style={styles.redeemedText}>Đã đổi mã này</Text>
                           <TouchableOpacity
                             style={styles.useVoucherBtn}
                             onPress={() => router.push('/(tabs)/cart')}>
@@ -374,7 +404,7 @@ export default function PointsScreen() {
 
         {/* Points History */}
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Lịch Sử Tích / Tiêu Điểm 📜</Text>
+          <Text style={styles.sectionTitle}>Lịch Sử Tích / Tiêu Điểm</Text>
           {history.length > 0 && (
             <Text style={styles.countBadgeText}>
               (Tổng {history.length} giao dịch)
@@ -480,7 +510,7 @@ export default function PointsScreen() {
 
         {/* Royalty Rules */}
         <View style={styles.rulesCard}>
-          <Text style={styles.rulesTitle}>Quy tắc tích điểm Sweet Bean 💡</Text>
+          <Text style={styles.rulesTitle}>Quy tắc tích điểm Sweet Bean</Text>
           <Text style={styles.rulesItem}>• Mỗi 1.000đ giá trị đơn hàng = 1 điểm thưởng.</Text>
           <Text style={styles.rulesItem}>• Điểm tự động cộng vào tài khoản sau khi đơn hàng giao thành công.</Text>
           <Text style={styles.rulesItem}>• Dùng điểm để đổi voucher giảm giá trên ứng dụng bất cứ lúc nào!</Text>
@@ -499,7 +529,7 @@ export default function PointsScreen() {
               <Ionicons name="sparkles" size={32} color="#E65100" />
             </View>
 
-            <Text style={styles.modalTitle}>Xác Nhận Đổi Voucher 🎟️</Text>
+            <Text style={styles.modalTitle}>Xác Nhận Đổi Voucher</Text>
             <Text style={styles.modalMessage}>
               Bạn có chắc chắn muốn dùng{' '}
               <Text style={{ fontWeight: 'bold', color: '#E65100' }}>
@@ -531,11 +561,250 @@ export default function PointsScreen() {
               <TouchableOpacity
                 style={styles.modalConfirmBtn}
                 onPress={executeRedeem}>
-                <Text style={styles.modalConfirmText}>Đổi Ngay 🎟️</Text>
+                <Text style={styles.modalConfirmText}>Đổi Ngay</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Loyalty Rank & Tier Vouchers Details Modal */}
+      <Modal
+        visible={rankModalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setRankModalVisible(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#FFF8F0' }}>
+          <View style={styles.rankModalHeader}>
+            <TouchableOpacity onPress={() => setRankModalVisible(false)} style={styles.modalBackBtn}>
+              <Ionicons name="arrow-back" size={24} color="#3E2723" />
+            </TouchableOpacity>
+            <Text style={styles.rankModalHeaderTitle}>Điều Kiện Bậc Hạng</Text>
+          </View>
+
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+            {/* 1. Dynamic Loyalty Status Card */}
+            <View style={[styles.rankBannerCard, { backgroundColor: tierColor === '#00BCD4' ? '#006064' : '#3E2723' }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View>
+                  <Text style={styles.bannerTagText}>THẺ THÀNH VIÊN SWEET BEAN</Text>
+                  <Text style={styles.bannerTierName}>{tierNameRaw}</Text>
+                </View>
+                <Text style={styles.bannerLevelBadge}>Tier {tierLevel}</Text>
+              </View>
+
+              <View style={styles.bannerStatsRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.bannerStatLabel}>Tổng tiền đã tích lũy:</Text>
+                  <Text style={styles.bannerStatVal}>{(loyaltyStatus?.totalSpent || 0).toLocaleString('vi-VN')}đ</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.bannerStatLabel}>Sản phẩm đã mua:</Text>
+                  <Text style={styles.bannerStatVal}>{loyaltyStatus?.totalProductsPurchased || 0} SP</Text>
+                </View>
+              </View>
+
+              <Text style={styles.bannerEvalText}>
+                Đợt tổng kết xét hạng tiếp theo: {loyaltyStatus?.nextEvaluationDate ? new Date(loyaltyStatus.nextEvaluationDate).toLocaleDateString('vi-VN') : 'Định kỳ 3 tháng'}
+              </Text>
+            </View>
+
+            {/* 2. Upgrade Requirements (Dual Conditions) */}
+            {nextTierObj ? (
+              <View style={styles.upgradeSectionBox}>
+                <Text style={styles.sectionHeaderTitle}>
+                  Tiến trình nâng hạng tiếp theo: <Text style={{ color: '#E65100' }}>{nextTierObj.name}</Text>
+                </Text>
+                <Text style={styles.sectionHeaderSub}>
+                  Cần đạt đồng thời cả 2 mốc <Text style={{ fontWeight: 'bold' }}>Chi tiêu</Text> và <Text style={{ fontWeight: 'bold' }}>Số lượng sản phẩm</Text> trước đợt xét hạng:
+                </Text>
+
+                {/* Condition 1: Spent */}
+                <View style={styles.condCard}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={styles.condTitle}>1. Tổng tiền thanh toán ({(loyaltyStatus?.totalSpent || 0).toLocaleString('vi-VN')}đ):</Text>
+                    <Text style={styles.condPercent}>{(loyaltyStatus?.progress?.spentPercent || 0)}%</Text>
+                  </View>
+                  <View style={styles.progressBarTrack}>
+                    <View style={[styles.progressBarFill, { width: `${Math.min(100, loyaltyStatus?.progress?.spentPercent || 0)}%` }]} />
+                  </View>
+                  <Text style={styles.condSubText}>
+                    Mốc yêu cầu: <Text style={{ fontWeight: 'bold' }}>{Number(nextTierObj.minSpent).toLocaleString('vi-VN')}đ</Text>{' '}
+                    {(loyaltyStatus?.progress?.spentNeeded || 0) > 0 ? (
+                      <Text style={{ color: '#E65100', fontWeight: 'bold' }}>(Còn thiếu {(loyaltyStatus?.progress?.spentNeeded).toLocaleString('vi-VN')}đ)</Text>
+                    ) : (
+                      <Text style={{ color: '#2E7D32', fontWeight: 'bold' }}>(Đã đạt mốc tiền)</Text>
+                    )}
+                  </Text>
+                </View>
+
+                {/* Condition 2: Products */}
+                <View style={styles.condCard}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={styles.condTitle}>2. Số sản phẩm đã mua ({loyaltyStatus?.totalProductsPurchased || 0} SP):</Text>
+                    <Text style={styles.condPercent}>{(loyaltyStatus?.progress?.productsPercent || 0)}%</Text>
+                  </View>
+                  <View style={styles.progressBarTrack}>
+                    <View style={[styles.progressBarFill, { width: `${Math.min(100, loyaltyStatus?.progress?.productsPercent || 0)}%`, backgroundColor: '#0288D1' }]} />
+                  </View>
+                  <Text style={styles.condSubText}>
+                    Mốc yêu cầu: <Text style={{ fontWeight: 'bold' }}>{nextTierObj.minProducts} sản phẩm</Text>{' '}
+                    {(loyaltyStatus?.progress?.productsNeeded || 0) > 0 ? (
+                      <Text style={{ color: '#0288D1', fontWeight: 'bold' }}>(Còn thiếu {loyaltyStatus?.progress?.productsNeeded} SP)</Text>
+                    ) : (
+                      <Text style={{ color: '#2E7D32', fontWeight: 'bold' }}>(Đã đạt mốc số lượng)</Text>
+                    )}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.maxTierBox}>
+                <Ionicons name="trophy" size={32} color="#FFB300" />
+                <Text style={styles.maxTierTitle}>Bạn đang ở Hạng Cao Nhất (Kim Cương)!</Text>
+                <Text style={styles.maxTierSub}>Mở khóa toàn bộ đặc quyền Voucher cao cấp nhất dành cho Kim Cương.</Text>
+              </View>
+            )}
+
+            {/* 3. Inactivity Rule Warning */}
+            <View style={styles.inactivityRuleBox}>
+              <Ionicons name="warning-outline" size={20} color="#D32F2F" />
+              <View style={{ flex: 1, marginLeft: 8 }}>
+                <Text style={styles.inactivityRuleTitle}>Quy tắc giữ hạng 1 năm (365 ngày)</Text>
+                <Text style={styles.inactivityRuleSub}>
+                  Nếu không phát sinh đơn hàng mua thành công trong vòng 365 ngày, hạng của bạn sẽ bị reset về hạng Đồng (Tier 1).
+                </Text>
+              </View>
+            </View>
+
+            {/* 4. 5-Tier Roadmap visualization */}
+            <Text style={styles.roadmapSectionTitle}>Lộ Trình 5 Bậc Hạng</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 10 }}>
+              {(loyaltyStatus?.allTiers || []).map((t: any) => {
+                const isCurrent = t.tierLevel === tierLevel;
+                const isUnlocked = t.tierLevel <= tierLevel;
+                const activeSelected = selectedRoadmapTier || dbCurrentTier;
+                const isSelected = (activeSelected?.tierLevel || tierLevel) === t.tierLevel;
+                const minSpent = Number(t.minSpent || 0);
+
+                return (
+                  <TouchableOpacity
+                    key={t.id || t.tierLevel}
+                    onPress={() => setSelectedRoadmapTier(t)}
+                    style={[
+                      styles.roadmapCard,
+                      isCurrent && { borderColor: '#FFB300', borderWidth: 2, backgroundColor: '#FFF8E1' },
+                      isSelected && { backgroundColor: '#FFE0B2', borderColor: '#E65100', borderWidth: 2 },
+                    ]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={[styles.roadmapTierLevelBadge, { backgroundColor: t.color || '#8B5CF6' }]}>
+                        Tier {t.tierLevel}
+                      </Text>
+                      {isCurrent ? (
+                        <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#E65100' }}>Hạng hiện tại</Text>
+                      ) : isUnlocked ? (
+                        <Ionicons name="checkmark-circle" size={16} color="#2E7D32" />
+                      ) : (
+                        <Ionicons name="lock-closed" size={14} color="#9E9E9E" />
+                      )}
+                    </View>
+
+                    <Text style={styles.roadmapTierName}>{t.name}</Text>
+                    <Text style={styles.roadmapReqText}>Tiền: {minSpent > 0 ? `${(minSpent / 1000).toLocaleString('vi-VN')}k` : '0đ'}</Text>
+                    <Text style={styles.roadmapReqText}>Sản phẩm: {t.minProducts} SP</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {/* 5. Exclusive Vouchers for Tier */}
+            <View style={{ marginTop: 16, marginBottom: 24 }}>
+              <Text style={styles.tierVouchersTitle}>
+                Voucher Đặc Quyền Hạng {(selectedRoadmapTier || dbCurrentTier)?.name || tierNameRaw}
+              </Text>
+
+              {(() => {
+                const activeFilterTier = selectedRoadmapTier || dbCurrentTier;
+                const filteredTierVouchers = vouchers.filter((v) => {
+                  const vTierId = v.applicableTierId || v.applicableTier?.id;
+                  const vTierLevel = v.applicableTier?.tierLevel;
+                  const vTierName = v.applicableTier?.name;
+                  if (!vTierId && !vTierLevel && !vTierName) return false;
+
+                  const matchId = activeFilterTier?.id && vTierId && vTierId === activeFilterTier.id;
+                  const matchLevel = activeFilterTier?.tierLevel !== undefined && vTierLevel !== undefined && Number(vTierLevel) === Number(activeFilterTier.tierLevel);
+                  const matchName = activeFilterTier?.name && vTierName && vTierName.toLowerCase().trim() === activeFilterTier.name.toLowerCase().trim();
+
+                  return matchId || matchLevel || matchName;
+                });
+
+                if (filteredTierVouchers.length === 0) {
+                  return (
+                    <View style={styles.emptyVoucherBox}>
+                      <Ionicons name="gift-outline" size={28} color="#BCAAA4" />
+                      <Text style={styles.emptyVoucherText}>
+                        Chưa có voucher tạo riêng cho Hạng {activeFilterTier?.name || tierNameRaw}.
+                      </Text>
+                    </View>
+                  );
+                }
+
+                const isUserEligibleForTier = (tierLevel || 1) >= Number(activeFilterTier?.tierLevel || 1);
+
+                return filteredTierVouchers.map((v) => {
+                  const rawVal = Number(v.discountValue || 0);
+                  const formattedDiscountVal = Number(rawVal.toFixed(2));
+                  const minOrderVal = Number(v.minOrderValue || 0);
+
+                  let savingsHint = '';
+                  if (v.discountType === 'percent' || v.discountType === 'percentage') {
+                    if (minOrderVal > 0) {
+                      const estSave = Math.round((minOrderVal * rawVal) / 100);
+                      savingsHint = ` (Tiết kiệm từ -${estSave.toLocaleString('vi-VN')}đ)`;
+                    }
+                  }
+
+                  const discountText =
+                    v.discountType === 'percent' || v.discountType === 'percentage'
+                      ? `Giảm ${formattedDiscountVal}% đơn hàng${savingsHint}`
+                      : `Giảm -${rawVal.toLocaleString('vi-VN')}đ đơn hàng`;
+
+                  return (
+                    <View key={v.id || v.code} style={styles.tierVoucherCard}>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={styles.tierVoucherCode}>{v.code}</Text>
+                        </View>
+                        <Text style={styles.tierVoucherDesc}>
+                          {discountText}
+                          {v.minOrderValue > 0 ? ` cho đơn từ ${Number(v.minOrderValue).toLocaleString('vi-VN')}đ` : ''}
+                        </Text>
+                        <Text style={styles.tierVoucherExp}>
+                          Hạn dùng: {v.expiresAt ? new Date(v.expiresAt).toLocaleDateString('vi-VN') : 'Không thời hạn'}
+                        </Text>
+                      </View>
+
+                      {isUserEligibleForTier ? (
+                        <TouchableOpacity
+                          style={styles.copyCodeBtn}
+                          onPress={() => {
+                            Alert.alert('Đã sao chép mã!', `Mã ${v.code} đã được lưu vào bộ nhớ tạm.`);
+                          }}>
+                          <Ionicons name="copy-outline" size={14} color="#FFFFFF" />
+                          <Text style={styles.copyCodeText}>Sao chép</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <View style={styles.lockedTierBtn}>
+                          <Ionicons name="lock-closed" size={14} color="#757575" />
+                          <Text style={styles.lockedTierBtnText}>Chưa đạt hạng</Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                });
+              })()}
+            </View>
+          </ScrollView>
+        </SafeAreaView>
       </Modal>
     </SafeAreaView>
   );
@@ -948,5 +1217,288 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#FFFFFF',
+  },
+  tapToViewDetailsHint: {
+    color: '#FFB300',
+    fontSize: 11,
+    fontWeight: 'bold',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  rankModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EFEBE9',
+  },
+  modalBackBtn: {
+    padding: 6,
+    marginRight: 8,
+  },
+  rankModalHeaderTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#3E2723',
+  },
+  rankBannerCard: {
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 16,
+  },
+  bannerTagText: {
+    color: '#FFB300',
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  bannerTierName: {
+    color: '#FFFFFF',
+    fontSize: 26,
+    fontWeight: 'bold',
+    marginTop: 2,
+  },
+  bannerLevelBadge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  bannerStatsRow: {
+    flexDirection: 'row',
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.15)',
+  },
+  bannerStatLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+  },
+  bannerStatVal: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginTop: 2,
+  },
+  bannerEvalText: {
+    color: '#FFE0B2',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 12,
+  },
+  upgradeSectionBox: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFE0B2',
+  },
+  sectionHeaderTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#3E2723',
+    marginBottom: 4,
+  },
+  sectionHeaderSub: {
+    fontSize: 12,
+    color: '#757575',
+    marginBottom: 12,
+    lineHeight: 16,
+  },
+  condCard: {
+    backgroundColor: '#FFF8F0',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+  },
+  condTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#3E2723',
+  },
+  condPercent: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#E65100',
+  },
+  condSubText: {
+    fontSize: 11,
+    color: '#616161',
+    marginTop: 6,
+  },
+  maxTierBox: {
+    backgroundColor: '#FFF8E1',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFE0B2',
+  },
+  maxTierTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#3E2723',
+    marginTop: 8,
+  },
+  maxTierSub: {
+    fontSize: 12,
+    color: '#757575',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  inactivityRuleBox: {
+    flexDirection: 'row',
+    backgroundColor: '#FFEBEE',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFCDD2',
+  },
+  inactivityRuleTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#D32F2F',
+  },
+  inactivityRuleSub: {
+    fontSize: 11,
+    color: '#B71C1C',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  roadmapSectionTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#3E2723',
+  },
+  roadmapCard: {
+    width: 130,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 12,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    gap: 4,
+  },
+  roadmapTierLevelBadge: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  roadmapTierName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#3E2723',
+    marginTop: 4,
+  },
+  roadmapReqText: {
+    fontSize: 11,
+    color: '#757575',
+  },
+  tierVouchersTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#3E2723',
+    marginBottom: 10,
+  },
+  emptyVoucherBox: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#EFEBE9',
+  },
+  emptyVoucherText: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#5D4037',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  emptyVoucherSub: {
+    fontSize: 11,
+    color: '#8D6E63',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  tierVoucherCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FFE0B2',
+  },
+  tierVoucherCode: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#E65100',
+  },
+  tierVoucherBadge: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#E65100',
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  tierVoucherDesc: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#3E2723',
+    marginTop: 4,
+  },
+  tierVoucherExp: {
+    fontSize: 10,
+    color: '#9E9E9E',
+    marginTop: 2,
+  },
+  copyCodeBtn: {
+    backgroundColor: '#E65100',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: 8,
+  },
+  copyCodeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  lockedTierBtn: {
+    backgroundColor: '#EEEEEE',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  lockedTierBtnText: {
+    color: '#757575',
+    fontSize: 11,
+    fontWeight: 'bold',
   },
 });

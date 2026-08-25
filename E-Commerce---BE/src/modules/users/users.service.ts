@@ -52,15 +52,15 @@ export class UsersService {
     }
 
     async findByEmail(email: string): Promise<User | null> {
-        return this.users.findOne({ where: { email } });
+        return this.users.findOne({ where: { email }, relations: { currentTier: true } });
     }
 
     async findByPhone(phone: string): Promise<User | null> {
-        return this.users.findOne({ where: { phone } });
+        return this.users.findOne({ where: { phone }, relations: { currentTier: true } });
     }
 
     async findById(id: string): Promise<User | null> {
-        return this.users.findOne({ where: { id } });
+        return this.users.findOne({ where: { id }, relations: { currentTier: true } });
     }
 
     async update(id: string, attrs: Partial<User>): Promise<User> {

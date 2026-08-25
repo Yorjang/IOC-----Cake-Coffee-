@@ -125,7 +125,7 @@ export class PointsService implements OnModuleInit {
           minProducts: 70,
           discountPercent: 0,
           bonusPointRate: 2.0,
-          color: '#EC4899',
+          color: '#00BCD4',
           description: 'Hạng đặc quyền cao nhất, tối thiểu 10.000.000 đồng và 70 sản phẩm.',
         },
       ];
@@ -135,6 +135,7 @@ export class PointsService implements OnModuleInit {
         if (existing) {
           existing.minSpent = tierData.minSpent;
           existing.minProducts = tierData.minProducts;
+          existing.color = tierData.color;
           existing.description = tierData.description;
           await this.loyaltyTierRepository.save(existing);
         } else {
