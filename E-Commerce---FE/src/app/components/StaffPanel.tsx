@@ -3,6 +3,7 @@ import {
   Banknote,
   CakeSlice,
   Check,
+  CheckCircle,
   ClipboardCheck,
   Coffee,
   CreditCard,
@@ -310,18 +311,19 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
 
   const addToCart = (product: any[], variant?: any) => {
     const raw = (product as any).raw || {};
-    const activeVariants = raw.variants?.filter((v: any) => v.status === "active") || [];
+    const displayVariants = raw.variants?.filter((v: any) => v.status !== "inactive") || [];
+    const availableVariants = displayVariants.filter((v: any) => v.status === "active");
     
     if (!variant) {
-      if (activeVariants.length > 1) {
+      if (displayVariants.length > 1) {
         setSelectedProductForVariant(product);
         return;
       }
-      variant = activeVariants[0];
+      variant = availableVariants[0];
     }
     
-    if (!variant) {
-      toast.error("Sản phẩm không có dữ liệu phiên bản");
+    if (!variant || variant.status !== "active") {
+      toast.error("Sản phẩm đã hết hàng hoặc không có dữ liệu phiên bản");
       return;
     }
 
@@ -976,14 +978,22 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
             <p className="mt-1 text-sm text-muted-foreground">{selectedProductForVariant[0]}</p>
             <div className="mt-5 space-y-3">
               {((selectedProductForVariant as any).raw?.variants || [])
-                .filter((v: any) => v.status === "active")
+                .filter((v: any) => v.status !== "inactive")
                 .map((variant: any) => (
                   <button
                     key={variant.id}
-                    onClick={() => addToCart(selectedProductForVariant, variant)}
-                    className="flex w-full items-center justify-between rounded-xl border p-4 text-left transition hover:border-primary hover:bg-secondary"
+                    onClick={() => variant.status === "active" && addToCart(selectedProductForVariant, variant)}
+                    disabled={variant.status !== "active"}
+                    className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition ${
+                      variant.status === "active"
+                        ? "hover:border-primary hover:bg-secondary cursor-pointer"
+                        : "opacity-50 cursor-not-allowed bg-muted"
+                    }`}
                   >
-                    <span className="font-medium">{variant.size || variant.variantName}</span>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{variant.size || variant.variantName}</span>
+                      {variant.status !== "active" && <span className="text-xs text-destructive mt-1">Hết hàng</span>}
+                    </div>
                     <span className="text-primary font-semibold">{formatMoney(Number(variant.price))}</span>
                   </button>
                 ))}
