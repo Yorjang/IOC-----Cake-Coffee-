@@ -2,7 +2,7 @@ import {
   AlertTriangle,
   ArrowUpRight,
   Bike,
-  CheckCircle,
+  CheckCircle2,
   Clock,
   Coins,
   Eye,
@@ -308,7 +308,7 @@ function ConfirmDeliveryModal({
             onClick={() => onSubmit(photoUrl)}
             className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitting ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+            {submitting ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
             Xác nhận
           </button>
         </div>
@@ -739,7 +739,7 @@ export function ShipperPanel({ onExit, onLoginRedirect }: ShipperPanelProps) {
             }}
             className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80"
           >
-            <CheckCircle size={14} />
+            <CheckCircle2 size={14} />
             Xác nhận đã giao
           </button>
         </div>

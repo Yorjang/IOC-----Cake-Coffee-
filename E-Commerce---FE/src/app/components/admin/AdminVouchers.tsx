@@ -1,7 +1,7 @@
 import { parseRes } from '../../../utils/api';
 
 import {
-  CheckCircle,
+  CheckCircle2,
   Edit,
   Loader2,
   Trash2
@@ -571,7 +571,7 @@ export function AdminVouchers() {
                           onClick={() => handleApprove(v.id)}
                           className="inline-flex size-8 items-center justify-center rounded-lg bg-green-950/40 text-green-400 hover:bg-green-900/40 transition animate-pulse"
                         >
-                          <CheckCircle size={14} />
+                          <CheckCircle2 size={14} />
                         </button>
                       )}
                       <button

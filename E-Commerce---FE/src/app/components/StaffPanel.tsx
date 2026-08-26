@@ -3,7 +3,7 @@ import {
   Banknote,
   CakeSlice,
   Check,
-  CheckCircle,
+  CheckCircle2,
   ClipboardCheck,
   Coffee,
   CreditCard,
@@ -676,7 +676,7 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
                           <div className="mt-4 flex flex-wrap gap-2">
                             {order.orderStatus === "pending" && (
                               <StaffButton onClick={() => updateOrderStatus(order.id, "confirmed")}>
-                                <CheckCircle size={14} /> Xác nhận
+                                <CheckCircle2 size={14} /> Xác nhận
                               </StaffButton>
                             )}
                             {order.orderStatus === "confirmed" && (
