@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { AlertTriangle, ArrowUpRight, CheckCircle, Clock, Eye, Loader2, MapPin, Navigation, PackageCheck, Phone, Search, Truck } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, CircleCheck, Clock, Eye, Loader2, MapPin, Navigation, PackageCheck, Phone, Search, Truck } from "lucide-react";
 import { MY_SECTIONS, ShipperBadge, type ShipperOrder, formatMoney, getDirectionsUrl, mapOrder } from "./ShipperShared";
 
 export function QueueTab({
@@ -119,7 +119,7 @@ export function QueueTab({
             }}
             className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80"
           >
-            <CheckCircle size={14} />
+            <CircleCheck size={14} />
             Xác nhận đã giao
           </button>
         </div>

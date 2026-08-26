@@ -194,7 +194,7 @@ export function PosTab({ products, categories, branchId, loadOrders, active }: a
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-            {posProducts.map((product: any[]) => {
+            {posProducts.map((product: any) => {
               const isOutOfStock = product[5] === "Hết hàng" || (product.raw && product.raw.isActive === false);
               return (
                 <button

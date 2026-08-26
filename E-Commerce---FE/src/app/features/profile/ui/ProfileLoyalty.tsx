@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Award,
-  CheckCircle,
+  CircleCheck,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -498,7 +498,7 @@ export function ProfileLoyalty() {
                       Hạng hiện tại
                     </span>
                   ) : isUnlocked ? (
-                    <CheckCircle size={16} className="text-green-500" />
+                    <CircleCheck size={16} className="text-green-500" />
                   ) : (
                     <Lock size={14} className="text-muted-foreground" />
                   )}

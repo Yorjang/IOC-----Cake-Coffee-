@@ -1,4 +1,3 @@
-import React from "react";
 import { Loader2, Wallet } from "lucide-react";
 import { type RemitRequest, REMIT_STATUS_LABEL, ShipperBadge, formatMoney } from "./ShipperShared";
 

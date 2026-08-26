@@ -7,13 +7,11 @@ import {
   MapPin,
   Menu,
   Package,
-  PanelLeftClose, PanelLeftOpen,
   Settings, ShoppingBag,
   Star,
   Store,
   Tag,
-  Users,
-  X
+  Users
 } from "lucide-react";
 import { useEffect, useState } from "react";
 

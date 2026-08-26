@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { AlertTriangle, CheckCircle, Loader2, X } from "lucide-react";
+import { AlertTriangle, CircleCheck, Loader2, X } from "lucide-react";
 import { ImageUploader } from "../admin/AdminShared";
 import { type ShipperOrder, QUICK_FAIL_REASONS, formatMoney } from "./ShipperShared";
 
@@ -115,7 +115,7 @@ export function ConfirmDeliveryModal({
             onClick={() => onSubmit(photoUrl)}
             className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitting ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+            {submitting ? <Loader2 size={14} className="animate-spin" /> : <CircleCheck size={14} />}
             Xác nhận
           </button>
         </div>
@@ -235,7 +235,7 @@ export function ConfirmRemittanceModal({
             onClick={onSubmit}
             className="flex flex-1 items-center justify-center gap-2 rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/80 disabled:opacity-60"
           >
-            {submitting ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+            {submitting ? <Loader2 size={14} className="animate-spin" /> : <CircleCheck size={14} />}
             Xác nhận
           </button>
         </div>
