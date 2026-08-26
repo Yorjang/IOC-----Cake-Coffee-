@@ -1,7 +1,7 @@
 import { parseRes } from '../../../utils/api';
 
 import {
-  CheckCircle,
+  CheckCircle2,
   Loader2,
   Star,
   Trash2,
@@ -149,7 +149,7 @@ export function AdminReviews() {
                       onClick={() => updateVisibility(r.id, true)}
                       className="inline-flex size-8 items-center justify-center rounded-lg bg-green-950/40 text-green-400 hover:bg-green-900/40 transition"
                     >
-                      <CheckCircle size={14} />
+                      <CheckCircle2 size={14} />
                     </button>
                   )}
                   <button
