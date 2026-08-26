@@ -3,7 +3,7 @@ import { parseRes } from '../../../utils/api';
 import React, { useState, useEffect } from "react";
 import {
   LayoutDashboard, Package, Tag, Settings, ShoppingBag, Users, Star,
-  BarChart2, Image, Edit, Trash2, Eye, Plus, CheckCircle2, XCircle,
+  BarChart2, Image, Edit, Trash2, Eye, Plus, CheckCircle, XCircle,
   TrendingUp, AlertCircle, Loader2, ToggleLeft, Search, Filter,
   ArrowUpRight, DollarSign, Clock, ChevronDown, Store, MapPin, Boxes,
   ReceiptText, ClipboardList, UploadCloud, PanelLeftClose, PanelLeftOpen, Menu, X

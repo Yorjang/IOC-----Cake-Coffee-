@@ -1,4 +1,4 @@
-import { CheckCircle2, Crosshair, Loader2, MapPin } from "lucide-react";
+import { CheckCircle, Crosshair, Loader2, MapPin } from "lucide-react";
 import type { AddressSuggestion, DeliveryCoordinates } from "../types";
 
 interface DeliveryAddressFieldProps {
@@ -60,7 +60,7 @@ export function DeliveryAddressField({
             className="w-full rounded-xl border bg-input py-2.5 pl-10 pr-10 text-sm outline-none focus:border-primary"
           />
           {isSearching && <Loader2 className="absolute right-3 top-3 animate-spin text-primary" size={17} />}
-          {!isSearching && coordinates && <CheckCircle2 className="absolute right-3 top-3 text-green-600" size={17} />}
+          {!isSearching && coordinates && <CheckCircle className="absolute right-3 top-3 text-green-600" size={17} />}
         </div>
 
         {isSuggestionOpen && suggestions.length > 0 && (

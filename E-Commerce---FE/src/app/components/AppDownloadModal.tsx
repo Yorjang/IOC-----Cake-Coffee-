@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Smartphone, QrCode, CheckCircle2, Sparkles, Apple, Download } from "lucide-react";
+import { X, Smartphone, QrCode, CheckCircle, Sparkles, Apple, Download } from "lucide-react";
 
 interface AppDownloadModalProps {
   isOpen: boolean;
@@ -168,11 +168,11 @@ export function AppDownloadModal({
           </h4>
           <ul className="space-y-1.5 text-[11px] text-[#6D4C41]">
             <li className="flex items-start gap-2">
-              <CheckCircle2 size={14} className="text-[#4CAF50] shrink-0 mt-0.5" />
+              <CheckCircle size={14} className="text-[#4CAF50] shrink-0 mt-0.5" />
               <span><strong>Tải File APK Android (Google Drive):</strong> Bấm nút <strong>Tải File APK App</strong> để truy cập thư mục Google Drive chứa file .apk và cài đặt trực tiếp.</span>
             </li>
             <li className="flex items-start gap-2">
-              <CheckCircle2 size={14} className="text-[#4CAF50] shrink-0 mt-0.5" />
+              <CheckCircle size={14} className="text-[#4CAF50] shrink-0 mt-0.5" />
               <span><strong>Mã QR:</strong> Dùng camera điện thoại quét mã QR tương ứng ở cột <strong>Android</strong> hoặc <strong>iOS</strong> để tải app.</span>
             </li>
           </ul>
