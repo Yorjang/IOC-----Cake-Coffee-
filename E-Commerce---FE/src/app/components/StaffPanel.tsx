@@ -125,7 +125,7 @@ function StaffMetric({ label, value, sub, icon: Icon, warn = false }: any) {
   );
 }
 
-export function StaffPanel({ onExit, staffUser, products = [], categories = [] }: StaffPanelProps) {
+export function StaffPanel({ onExit, staffUser, products = [], categories = [], selectedStore }: any) {
   const [active, setActive] = useState("counter");
   const [activeCategory, setActiveCategory] = useState("Tất cả");
   const [query, setQuery] = useState("");
@@ -143,8 +143,9 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
 
   const loadOrders = async () => {
     const token = getAccessToken();
+    const branchId = staffUser?.branchId || staffUser?.branch?.id || selectedStore?.id;
     try {
-      const res = await fetch(`${env.API_URL}/admin/orders`, {
+      const res = await fetch(`${env.API_URL}/admin/orders?branchId=${branchId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await parseRes(res);
@@ -191,7 +192,7 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
       return;
     }
     const token = getAccessToken();
-    const branchId = staffUser?.branchId || staffUser?.branch?.id;
+    const branchId = staffUser?.branchId || staffUser?.branch?.id || selectedStore?.id;
     if (!branchId) {
       toast.error("Không tìm thấy thông tin chi nhánh của nhân viên");
       return;
@@ -634,6 +635,23 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
                           ?.map((i: any) => `${i.quantity}x ${i.productName}`)
                           .join(" · ") || "N/A";
 
+                      const getOrderActions = (status: string) => {
+                        const actions = [];
+                        if (status === "pending") {
+                          actions.push({ label: "Xác nhận", next: "confirmed", Icon: Check, variant: "primary" });
+                        } else if (status === "confirmed") {
+                          actions.push({ label: "Chuyển bếp", next: "preparing", Icon: Coffee, variant: "secondary" });
+                        } else if (status === "preparing") {
+                          actions.push({ label: "Giao shipper", next: "shipping", Icon: Truck, variant: "secondary" });
+                        }
+                        if (status !== "completed" && status !== "cancelled") {
+                          actions.push({ label: "Huỷ", next: "cancelled", Icon: XCircle, variant: "danger" });
+                        }
+                        return actions;
+                      };
+
+                      const actions = getOrderActions(order.orderStatus);
+
                       return (
                         <article
                           key={order.id}
@@ -642,7 +660,7 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
                           <div className="flex flex-wrap items-start justify-between gap-4">
                             <div>
                               <p className="font-mono text-xs text-primary">
-                                #{order.orderCode} · {order.paymentMethod.toUpperCase()}
+                                #{order.orderCode} · {order.paymentMethod?.toUpperCase()}
                               </p>
                               <h3 className="mt-1 font-sans text-base font-semibold">
                                 {order.shippingRecipientName || order.user?.fullName || "Khách"}
@@ -674,35 +692,15 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [] }
                             </div>
                           </div>
                           <div className="mt-4 flex flex-wrap gap-2">
-                            {order.orderStatus === "pending" && (
-                              <StaffButton onClick={() => updateOrderStatus(order.id, "confirmed")}>
-                                <CheckCircle2 size={14} /> Xác nhận
-                              </StaffButton>
-                            )}
-                            {order.orderStatus === "confirmed" && (
+                            {actions.map(({ label, next, Icon, variant }) => (
                               <StaffButton
-                                onClick={() => updateOrderStatus(order.id, "preparing")}
-                                variant="secondary"
+                                key={next}
+                                onClick={() => updateOrderStatus(order.id, next)}
+                                variant={variant}
                               >
-                                <Coffee size={14} /> Chuyển bếp
+                                <Icon size={14} /> {label}
                               </StaffButton>
-                            )}
-                            {order.orderStatus === "preparing" && (
-                              <StaffButton
-                                onClick={() => updateOrderStatus(order.id, "shipping")}
-                                variant="secondary"
-                              >
-                                <Truck size={14} /> Giao shipper
-                              </StaffButton>
-                            )}
-                            {order.orderStatus !== "completed" && (
-                              <StaffButton
-                                onClick={() => updateOrderStatus(order.id, "cancelled")}
-                                variant="danger"
-                              >
-                                <XCircle size={14} /> Huỷ
-                              </StaffButton>
-                            )}
+                            ))}
                           </div>
                         </article>
                       );
