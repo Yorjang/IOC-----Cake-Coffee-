@@ -19,10 +19,39 @@ export class MailService {
     });
   }
 
+  private getClientUrl(): string {
+    const clientUrl = this.configService.get<string>('CLIENT_URL')?.trim();
+    if (!clientUrl) {
+      throw new InternalServerErrorException(
+        'CLIENT_URL environment variable is not configured. Set it to the public application domain.',
+      );
+    }
+
+    try {
+      const parsedUrl = new URL(clientUrl);
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        throw new Error('Unsupported URL protocol');
+      }
+
+      if (
+        this.configService.get<string>('NODE_ENV') === 'production' &&
+        ['localhost', '127.0.0.1', '::1'].includes(parsedUrl.hostname)
+      ) {
+        throw new Error('Localhost URL is not allowed in production');
+      }
+    } catch {
+      throw new InternalServerErrorException(
+        'CLIENT_URL must be a valid public HTTP(S) application URL.',
+      );
+    }
+
+    return clientUrl;
+  }
+
   async sendVerificationEmail(to: string, token: string): Promise<void> {
-    const clientUrl = this.configService.get<string>('CLIENT_URL') || 'http://localhost:3000';
-    // Directly verification endpoint (which is hosted on the same server)
-    const verificationUrl = `${clientUrl}/auth/verify-email?token=${token}`;
+    const clientUrl = this.getClientUrl();
+    const verificationUrl = new URL('/auth/verify-email', clientUrl);
+    verificationUrl.searchParams.set('token', token);
 
     const mailOptions = {
       from: `"Cake & Coffee Shop" <${this.configService.get<string>('SMTP_USER')}>`,
@@ -34,10 +63,8 @@ export class MailService {
           <p>Hi there,</p>
           <p>Thank you for registering. Please click the button below to verify your email address and activate your account:</p>
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${verificationUrl}" style="background-color: #D4A373; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Verify Email Address</a>
+            <a href="${verificationUrl.toString()}" style="background-color: #D4A373; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Verify Email Address</a>
           </div>
-          <p>Or copy and paste this link in your browser:</p>
-          <p><a href="${verificationUrl}">${verificationUrl}</a></p>
           <br>
           <p>Best regards,<br>Cake & Coffee Team</p>
         </div>
@@ -54,8 +81,9 @@ export class MailService {
   }
 
   async sendResetPasswordEmail(to: string, token: string): Promise<void> {
-    const clientUrl = this.configService.get<string>('CLIENT_URL') || 'http://localhost:3000';
-    const resetUrl = `${clientUrl}/reset-password?token=${token}`;
+    const clientUrl = this.getClientUrl();
+    const resetUrl = new URL('/reset-password', clientUrl);
+    resetUrl.searchParams.set('token', token);
 
     const mailOptions = {
       from: `"Cake & Coffee Shop" <${this.configService.get<string>('SMTP_USER')}>`,
@@ -67,12 +95,12 @@ export class MailService {
           <p>Hi there,</p>
           <p>We received a request to reset your password for your Cake & Coffee Shop account. Click the button below to set a new password:</p>
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${resetUrl}" style="background-color: #D4A373; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
+            <a href="${resetUrl.toString()}" style="background-color: #D4A373; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
           </div>
           <p>This password reset link will expire in 15 minutes.</p>
           <p>If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
           <p>Or copy and paste this link in your browser:</p>
-          <p><a href="${resetUrl}">${resetUrl}</a></p>
+          <p><a href="${resetUrl.toString()}">${resetUrl.toString()}</a></p>
           <br>
           <p>Best regards,<br>Cake & Coffee Team</p>
         </div>
