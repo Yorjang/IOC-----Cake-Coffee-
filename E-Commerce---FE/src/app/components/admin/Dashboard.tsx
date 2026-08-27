@@ -76,8 +76,7 @@ export function Dashboard() {
     );
   }
 
-  const { stats, weekly, recentOrders } = data;
-  const maxRev = Math.max(...weekly.map((d: any) => d.revenue), 1);
+  const { stats, weekly, recentOrders, lowStockCount } = data;
 
   const iconMap: Record<string, any> = {
     DollarSign,
@@ -114,6 +113,8 @@ export function Dashboard() {
           {stats.map(({ label, value, delta, icon }: any) => {
             const IconComponent = iconMap[icon] || DollarSign;
             const isRevenue = label.toLowerCase().includes("doanh thu");
+            const deltaNumber = Number(delta) || 0;
+            const isStable = deltaNumber === 0;
             return (
               <div 
                 key={label} 
@@ -128,10 +129,10 @@ export function Dashboard() {
                 <div>
                   <h3 className="text-2xl font-semibold text-foreground">{value}</h3>
                   <div className="mt-2 flex items-center gap-1.5">
-                    <span className={`inline-flex items-center rounded-sm px-1.5 py-0.5 text-[11px] font-medium ${isRevenue ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
-                      {delta.includes('-') ? '' : '+'}{delta.replace(/[^0-9.-]/g, '')}%
+                    <span className={`inline-flex items-center rounded-sm px-1.5 py-0.5 text-[11px] font-medium ${isStable ? "bg-gray-100 text-gray-600" : isRevenue ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
+                      {isStable ? "—" : `${deltaNumber > 0 ? "+" : ""}${deltaNumber}%`}
                     </span>
-                    <span className="text-[11px] text-muted-foreground">So với tuần trước</span>
+                    <span className="text-[11px] text-muted-foreground">{isStable ? "Không đổi" : "So với hôm qua"}</span>
                   </div>
                 </div>
               </div>
@@ -253,7 +254,11 @@ export function Dashboard() {
               </div>
               <div>
                 <p className="text-sm font-medium">Cảnh báo tồn kho</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Có 3 sản phẩm sắp hết hàng</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {Number(lowStockCount) > 0
+                    ? `Có ${Number(lowStockCount)} phiên bản sắp hết hàng`
+                    : "Không có phiên bản sắp hết hàng"}
+                </p>
               </div>
             </div>
             <div className="flex items-start gap-3">

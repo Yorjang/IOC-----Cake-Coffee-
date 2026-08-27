@@ -15,6 +15,16 @@ import { OrdersService } from './orders.service';
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
+  @Post('pos')
+  @Permissions(Permission.UPDATE_ORDER)
+  createPos(
+    @CurrentUser() user: User,
+    @Body() dto: CreateOrderDto,
+    @Headers('x-session-id') sessionId: string,
+  ) {
+    return this.ordersService.createPosOrder(user, sessionId || null, dto);
+  }
+
   @Post()
   @Public()
   create(@CurrentUser() user: any, @Body() dto: CreateOrderDto, @Headers('x-session-id') sessionId: string) {

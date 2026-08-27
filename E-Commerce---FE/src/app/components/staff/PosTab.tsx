@@ -188,7 +188,7 @@ export function PosTab({ products, categories, branchId, loadOrders, refreshProd
         }),
       };
 
-      const res = await fetch(`${env.API_URL}/orders`, {
+      const res = await fetch(`${env.API_URL}/admin/orders/pos`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

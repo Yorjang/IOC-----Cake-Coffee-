@@ -10,7 +10,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { User, UserRole } from '../users/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatusHistory } from './order-status-history.entity';
-import { FulfillmentType, Order, OrderStatus, PaymentStatus, DeliveryStatus } from './order.entity';
+import { FulfillmentType, Order, OrderStatus, OrderType, PaymentStatus, DeliveryStatus } from './order.entity';
 import { DeliveryLog } from '../delivery/delivery-log.entity';
 
 const PICKUP_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
@@ -166,61 +166,89 @@ export class OrdersService {
   async getDashboardStats(): Promise<any> {
     const formatMoney = (val: number) => new Intl.NumberFormat('vi-VN').format(val) + 'đ';
 
-    // BUG-007 FIX: Run all independent queries in parallel (was serial — 6 round trips)
+    const percentChange = (current: number, previous: number) => {
+      if (previous === 0) return current === 0 ? 0 : 100;
+      return Math.round(((current - previous) / previous) * 100);
+    };
+
+    // Dashboard data is sourced from orders and inventory. POS orders are
+    // persisted as completed orders, so they are included in these totals.
     const [
-      todayOrdersRev,
-      todayPosRev,
+      todayRevenueRes,
+      yesterdayRevenueRes,
       todayOrdersCountRes,
-      todayPosCountRes,
+      yesterdayOrdersCountRes,
       productCountRes,
-      newCustomersRes,
+      todayCustomersRes,
+      yesterdayCustomersRes,
+      lowStockRes,
       weeklyChart,
       recentOrdersDb,
     ] = await Promise.all([
       this.orders.query(`
-        SELECT COALESCE(SUM(total_amount), 0) as total FROM orders 
+        SELECT COALESCE(SUM(total_amount), 0) AS total
+        FROM orders
         WHERE order_status = 'completed' AND created_at >= CURRENT_DATE
       `),
       this.orders.query(`
-        SELECT COALESCE(SUM(total_amount), 0) as total FROM sales_invoices 
-        WHERE invoice_status = 'completed' AND created_at >= CURRENT_DATE
+        SELECT COALESCE(SUM(total_amount), 0) AS total
+        FROM orders
+        WHERE order_status = 'completed'
+          AND created_at >= CURRENT_DATE - INTERVAL '1 day'
+          AND created_at < CURRENT_DATE
       `),
       this.orders.query(`
-        SELECT COUNT(*) as count FROM orders WHERE created_at >= CURRENT_DATE
+        SELECT COUNT(*)::int AS count
+        FROM orders
+        WHERE order_status <> 'cancelled' AND created_at >= CURRENT_DATE
       `),
       this.orders.query(`
-        SELECT COUNT(*) as count FROM sales_invoices WHERE created_at >= CURRENT_DATE
+        SELECT COUNT(*)::int AS count
+        FROM orders
+        WHERE order_status <> 'cancelled'
+          AND created_at >= CURRENT_DATE - INTERVAL '1 day'
+          AND created_at < CURRENT_DATE
       `),
       this.orders.query(`
-        SELECT COUNT(*) as count FROM products WHERE is_active = true
+        SELECT COUNT(*)::int AS count FROM products WHERE is_active = true
       `),
       this.orders.query(`
-        SELECT COUNT(*) as count FROM users 
+        SELECT COUNT(*)::int AS count
+        FROM users
         WHERE role = 'customer' AND created_at >= CURRENT_DATE
       `),
       this.orders.query(`
+        SELECT COUNT(*)::int AS count
+        FROM users
+        WHERE role = 'customer'
+          AND created_at >= CURRENT_DATE - INTERVAL '1 day'
+          AND created_at < CURRENT_DATE
+      `),
+      this.orders.query(`
+        SELECT COUNT(*)::int AS count
+        FROM (
+          SELECT variant_id
+          FROM branch_variant_stocks
+          GROUP BY variant_id
+          HAVING SUM(GREATEST(0, COALESCE(quantity, 0) - COALESCE(reserved_quantity, 0))) <= 5
+        ) AS low_stock_variants
+      `),
+      this.orders.query(`
         WITH days AS (
-          SELECT generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day')::date as day_date
+          SELECT generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day')::date AS day_date
         ),
         daily_orders AS (
-          SELECT DATE(created_at) as day_date, SUM(total_amount) as total_amount, COUNT(id) as count
+          SELECT DATE(created_at) AS day_date, SUM(total_amount) AS total_amount, COUNT(id) AS count
           FROM orders
           WHERE order_status = 'completed' AND created_at >= CURRENT_DATE - INTERVAL '6 days'
           GROUP BY DATE(created_at)
-        ),
-        daily_sales AS (
-          SELECT DATE(created_at) as day_date, SUM(total_amount) as total_amount, COUNT(id) as count
-          FROM sales_invoices
-          WHERE invoice_status = 'completed' AND created_at >= CURRENT_DATE - INTERVAL '6 days'
-          GROUP BY DATE(created_at)
         )
-        SELECT 
-          TO_CHAR(d.day_date, 'ID') as day_num,
-          COALESCE(o.total_amount, 0) + COALESCE(s.total_amount, 0) as revenue,
-          COALESCE(o.count, 0) + COALESCE(s.count, 0) as orders
+        SELECT
+          TO_CHAR(d.day_date, 'ID') AS day_num,
+          COALESCE(o.total_amount, 0) AS revenue,
+          COALESCE(o.count, 0) AS orders
         FROM days d
         LEFT JOIN daily_orders o ON o.day_date = d.day_date
-        LEFT JOIN daily_sales s ON s.day_date = d.day_date
         ORDER BY d.day_date
       `),
       this.orders.find({
@@ -230,16 +258,20 @@ export class OrdersService {
       }),
     ]);
 
-    const todayRevenueVal = Number(todayOrdersRev[0]?.total || 0) + Number(todayPosRev[0]?.total || 0);
-    const todayOrdersCount = Number(todayOrdersCountRes[0]?.count || 0) + Number(todayPosCountRes[0]?.count || 0);
+    const todayRevenue = Number(todayRevenueRes[0]?.total || 0);
+    const yesterdayRevenue = Number(yesterdayRevenueRes[0]?.total || 0);
+    const todayOrdersCount = Number(todayOrdersCountRes[0]?.count || 0);
+    const yesterdayOrdersCount = Number(yesterdayOrdersCountRes[0]?.count || 0);
     const totalProducts = Number(productCountRes[0]?.count || 0);
-    const newCustomers = Number(newCustomersRes[0]?.count || 0);
+    const newCustomers = Number(todayCustomersRes[0]?.count || 0);
+    const yesterdayCustomers = Number(yesterdayCustomersRes[0]?.count || 0);
+    const lowStockCount = Number(lowStockRes[0]?.count || 0);
 
     const stats = [
-      { label: "Doanh thu hôm nay", value: formatMoney(todayRevenueVal), delta: "+12%", icon: "DollarSign" },
-      { label: "Tổng đơn hàng", value: String(todayOrdersCount), delta: `+${todayOrdersCount} hôm nay`, icon: "ShoppingBag" },
-      { label: "Sản phẩm hoạt động", value: String(totalProducts), delta: "3 sắp hết", icon: "Package" },
-      { label: "Khách hàng mới", value: String(newCustomers), delta: `+${newCustomers} so hôm qua`, icon: "Users" },
+      { label: "Doanh thu hôm nay", value: formatMoney(todayRevenue), delta: percentChange(todayRevenue, yesterdayRevenue), icon: "DollarSign" },
+      { label: "Tổng đơn hàng", value: String(todayOrdersCount), delta: percentChange(todayOrdersCount, yesterdayOrdersCount), icon: "ShoppingBag" },
+      { label: "Sản phẩm hoạt động", value: String(totalProducts), delta: 0, icon: "Package" },
+      { label: "Khách hàng mới", value: String(newCustomers), delta: percentChange(newCustomers, yesterdayCustomers), icon: "Users" },
     ];
 
     const dayLabels: Record<string, string> = {
@@ -254,7 +286,7 @@ export class OrdersService {
 
     const recentOrders = recentOrdersDb.map((o: any) => ({
       id: o.orderCode,
-      customer: o.user?.fullName || 'Khách hàng',
+      customer: o.user?.fullName || o.shippingRecipientName || 'Khách vãng lai',
       items: o.items.map((i: any) => `${i.productName} (${i.variantName})`).join(', '),
       total: formatMoney(Number(o.totalAmount)),
       status: o.orderStatus === OrderStatus.PENDING ? 'Xác nhận' :
@@ -264,10 +296,23 @@ export class OrdersService {
       time: o.createdAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
     }));
 
-    return { stats, weekly, recentOrders };
+    return { stats, weekly, recentOrders, lowStockCount, updatedAt: new Date().toISOString() };
   }
 
-  async createOrder(userId: string | null, sessionId: string | null, dto: CreateOrderDto): Promise<Order> {
+  async createPosOrder(user: User, sessionId: string | null, dto: CreateOrderDto): Promise<Order> {
+    if (user.role !== UserRole.ADMIN && (!user.branchId || user.branchId !== dto.branchId)) {
+      throw new ForbiddenException('Bạn chỉ có thể tạo đơn POS tại chi nhánh được phân công');
+    }
+    // A walk-in POS sale must not be attributed to the cashier as a customer.
+    return this.createOrder(null, sessionId, dto, true);
+  }
+
+  async createOrder(
+    userId: string | null,
+    sessionId: string | null,
+    dto: CreateOrderDto,
+    isPosOrder = false,
+  ): Promise<Order> {
 
     const {
       branchId: requestedBranchId,
@@ -642,15 +687,21 @@ export class OrdersService {
             order_code, user_id, branch_id, subtotal, discount_amount, shipping_fee, total_amount, 
             payment_method, payment_status, order_status, order_type, fulfillment_type, 
             shipping_address_street, shipping_address_ward, shipping_address_district, shipping_address_province,
-            shipping_latitude, shipping_longitude, shipping_address_phone, shipping_recipient_name, note, coupon_code, session_id
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+            shipping_latitude, shipping_longitude, shipping_address_phone, shipping_recipient_name, note, coupon_code, session_id, paid_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
           RETURNING id
         `, [
           orderCode, userId || null, branchId, finalSubtotal, finalDiscount, finalShippingFee, finalTotalAmount,
-          paymentMethod, 'pending', 'pending', 'online', fulfillmentType,
+          paymentMethod,
+          isPosOrder ? PaymentStatus.PAID : PaymentStatus.PENDING,
+          isPosOrder ? OrderStatus.COMPLETED : OrderStatus.PENDING,
+          isPosOrder ? OrderType.POS : OrderType.ONLINE,
+          fulfillmentType,
           shippingAddressStreet, shippingAddressWard, shippingAddressDistrict, shippingAddressProvince,
           shippingLatitude, shippingLongitude, shippingAddressPhone, shippingRecipientName, note,
-          couponCode ? couponCode.toUpperCase().trim() : null, sessionId || null
+          couponCode ? couponCode.toUpperCase().trim() : null,
+          sessionId || null,
+          isPosOrder ? new Date() : null,
         ]);
         
         orderId = orderInsert[0].id;
@@ -692,7 +743,13 @@ export class OrdersService {
     }
 
     // 6. Create payment log
-    await this.paymentsService.createPayment(orderId, finalTotalAmount, paymentMethod);
+    const payment = await this.paymentsService.createPayment(orderId, finalTotalAmount, paymentMethod);
+    if (isPosOrder) {
+      await this.orders.query(
+        'UPDATE payments SET status = $1, paid_at = NOW() WHERE id = $2',
+        [PaymentStatus.PAID, payment.id],
+      );
+    }
 
     // BUG-003 FIX: Clear cart after order creation
     this.cartService.clearCart(userId || undefined, sessionId || undefined, branchId)

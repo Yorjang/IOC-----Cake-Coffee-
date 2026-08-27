@@ -36,7 +36,13 @@ describe('OrdersService.updateStatus', () => {
       transaction: jest.fn((callback: (value: typeof manager) => Promise<Order>) => callback(manager)),
     };
     const service = new OrdersService(
-      {} as Repository<Order>, {} as never, {} as never, dataSource as unknown as DataSource,
+      {} as Repository<Order>,
+      {} as never,
+      {} as never,
+      {} as never,
+      dataSource as unknown as DataSource,
+      {} as never,
+      {} as never,
     );
     return { service, orderRepository, historyRepository };
   };
