@@ -1,4 +1,4 @@
-import { CheckCircle2, CircleX, Clock3, Loader2, ShieldCheck } from 'lucide-react';
+import { CircleCheck, CircleX, Clock3, Loader2, ShieldCheck } from 'lucide-react';
 import { VIEW_KEYS } from '../../../../config/appConfig';
 import { Btn } from '../../../components/shared';
 import { useVnpayPayment } from '../hooks/useVnpayPayment';
@@ -14,7 +14,7 @@ export function VnpayPayment({ orderId, orderCode, setView }: VnpayPaymentProps)
   const content = {
     redirecting: { icon: <Loader2 className="animate-spin" size={42} />, title: 'Đang chuyển đến VNPay', description: 'Vui lòng không đóng hoặc tải lại trang này.', tone: 'text-blue-600 bg-blue-50' },
     pending: { icon: <Clock3 size={42} />, title: 'VNPay đang xác nhận giao dịch', description: 'Hệ thống đang chờ thông báo IPN an toàn từ VNPay.', tone: 'text-amber-600 bg-amber-50' },
-    paid: { icon: <CheckCircle2 size={42} />, title: 'Thanh toán VNPay thành công', description: 'Đơn hàng đã được xác nhận và chuyển sang xử lý.', tone: 'text-green-600 bg-green-50' },
+    paid: { icon: <CircleCheck size={42} />, title: 'Thanh toán VNPay thành công', description: 'Đơn hàng đã được xác nhận và chuyển sang xử lý.', tone: 'text-green-600 bg-green-50' },
     failed: { icon: <CircleX size={42} />, title: 'Thanh toán chưa thành công', description: `Giao dịch bị hủy hoặc thất bại${responseCode ? ` (mã ${responseCode})` : ''}.`, tone: 'text-red-600 bg-red-50' },
   }[status];
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, CheckCheck, PackageCheck, ShoppingBag, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Bell, CheckCheck, PackageCheck, ShoppingBag, ArrowRight, CircleCheck } from 'lucide-react';
 import type { NotificationItem } from '../services/notificationService';
 
 

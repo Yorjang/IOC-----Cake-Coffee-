@@ -1,4 +1,4 @@
-import { Award, CheckCircle2, Clock, CreditCard, Crosshair, Loader2, MapPin, Navigation, ShieldAlert, Store, Truck } from "lucide-react";
+import { Award, CircleCheck, Clock, CreditCard, Crosshair, Loader2, MapPin, Navigation, ShieldAlert, Store, Truck } from "lucide-react";
 import { CHECKOUT_CONFIG } from "../../config/appConfig";
 import { Btn } from "../components/shared";
 import { useCheckout } from "../features/checkout/hooks/useCheckout";
@@ -201,7 +201,7 @@ export function Checkout(props: any) {
                                   <p className="text-sm font-semibold text-foreground">{branch.name}</p>
                                   {index === 0 && hasCustomerLocation && <span className="mt-1 inline-block rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-primary">Gần nhất đang mở</span>}
                                 </div>
-                                {selected && <CheckCircle2 className="shrink-0 text-primary" size={18} />}
+                                {selected && <CircleCheck className="shrink-0 text-primary" size={18} />}
                               </div>
                               <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{branch.address}</p>
                               <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">

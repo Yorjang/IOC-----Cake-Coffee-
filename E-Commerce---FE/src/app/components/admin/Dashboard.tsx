@@ -2,7 +2,7 @@ import { parseRes } from '../../../utils/api';
 
 import {
   AlertCircle,
-  CheckCircle,
+  CircleCheck,
   DollarSign,
   Loader2,
   Package,
@@ -240,7 +240,7 @@ export function Dashboard() {
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <div className="mt-0.5 shrink-0 rounded-full bg-green-100 p-1">
-                <CheckCircle className="size-4 text-green-600" />
+                <CircleCheck className="size-4 text-green-600" />
               </div>
               <div>
                 <p className="text-sm font-medium">Báo cáo hoạt động bình thường</p>
@@ -258,7 +258,7 @@ export function Dashboard() {
             </div>
             <div className="flex items-start gap-3">
               <div className="mt-0.5 shrink-0 rounded-full bg-blue-100 p-1">
-                <CheckCircle className="size-4 text-blue-600" />
+                <CircleCheck className="size-4 text-blue-600" />
               </div>
               <div>
                 <p className="text-sm font-medium">Cổng thanh toán</p>

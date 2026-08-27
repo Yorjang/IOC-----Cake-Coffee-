@@ -19,22 +19,28 @@ export const matchSize = (itemSize: string, targetSize: string): boolean => {
 
 // Array format: [name, price, categoryName, imageUrl, rating, badge, discountPrice, bestCouponCode]
 export const apiProductToArray = (p: any, coupons: any[] = []): any[] => {
-  const activeVariants = (p.variants || [])
-    .filter((variant: any) => variant.status === "active")
+  const displayVariants = (p.variants || [])
+    .filter((variant: any) => variant.status !== "inactive")
     .sort((a: any, b: any) => Number(a.price) - Number(b.price));
-  const originalPrice = activeVariants[0]?.price ? Number(activeVariants[0].price) : 0;
+    
+  const availableVariants = displayVariants.filter((v: any) => v.status === "active");
+  
+  const originalPrice = displayVariants[0]?.price ? Number(displayVariants[0].price) : 0;
   const price = originalPrice ? `${originalPrice.toLocaleString("vi-VN")}đ` : "0đ";
   const categoryName = p.category?.name ?? "Khác";
   const imageUrl = p.imageUrl || "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=600&h=520&fit=crop&auto=format";
   const rawRating = p.averageRating !== undefined && p.averageRating !== null ? p.averageRating : p.rating;
   const rating = rawRating ? String(Number(rawRating).toFixed(1)) : "5.0";
+  
   const badge = p.productType === "combo"
     ? "Combo"
-    : activeVariants.length > 1
-      ? `${activeVariants.length} kích cỡ`
-      : activeVariants.length === 1 ? "Còn hàng" : "Hết hàng";
+    : availableVariants.length === 0
+      ? "Hết hàng"
+      : displayVariants.length > 1
+        ? `${displayVariants.length} kích cỡ`
+        : "Còn hàng";
 
-  let sizeStr = activeVariants[0]?.size || "Vừa";
+  let sizeStr = displayVariants[0]?.size || "Vừa";
   if (sizeStr.includes("(")) {
     sizeStr = sizeStr.split("(")[0].trim();
   }

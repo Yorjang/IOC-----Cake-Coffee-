@@ -1,7 +1,7 @@
 import { parseRes } from '../../../utils/api';
 
 import {
-  CheckCircle,
+  CircleCheck,
   Edit,
   Loader2,
   Plus,
@@ -272,7 +272,7 @@ export function AdminBanners() {
                   onClick={() => handleToggleActive(b)}
                   className={`inline-flex size-8 items-center justify-center rounded-lg transition ${b.isActive ? "bg-green-950/40 text-green-400 hover:bg-green-900/40" : "bg-gray-800 text-gray-400 hover:bg-gray-700"}`}
                 >
-                  {b.isActive ? <CheckCircle size={14} /> : <XCircle size={14} />}
+                  {b.isActive ? <CircleCheck size={14} /> : <XCircle size={14} />}
                 </button>
                 <button
                   title="Xóa banner"

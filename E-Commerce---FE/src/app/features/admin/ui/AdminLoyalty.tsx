@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   Award,
   Calendar,
-  CheckCircle2,
+  CircleCheck,
   ChevronLeft,
   ChevronRight,
   Edit3,
@@ -518,7 +518,7 @@ export function AdminLoyalty() {
                 onClick={() => handleSaveTier(editForm)}
                 className="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                {savingTier ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                {savingTier ? <Loader2 size={14} className="animate-spin" /> : <CircleCheck size={14} />}
                 Lưu cấu hình
               </button>
             </div>
@@ -581,7 +581,7 @@ export function AdminLoyalty() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 size={36} />
+              <CircleCheck size={36} />
             </div>
 
             <div className="space-y-1">
