@@ -58,4 +58,13 @@ describe('ChatService product matching', () => {
     expect(result).not.toContain('giới thiệu thêm');
     expect(result.length).toBeLessThanOrEqual(220);
   });
+
+  it('should normalize spaces inside Vietnamese prices and before punctuation', () => {
+    const result = service.formatAnswer(
+      'Giá là 45. 000đ , nguyên ổ 120. 000đ !',
+      'Không có dữ liệu.',
+    );
+
+    expect(result).toBe('Giá là 45.000đ, nguyên ổ 120.000đ!');
+  });
 });

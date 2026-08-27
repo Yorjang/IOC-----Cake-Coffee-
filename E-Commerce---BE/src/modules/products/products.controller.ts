@@ -89,7 +89,9 @@ export class ProductsController {
     findAllProducts(
         @Query() query: FindProductsQueryDto,
     ) {
-        return this.productsService.findAllProducts(query.tag);
+        // POS requests the catalogue for a specific branch so each variant can
+        // be decorated with its current available stock.
+        return this.productsService.findAllProducts(query.tag, undefined, false, query.branchId);
     }
 
     @Get('sizes/distinct')

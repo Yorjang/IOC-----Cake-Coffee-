@@ -258,6 +258,9 @@ export class ChatService {
     products: ChatProductContext[],
     history: ChatMessage[],
   ): Promise<string> {
+    if (/^(xin chao|hello|hi|hey)( ban)?$/u.test(this.normalizeSearchText(question))) {
+      return this.buildFallbackAnswer([], question);
+    }
     if (!this.openai) return this.buildFallbackAnswer(products, question);
 
     const productContext = JSON.stringify(products, null, 2);
@@ -337,16 +340,24 @@ export class ChatService {
     const normalized = (answer.trim() || fallback)
       .replace(/\*\*/g, '')
       .replace(/[ \t]+/g, ' ')
+      .replace(/(\d{1,3})[.,]\s+(\d{3})(?!\d)/gu, '$1.$2')
+      .replace(/\s+([,.;:!?])/gu, '$1')
       .replace(/\n{2,}/g, '\n');
-    const sentences = normalized
+    const sentenceSafe = normalized.replace(/(\d)\.(?=\d{3}(?:\D|$))/gu, '$1\uE000');
+    const sentences = sentenceSafe
       .replace(/\n/g, ' ')
       .match(/[^.!?]+[.!?]?/gu)
-      ?.map(sentence => sentence.trim())
+      ?.map(sentence => sentence.replace(/\uE000/g, '.').trim())
       .filter(Boolean) ?? [normalized];
-    const concise = sentences.slice(0, 3).join('\n');
-    if (concise.length <= 220) return concise;
+    const lines: string[] = [];
+    for (const sentence of sentences.slice(0, 3)) {
+      const candidate = [...lines, sentence].join('\n');
+      if (candidate.length > 220) break;
+      lines.push(sentence);
+    }
 
-    const shortened = concise.slice(0, 217);
+    if (lines.length > 0) return lines.join('\n');
+    const shortened = normalized.slice(0, 217);
     const lastSpace = shortened.lastIndexOf(' ');
     return `${shortened.slice(0, lastSpace > 120 ? lastSpace : 217).trim()}...`;
   }

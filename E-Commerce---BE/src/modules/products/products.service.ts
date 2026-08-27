@@ -159,6 +159,38 @@ export class ProductsService {
             order: { name: 'ASC' },
         });
 
+        // The public catalogue normally has no branch context. When a branch
+        // is supplied (the staff POS), attach the real available quantity from
+        // branch_variant_stocks in one batch query.  A variant is available
+        // only for the quantity that is not already reserved.
+        if (branchId && prods.length > 0) {
+            const variantIds = prods.flatMap(product => (product.variants || []).map(variant => variant.id));
+            if (variantIds.length > 0) {
+                const stockRows = await this.dataSource.query(
+                    `
+                    SELECT variant_id,
+                           GREATEST(0, COALESCE(quantity, 0) - COALESCE(reserved_quantity, 0)) AS available_quantity
+                    FROM branch_variant_stocks
+                    WHERE branch_id = $1 AND variant_id = ANY($2::uuid[])
+                    `,
+                    [branchId, variantIds],
+                );
+                const stockByVariant = new Map<string, number>(
+                    stockRows.map((row: { variant_id: string; available_quantity: number | string }) => [
+                        row.variant_id,
+                        Number(row.available_quantity),
+                    ]),
+                );
+
+                for (const product of prods) {
+                    for (const variant of product.variants || []) {
+                        (variant as ProductVariant & { availableQuantity: number }).availableQuantity =
+                            stockByVariant.get(variant.id) ?? 0;
+                    }
+                }
+            }
+        }
+
         try {
             const ratingsRaw = await this.dataSource.query(`
                 SELECT product_id, ROUND(AVG(rating)::numeric, 1) as average_rating, COUNT(id)::int as review_count

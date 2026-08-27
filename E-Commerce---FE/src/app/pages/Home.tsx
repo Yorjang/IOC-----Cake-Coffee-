@@ -256,14 +256,14 @@ export function Home({ setView, onSelectProduct, onAddToCart, wishlist, onToggle
 
       {/* ── Featured categories ── */}
       <Section title={MESSAGES.SECTION_CATEGORIES_TITLE}>
-        <div className="grid grid-cols-3 gap-3 sm:gap-4 sm:grid-cols-4 lg:grid-cols-6">
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-9">
           {featuredCategories.map((c) => (
             <button key={c.name} onClick={() => setView(c.name)} className="group flex flex-col w-full aspect-[4/5] sm:aspect-square overflow-hidden rounded-[20px] bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-black/5">
-              <div className="relative h-[75%] w-full overflow-hidden bg-muted">
+              <div className="relative h-[68%] w-full overflow-hidden bg-muted xl:h-[64%]">
                 <img src={c.img} alt={c.name} className="h-full w-full object-cover transition duration-700 group-hover:scale-110" />
               </div>
-              <div className="h-[25%] flex items-center justify-center bg-white pb-1">
-                <p className="text-[13px] md:text-[15px] font-bold text-[#3d2314] group-hover:text-[#b99368] transition-colors">{c.name}</p>
+              <div className="h-[32%] flex items-center justify-center bg-white px-1 pb-1 xl:h-[36%]">
+                <p className="text-center text-[13px] leading-tight md:text-[15px] xl:text-[13px] font-bold text-[#3d2314] group-hover:text-[#b99368] transition-colors">{c.name}</p>
               </div>
             </button>
           ))}

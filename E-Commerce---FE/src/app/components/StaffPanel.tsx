@@ -10,10 +10,11 @@ import {
   Store,
   Loader2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { env } from "../../config/env";
 import { parseRes } from "../../utils/api";
+import { apiProductToArray } from "../../utils/appUtils";
 import { getAccessToken } from "./authSession";
 
 import { PosTab } from "./staff/PosTab";
@@ -34,6 +35,34 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [], 
   const [active, setActive] = useState("counter");
   const [ordersList, setOrdersList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const branchId = staffUser?.branchId || staffUser?.branch?.id || selectedStore?.id;
+  const [posProducts, setPosProducts] = useState<any[]>(branchId ? [] : products);
+
+  const refreshPosProducts = useCallback(async () => {
+    if (!branchId) {
+      setPosProducts(products);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${env.API_URL}/products?branchId=${encodeURIComponent(branchId)}`, {
+        headers: { Authorization: `Bearer ${getAccessToken()}` },
+      });
+      const data = await parseRes(res);
+      if (!res.ok) throw new Error(data?.message || "Không thể tải tồn kho chi nhánh");
+      const branchProducts = Array.isArray(data) ? data : data?.data;
+      if (Array.isArray(branchProducts)) {
+        setPosProducts(branchProducts.map((product: any) => apiProductToArray(product)));
+      }
+    } catch (error) {
+      console.error("Không thể tải sản phẩm và tồn kho theo chi nhánh", error);
+      setPosProducts(products);
+    }
+  }, [branchId, products]);
+
+  useEffect(() => {
+    void refreshPosProducts();
+  }, [refreshPosProducts]);
 
   const loadOrders = async () => {
     const token = getAccessToken();
@@ -113,8 +142,6 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [], 
     { key: "kitchen", label: "Bếp & chuẩn bị", icon: PackageCheck },
     { key: "shift", label: "Bàn giao ca", icon: ClipboardCheck },
   ];
-
-  const branchId = staffUser?.branchId || staffUser?.branch?.id || selectedStore?.id;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -197,10 +224,11 @@ export function StaffPanel({ onExit, staffUser, products = [], categories = [], 
           <>
             <PosTab
               active={active === "counter"}
-              products={products}
+              products={posProducts}
               categories={categories}
               branchId={branchId}
               loadOrders={loadOrders}
+              refreshProducts={refreshPosProducts}
             />
             <OnlineOrdersTab
               active={active === "online"}
